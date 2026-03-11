@@ -1,11 +1,13 @@
 import os
 import customtkinter as ctk
 from tkinter import ttk, messagebox, filedialog
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Tuple
 import keyboard
+import threading
 from .data import DataManager, Timestamp, Episode, Season, Series
 from .scanner import scan_directory
 from .vlc_integration import get_vlc_path, parse_time_input, format_time_display, play_in_vlc, get_current_vlc_time, generate_highlight_playlist
+from .ffmpeg import export_seamless_scene
 
 # Configure basic appearance
 ctk.set_appearance_mode("dark")
@@ -38,7 +40,11 @@ class App(ctk.CTk):
         self.selected_episode: Optional[Episode] = None
         self.editing_timestamp_idx: Optional[int] = None
         self.show_only_highlighted = ctk.BooleanVar(value=False)
+        self.rapid_cut_mode = ctk.BooleanVar(value=False)
         self.active_tags: List[str] = []
+
+        self.rapid_segments: List[Tuple[int, int]] = []
+        self._current_rapid_start: int = -1
 
         self._setup_ui()
         self._populate_tree()
@@ -52,8 +58,34 @@ class App(ctk.CTk):
         try:
             keyboard.add_hotkey('ctrl+shift+[', lambda: self.after(0, self._hotkey_fetch_start))
             keyboard.add_hotkey('ctrl+shift+]', lambda: self.after(0, self._hotkey_fetch_end))
+
+            # Hook 'alt' key globally for dead man's switch in rapid cut mode
+            keyboard.on_press_key('alt', lambda _: self.after(0, self._handle_rapid_down))
+            keyboard.on_release_key('alt', lambda _: self.after(0, self._handle_rapid_up))
         except Exception as e:
             print(f"Failed to bind global hotkeys (you may need to run as administrator/root): {e}")
+
+    def _handle_rapid_down(self):
+        if not self.rapid_cut_mode.get() or not self.selected_episode: return
+        # Prevent auto-repeat triggers if key is held down
+        if self._current_rapid_start != -1: return
+
+        time_sec = get_current_vlc_time()
+        if time_sec >= 0:
+            self._current_rapid_start = time_sec
+            if hasattr(self, 'rapid_status_lbl'):
+                self.rapid_status_lbl.configure(text="🔴 RECORDING...", text_color="red")
+
+    def _handle_rapid_up(self):
+        if not self.rapid_cut_mode.get() or not self.selected_episode: return
+        if self._current_rapid_start == -1: return
+
+        end_sec = get_current_vlc_time()
+        if end_sec > self._current_rapid_start:
+            self.rapid_segments.append([self._current_rapid_start, end_sec])
+
+        self._current_rapid_start = -1
+        self._update_rapid_ui()
 
     def _hotkey_fetch_start(self):
         # Only fetch if an episode is selected and we are in the episode view
@@ -288,18 +320,24 @@ class App(ctk.CTk):
         h_frame.pack(fill="x", pady=5)
         h_frame.grid_columnconfigure(2, weight=1)
 
-        ctk.CTkLabel(h_frame, text="Time Range", font=ctk.CTkFont(weight="bold"), width=120).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(h_frame, text="Segments / Time", font=ctk.CTkFont(weight="bold"), width=150).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(h_frame, text="Tags", font=ctk.CTkFont(weight="bold"), width=100).grid(row=0, column=1, sticky="w", padx=10)
         ctk.CTkLabel(h_frame, text="Description", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, sticky="w", padx=10)
-        ctk.CTkLabel(h_frame, text="Actions", font=ctk.CTkFont(weight="bold"), width=150).grid(row=0, column=3, sticky="e")
+        ctk.CTkLabel(h_frame, text="Actions", font=ctk.CTkFont(weight="bold"), width=250).grid(row=0, column=3, sticky="e")
 
         for idx, ts in enumerate(episode.timestamps):
             row = ctk.CTkFrame(list_frame)
             row.pack(fill="x", pady=2)
             row.grid_columnconfigure(2, weight=1)
 
-            time_range = f"{ts.start_display} - {ts.end_display}" if ts.end_display else ts.start_display
-            ctk.CTkLabel(row, text=time_range, width=120).grid(row=0, column=0, sticky="w", padx=5)
+            num_segs = len(ts.segments)
+            if num_segs == 1:
+                st, et = ts.segments[0]
+                time_range = f"{format_time_display(st)} - {format_time_display(et)}"
+            else:
+                time_range = f"{num_segs} Segments (Multi)"
+
+            ctk.CTkLabel(row, text=time_range, width=150).grid(row=0, column=0, sticky="w", padx=5)
 
             tags_str = ", ".join(ts.tags)
             ctk.CTkLabel(row, text=tags_str, width=100).grid(row=0, column=1, sticky="w", padx=10)
@@ -309,7 +347,9 @@ class App(ctk.CTk):
             action_f = ctk.CTkFrame(row, fg_color="transparent")
             action_f.grid(row=0, column=3, sticky="e")
 
-            ctk.CTkButton(action_f, text="▶", width=30, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=lambda t=ts.start_time: self._play_timestamp(t)).pack(side="left", padx=2)
+            first_start = ts.segments[0][0] if ts.segments else 0
+            ctk.CTkButton(action_f, text="▶", width=30, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=lambda t=first_start: self._play_timestamp(t)).pack(side="left", padx=2)
+            ctk.CTkButton(action_f, text="🎬 Export Seamless", width=120, command=lambda t=ts: self._export_seamless(t)).pack(side="left", padx=2)
             ctk.CTkButton(action_f, text="Edit", width=40, command=lambda i=idx: self._start_edit_timestamp(i)).pack(side="left", padx=2)
             ctk.CTkButton(action_f, text="Del", width=40, fg_color="#C62828", hover_color="#B71C1C", command=lambda i=idx: self._delete_timestamp(i)).pack(side="left", padx=2)
 
@@ -319,19 +359,35 @@ class App(ctk.CTk):
 
         self.active_tags = []
 
-        # Row 1: Time Fetchers
-        time_row = ctk.CTkFrame(input_frame, fg_color="transparent")
-        time_row.pack(fill="x", pady=(10, 5), padx=5)
+        # Row 0: Rapid Cut Mode Toggle
+        rapid_row = ctk.CTkFrame(input_frame, fg_color="transparent")
+        rapid_row.pack(fill="x", pady=(5, 5), padx=5)
 
-        ctk.CTkButton(time_row, text="[ Get Start Time ]", width=120, command=lambda: self._fetch_vlc_time("start")).pack(side="left", padx=(0, 5))
-        self.start_entry = ctk.CTkEntry(time_row, placeholder_text="Start (MM:SS)", width=90)
+        self.rapid_switch = ctk.CTkSwitch(
+            rapid_row, text="⚡ Enable Rapid-Cut Mode (Hold ALT to record segments)",
+            variable=self.rapid_cut_mode,
+            command=self._toggle_rapid_mode
+        )
+        self.rapid_switch.pack(side="left")
+
+        self.rapid_status_lbl = ctk.CTkLabel(rapid_row, text="", width=150)
+        self.rapid_status_lbl.pack(side="left", padx=20)
+
+        self.rapid_clear_btn = ctk.CTkButton(rapid_row, text="Clear Segments", fg_color="gray", width=100, command=self._clear_rapid_segments)
+
+        # Row 1: Time Fetchers (Single Segment Input)
+        self.time_row = ctk.CTkFrame(input_frame, fg_color="transparent")
+        self.time_row.pack(fill="x", pady=(5, 5), padx=5)
+
+        ctk.CTkButton(self.time_row, text="[ Get Start Time ]", width=120, command=lambda: self._fetch_vlc_time("start")).pack(side="left", padx=(0, 5))
+        self.start_entry = ctk.CTkEntry(self.time_row, placeholder_text="Start (MM:SS)", width=90)
         self.start_entry.pack(side="left", padx=(0, 15))
 
-        ctk.CTkButton(time_row, text="[ Get End Time ]", width=120, command=lambda: self._fetch_vlc_time("end")).pack(side="left", padx=(0, 5))
-        self.end_entry = ctk.CTkEntry(time_row, placeholder_text="End (MM:SS)", width=90)
+        ctk.CTkButton(self.time_row, text="[ Get End Time ]", width=120, command=lambda: self._fetch_vlc_time("end")).pack(side="left", padx=(0, 5))
+        self.end_entry = ctk.CTkEntry(self.time_row, placeholder_text="End (MM:SS)", width=90)
         self.end_entry.pack(side="left")
 
-        self.vlc_warning_label = ctk.CTkLabel(time_row, text="", text_color="#C62828", font=ctk.CTkFont(size=11))
+        self.vlc_warning_label = ctk.CTkLabel(self.time_row, text="", text_color="#C62828", font=ctk.CTkFont(size=11))
         self.vlc_warning_label.pack(side="left", padx=10)
 
         # Row 2: Presets and Saving
@@ -358,6 +414,28 @@ class App(ctk.CTk):
 
         self.cancel_ts_btn = ctk.CTkButton(bot_row, text="Cancel", fg_color="gray", command=self._cancel_edit_timestamp)
         # Cancel btn is initially hidden
+
+        # Initial UI refresh for rapid mode
+        self._toggle_rapid_mode()
+
+    def _toggle_rapid_mode(self):
+        if self.rapid_cut_mode.get():
+            self.time_row.pack_forget() # Hide single entry
+            self.rapid_clear_btn.pack(side="left", padx=10)
+            self._update_rapid_ui()
+        else:
+            self.time_row.pack(fill="x", pady=(5, 5), padx=5, before=self.save_ts_btn.master)
+            self.rapid_clear_btn.pack_forget()
+            self.rapid_status_lbl.configure(text="")
+
+    def _update_rapid_ui(self):
+        if self.rapid_cut_mode.get():
+            n = len(self.rapid_segments)
+            self.rapid_status_lbl.configure(text=f"{n} Segments Captured", text_color="white")
+
+    def _clear_rapid_segments(self):
+        self.rapid_segments = []
+        self._update_rapid_ui()
 
     def _toggle_tag(self, tag: str):
         if tag in self.active_tags:
@@ -412,8 +490,7 @@ class App(ctk.CTk):
         for ts in self.selected_episode.timestamps:
             scenes.append({
                 'file': self.selected_episode.file_path,
-                'start': ts.start_time,
-                'end': ts.end_time,
+                'segments': ts.segments,
                 'title': f"{ts.description} - {', '.join(ts.tags)}" if ts.description else "Highlight"
             })
 
@@ -423,29 +500,72 @@ class App(ctk.CTk):
 
         generate_highlight_playlist(vlc_path, scenes)
 
+    def _export_seamless(self, ts: Timestamp):
+        if not self.selected_episode or not self.selected_episode.file_path: return
+        if not ts.segments: return
+
+        # Open save dialog
+        output_file = filedialog.asksaveasfilename(
+            title="Export Seamless Video",
+            defaultextension=".mp4",
+            filetypes=[("MP4 Video", "*.mp4"), ("All Files", "*.*")]
+        )
+
+        if not output_file: return
+
+        # Show a processing message (we run in thread to avoid freezing UI)
+        msg_win = ctk.CTkToplevel(self)
+        msg_win.title("Exporting...")
+        msg_win.geometry("300x150")
+        msg_win.attributes('-topmost', True)
+        ctk.CTkLabel(msg_win, text="FFmpeg is extracting and stitching segments.\nPlease wait...").pack(expand=True)
+        self.update() # Force UI refresh
+
+        def run_export():
+            success = export_seamless_scene(self.selected_episode.file_path, ts.segments, output_file)
+            self.after(0, lambda: _export_done(success))
+
+        def _export_done(success):
+            msg_win.destroy()
+            if success:
+                messagebox.showinfo("Export Complete", f"Successfully exported seamless scene to:\n{output_file}")
+            else:
+                messagebox.showerror("Export Failed", "Failed to export seamless scene. See console for details.")
+
+        threading.Thread(target=run_export, daemon=True).start()
+
     def _save_timestamp(self):
         if not self.selected_episode: return
 
-        start_str = self.start_entry.get().strip()
-        end_str = self.end_entry.get().strip()
         desc = self.desc_entry.get().strip()
         tags = list(self.active_tags)
 
-        if not start_str:
-            messagebox.showwarning("Incomplete Input", "Start time is required.")
-            return
+        # Decide segments based on mode
+        segments = []
+        if self.rapid_cut_mode.get():
+            if not self.rapid_segments:
+                messagebox.showwarning("No Segments", "Rapid-Cut mode is on, but no segments were recorded (Hold ALT).")
+                return
+            segments = list(self.rapid_segments)
+        else:
+            start_str = self.start_entry.get().strip()
+            end_str = self.end_entry.get().strip()
 
-        start_seconds = parse_time_input(start_str)
-        start_display = format_time_display(start_seconds)
+            if not start_str:
+                messagebox.showwarning("Incomplete Input", "Start time is required.")
+                return
 
-        end_seconds = parse_time_input(end_str) if end_str else start_seconds
-        end_display = format_time_display(end_seconds) if end_str else start_display
+            start_seconds = parse_time_input(start_str)
+            end_seconds = parse_time_input(end_str) if end_str else start_seconds
+
+            # Ensure start is before end
+            if start_seconds > end_seconds:
+                start_seconds, end_seconds = end_seconds, start_seconds
+
+            segments = [[start_seconds, end_seconds]]
 
         new_ts = Timestamp(
-            start_time=start_seconds,
-            end_time=end_seconds,
-            start_display=start_display,
-            end_display=end_display,
+            segments=segments,
             tags=tags,
             description=desc
         )
@@ -457,10 +577,11 @@ class App(ctk.CTk):
             # Add new
             self.selected_episode.timestamps.append(new_ts)
 
-        # Sort timestamps by start time
-        self.selected_episode.timestamps.sort(key=lambda x: x.start_time)
+        # Sort timestamps by earliest segment start time
+        self.selected_episode.timestamps.sort(key=lambda x: x.segments[0][0] if x.segments else 0)
 
         self.data_manager.save_library()
+        self._clear_rapid_segments() # Reset
         self._show_episode_view(self.selected_episode)
 
         # We need to refresh tree in case filter mode is active and we just added/deleted timestamps
@@ -471,11 +592,19 @@ class App(ctk.CTk):
         ts = self.selected_episode.timestamps[idx]
         self.editing_timestamp_idx = idx
 
-        self.start_entry.delete(0, 'end')
-        self.start_entry.insert(0, ts.start_display)
-
-        self.end_entry.delete(0, 'end')
-        self.end_entry.insert(0, ts.end_display)
+        # If it's a multi-segment scene, editing is restricted to tags/desc only for now
+        # We switch to Rapid Cut mode visually but don't populate segments
+        if len(ts.segments) > 1:
+            self.rapid_cut_mode.set(True)
+            self.rapid_segments = list(ts.segments)
+            self._toggle_rapid_mode()
+        else:
+            self.rapid_cut_mode.set(False)
+            self._toggle_rapid_mode()
+            self.start_entry.delete(0, 'end')
+            self.start_entry.insert(0, format_time_display(ts.segments[0][0]))
+            self.end_entry.delete(0, 'end')
+            self.end_entry.insert(0, format_time_display(ts.segments[0][1]))
 
         self.desc_entry.delete(0, 'end')
         self.desc_entry.insert(0, ts.description)
@@ -493,6 +622,7 @@ class App(ctk.CTk):
 
     def _cancel_edit_timestamp(self):
         self.editing_timestamp_idx = None
+        self._clear_rapid_segments()
         self.start_entry.delete(0, 'end')
         self.end_entry.delete(0, 'end')
         self.desc_entry.delete(0, 'end')

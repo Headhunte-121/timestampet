@@ -117,7 +117,7 @@ def get_current_vlc_time() -> int:
 def generate_highlight_playlist(vlc_path: str, scenes: List[dict]) -> str:
     """
     Generates an .m3u playlist and launches VLC with it.
-    scenes format: [{'file': 'C:/video.mp4', 'start': 120, 'end': 150, 'title': 'My Note'}]
+    scenes format: [{'file': 'C:/video.mp4', 'segments': [[120, 150], [160, 180]], 'title': 'My Note'}]
     """
     if not os.path.exists(vlc_path) and vlc_path != "vlc":
         print(f"Error: VLC path '{vlc_path}' not found.")
@@ -134,29 +134,33 @@ def generate_highlight_playlist(vlc_path: str, scenes: List[dict]) -> str:
             f.write("#EXTM3U\n")
             for scene in scenes:
                 file_path = scene.get('file', '')
-                start = scene.get('start', 0)
-                end = scene.get('end', 0)
+                segments = scene.get('segments', [])
                 title = scene.get('title', 'Highlight')
 
-                if not file_path or not os.path.exists(file_path):
+                if not file_path or not os.path.exists(file_path) or not segments:
                     continue
 
-                f.write(f"#EXTINF:-1,{title}\n")
-                f.write(f"#EXTVLCOPT:start-time={start}\n")
-                if end > start:
-                    f.write(f"#EXTVLCOPT:stop-time={end}\n")
-                f.write(f"{file_path}\n")
+                # Write an entry for each segment in the scene
+                for idx, (start, end) in enumerate(segments):
+                    seg_title = title if len(segments) == 1 else f"{title} (Seg {idx+1})"
+                    f.write(f"#EXTINF:-1,{seg_title}\n")
+                    f.write(f"#EXTVLCOPT:start-time={start}\n")
+                    if end > start:
+                        f.write(f"#EXTVLCOPT:stop-time={end}\n")
+                    f.write(f"{file_path}\n")
 
     except Exception as e:
         print(f"Failed to write m3u: {e}")
         return ""
 
-    # Launch VLC with the playlist
+    # Launch VLC with the playlist and optimize for seamless playback
     command = [
         vlc_path,
         temp_path,
         "--extraintf", "http",
-        f"--http-password={VLC_HTTP_PASSWORD}"
+        f"--http-password={VLC_HTTP_PASSWORD}",
+        "--file-caching=10000",
+        "--play-and-pause"
     ]
 
     try:

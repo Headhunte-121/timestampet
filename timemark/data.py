@@ -7,10 +7,7 @@ from .config import LIBRARY_FILE, SETTINGS_FILE
 
 @dataclass
 class Timestamp:
-    start_time: int
-    end_time: int
-    start_display: str
-    end_display: str
+    segments: List[List[int]]  # Format: [[start_sec, end_sec], [start_sec, end_sec]]
     tags: List[str] = field(default_factory=list)
     description: str = ""
 
@@ -58,12 +55,19 @@ class DataManager:
                     for ep_key, ep_data in season_data.get("episodes", {}).items():
                         timestamps = []
                         for ts_data in ep_data.get("timestamps", []):
-                            # Migration from old format:
+                            # Migration from V1 (time_seconds):
                             if "time_seconds" in ts_data:
                                 time_sec = ts_data["time_seconds"]
-                                display = ts_data["display_time"]
                                 desc = ts_data["description"]
-                                timestamps.append(Timestamp(start_time=time_sec, end_time=time_sec, start_display=display, end_display=display, description=desc))
+                                timestamps.append(Timestamp(segments=[[time_sec, time_sec]], tags=[], description=desc))
+                            # Migration from V2 (start_time, end_time):
+                            elif "start_time" in ts_data:
+                                st = ts_data["start_time"]
+                                et = ts_data["end_time"]
+                                desc = ts_data.get("description", "")
+                                tags = ts_data.get("tags", [])
+                                timestamps.append(Timestamp(segments=[[st, et]], tags=tags, description=desc))
+                            # V3 (segments):
                             else:
                                 timestamps.append(Timestamp(**ts_data))
 
@@ -81,12 +85,19 @@ class DataManager:
             for ep_key, ep_data in data.get("unmatched", {}).items():
                 timestamps = []
                 for ts_data in ep_data.get("timestamps", []):
-                    # Migration from old format:
+                    # Migration from V1 (time_seconds):
                     if "time_seconds" in ts_data:
                         time_sec = ts_data["time_seconds"]
-                        display = ts_data["display_time"]
                         desc = ts_data["description"]
-                        timestamps.append(Timestamp(start_time=time_sec, end_time=time_sec, start_display=display, end_display=display, description=desc))
+                        timestamps.append(Timestamp(segments=[[time_sec, time_sec]], tags=[], description=desc))
+                    # Migration from V2 (start_time, end_time):
+                    elif "start_time" in ts_data:
+                        st = ts_data["start_time"]
+                        et = ts_data["end_time"]
+                        desc = ts_data.get("description", "")
+                        tags = ts_data.get("tags", [])
+                        timestamps.append(Timestamp(segments=[[st, et]], tags=tags, description=desc))
+                    # V3 (segments):
                     else:
                         timestamps.append(Timestamp(**ts_data))
 
@@ -165,7 +176,7 @@ if __name__ == "__main__":
     dm.library.series["Breaking Bad"] = Series("Breaking Bad")
     dm.library.series["Breaking Bad"].seasons["1"] = Season("1")
     ep = Episode("Pilot", "1", "Breaking Bad", "C:/video.mp4")
-    ep.timestamps.append(Timestamp(120, 150, "02:00", "02:30", ["Action"], "Start of action"))
+    ep.timestamps.append(Timestamp(segments=[[120, 125], [130, 135]], tags=["Action"], description="Start of action"))
     dm.library.series["Breaking Bad"].seasons["1"].episodes["1"] = ep
 
     dm.save_library()
