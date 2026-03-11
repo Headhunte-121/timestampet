@@ -2,6 +2,7 @@ import os
 import customtkinter as ctk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Any, List, Tuple
+from pathlib import Path
 import keyboard
 import threading
 from .data import DataManager, Timestamp, Episode, Season, Series
@@ -9,6 +10,7 @@ from .scanner import scan_directory
 from .vlc_integration import get_vlc_path, parse_time_input, format_time_display, play_in_vlc, get_current_vlc_time, generate_highlight_playlist
 from .ffmpeg import export_seamless_scene
 from .toast import ToastNotification
+from .mini import MiniBar
 
 # Configure basic appearance
 ctk.set_appearance_mode("dark")
@@ -44,8 +46,8 @@ class App(ctk.CTk):
         self.rapid_cut_mode = ctk.BooleanVar(value=False)
         self.active_tags: List[str] = []
 
-        self.rapid_segments: List[Tuple[int, int]] = []
-        self._current_rapid_start: int = -1
+        self.rapid_segments: List[Tuple[float, float]] = []
+        self._current_rapid_start: float = -1
 
         self._setup_ui()
         self._populate_tree()
@@ -77,7 +79,7 @@ class App(ctk.CTk):
             if hasattr(self, 'rapid_status_lbl'):
                 self.rapid_status_lbl.configure(text="🔴 RECORDING...", text_color="red")
             if hasattr(self, 'mini_bar') and self.mini_bar:
-                self.mini_bar.update_status(True, len(self.rapid_segments))
+                self.mini_bar.update_status(True, self.rapid_segments)
 
     def _handle_rapid_up(self):
         if not self.rapid_cut_mode.get() or not self.selected_episode: return
@@ -89,8 +91,6 @@ class App(ctk.CTk):
 
         self._current_rapid_start = -1
         self._update_rapid_ui()
-        if hasattr(self, 'mini_bar') and self.mini_bar:
-            self.mini_bar.update_status(False, len(self.rapid_segments))
 
     def _hotkey_fetch_start(self):
         # Only fetch if an episode is selected and we are in the episode view
@@ -371,21 +371,25 @@ class App(ctk.CTk):
 
         self.active_tags = []
 
-        # Row 0: Rapid Cut Mode Toggle
+        # Row 0: Rapid Cut Mode Toggle & Pills Container
         rapid_row = ctk.CTkFrame(input_frame, fg_color="transparent")
         rapid_row.pack(fill="x", pady=(5, 5), padx=5)
 
         self.rapid_switch = ctk.CTkSwitch(
-            rapid_row, text="⚡ Enable Rapid-Cut Mode (Hold ALT to record segments)",
+            rapid_row, text="⚡ Enable Rapid-Cut Mode (Hold ALT to record)",
             variable=self.rapid_cut_mode,
             command=self._toggle_rapid_mode
         )
         self.rapid_switch.pack(side="left")
 
-        self.rapid_status_lbl = ctk.CTkLabel(rapid_row, text="", width=150)
-        self.rapid_status_lbl.pack(side="left", padx=20)
+        self.rapid_status_lbl = ctk.CTkLabel(rapid_row, text="", width=120)
+        self.rapid_status_lbl.pack(side="left", padx=10)
 
-        self.rapid_clear_btn = ctk.CTkButton(rapid_row, text="Clear Segments", fg_color="gray", width=100, command=self._clear_rapid_segments)
+        self.rapid_clear_btn = ctk.CTkButton(rapid_row, text="Clear All", fg_color="gray", width=80, command=self._clear_rapid_segments)
+
+        # Timeline/Pills Container (horizontal scroll or just a wrapping frame)
+        self.pills_frame = ctk.CTkScrollableFrame(input_frame, orientation="horizontal", height=40)
+        self.pills_frame.pack(fill="x", padx=5, pady=(0, 5))
 
         # Row 1: Time Fetchers (Single Segment Input)
         self.time_row = ctk.CTkFrame(input_frame, fg_color="transparent")
@@ -434,8 +438,10 @@ class App(ctk.CTk):
         if self.rapid_cut_mode.get():
             self.time_row.pack_forget() # Hide single entry
             self.rapid_clear_btn.pack(side="left", padx=10)
+            self.pills_frame.pack(fill="x", padx=5, pady=(0, 5), before=self.time_row)
             self._update_rapid_ui()
         else:
+            self.pills_frame.pack_forget()
             self.time_row.pack(fill="x", pady=(5, 5), padx=5, before=self.save_ts_btn.master)
             self.rapid_clear_btn.pack_forget()
             self.rapid_status_lbl.configure(text="")
@@ -443,15 +449,56 @@ class App(ctk.CTk):
     def _update_rapid_ui(self):
         if self.rapid_cut_mode.get():
             n = len(self.rapid_segments)
-            self.rapid_status_lbl.configure(text=f"{n} Segments Captured", text_color="white")
+            self.rapid_status_lbl.configure(text=f"{n} Segments", text_color="white")
+
+            # Redraw pills
+            for widget in self.pills_frame.winfo_children():
+                widget.destroy()
+
+            for i, seg in enumerate(self.rapid_segments):
+                duration = max(0, seg[1] - seg[0])
+                pill = ctk.CTkFrame(self.pills_frame, fg_color="#3a7ebf", corner_radius=10)
+                pill.pack(side="left", padx=5, pady=2)
+
+                # Nudge Left (<)
+                btn_left = ctk.CTkButton(pill, text="<", width=20, height=20, fg_color="transparent",
+                                         command=lambda idx=i: self._nudge_segment(idx, -0.5))
+                btn_left.pack(side="left", padx=2)
+
+                # Label (e.g. 2.5s)
+                lbl = ctk.CTkLabel(pill, text=f"{duration:.1f}s", font=ctk.CTkFont(size=11, weight="bold"))
+                lbl.pack(side="left", padx=2)
+
+                # Nudge Right (>)
+                btn_right = ctk.CTkButton(pill, text=">", width=20, height=20, fg_color="transparent",
+                                          command=lambda idx=i: self._nudge_segment(idx, 0.5))
+                btn_right.pack(side="left", padx=2)
+
+                # Delete (X)
+                btn_del = ctk.CTkButton(pill, text="✖", width=20, height=20, fg_color="transparent", hover_color="#C62828",
+                                        command=lambda idx=i: self._delete_segment(idx))
+                btn_del.pack(side="left", padx=2)
+
             if hasattr(self, 'mini_bar') and self.mini_bar:
-                self.mini_bar.update_status(False, n)
+                self.mini_bar.update_status(False, self.rapid_segments)
+
+    def _delete_segment(self, idx: int):
+        if 0 <= idx < len(self.rapid_segments):
+            del self.rapid_segments[idx]
+            self._update_rapid_ui()
+
+    def _nudge_segment(self, idx: int, amount: float):
+        if 0 <= idx < len(self.rapid_segments):
+            # Nudge the end time by the amount
+            st, et = self.rapid_segments[idx]
+            self.rapid_segments[idx] = [st, max(st, et + amount)]
+            self._update_rapid_ui()
 
     def _clear_rapid_segments(self):
         self.rapid_segments = []
         self._update_rapid_ui()
         if hasattr(self, 'mini_bar') and self.mini_bar:
-            self.mini_bar.update_status(False, 0)
+            self.mini_bar.update_status(False, [])
 
     def _toggle_tag(self, tag: str):
         if tag in self.active_tags:
@@ -588,7 +635,7 @@ class App(ctk.CTk):
             self._show_episode_view(self.selected_episode)
 
         self.mini_bar = MiniBar(self, on_export_callback=on_export, on_close_callback=on_close)
-        self.mini_bar.update_status(False, len(self.rapid_segments))
+        self.mini_bar.update_status(False, self.rapid_segments)
 
     def _save_timestamp(self):
         if not self.selected_episode: return
@@ -770,7 +817,7 @@ class App(ctk.CTk):
                      existing_ep.file_path = ep.file_path
                      existing_ep.timestamps.extend(ep.timestamps)
                      # Sort timestamps
-                     existing_ep.timestamps.sort(key=lambda x: x.start_time)
+                     existing_ep.timestamps.sort(key=lambda x: x.segments[0][0] if x.segments else 0)
                  else:
                      season_obj.episodes[episode_num] = ep
 

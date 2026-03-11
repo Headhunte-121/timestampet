@@ -7,7 +7,7 @@ from .config import LIBRARY_FILE, SETTINGS_FILE
 
 @dataclass
 class Timestamp:
-    segments: List[List[int]]  # Format: [[start_sec, end_sec], [start_sec, end_sec]]
+    segments: List[List[float]]  # Format: [[start_sec, end_sec], [start_sec, end_sec]]
     tags: List[str] = field(default_factory=list)
     description: str = ""
 

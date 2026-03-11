@@ -24,10 +24,11 @@ def get_ffmpeg_path() -> str:
                 return p
     return ""
 
-def export_seamless_scene(video_file: str, segments: List[Tuple[int, int]], output_file: str) -> bool:
+def export_seamless_scene(video_file: str, segments: List[Tuple[float, float]], output_file: str) -> bool:
     """
-    Uses FFmpeg to extract multiple segments from a video and concatenate them
-    losslessly using the stream copy codec (-c copy).
+    Uses FFmpeg to extract multiple segments from a video and concatenate them.
+    Uses smart re-encoding (-c:v libx264 -preset ultrafast -crf 18) for frame-accurate
+    cuts to eliminate keyframe artifacts, while stream copying audio.
     """
     ffmpeg_path = get_ffmpeg_path()
     if not ffmpeg_path:
@@ -45,7 +46,7 @@ def export_seamless_scene(video_file: str, segments: List[Tuple[int, int]], outp
     segment_files = []
 
     try:
-        # Step 1: Extract each segment losslessly
+        # Step 1: Extract each segment with smart re-encoding
         for idx, (start, end) in enumerate(segments):
             duration = end - start
             if duration <= 0:
@@ -53,14 +54,17 @@ def export_seamless_scene(video_file: str, segments: List[Tuple[int, int]], outp
 
             seg_out = os.path.join(temp_dir, f"seg_{idx:03d}.mp4")
 
-            # Fast seek (-ss before -i) for extraction, stream copy
+            # Fast seek (-ss before -i) for extraction, re-encode video for frame accuracy
             cmd = [
                 ffmpeg_path,
                 "-y", # Overwrite
                 "-ss", str(start),
                 "-i", video_file,
                 "-t", str(duration),
-                "-c", "copy",
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-crf", "18",
+                "-c:a", "copy",
                 "-avoid_negative_ts", "make_zero",
                 seg_out
             ]
