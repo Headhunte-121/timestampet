@@ -123,11 +123,13 @@ class DataManager:
             print(f"Error saving library: {e}")
 
     def load_settings(self) -> dict:
+        home = str(Path.home())
         default_settings = {
             "vlc_path": "",
             "window_geometry": "1000x700",
             "window_position": "+100+100",
-            "tags_presets": ["Action", "Funny", "Important"]
+            "tags_presets": ["Action", "Funny", "Important"],
+            "default_export_dir": str(Path(home) / "Videos" / "TimeMark")
         }
         if not SETTINGS_FILE.exists():
             return default_settings

@@ -8,6 +8,7 @@ from .data import DataManager, Timestamp, Episode, Season, Series
 from .scanner import scan_directory
 from .vlc_integration import get_vlc_path, parse_time_input, format_time_display, play_in_vlc, get_current_vlc_time, generate_highlight_playlist
 from .ffmpeg import export_seamless_scene
+from .toast import ToastNotification
 
 # Configure basic appearance
 ctk.set_appearance_mode("dark")
@@ -75,6 +76,8 @@ class App(ctk.CTk):
             self._current_rapid_start = time_sec
             if hasattr(self, 'rapid_status_lbl'):
                 self.rapid_status_lbl.configure(text="🔴 RECORDING...", text_color="red")
+            if hasattr(self, 'mini_bar') and self.mini_bar:
+                self.mini_bar.update_status(True, len(self.rapid_segments))
 
     def _handle_rapid_up(self):
         if not self.rapid_cut_mode.get() or not self.selected_episode: return
@@ -86,6 +89,8 @@ class App(ctk.CTk):
 
         self._current_rapid_start = -1
         self._update_rapid_ui()
+        if hasattr(self, 'mini_bar') and self.mini_bar:
+            self.mini_bar.update_status(False, len(self.rapid_segments))
 
     def _hotkey_fetch_start(self):
         # Only fetch if an episode is selected and we are in the episode view
@@ -129,6 +134,13 @@ class App(ctk.CTk):
             command=self._populate_tree
         )
         self.filter_switch.pack(anchor="w")
+
+        self.mini_btn = ctk.CTkButton(
+            top_left_frame, text="🔲 Switch to Mini-Mode",
+            fg_color="#555555", hover_color="#666666",
+            command=self._toggle_mini_mode
+        )
+        self.mini_btn.pack(fill="x", pady=(10, 0))
 
         # Left Pane Middle: Treeview
         # Tkinter Treeview needs special styling for dark mode
@@ -432,10 +444,14 @@ class App(ctk.CTk):
         if self.rapid_cut_mode.get():
             n = len(self.rapid_segments)
             self.rapid_status_lbl.configure(text=f"{n} Segments Captured", text_color="white")
+            if hasattr(self, 'mini_bar') and self.mini_bar:
+                self.mini_bar.update_status(False, n)
 
     def _clear_rapid_segments(self):
         self.rapid_segments = []
         self._update_rapid_ui()
+        if hasattr(self, 'mini_bar') and self.mini_bar:
+            self.mini_bar.update_status(False, 0)
 
     def _toggle_tag(self, tag: str):
         if tag in self.active_tags:
@@ -504,35 +520,75 @@ class App(ctk.CTk):
         if not self.selected_episode or not self.selected_episode.file_path: return
         if not ts.segments: return
 
-        # Open save dialog
-        output_file = filedialog.asksaveasfilename(
-            title="Export Seamless Video",
-            defaultextension=".mp4",
-            filetypes=[("MP4 Video", "*.mp4"), ("All Files", "*.*")]
-        )
+        export_dir = self.data_manager.settings.get("default_export_dir", str(Path.home() / "Videos" / "TimeMark"))
+        os.makedirs(export_dir, exist_ok=True)
 
-        if not output_file: return
+        ep = self.selected_episode
+        safe_series = "".join(c for c in ep.series if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+        safe_desc = "".join(c for c in ts.description if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+        if not safe_desc:
+            safe_desc = "QuickCut"
 
-        # Show a processing message (we run in thread to avoid freezing UI)
-        msg_win = ctk.CTkToplevel(self)
-        msg_win.title("Exporting...")
-        msg_win.geometry("300x150")
-        msg_win.attributes('-topmost', True)
-        ctk.CTkLabel(msg_win, text="FFmpeg is extracting and stitching segments.\nPlease wait...").pack(expand=True)
-        self.update() # Force UI refresh
+        start_time_str = f"{ts.segments[0][0]}s"
+
+        file_name = f"{safe_series}_S{ep.season}E{ep.title.split()[-1]}_{safe_desc}_{start_time_str}.mp4"
+        output_file = os.path.join(export_dir, file_name)
+
+        ToastNotification(self, title="Export Started", message=f"Exporting seamless scene to {export_dir}...\nPlease wait.", duration=3000)
 
         def run_export():
-            success = export_seamless_scene(self.selected_episode.file_path, ts.segments, output_file)
-            self.after(0, lambda: _export_done(success))
+            success = export_seamless_scene(ep.file_path, ts.segments, output_file)
+            self.after(0, lambda: _export_done(success, output_file))
 
-        def _export_done(success):
-            msg_win.destroy()
+        def _export_done(success, out_file):
             if success:
-                messagebox.showinfo("Export Complete", f"Successfully exported seamless scene to:\n{output_file}")
+                ToastNotification(self, title="✅ Clip Saved Successfully!", message=f"Saved to:\n{out_file}", duration=5000, color="#1b5e20")
             else:
-                messagebox.showerror("Export Failed", "Failed to export seamless scene. See console for details.")
+                ToastNotification(self, title="❌ Export Failed", message="Failed to export seamless scene. See console.", duration=5000, color="#b71c1c")
 
         threading.Thread(target=run_export, daemon=True).start()
+
+    def _toggle_mini_mode(self):
+        if not self.selected_episode:
+            messagebox.showwarning("No Episode", "Please select an episode first before entering Mini-Mode.")
+            return
+
+        # Ensure rapid cut mode is on
+        if not self.rapid_cut_mode.get():
+            self.rapid_cut_mode.set(True)
+            self._toggle_rapid_mode()
+
+        self.withdraw() # Hide main window
+
+        def on_export():
+            if not self.rapid_segments:
+                ToastNotification(self.mini_bar, title="No Segments", message="Hold ALT to capture segments first.", duration=3000, color="#b71c1c")
+                return
+
+            # Save the rapid segments as a Timestamp to the library
+            new_ts = Timestamp(
+                segments=list(self.rapid_segments),
+                tags=list(self.active_tags),
+                description="GhostClipper"
+            )
+            self.selected_episode.timestamps.append(new_ts)
+            self.selected_episode.timestamps.sort(key=lambda x: x.segments[0][0] if x.segments else 0)
+            self.data_manager.save_library()
+
+            # Trigger background export of the saved timestamp
+            self._export_seamless(new_ts)
+
+            # Reset buffer
+            self._clear_rapid_segments()
+
+        def on_close():
+            self.mini_bar.destroy()
+            self.mini_bar = None
+            self.deiconify() # Show main window
+            self._show_episode_view(self.selected_episode)
+
+        self.mini_bar = MiniBar(self, on_export_callback=on_export, on_close_callback=on_close)
+        self.mini_bar.update_status(False, len(self.rapid_segments))
 
     def _save_timestamp(self):
         if not self.selected_episode: return
@@ -771,9 +827,10 @@ class App(ctk.CTk):
     def _open_settings(self):
         settings_win = ctk.CTkToplevel(self)
         settings_win.title("Settings")
-        settings_win.geometry("500x300")
+        settings_win.geometry("500x400")
         settings_win.grab_set()
 
+        # VLC Path
         ctk.CTkLabel(settings_win, text="VLC Executable Path:", font=ctk.CTkFont(weight="bold")).pack(pady=(20, 5), padx=20, anchor="w")
 
         vlc_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
@@ -791,8 +848,27 @@ class App(ctk.CTk):
 
         ctk.CTkButton(vlc_frame, text="Browse", width=80, command=browse_vlc).pack(side="left")
 
+        # Export Path
+        ctk.CTkLabel(settings_win, text="Default Export Directory:", font=ctk.CTkFont(weight="bold")).pack(pady=(15, 5), padx=20, anchor="w")
+
+        exp_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
+        exp_frame.pack(fill="x", padx=20)
+
+        exp_entry = ctk.CTkEntry(exp_frame)
+        exp_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        exp_entry.insert(0, self.data_manager.settings.get("default_export_dir", ""))
+
+        def browse_exp():
+             path = filedialog.askdirectory(title="Select Default Export Directory")
+             if path:
+                 exp_entry.delete(0, 'end')
+                 exp_entry.insert(0, path)
+
+        ctk.CTkButton(exp_frame, text="Browse", width=80, command=browse_exp).pack(side="left")
+
         def save_settings():
              self.data_manager.settings["vlc_path"] = vlc_entry.get()
+             self.data_manager.settings["default_export_dir"] = exp_entry.get()
              self.data_manager.save_settings()
              settings_win.destroy()
 
