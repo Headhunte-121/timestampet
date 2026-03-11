@@ -1,10 +1,11 @@
 import os
 import customtkinter as ctk
 from tkinter import ttk, messagebox, filedialog
-from typing import Optional, Any
+from typing import Optional, Any, List
+import keyboard
 from .data import DataManager, Timestamp, Episode, Season, Series
 from .scanner import scan_directory
-from .vlc_integration import get_vlc_path, parse_time_input, format_time_display, play_in_vlc
+from .vlc_integration import get_vlc_path, parse_time_input, format_time_display, play_in_vlc, get_current_vlc_time, generate_highlight_playlist
 
 # Configure basic appearance
 ctk.set_appearance_mode("dark")
@@ -36,12 +37,32 @@ class App(ctk.CTk):
         self.selected_node_id: Optional[str] = None
         self.selected_episode: Optional[Episode] = None
         self.editing_timestamp_idx: Optional[int] = None
+        self.show_only_highlighted = ctk.BooleanVar(value=False)
+        self.active_tags: List[str] = []
 
         self._setup_ui()
         self._populate_tree()
 
+        self._setup_hotkeys()
+
         # Bind closing event to save geometry
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+    def _setup_hotkeys(self):
+        try:
+            keyboard.add_hotkey('ctrl+shift+[', lambda: self.after(0, self._hotkey_fetch_start))
+            keyboard.add_hotkey('ctrl+shift+]', lambda: self.after(0, self._hotkey_fetch_end))
+        except Exception as e:
+            print(f"Failed to bind global hotkeys (you may need to run as administrator/root): {e}")
+
+    def _hotkey_fetch_start(self):
+        # Only fetch if an episode is selected and we are in the episode view
+        if self.selected_episode and hasattr(self, 'start_entry'):
+            self._fetch_vlc_time("start")
+
+    def _hotkey_fetch_end(self):
+        if self.selected_episode and hasattr(self, 'end_entry'):
+            self._fetch_vlc_time("end")
 
     def _on_closing(self):
         # Save geometry
@@ -59,13 +80,23 @@ class App(ctk.CTk):
         self.left_frame.grid(row=0, column=0, sticky="nsew")
         self.left_frame.grid_rowconfigure(1, weight=1)
 
-        # Left Pane Top: Scan Button
+        # Left Pane Top: Scan Button & Filter Toggle
+        top_left_frame = ctk.CTkFrame(self.left_frame, fg_color="transparent")
+        top_left_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+
         self.scan_btn = ctk.CTkButton(
-            self.left_frame, text="📂 Scan Media Folder",
+            top_left_frame, text="📂 Scan Media Folder",
             fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
             command=self._scan_folder
         )
-        self.scan_btn.grid(row=0, column=0, padx=10, pady=(20, 10), sticky="ew")
+        self.scan_btn.pack(fill="x", pady=(0, 10))
+
+        self.filter_switch = ctk.CTkSwitch(
+            top_left_frame, text="👁️ Show Only Highlighted",
+            variable=self.show_only_highlighted,
+            command=self._populate_tree
+        )
+        self.filter_switch.pack(anchor="w")
 
         # Left Pane Middle: Treeview
         # Tkinter Treeview needs special styling for dark mode
@@ -128,22 +159,50 @@ class App(ctk.CTk):
         self.tree.delete(*self.tree.get_children())
 
         lib = self.data_manager.library
+        filter_on = self.show_only_highlighted.get()
 
         # Populate Series
         for series_name, series in sorted(lib.series.items()):
-            s_node = self.tree.insert("", "end", text=series_name, values=("series", series_name))
+            series_has_highlights = False
+            s_node_children = []
 
             for season_num, season in sorted(series.seasons.items(), key=lambda x: int(x[0])):
-                se_node = self.tree.insert(s_node, "end", text=f"Season {season_num}", values=("season", series_name, season_num))
+                season_has_highlights = False
+                se_node_children = []
 
                 for ep_num, episode in sorted(season.episodes.items(), key=lambda x: int(x[0])):
-                    self.tree.insert(se_node, "end", text=episode.title, values=("episode", series_name, season_num, ep_num))
+                    has_ts = len(episode.timestamps) > 0
+                    if not filter_on or has_ts:
+                        se_node_children.append((episode.title, ("episode", series_name, season_num, ep_num)))
+                        if has_ts:
+                            season_has_highlights = True
+                            series_has_highlights = True
+
+                if not filter_on or season_has_highlights:
+                    s_node_children.append((f"Season {season_num}", ("season", series_name, season_num), se_node_children))
+
+            if not filter_on or series_has_highlights:
+                s_node = self.tree.insert("", "end", text=series_name, values=("series", series_name))
+                for s_title, s_vals, e_children in s_node_children:
+                    se_node = self.tree.insert(s_node, "end", text=s_title, values=s_vals)
+                    for e_title, e_vals in e_children:
+                        self.tree.insert(se_node, "end", text=e_title, values=e_vals)
 
         # Populate Unmatched
         if lib.unmatched:
-            u_node = self.tree.insert("", "end", text="[?] Unmatched Files", values=("unmatched_root",))
+            u_children = []
+            has_unmatched_ts = False
             for ep_key, episode in sorted(lib.unmatched.items()):
-                self.tree.insert(u_node, "end", text=episode.title, values=("unmatched_episode", ep_key))
+                has_ts = len(episode.timestamps) > 0
+                if not filter_on or has_ts:
+                    u_children.append((episode.title, ("unmatched_episode", ep_key)))
+                    if has_ts:
+                        has_unmatched_ts = True
+
+            if not filter_on or has_unmatched_ts:
+                u_node = self.tree.insert("", "end", text="[?] Unmatched Files", values=("unmatched_root",))
+                for e_title, e_vals in u_children:
+                    self.tree.insert(u_node, "end", text=e_title, values=e_vals)
 
     def _on_tree_select(self, event):
         selected = self.tree.selection()
@@ -203,12 +262,22 @@ class App(ctk.CTk):
         change_btn = ctk.CTkButton(path_frame, text="Change File", width=100, command=self._browse_video_file)
         change_btn.pack(side="right")
 
+        actions_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
+        actions_frame.pack(anchor="w", pady=10)
+
         play_btn = ctk.CTkButton(
-            info_frame, text="▶ Play Episode from Beginning",
-            fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
+            actions_frame, text="▶ Play Episode",
+            fg_color="#3a7ebf", hover_color="#2b5e8f",
             command=lambda: self._play_timestamp(0)
         )
-        play_btn.pack(anchor="w", pady=10)
+        play_btn.pack(side="left", padx=(0, 10))
+
+        play_hl_btn = ctk.CTkButton(
+            actions_frame, text="🎬 Play Highlight Reel",
+            fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
+            command=self._play_highlight_reel
+        )
+        play_hl_btn.pack(side="left")
 
         # MIDDLE: Timestamp List
         list_frame = ctk.CTkScrollableFrame(self.right_frame)
@@ -217,42 +286,102 @@ class App(ctk.CTk):
         # Headers
         h_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
         h_frame.pack(fill="x", pady=5)
-        h_frame.grid_columnconfigure(1, weight=1)
+        h_frame.grid_columnconfigure(2, weight=1)
 
-        ctk.CTkLabel(h_frame, text="Time", font=ctk.CTkFont(weight="bold"), width=80).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(h_frame, text="Description", font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, sticky="w", padx=10)
-        ctk.CTkLabel(h_frame, text="Actions", font=ctk.CTkFont(weight="bold"), width=150).grid(row=0, column=2, sticky="e")
+        ctk.CTkLabel(h_frame, text="Time Range", font=ctk.CTkFont(weight="bold"), width=120).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(h_frame, text="Tags", font=ctk.CTkFont(weight="bold"), width=100).grid(row=0, column=1, sticky="w", padx=10)
+        ctk.CTkLabel(h_frame, text="Description", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, sticky="w", padx=10)
+        ctk.CTkLabel(h_frame, text="Actions", font=ctk.CTkFont(weight="bold"), width=150).grid(row=0, column=3, sticky="e")
 
         for idx, ts in enumerate(episode.timestamps):
             row = ctk.CTkFrame(list_frame)
             row.pack(fill="x", pady=2)
-            row.grid_columnconfigure(1, weight=1)
+            row.grid_columnconfigure(2, weight=1)
 
-            ctk.CTkLabel(row, text=ts.display_time, width=80).grid(row=0, column=0, sticky="w", padx=5)
-            ctk.CTkLabel(row, text=ts.description).grid(row=0, column=1, sticky="w", padx=10)
+            time_range = f"{ts.start_display} - {ts.end_display}" if ts.end_display else ts.start_display
+            ctk.CTkLabel(row, text=time_range, width=120).grid(row=0, column=0, sticky="w", padx=5)
+
+            tags_str = ", ".join(ts.tags)
+            ctk.CTkLabel(row, text=tags_str, width=100).grid(row=0, column=1, sticky="w", padx=10)
+
+            ctk.CTkLabel(row, text=ts.description).grid(row=0, column=2, sticky="w", padx=10)
 
             action_f = ctk.CTkFrame(row, fg_color="transparent")
-            action_f.grid(row=0, column=2, sticky="e")
+            action_f.grid(row=0, column=3, sticky="e")
 
-            ctk.CTkButton(action_f, text="▶", width=30, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=lambda t=ts.time_seconds: self._play_timestamp(t)).pack(side="left", padx=2)
+            ctk.CTkButton(action_f, text="▶", width=30, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=lambda t=ts.start_time: self._play_timestamp(t)).pack(side="left", padx=2)
             ctk.CTkButton(action_f, text="Edit", width=40, command=lambda i=idx: self._start_edit_timestamp(i)).pack(side="left", padx=2)
             ctk.CTkButton(action_f, text="Del", width=40, fg_color="#C62828", hover_color="#B71C1C", command=lambda i=idx: self._delete_timestamp(i)).pack(side="left", padx=2)
 
-        # BOTTOM: Add New Timestamp
+        # BOTTOM: Add New Timestamp (Highlight Reel Optimizer)
         input_frame = ctk.CTkFrame(self.right_frame)
         input_frame.pack(fill="x", padx=10, pady=10)
 
-        self.time_entry = ctk.CTkEntry(input_frame, placeholder_text="Time (e.g. 12:10)", width=120)
-        self.time_entry.pack(side="left", padx=5, pady=10)
+        self.active_tags = []
 
-        self.desc_entry = ctk.CTkEntry(input_frame, placeholder_text="Note / Description", width=300)
-        self.desc_entry.pack(side="left", fill="x", expand=True, padx=5, pady=10)
+        # Row 1: Time Fetchers
+        time_row = ctk.CTkFrame(input_frame, fg_color="transparent")
+        time_row.pack(fill="x", pady=(10, 5), padx=5)
 
-        self.save_ts_btn = ctk.CTkButton(input_frame, text="Save Timestamp", command=self._save_timestamp)
-        self.save_ts_btn.pack(side="left", padx=5, pady=10)
+        ctk.CTkButton(time_row, text="[ Get Start Time ]", width=120, command=lambda: self._fetch_vlc_time("start")).pack(side="left", padx=(0, 5))
+        self.start_entry = ctk.CTkEntry(time_row, placeholder_text="Start (MM:SS)", width=90)
+        self.start_entry.pack(side="left", padx=(0, 15))
 
-        self.cancel_ts_btn = ctk.CTkButton(input_frame, text="Cancel", fg_color="gray", command=self._cancel_edit_timestamp)
+        ctk.CTkButton(time_row, text="[ Get End Time ]", width=120, command=lambda: self._fetch_vlc_time("end")).pack(side="left", padx=(0, 5))
+        self.end_entry = ctk.CTkEntry(time_row, placeholder_text="End (MM:SS)", width=90)
+        self.end_entry.pack(side="left")
+
+        self.vlc_warning_label = ctk.CTkLabel(time_row, text="", text_color="#C62828", font=ctk.CTkFont(size=11))
+        self.vlc_warning_label.pack(side="left", padx=10)
+
+        # Row 2: Presets and Saving
+        bot_row = ctk.CTkFrame(input_frame, fg_color="transparent")
+        bot_row.pack(fill="x", pady=(5, 10), padx=5)
+
+        tags_frame = ctk.CTkFrame(bot_row, fg_color="transparent")
+        tags_frame.pack(side="left")
+
+        ctk.CTkLabel(tags_frame, text="Tags:").pack(side="left", padx=(0, 5))
+
+        presets = self.data_manager.settings.get("tags_presets", ["Action", "Funny", "Important"])
+        self.tag_buttons = {}
+        for preset in presets:
+            btn = ctk.CTkButton(tags_frame, text=preset, width=60, fg_color="#555555", hover_color="#666666", command=lambda p=preset: self._toggle_tag(p))
+            btn.pack(side="left", padx=2)
+            self.tag_buttons[preset] = btn
+
+        self.desc_entry = ctk.CTkEntry(bot_row, placeholder_text="Optional Note", width=150)
+        self.desc_entry.pack(side="left", expand=True, fill="x", padx=10)
+
+        self.save_ts_btn = ctk.CTkButton(bot_row, text="Save Highlight", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=self._save_timestamp)
+        self.save_ts_btn.pack(side="left", padx=5)
+
+        self.cancel_ts_btn = ctk.CTkButton(bot_row, text="Cancel", fg_color="gray", command=self._cancel_edit_timestamp)
         # Cancel btn is initially hidden
+
+    def _toggle_tag(self, tag: str):
+        if tag in self.active_tags:
+            self.active_tags.remove(tag)
+            self.tag_buttons[tag].configure(fg_color="#555555") # Inactive state
+        else:
+            self.active_tags.append(tag)
+            self.tag_buttons[tag].configure(fg_color="#3a7ebf") # Active state
+
+    def _fetch_vlc_time(self, target: str):
+        self.vlc_warning_label.configure(text="")
+
+        time_seconds = get_current_vlc_time()
+
+        if time_seconds >= 0:
+            formatted_time = format_time_display(time_seconds)
+            if target == "start":
+                self.start_entry.delete(0, 'end')
+                self.start_entry.insert(0, formatted_time)
+            elif target == "end":
+                self.end_entry.delete(0, 'end')
+                self.end_entry.insert(0, formatted_time)
+        else:
+            self.vlc_warning_label.configure(text="⚠️ VLC connect fail")
 
     def _browse_video_file(self):
         if not self.selected_episode: return
@@ -271,20 +400,55 @@ class App(ctk.CTk):
         if self.selected_episode and self.selected_episode.file_path:
             play_in_vlc(vlc_path, self.selected_episode.file_path, time_seconds)
 
+    def _play_highlight_reel(self):
+        if not self.selected_episode or not self.selected_episode.file_path:
+            return
+        vlc_path = self.data_manager.settings.get("vlc_path", "")
+        if not vlc_path:
+            messagebox.showwarning("VLC Path Not Set", "Please set your VLC path in the Settings first.")
+            return
+
+        scenes = []
+        for ts in self.selected_episode.timestamps:
+            scenes.append({
+                'file': self.selected_episode.file_path,
+                'start': ts.start_time,
+                'end': ts.end_time,
+                'title': f"{ts.description} - {', '.join(ts.tags)}" if ts.description else "Highlight"
+            })
+
+        if not scenes:
+            messagebox.showinfo("No Highlights", "There are no highlights saved for this episode.")
+            return
+
+        generate_highlight_playlist(vlc_path, scenes)
+
     def _save_timestamp(self):
         if not self.selected_episode: return
 
-        time_str = self.time_entry.get().strip()
+        start_str = self.start_entry.get().strip()
+        end_str = self.end_entry.get().strip()
         desc = self.desc_entry.get().strip()
+        tags = list(self.active_tags)
 
-        if not time_str or not desc:
-            messagebox.showwarning("Incomplete Input", "Please provide both time and description.")
+        if not start_str:
+            messagebox.showwarning("Incomplete Input", "Start time is required.")
             return
 
-        total_seconds = parse_time_input(time_str)
-        display_time = format_time_display(total_seconds)
+        start_seconds = parse_time_input(start_str)
+        start_display = format_time_display(start_seconds)
 
-        new_ts = Timestamp(time_seconds=total_seconds, display_time=display_time, description=desc)
+        end_seconds = parse_time_input(end_str) if end_str else start_seconds
+        end_display = format_time_display(end_seconds) if end_str else start_display
+
+        new_ts = Timestamp(
+            start_time=start_seconds,
+            end_time=end_seconds,
+            start_display=start_display,
+            end_display=end_display,
+            tags=tags,
+            description=desc
+        )
 
         if self.editing_timestamp_idx is not None:
             # Update existing
@@ -292,30 +456,50 @@ class App(ctk.CTk):
         else:
             # Add new
             self.selected_episode.timestamps.append(new_ts)
-            # Sort timestamps by time
-            self.selected_episode.timestamps.sort(key=lambda x: x.time_seconds)
+
+        # Sort timestamps by start time
+        self.selected_episode.timestamps.sort(key=lambda x: x.start_time)
 
         self.data_manager.save_library()
         self._show_episode_view(self.selected_episode)
+
+        # We need to refresh tree in case filter mode is active and we just added/deleted timestamps
+        if self.show_only_highlighted.get():
+            self._populate_tree()
 
     def _start_edit_timestamp(self, idx: int):
         ts = self.selected_episode.timestamps[idx]
         self.editing_timestamp_idx = idx
 
-        self.time_entry.delete(0, 'end')
-        self.time_entry.insert(0, ts.display_time)
+        self.start_entry.delete(0, 'end')
+        self.start_entry.insert(0, ts.start_display)
+
+        self.end_entry.delete(0, 'end')
+        self.end_entry.insert(0, ts.end_display)
 
         self.desc_entry.delete(0, 'end')
         self.desc_entry.insert(0, ts.description)
 
+        # Reset tag buttons
+        for p, btn in self.tag_buttons.items():
+            btn.configure(fg_color="#555555")
+        self.active_tags = []
+        for tag in ts.tags:
+            if tag in self.tag_buttons:
+                self._toggle_tag(tag)
+
         self.save_ts_btn.configure(text="Update")
-        self.cancel_ts_btn.pack(side="left", padx=5, pady=10)
+        self.cancel_ts_btn.pack(side="left", padx=5)
 
     def _cancel_edit_timestamp(self):
         self.editing_timestamp_idx = None
-        self.time_entry.delete(0, 'end')
+        self.start_entry.delete(0, 'end')
+        self.end_entry.delete(0, 'end')
         self.desc_entry.delete(0, 'end')
-        self.save_ts_btn.configure(text="Save Timestamp")
+        for p, btn in self.tag_buttons.items():
+            btn.configure(fg_color="#555555")
+        self.active_tags = []
+        self.save_ts_btn.configure(text="Save Highlight")
         self.cancel_ts_btn.pack_forget()
 
     def _delete_timestamp(self, idx: int):
@@ -400,7 +584,7 @@ class App(ctk.CTk):
                      existing_ep.file_path = ep.file_path
                      existing_ep.timestamps.extend(ep.timestamps)
                      # Sort timestamps
-                     existing_ep.timestamps.sort(key=lambda x: x.time_seconds)
+                     existing_ep.timestamps.sort(key=lambda x: x.start_time)
                  else:
                      season_obj.episodes[episode_num] = ep
 

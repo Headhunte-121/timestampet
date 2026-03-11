@@ -7,9 +7,12 @@ from .config import LIBRARY_FILE, SETTINGS_FILE
 
 @dataclass
 class Timestamp:
-    time_seconds: int
-    display_time: str
-    description: str
+    start_time: int
+    end_time: int
+    start_display: str
+    end_display: str
+    tags: List[str] = field(default_factory=list)
+    description: str = ""
 
 @dataclass
 class Episode:
@@ -53,7 +56,17 @@ class DataManager:
                 for season_num, season_data in series_data.get("seasons", {}).items():
                     season = Season(number=season_num)
                     for ep_key, ep_data in season_data.get("episodes", {}).items():
-                        timestamps = [Timestamp(**ts) for ts in ep_data.get("timestamps", [])]
+                        timestamps = []
+                        for ts_data in ep_data.get("timestamps", []):
+                            # Migration from old format:
+                            if "time_seconds" in ts_data:
+                                time_sec = ts_data["time_seconds"]
+                                display = ts_data["display_time"]
+                                desc = ts_data["description"]
+                                timestamps.append(Timestamp(start_time=time_sec, end_time=time_sec, start_display=display, end_display=display, description=desc))
+                            else:
+                                timestamps.append(Timestamp(**ts_data))
+
                         episode = Episode(
                             title=ep_data["title"],
                             season=ep_data["season"],
@@ -66,7 +79,17 @@ class DataManager:
                 lib.series[series_name] = series
 
             for ep_key, ep_data in data.get("unmatched", {}).items():
-                timestamps = [Timestamp(**ts) for ts in ep_data.get("timestamps", [])]
+                timestamps = []
+                for ts_data in ep_data.get("timestamps", []):
+                    # Migration from old format:
+                    if "time_seconds" in ts_data:
+                        time_sec = ts_data["time_seconds"]
+                        display = ts_data["display_time"]
+                        desc = ts_data["description"]
+                        timestamps.append(Timestamp(start_time=time_sec, end_time=time_sec, start_display=display, end_display=display, description=desc))
+                    else:
+                        timestamps.append(Timestamp(**ts_data))
+
                 episode = Episode(
                     title=ep_data["title"],
                     season=ep_data["season"],
@@ -92,7 +115,8 @@ class DataManager:
         default_settings = {
             "vlc_path": "",
             "window_geometry": "1000x700",
-            "window_position": "+100+100"
+            "window_position": "+100+100",
+            "tags_presets": ["Action", "Funny", "Important"]
         }
         if not SETTINGS_FILE.exists():
             return default_settings
@@ -141,7 +165,7 @@ if __name__ == "__main__":
     dm.library.series["Breaking Bad"] = Series("Breaking Bad")
     dm.library.series["Breaking Bad"].seasons["1"] = Season("1")
     ep = Episode("Pilot", "1", "Breaking Bad", "C:/video.mp4")
-    ep.timestamps.append(Timestamp(120, "02:00", "Start of action"))
+    ep.timestamps.append(Timestamp(120, 150, "02:00", "02:30", ["Action"], "Start of action"))
     dm.library.series["Breaking Bad"].seasons["1"].episodes["1"] = ep
 
     dm.save_library()

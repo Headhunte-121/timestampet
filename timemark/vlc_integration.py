@@ -2,6 +2,12 @@ import os
 import sys
 import subprocess
 from pathlib import Path
+import requests
+import tempfile
+from typing import List
+
+VLC_HTTP_PASSWORD = "timemark"
+VLC_HTTP_PORT = 8080
 
 def get_vlc_path() -> str:
     """Attempts to auto-detect VLC path across different operating systems."""
@@ -74,7 +80,13 @@ def play_in_vlc(vlc_path: str, file_path: str, start_time: int = 0) -> None:
          print(f"Error: File path '{file_path}' not found.")
          return
 
-    command = [vlc_path, file_path]
+    # Add HTTP interface arguments so we can query the time later
+    command = [
+        vlc_path,
+        file_path,
+        "--extraintf", "http",
+        f"--http-password={VLC_HTTP_PASSWORD}"
+    ]
     if start_time > 0:
         command.append(f"--start-time={start_time}")
 
@@ -84,6 +96,76 @@ def play_in_vlc(vlc_path: str, file_path: str, start_time: int = 0) -> None:
         print(f"Launched VLC for '{file_path}' starting at {start_time}s.")
     except Exception as e:
         print(f"Failed to launch VLC: {e}")
+
+def get_current_vlc_time() -> int:
+    """
+    Attempts to fetch the current playback time from VLC via its local HTTP API.
+    Returns the time in total seconds, or -1 if it cannot connect.
+    """
+    url = f"http://localhost:{VLC_HTTP_PORT}/requests/status.json"
+    try:
+        # Basic auth: username is blank, password is the one we set via CLI
+        response = requests.get(url, auth=("", VLC_HTTP_PASSWORD), timeout=1.0)
+        response.raise_for_status()
+        data = response.json()
+
+        # VLC returns time in seconds
+        return int(data.get("time", -1))
+    except (requests.exceptions.RequestException, ValueError, KeyError):
+        return -1
+
+def generate_highlight_playlist(vlc_path: str, scenes: List[dict]) -> str:
+    """
+    Generates an .m3u playlist and launches VLC with it.
+    scenes format: [{'file': 'C:/video.mp4', 'start': 120, 'end': 150, 'title': 'My Note'}]
+    """
+    if not os.path.exists(vlc_path) and vlc_path != "vlc":
+        print(f"Error: VLC path '{vlc_path}' not found.")
+        return ""
+
+    if not scenes:
+        return ""
+
+    # Create a temporary m3u file
+    fd, temp_path = tempfile.mkstemp(suffix=".m3u", prefix="timemark_highlights_")
+
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write("#EXTM3U\n")
+            for scene in scenes:
+                file_path = scene.get('file', '')
+                start = scene.get('start', 0)
+                end = scene.get('end', 0)
+                title = scene.get('title', 'Highlight')
+
+                if not file_path or not os.path.exists(file_path):
+                    continue
+
+                f.write(f"#EXTINF:-1,{title}\n")
+                f.write(f"#EXTVLCOPT:start-time={start}\n")
+                if end > start:
+                    f.write(f"#EXTVLCOPT:stop-time={end}\n")
+                f.write(f"{file_path}\n")
+
+    except Exception as e:
+        print(f"Failed to write m3u: {e}")
+        return ""
+
+    # Launch VLC with the playlist
+    command = [
+        vlc_path,
+        temp_path,
+        "--extraintf", "http",
+        f"--http-password={VLC_HTTP_PASSWORD}"
+    ]
+
+    try:
+        subprocess.Popen(command)
+        print(f"Launched VLC with highlight playlist: {temp_path}")
+        return temp_path
+    except Exception as e:
+        print(f"Failed to launch VLC playlist: {e}")
+        return ""
 
 if __name__ == "__main__":
     print(f"Auto-detected VLC path: {get_vlc_path()}")

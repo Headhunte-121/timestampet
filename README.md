@@ -18,6 +18,8 @@ TimeMark is a lightweight, modern desktop application designed to organize video
 *   **VLC Media Player** installed on your system.
 *   Python Packages:
     *   `customtkinter`
+    *   `requests`
+    *   `keyboard`
     *   `packaging`
     *   `darkdetect`
 
@@ -27,7 +29,7 @@ TimeMark is a lightweight, modern desktop application designed to organize video
 2.  Install the required Python packages:
 
     ```bash
-    pip install customtkinter
+    pip install customtkinter requests keyboard
     ```
 
 3.  Run the application:
