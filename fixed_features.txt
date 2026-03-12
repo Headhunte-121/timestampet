@@ -25,3 +25,6 @@ The following discrepancies between the codebase and the Master List have been f
 7. In-Place UI Updates (main.py):
    - Handled edge cases by adding a `reset_scroll=False` flag to `_load_episodes()`, ensuring that marking checkmarks, marking seasons watched, and clicking the sync button updates the data without throwing the user back to the top of the scroll container.
    - Reset Dashboard view automatically if the Quick Search field is cleared.
+
+Update 2. Portable Data Storage (config.py):
+   - Changed the default application data storage directory from OS-specific roaming folders (like `%APPDATA%`) to a portable `WatchMark` folder located in the same directory as `run.py`. This ensures all settings, database files, and cache remain with the application files.
