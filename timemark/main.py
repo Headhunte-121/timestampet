@@ -109,18 +109,22 @@ class App(ctk.CTk):
         # --- SIDEBAR ---
         self.sidebar_frame = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=BG_COLOR)
         self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(6, weight=1) # Push settings to bottom
+        self.sidebar_frame.grid_propagate(False) # Keep width consistent
 
-        logo_label = ctk.CTkLabel(self.sidebar_frame, text="▶ WatchMark", font=("Inter", 22, "bold"), text_color=TEXT_PRIMARY)
-        logo_label.grid(row=0, column=0, padx=20, pady=(20, 30), sticky="w")
+        # Navigation container (top)
+        nav_container = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        nav_container.pack(side="top", fill="both", expand=True)
+
+        logo_label = ctk.CTkLabel(nav_container, text="▶ WatchMark", font=("Inter", 22, "bold"), text_color=TEXT_PRIMARY)
+        logo_label.pack(padx=20, pady=(20, 30), anchor="w")
 
         self.nav_btns = {}
         self.nav_indicators = {}
 
-        def create_nav_btn(row, text, command):
-            container = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent", height=40)
-            container.grid(row=row, column=0, sticky="ew", pady=2)
-            container.grid_propagate(False)
+        def create_nav_btn(text, command):
+            container = ctk.CTkFrame(nav_container, fg_color="transparent", height=40)
+            container.pack(fill="x", pady=2)
+            container.pack_propagate(False)
 
             indicator = ctk.CTkFrame(container, width=4, corner_radius=0, fg_color="transparent")
             indicator.pack(side="left", fill="y")
@@ -134,15 +138,15 @@ class App(ctk.CTk):
             self.nav_indicators[text] = indicator
             return btn
 
-        create_nav_btn(1, "Dashboard", self._show_dashboard)
-        create_nav_btn(2, "TV Shows", self._show_tv_shows)
-        create_nav_btn(3, "Movies", self._show_movies)
-        create_nav_btn(4, "Search", self._show_search)
-        create_nav_btn(5, "Inbox", self._show_unmatched)
+        create_nav_btn("Dashboard", self._show_dashboard)
+        create_nav_btn("TV Shows", self._show_tv_shows)
+        create_nav_btn("Movies", self._show_movies)
+        create_nav_btn("Search", self._show_search)
+        create_nav_btn("Inbox", self._show_unmatched)
 
         # Bottom section: Settings & Status
         bottom_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
-        bottom_frame.grid(row=7, column=0, sticky="ew", pady=(0, 20), padx=20)
+        bottom_frame.pack(side="bottom", fill="x", pady=(0, 20), padx=20)
 
         settings_btn = ctk.CTkButton(bottom_frame, text="⚙️ Settings", anchor="w", fg_color="transparent",
                                      text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=self._show_settings,
