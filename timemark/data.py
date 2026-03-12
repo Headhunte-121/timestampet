@@ -3,8 +3,10 @@ import json
 import sqlite3
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Callable, Any
 import shutil
+import threading
+import queue
 from .config import APP_DATA_DIR, SETTINGS_FILE
 
 DB_FILE = APP_DATA_DIR / "watchmark.db"
@@ -53,7 +55,37 @@ class DataManager:
     def __init__(self):
         self.settings = self.load_settings()
         self.db_path = str(DB_FILE)
+        self.write_queue = queue.Queue()
+        self._start_write_worker()
         self._init_db()
+
+    def _start_write_worker(self):
+        def worker():
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            while True:
+                item = self.write_queue.get()
+                if item is None:
+                    break
+
+                task, callback = item
+                try:
+                    task(conn)
+                    conn.commit()
+                    if callback:
+                        callback()
+                except Exception as e:
+                    print(f"DB Write Queue Error: {e}")
+                    conn.rollback()
+                finally:
+                    self.write_queue.task_done()
+            conn.close()
+
+        self.worker_thread = threading.Thread(target=worker, daemon=True)
+        self.worker_thread.start()
+
+    def submit_write_task(self, task: Callable[[sqlite3.Connection], Any], callback: Optional[Callable] = None):
+        self.write_queue.put((task, callback))
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -144,6 +176,16 @@ class DataManager:
 
             try:
                 cursor.execute("ALTER TABLE Media ADD COLUMN user_rating INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE Media ADD COLUMN release_date TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE Episodes ADD COLUMN completed_date TEXT")
             except sqlite3.OperationalError:
                 pass
 
