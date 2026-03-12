@@ -83,6 +83,7 @@ def get_media_details(api_key: str, tmdb_id: str, media_type: str) -> Optional[D
             "poster_path": r.get("poster_path", ""),
             "total_episodes": r.get("number_of_episodes", 1) if media_type == "TV" else 1,
             "seasons": r.get("seasons", []) if media_type == "TV" else [],
+            "runtime": r.get("runtime", 0) if media_type == "Movie" else 0,
             "status": "Plan to Watch"
         }
         return details

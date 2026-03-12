@@ -369,8 +369,8 @@ class App(ctk.CTk):
                     # Movie has 1 dummy episode
                     cursor.execute("""
                         INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
-                        VALUES (?, 1, 1, ?, 0)
-                    """, (media_id, details['title']))
+                        VALUES (?, 1, 1, ?, ?)
+                    """, (media_id, details['title'], details.get('runtime', 0)))
 
                 conn.commit()
                 conn.close()
@@ -600,9 +600,24 @@ class App(ctk.CTk):
     def _scan_folder(self):
         folder = filedialog.askdirectory(title="Select Media Folder")
         if folder:
-            unmatched = scan_directory(folder, self.data_manager)
-            self.current_unmatched_files.extend(unmatched)
-            messagebox.showinfo("Scan Complete", f"Scan finished. Found {len(unmatched)} unmatched files.")
+            # Let the user know scanning started without freezing the UI completely
+            ToastNotification(self, title="Scan Started", message=f"Scanning {folder} in background...", duration=3000)
+
+            def run_scan():
+                try:
+                    unmatched = scan_directory(folder, self.data_manager)
+                    self.after(0, lambda: self._finish_scan(unmatched))
+                except Exception as e:
+                    self.after(0, lambda: messagebox.showerror("Scan Error", str(e)))
+
+            threading.Thread(target=run_scan, daemon=True).start()
+
+    def _finish_scan(self, unmatched):
+        self.current_unmatched_files.extend(unmatched)
+        ToastNotification(self, title="Scan Complete", message=f"Finished. Found {len(unmatched)} unmatched files.", duration=4000, color="#1b5e20")
+        # If user is currently looking at unmatched list, refresh it
+        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == ("gray75", "gray25"):
+            self._show_unmatched()
 
     def _show_unmatched(self):
         self._highlight_nav("❓ Unmatched Files")
@@ -637,28 +652,30 @@ class App(ctk.CTk):
 
         conn = self.data_manager.get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, title FROM Media WHERE type='TV'")
-        shows = cursor.fetchall()
+        cursor.execute("SELECT id, title, type FROM Media ORDER BY title")
+        media_items = cursor.fetchall()
         conn.close()
 
-        if not shows:
-            ctk.CTkLabel(dialog, text="No TV Shows tracked in DB.").pack(pady=10)
+        if not media_items:
+            ctk.CTkLabel(dialog, text="No Media tracked in DB.").pack(pady=10)
             return
 
-        show_names = [s['title'] for s in shows]
-        show_map = {s['title']: s['id'] for s in shows}
+        media_names = [f"[{m['type']}] {m['title']}" for m in media_items]
+        media_map = {f"[{m['type']}] {m['title']}": (m['id'], m['type']) for m in media_items}
 
-        show_var = ctk.StringVar(value=show_names[0])
-        opt = ctk.CTkOptionMenu(dialog, variable=show_var, values=show_names)
+        media_var = ctk.StringVar(value=media_names[0])
+        opt = ctk.CTkOptionMenu(dialog, variable=media_var, values=media_names)
         opt.pack(pady=10)
 
         s_entry = ctk.CTkEntry(dialog, placeholder_text="Season (e.g. 1)")
         s_entry.pack(pady=5)
-        if uf['parsed_season'] is not None:
-            s_entry.insert(0, str(uf['parsed_season']))
 
         e_entry = ctk.CTkEntry(dialog, placeholder_text="Episode (e.g. 1)")
         e_entry.pack(pady=5)
+
+        # Pre-fill for TV shows
+        if uf['parsed_season'] is not None:
+            s_entry.insert(0, str(uf['parsed_season']))
         if uf['parsed_episode'] is not None:
             e_entry.insert(0, str(uf['parsed_episode']))
 
@@ -673,9 +690,13 @@ class App(ctk.CTk):
 
         def save():
             try:
-                s_num = int(s_entry.get())
-                e_num = int(e_entry.get())
-                m_id = show_map[show_var.get()]
+                m_id, m_type = media_map[media_var.get()]
+
+                if m_type == "Movie":
+                    s_num, e_num = 1, 1
+                else:
+                    s_num = int(s_entry.get())
+                    e_num = int(e_entry.get())
 
                 conn = self.data_manager.get_db_connection()
                 cursor = conn.cursor()
