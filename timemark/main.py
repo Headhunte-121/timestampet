@@ -265,7 +265,9 @@ class App(ctk.CTk):
             content_frame = ctk.CTkFrame(hero_frame, fg_color="transparent")
             content_frame.place(relx=0.05, rely=0.5, anchor="w")
 
-            ctk.CTkLabel(content_frame, text="UP NEXT", font=("Inter", 14, "bold"), text_color=VLC_ORANGE).pack(anchor="w")
+            is_resuming = hero_ep['status'] == 'Watching' and (hero_ep['last_position'] or 0) > 0
+            header_text = "RESUME SESSION" if is_resuming else "UP NEXT"
+            ctk.CTkLabel(content_frame, text=header_text, font=("Inter", 14, "bold"), text_color=VLC_ORANGE).pack(anchor="w")
             ctk.CTkLabel(content_frame, text=(hero_ep['show_title'] or 'Unknown Show'), font=("Inter", 48, "bold"), text_color=TEXT_PRIMARY).pack(anchor="w", pady=(5, 0))
 
             if hero_ep['media_type'] == 'TV':
@@ -276,7 +278,13 @@ class App(ctk.CTk):
             ctk.CTkLabel(content_frame, text=ep_sub, font=("Inter", 18, "normal"), text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 20))
 
             if hero_ep['file_path']:
-                play_btn = ctk.CTkButton(content_frame, text="▶ Resume", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=45, width=150,
+                btn_text = "▶ Play Next"
+                if is_resuming:
+                    mins = hero_ep['last_position'] // 60
+                    secs = hero_ep['last_position'] % 60
+                    btn_text = f"▶ Resume at {mins}:{secs:02d}"
+
+                play_btn = ctk.CTkButton(content_frame, text=btn_text, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=45, width=150,
                                          font=("Inter", 16, "bold"),
                                          command=lambda e=hero_ep: self._play_episode(e))
                 play_btn.pack(anchor="w")
@@ -474,7 +482,7 @@ class App(ctk.CTk):
         sort_var = ctk.StringVar(value=sort_by)
         hide_var = ctk.BooleanVar(value=hide_completed)
 
-        sort_dropdown = ctk.CTkOptionMenu(controls_frame, values=["Recently Added", "Alphabetical (A-Z)", "Release Year", "My Top Rated"],
+        sort_dropdown = ctk.CTkOptionMenu(controls_frame, values=["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated"],
                                           variable=sort_var, command=lambda v: self._show_library(media_type, filter_query, v, hide_var.get()),
                                           fg_color=SURFACE_COLOR, button_color=SURFACE_COLOR, button_hover_color="#333", font=("Inter", 12, "normal"))
         sort_dropdown.pack(side="left")
@@ -515,6 +523,15 @@ class App(ctk.CTk):
             base_query += " ORDER BY CASE WHEN m.release_date IS NULL OR m.release_date = '' THEN 1 ELSE 0 END, m.release_date DESC"
         elif sort_by == "My Top Rated":
             base_query += " ORDER BY m.user_rating DESC, m.id DESC"
+        elif sort_by == "Sort by Last Watched":
+            base_query = f"""
+                SELECT m.*, MAX(h.timestamp) as last_watched
+                FROM ({base_query}) m
+                LEFT JOIN Episodes e ON m.id = e.media_id
+                LEFT JOIN History h ON e.id = h.episode_id
+                GROUP BY m.id
+                ORDER BY last_watched DESC NULLS LAST, m.id DESC
+            """
         else: # Default: Recently Added
             base_query += " ORDER BY m.id DESC"
 
@@ -588,22 +605,29 @@ class App(ctk.CTk):
                                     width=50, height=50, corner_radius=25, font=("Inter", 20, "normal"))
         overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Year-at-a-glance tag
+        # Last Engaged Poster Badge & Legacy Archive Check
         conn = self.data_manager.get_db_connection()
         c = conn.cursor()
-        c.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (item['id'],))
-        w_c = c.fetchone()['c']
+        c.execute("""
+            SELECT MAX(timestamp) as last_watched
+            FROM History h
+            JOIN Episodes e ON h.episode_id = e.id
+            WHERE e.media_id = ?
+        """, (item['id'],))
+        lw_data = c.fetchone()
+
+        c.execute("SELECT COUNT(*) as completed_eps FROM Episodes WHERE media_id=? AND status='Completed'", (item['id'],))
+        c_eps = c.fetchone()['completed_eps']
         conn.close()
 
-        if w_c > 0 and w_c == item['total_episodes']:
-            if 'release_date' in item.keys() and item['release_date']:
-                year_str = item['release_date'][:4]
-                tag_text = f"Watched: {year_str}"
-            else:
-                tag_text = "Legacy"
-
-            tag_lbl = ctk.CTkLabel(card, text=tag_text, fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
-            tag_lbl.place(relx=0.05, rely=0.05)
+        if lw_data and lw_data['last_watched']:
+            watch_yr = lw_data['last_watched'][:4]
+            tag_lbl = ctk.CTkLabel(card, text=watch_yr, fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
+            tag_lbl.place(relx=0.05, rely=0.88) # Bottom-left corner
+        elif c_eps > 0:
+            # Episodes are marked completed, but there is no history. This means it was Archived.
+            tag_lbl = ctk.CTkLabel(card, text="Archived", fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
+            tag_lbl.place(relx=0.05, rely=0.88)
 
         title_lbl = ctk.CTkLabel(card, text=((item['title'] or 'Unknown Title')), font=("Inter", 13, "bold"),
                                  wraplength=150, text_color=TEXT_PRIMARY)
@@ -696,12 +720,48 @@ class App(ctk.CTk):
             except Exception:
                 pass
 
+        # Convert sqlite3.Row to dict so we can safely mutate it
+        for i in range(len(parsed_entries)):
+            parsed_entries[i]['row'] = dict(parsed_entries[i]['row'])
+
+        # Legacy Data Fallback: Group old entries lacking session_id into Mass Imports
+        i = 0
+        while i < len(parsed_entries):
+            current = parsed_entries[i]
+            # Only attempt to group if there's no session_id
+            if not current['row'].get('session_id'):
+                j = i + 1
+                cluster_size = 1
+                # Find all consecutive items within 60s of the FIRST item in the chain
+                while j < len(parsed_entries):
+                    next_item = parsed_entries[j]
+                    if next_item['row'].get('session_id'):
+                        break # Different type of block
+
+                    diff = (current['dt_local'] - next_item['dt_local']).total_seconds()
+                    if diff <= 60:
+                        cluster_size += 1
+                        j += 1
+                    else:
+                        break
+
+                # If we chained items, assign them all the same dummy session_id
+                if cluster_size > 1:
+                    dynamic_sid = f"mass_import_{current['row']['hist_id']}"
+                    for k in range(i, j):
+                        parsed_entries[k]['row']['session_id'] = dynamic_sid
+                    i = j
+                    continue
+            i += 1
+
+
         # Grouping Pass 1: Binge Clusters by session_id
         session_groups = {}
         for item in parsed_entries:
             row = item['row']
+
             # Fallback grouping key if session_id is missing (old data)
-            s_id = row['session_id']
+            s_id = row.get('session_id')
             if not s_id:
                 s_id = f"single_{row['hist_id']}"
 
@@ -726,7 +786,11 @@ class App(ctk.CTk):
         grouped_data = {}
         for s_group in sorted_sessions:
             if s_group['is_legacy']:
-                header_str = s_group['dt_local'].strftime("%B %Y").upper()
+                # If day is 1, it was an "Unknown Month" backdate, so just use Year
+                if s_group['dt_local'].day == 1:
+                    header_str = s_group['dt_local'].strftime("%Y")
+                else:
+                    header_str = s_group['dt_local'].strftime("%B %Y").upper()
             else:
                 # Active viewing gets specific day headers or standard month headers
                 if s_group['dt_local'].year == datetime.now().year:
@@ -1272,6 +1336,11 @@ class App(ctk.CTk):
             watch_yr = w_data['first_watch'][:4]
             if w_data['legacy_flag']:
                 watch_yr += " (Legacy)"
+        else:
+            # Check if it was purely Archived (completed but no history)
+            cursor.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (media_id,))
+            if cursor.fetchone()['c'] > 0:
+                watch_yr = "Archived"
 
         if watch_yr != "Unwatched":
             ctk.CTkLabel(ratings_frame, text=f"Released: {release_yr} | My Watch: {watch_yr}", font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 15))
@@ -1772,13 +1841,23 @@ class App(ctk.CTk):
                         img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(120, 68))
 
                         def update_ui():
-                            target_lbl.configure(image=img, text=f"EP {ep_data['ep_num']}" if is_fallback else "",
-                                              font=("Inter", 16, "bold"), text_color="#B3B3B3")
+                            try:
+                                if target_lbl.winfo_exists():
+                                    target_lbl.configure(image=img, text=f"EP {ep_data['ep_num']}" if is_fallback else "",
+                                                      font=("Inter", 16, "bold"), text_color="#B3B3B3")
+                            except Exception:
+                                pass
                         self.after(0, update_ui)
                     except Exception as e:
                         pass
                 else:
-                    self.after(0, lambda: target_lbl.configure(text=f"EP {ep_data['ep_num']}", text_color=TEXT_SECONDARY))
+                    def fallback_ui():
+                        try:
+                            if target_lbl.winfo_exists():
+                                target_lbl.configure(text=f"EP {ep_data['ep_num']}", text_color=TEXT_SECONDARY)
+                        except Exception:
+                            pass
+                    self.after(0, fallback_ui)
 
             threading.Thread(target=load_still, args=(ep, m_backdrop, img_lbl), daemon=True).start()
 
@@ -1970,16 +2049,17 @@ class App(ctk.CTk):
 
                 # Determine date string
                 m_num = "01"
+                day_num = "01" # 01 means Unknown Month
                 if month:
                     months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
                     try:
                         m_idx = months.index(month) + 1
                         m_num = f"{m_idx:02d}"
+                        day_num = "15" # 15 means Known Month
                     except ValueError:
                         pass
 
-                # We use the 15th of the month at noon as a safe fallback date for grouping
-                dt_str = f"{year}-{m_num}-15 12:00:00"
+                dt_str = f"{year}-{m_num}-{day_num} 12:00:00"
 
                 for eid in ep_ids:
                     cursor.execute("""
