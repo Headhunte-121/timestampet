@@ -694,7 +694,9 @@ class App(ctk.CTk):
                 year_range = min_year
         if status in ['Watching', 'Plan to Watch'] and not (status == 'Completed' and t_eps > 0 and c_eps == t_eps):
             # If currently airing or open ended
-            if min_year and max_year == "2024": # Simple fallback or just let it use max year
+            import datetime
+            curr_year = str(datetime.datetime.now().year)
+            if min_year and max_year == curr_year: # Dynamically use current system year
                  year_range = f"{min_year} — Present"
 
         # Content for info_overlay
