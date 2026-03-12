@@ -125,11 +125,21 @@ class App(ctk.CTk):
         create_nav_btn(2, "TV Shows", self._show_tv_shows)
         create_nav_btn(3, "Movies", self._show_movies)
         create_nav_btn(4, "Search", self._show_search)
-        create_nav_btn(5, "Unmatched", self._show_unmatched)
 
         # Bottom section: Settings & Status
         bottom_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
         bottom_frame.grid(row=7, column=0, sticky="ew", pady=(0, 20), padx=20)
+
+        inbox_btn = ctk.CTkButton(bottom_frame, text="📥 Inbox", anchor="w", fg_color="transparent",
+                                  text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=self._show_unmatched,
+                                  font=ctk.CTkFont(family="Inter", size=14, weight="bold"))
+        inbox_btn.pack(fill="x", pady=(0, 5))
+        self.nav_btns["Inbox"] = inbox_btn
+
+        # Add indicator for Inbox as well (though placed differently)
+        indicator = ctk.CTkFrame(inbox_btn, width=4, corner_radius=0, fg_color="transparent")
+        indicator.place(x=0, y=0, relheight=1.0)
+        self.nav_indicators["Inbox"] = indicator
 
         settings_btn = ctk.CTkButton(bottom_frame, text="⚙️ Settings", anchor="w", fg_color="transparent",
                                      text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=self._show_settings,
@@ -743,13 +753,12 @@ class App(ctk.CTk):
                       command=lambda: self._show_library(media['type'])).pack(anchor="w", padx=20, pady=(10, 0))
 
         # Header with Backdrop Banner
-        header = ctk.CTkFrame(detail_scroll, fg_color="transparent", height=300)
+        header = ctk.CTkFrame(detail_scroll, fg_color="transparent")
         header.pack(fill="x", padx=20, pady=(10, 20))
-        header.pack_propagate(False)
 
         # Banner Image
-        banner_lbl = ctk.CTkLabel(header, text="", fg_color=SURFACE_COLOR, height=200, corner_radius=12)
-        banner_lbl.place(x=0, y=0, relwidth=1.0, height=200)
+        banner_lbl = ctk.CTkLabel(header, text="", fg_color=SURFACE_COLOR, corner_radius=12, height=200)
+        banner_lbl.pack(fill="x", side="top", anchor="n")
 
         def load_banner():
             if media['backdrop_path']:
@@ -767,9 +776,16 @@ class App(ctk.CTk):
                     except: pass
         threading.Thread(target=load_banner, daemon=True).start()
 
-        # Poster Image (Overlapping banner)
-        img_label = ctk.CTkLabel(header, text="No Poster", width=140, height=210, fg_color="#1E1E1E", corner_radius=8)
-        img_label.place(x=20, y=50)
+        # Sub-header Frame for Poster and Info
+        sub_header_frame = ctk.CTkFrame(header, fg_color="transparent")
+        # Give a negative top padding to make the poster overlap the banner slightly, if supported
+        # CustomTkinter may not perfectly handle negative margins, so we just pad closely or use place just for the overlap effect.
+        # Actually, standard grid/pack approach is safer as requested. We'll use pack.
+        sub_header_frame.pack(fill="x", side="top", padx=20, pady=(10, 0))
+
+        # Poster Image
+        img_label = ctk.CTkLabel(sub_header_frame, text="No Poster", width=140, height=210, fg_color="#1E1E1E", corner_radius=8)
+        img_label.pack(side="left", anchor="nw")
 
         def load_poster():
             if media['poster_path']:
@@ -782,22 +798,14 @@ class App(ctk.CTk):
         threading.Thread(target=load_poster, daemon=True).start()
 
         # Info Frame
-        info_frame = ctk.CTkFrame(header, fg_color="transparent")
-        info_frame.place(x=180, y=100)
-
-        # Drop shadow text effect or semi transparent bg could go here, for now just offset below banner if needed
-        # Actually since banner is 200px tall and y is 100, text overlaps banner.
-        # Ensure readable text by adding a slight background to text if on banner.
-        # simpler: just push text down below banner
-        info_frame.place(x=180, y=210) # Place below banner to ensure readability
-
-        # Let's adjust header height to fit poster + some text
-        header.configure(height=350)
+        info_frame = ctk.CTkFrame(sub_header_frame, fg_color="transparent")
+        info_frame.pack(side="left", anchor="nw", padx=(20, 0), fill="both", expand=True)
 
         title_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
         title_frame.pack(anchor="w", fill="x")
 
-        ctk.CTkLabel(title_frame, text=media['title'], font=ctk.CTkFont(family="Inter", size=32, weight="bold"), text_color=TEXT_PRIMARY).pack(side="left")
+        safe_title = media['title'] if media['title'] else "Unknown Title"
+        ctk.CTkLabel(title_frame, text=safe_title, font=ctk.CTkFont(family="Inter", size=32, weight="bold"), text_color=TEXT_PRIMARY).pack(side="left")
 
         cursor.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (media_id,))
         watched_eps = cursor.fetchone()['c']
@@ -805,16 +813,19 @@ class App(ctk.CTk):
         tags_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
         tags_frame.pack(anchor="w", pady=(5, 10))
 
-        type_tag = ctk.CTkLabel(tags_frame, text=media['type'], fg_color=SURFACE_COLOR, corner_radius=10, font=ctk.CTkFont(size=12), padx=10)
+        safe_type = media['type'] if media['type'] else "Unknown Type"
+        type_tag = ctk.CTkLabel(tags_frame, text=safe_type, fg_color=SURFACE_COLOR, corner_radius=10, font=ctk.CTkFont(size=12), padx=10)
         type_tag.pack(side="left", padx=(0, 5))
 
-        status_text = "Completed" if watched_eps == media['total_episodes'] and watched_eps > 0 else "Watching"
+        total_episodes = media['total_episodes'] if media['total_episodes'] is not None else 0
+        status_text = "Completed" if watched_eps == total_episodes and watched_eps > 0 else "Watching"
         status_color = SUCCESS_COLOR if status_text == "Completed" else VLC_ORANGE
 
-        stat_tag = ctk.CTkLabel(tags_frame, text=f"{watched_eps} / {media['total_episodes']} Eps", fg_color=status_color, corner_radius=10, font=ctk.CTkFont(size=12, weight="bold"), padx=10, text_color="white")
+        stat_tag = ctk.CTkLabel(tags_frame, text=f"{watched_eps} / {total_episodes} Eps", fg_color=status_color, corner_radius=10, font=ctk.CTkFont(size=12, weight="bold"), padx=10, text_color="white")
         stat_tag.pack(side="left")
 
-        ctk.CTkLabel(info_frame, text=media['synopsis'], font=ctk.CTkFont(family="Inter", size=13), text_color=TEXT_SECONDARY, wraplength=700, justify="left").pack(anchor="w", pady=5)
+        safe_synopsis = media['synopsis'] if media['synopsis'] else "No overview available."
+        ctk.CTkLabel(info_frame, text=safe_synopsis, font=ctk.CTkFont(family="Inter", size=13), text_color=TEXT_SECONDARY, wraplength=700, justify="left").pack(anchor="w", pady=5)
 
         # Action Row
         actions = ctk.CTkFrame(detail_scroll, fg_color="transparent")
@@ -841,6 +852,8 @@ class App(ctk.CTk):
         content_frame = ctk.CTkFrame(detail_scroll, fg_color="transparent")
         content_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
+        self.ep_list_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+
         if media['type'] == 'TV':
             cursor.execute("SELECT DISTINCT season_num FROM Episodes WHERE media_id=? ORDER BY season_num", (media_id,))
             seasons = [r['season_num'] for r in cursor.fetchall()]
@@ -850,7 +863,6 @@ class App(ctk.CTk):
                 season_scroll = ctk.CTkScrollableFrame(content_frame, orientation="horizontal", height=50, fg_color="transparent")
                 season_scroll.pack(fill="x", pady=(0, 10))
 
-                self.ep_list_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
                 self.ep_list_frame.pack(fill="both", expand=True)
 
                 self.season_btns = []
@@ -865,8 +877,10 @@ class App(ctk.CTk):
 
                 # Load first season by default
                 self._load_episodes(media_id, seasons[0])
+            else:
+                self.ep_list_frame.pack(fill="both", expand=True)
+                ctk.CTkLabel(self.ep_list_frame, text="No episode data found. Try refreshing or re-adding this show.", font=ctk.CTkFont(family="Inter", size=14), text_color=TEXT_SECONDARY).pack(pady=50)
         else:
-            self.ep_list_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
             self.ep_list_frame.pack(fill="both", expand=True)
             self._load_episodes(media_id, 1)
 
@@ -1086,11 +1100,11 @@ class App(ctk.CTk):
     def _finish_scan(self, new_count):
         ToastNotification(self, title="Scan Complete", message=f"Finished. Found {new_count} new unmatched files.", duration=4000, color="#1b5e20")
         # If user is currently looking at unmatched list, refresh it
-        if hasattr(self, 'nav_btns') and self.nav_btns["Unmatched"].cget("fg_color") == SURFACE_COLOR:
+        if hasattr(self, 'nav_btns') and self.nav_btns["Inbox"].cget("fg_color") == SURFACE_COLOR:
             self._show_unmatched()
 
     def _show_unmatched(self):
-        self._highlight_nav("Unmatched")
+        self._highlight_nav("Inbox")
         self._clear_main_frame()
 
         conn = self.data_manager.get_db_connection()
@@ -1322,7 +1336,7 @@ class App(ctk.CTk):
         threading.Thread(target=fetch_and_save, daemon=True).start()
 
     def _refresh_if_on_unmatched(self):
-        if hasattr(self, 'nav_btns') and self.nav_btns["Unmatched"].cget("fg_color") == SURFACE_COLOR:
+        if hasattr(self, 'nav_btns') and self.nav_btns["Inbox"].cget("fg_color") == SURFACE_COLOR:
             self._show_unmatched()
 
     # =========================================================================
