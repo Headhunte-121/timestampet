@@ -13,6 +13,7 @@ It acts as a **Desktop Media Tracking Diary** to track your watch progress, comp
 *   **Granular Watch Tracking:** Track your progress at the Show, Season, and Episode levels.
 *   **Watch Counts & History:** Keeps an exact count of how many times you have watched a specific episode or movie, along with a historical log of when you completed it.
 *   **Smart Media Scanner:** Point the app to your local media folders (e.g., `D:\TV Shows`). It uses regex to parse names (e.g., `S01E01`) and automatically links the local files to your fetched online library.
+*   **Batch Match Unmatched Files:** When files fail to auto-match, they are intelligently grouped by their extracted series name in an accordion UI. You can search TMDB for the group once, and WatchMark will magically link all valid SxxExx files in that group to the selected show.
 *   **Direct Playback:** Clicking "Play" on a tracked episode launches the linked local file in VLC automatically.
 *   **Smart Playhead Tracking (VLC Heartbeat):** No need to manually click "Mark as Watched"! When WatchMark launches VLC, it silently connects to VLC's local HTTP API in the background. It polls the playhead position every 5 seconds. If you close VLC after watching 90% or more of the video, WatchMark automatically logs it as "Completed" and increments your watch count. If you close it earlier, it remembers exactly where you left off.
 *   **Missing Episodes View:** A filter that shows episodes you haven't watched, which are also missing from your hard drive, helping you figure out what to download next.

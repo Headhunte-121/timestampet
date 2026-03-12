@@ -266,6 +266,7 @@ class App(ctk.CTk):
     # SEARCH & DISCOVER
     # =========================================================================
     def _show_search(self):
+        self._pending_group_match = None # Clear pending matches when opening standard search
         self._highlight_nav("🔍 Search")
         self._clear_main_frame()
 
@@ -336,19 +337,6 @@ class App(ctk.CTk):
 
     def _add_to_tracker(self, media_data):
         api_key = self.data_manager.settings.get("tmdb_api_key")
-
-        def fetch_and_save():
-            try:
-                # 1. Fetch details
-                details = get_media_details(api_key, media_data['tmdb_id'], media_data['type'])
-                if not details: return
-
-                # Download Poster
-                if details['poster_path']:
-                    download_poster(details['poster_path'])
-
-                conn = self.data_manager.get_db_connection()
-                cursor = conn.cursor()
 
     def _show_media_details(self, media_id):
         self._clear_main_frame()
