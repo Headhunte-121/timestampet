@@ -7,10 +7,11 @@ import customtkinter as ctk
 original_mouse_wheel = ctk.windows.widgets.ctk_scrollable_frame.CTkScrollableFrame._mouse_wheel_all
 def turbo_mouse_wheel(self, event):
     if self.winfo_exists():
-        if event.state == 0 and event.delta:
-            # Multiply scroll delta by 4 for native, fast feel
-            event.delta = event.delta * 4
-    return original_mouse_wheel(self, event)
+        # Execute the original scroll method multiple times per physical scroll event
+        # to ensure a universally fast scroll across all OS (Windows, macOS, Linux)
+        for _ in range(5):
+            original_mouse_wheel(self, event)
+    return
 
 ctk.windows.widgets.ctk_scrollable_frame.CTkScrollableFrame._mouse_wheel_all = turbo_mouse_wheel
 # --------------------------------------------------------
@@ -203,17 +204,30 @@ class App(ctk.CTk):
         conn = self.data_manager.get_db_connection()
         cursor = conn.cursor()
 
-        # 1. Fetch the absolute most recently watched episode for the Hero Section
+        # 1. Fetch the most recently engaged SHOW, then get its next unwatched episode
         cursor.execute("""
-            SELECT e.*, m.title as show_title, m.backdrop_path, l.file_path, m.type as media_type
+            SELECT e.media_id, MAX(h.timestamp) as last_watched
             FROM History h
             JOIN Episodes e ON h.episode_id = e.id
-            JOIN Media m ON e.media_id = m.id
-            LEFT JOIN Local_Files l ON e.id = l.episode_id
-            ORDER BY h.timestamp DESC
+            GROUP BY e.media_id
+            ORDER BY last_watched DESC
             LIMIT 1
         """)
-        hero_ep = cursor.fetchone()
+        hero_media = cursor.fetchone()
+
+        hero_ep = None
+        if hero_media:
+            # Get the NEXT unwatched or currently watching episode for this media
+            cursor.execute("""
+                SELECT e.*, m.title as show_title, m.backdrop_path, l.file_path, m.type as media_type, e.still_path
+                FROM Episodes e
+                JOIN Media m ON e.media_id = m.id
+                LEFT JOIN Local_Files l ON e.id = l.episode_id
+                WHERE e.media_id = ? AND e.status IN ('Watching', 'Unwatched')
+                ORDER BY e.season_num ASC, e.ep_num ASC
+                LIMIT 1
+            """, (hero_media['media_id'],))
+            hero_ep = cursor.fetchone()
 
         if hero_ep:
             # Render Hero Section
@@ -1083,7 +1097,7 @@ class App(ctk.CTk):
             img_lbl = ctk.CTkLabel(img_frame, text="", fg_color="#1A1C23", font=("Inter", 10, "normal"))
             img_lbl.pack(fill="both", expand=True)
 
-            def load_still(ep_data, fallback_backdrop):
+            def load_still(ep_data, fallback_backdrop, target_lbl):
                 from .tmdb_api import download_image
                 from PIL import ImageFilter, ImageEnhance
 
@@ -1118,15 +1132,15 @@ class App(ctk.CTk):
                         img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(120, 68))
 
                         def update_ui():
-                            img_lbl.configure(image=img, text=f"EP {ep_data['ep_num']}" if is_fallback else "",
+                            target_lbl.configure(image=img, text=f"EP {ep_data['ep_num']}" if is_fallback else "",
                                               font=("Inter", 16, "bold"), text_color="#B3B3B3")
                         self.after(0, update_ui)
                     except Exception as e:
                         pass
                 else:
-                    self.after(0, lambda: img_lbl.configure(text=f"EP {ep_data['ep_num']}", text_color=TEXT_SECONDARY))
+                    self.after(0, lambda: target_lbl.configure(text=f"EP {ep_data['ep_num']}", text_color=TEXT_SECONDARY))
 
-            threading.Thread(target=load_still, args=(ep, m_backdrop), daemon=True).start()
+            threading.Thread(target=load_still, args=(ep, m_backdrop, img_lbl), daemon=True).start()
 
             # Middle: Status + Title
             mid_frame = ctk.CTkFrame(row, fg_color="transparent")
