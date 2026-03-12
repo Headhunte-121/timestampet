@@ -408,7 +408,7 @@ class App(ctk.CTk):
 
         # Play overlay button
         play_btn = ctk.CTkButton(img_container, text="▶", width=40, height=40, corner_radius=20,
-                                 fg_color="rgba(255, 107, 0, 0.8)", hover_color=VLC_ORANGE_HOVER,
+                                 fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
                                  font=("Inter", 18, "normal"), command=lambda e=ep_row: self._play_episode(e))
         play_btn.place(relx=0.5, rely=0.5, anchor="center")
 
