@@ -186,6 +186,8 @@ class App(ctk.CTk):
     def _handle_quick_search(self, event):
         query = self.quick_search_var.get().strip().lower()
         if not query:
+            # If search is cleared, reset to Dashboard or default library view
+            self._show_dashboard()
             return
 
         # Route to a generic library view that searches both TV and Movies
@@ -280,8 +282,8 @@ class App(ctk.CTk):
             if hero_ep['file_path']:
                 btn_text = "▶ Play Next"
                 if is_resuming:
-                    mins = hero_ep['last_position'] // 60
-                    secs = hero_ep['last_position'] % 60
+                    mins = int(hero_ep['last_position'] // 60)
+                    secs = int(hero_ep['last_position'] % 60)
                     btn_text = f"▶ Resume at {mins}:{secs:02d}"
 
                 play_btn = ctk.CTkButton(content_frame, text=btn_text, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=45, width=150,
@@ -353,7 +355,13 @@ class App(ctk.CTk):
         ra_frame = ctk.CTkScrollableFrame(dash_scroll, orientation="horizontal", height=280, fg_color="transparent")
         ra_frame.pack(fill="x", padx=15)
 
-        cursor.execute("SELECT * FROM Media ORDER BY id DESC LIMIT 15")
+        cursor.execute("""
+            SELECT m.*,
+                   (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') as completed_eps,
+                   (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched
+            FROM Media m
+            ORDER BY m.id DESC LIMIT 15
+        """)
         recent_media = cursor.fetchall()
 
         if not recent_media:
@@ -375,6 +383,10 @@ class App(ctk.CTk):
         cursor.execute("SELECT COUNT(*) as c FROM Media WHERE status = 'Completed'")
         shows_completed = cursor.fetchone()['c']
 
+        cursor.execute("SELECT AVG(user_rating) as avg_rating FROM Media WHERE user_rating > 0")
+        avg_rating_row = cursor.fetchone()
+        avg_rating = round(avg_rating_row['avg_rating'], 1) if avg_rating_row and avg_rating_row['avg_rating'] else 0.0
+
         def make_stat_card(parent, title, value):
             f = ctk.CTkFrame(parent, fg_color=SURFACE_COLOR, corner_radius=12, height=100)
             f.pack(side="left", fill="x", expand=True, padx=5)
@@ -382,9 +394,9 @@ class App(ctk.CTk):
             ctk.CTkLabel(f, text=title, font=("Inter", 14, "normal"), text_color=TEXT_SECONDARY).pack(pady=(20, 5))
             ctk.CTkLabel(f, text=str(value), font=("Inter", 28, "bold"), text_color=VLC_ORANGE).pack()
 
-        make_stat_card(stats_frame, "Episodes Watched", eps_watched)
-        make_stat_card(stats_frame, "Hours Watched", hrs_watched)
+        make_stat_card(stats_frame, "Total Hours Watched", hrs_watched)
         make_stat_card(stats_frame, "Shows Completed", shows_completed)
+        make_stat_card(stats_frame, "My Average Rating", f"⭐ {avg_rating}")
 
         conn.close()
 
@@ -498,7 +510,12 @@ class App(ctk.CTk):
         cursor = conn.cursor()
 
         # Build query
-        base_query = "SELECT m.* FROM Media m"
+        base_query = """
+            SELECT m.*,
+                   (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') as completed_eps,
+                   (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched
+            FROM Media m
+        """
         where_clauses = []
         params = []
 
@@ -524,14 +541,7 @@ class App(ctk.CTk):
         elif sort_by == "My Top Rated":
             base_query += " ORDER BY m.user_rating DESC, m.id DESC"
         elif sort_by == "Sort by Last Watched":
-            base_query = f"""
-                SELECT m.*, MAX(h.timestamp) as last_watched
-                FROM ({base_query}) m
-                LEFT JOIN Episodes e ON m.id = e.media_id
-                LEFT JOIN History h ON e.id = h.episode_id
-                GROUP BY m.id
-                ORDER BY last_watched DESC NULLS LAST, m.id DESC
-            """
+            base_query += " ORDER BY last_watched DESC NULLS LAST, m.id DESC"
         else: # Default: Recently Added
             base_query += " ORDER BY m.id DESC"
 
@@ -606,22 +616,11 @@ class App(ctk.CTk):
         overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
 
         # Last Engaged Poster Badge & Legacy Archive Check
-        conn = self.data_manager.get_db_connection()
-        c = conn.cursor()
-        c.execute("""
-            SELECT MAX(timestamp) as last_watched
-            FROM History h
-            JOIN Episodes e ON h.episode_id = e.id
-            WHERE e.media_id = ?
-        """, (item['id'],))
-        lw_data = c.fetchone()
+        last_watched = item['last_watched'] if 'last_watched' in item.keys() else None
+        c_eps = item['completed_eps'] if 'completed_eps' in item.keys() else 0
 
-        c.execute("SELECT COUNT(*) as completed_eps FROM Episodes WHERE media_id=? AND status='Completed'", (item['id'],))
-        c_eps = c.fetchone()['completed_eps']
-        conn.close()
-
-        if lw_data and lw_data['last_watched']:
-            watch_yr = lw_data['last_watched'][:4]
+        if last_watched:
+            watch_yr = last_watched[:4]
             tag_lbl = ctk.CTkLabel(card, text=watch_yr, fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
             tag_lbl.place(relx=0.05, rely=0.88) # Bottom-left corner
         elif c_eps > 0:
@@ -632,6 +631,27 @@ class App(ctk.CTk):
         title_lbl = ctk.CTkLabel(card, text=((item['title'] or 'Unknown Title')), font=("Inter", 13, "bold"),
                                  wraplength=150, text_color=TEXT_PRIMARY)
         # title_lbl.pack(pady=(5, 0)) # Depending on layout needs, hide title to make it cleaner
+
+        # Progress bar at bottom
+        t_eps = item['total_episodes'] if item['total_episodes'] is not None else 0
+
+        prog_color = "#333" # Gray (Unwatched)
+        prog_val = 0.0
+        if t_eps > 0:
+            prog_val = c_eps / t_eps
+            if prog_val == 1.0:
+                prog_color = SUCCESS_COLOR # Green
+            elif prog_val > 0.0:
+                prog_color = VLC_ORANGE # Orange
+
+        prog_bar = ctk.CTkProgressBar(card, height=4, progress_color=prog_color, fg_color="#333", corner_radius=0)
+        prog_bar.place(x=0, rely=1.0, anchor="sw", relwidth=1.0)
+        prog_bar.set(prog_val)
+
+        # Star rating badge
+        if 'user_rating' in item.keys() and item['user_rating'] > 0:
+            star_lbl = ctk.CTkLabel(card, text="★", fg_color="#181A20", text_color=VLC_ORANGE, font=("Inter", 14, "normal"), corner_radius=10, width=20, height=20)
+            star_lbl.place(relx=0.85, rely=0.05, anchor="ne")
 
         def load_poster():
             if item['poster_path']:
@@ -1314,6 +1334,27 @@ class App(ctk.CTk):
         synopsis_lbl.pack(anchor="w", pady=5)
         self._current_synopsis_lbl = synopsis_lbl
 
+        # Show-level Air Date context
+        if 'type' in media.keys() and media['type'] == 'TV':
+            cursor.execute("SELECT MIN(air_date) as start_date, MAX(air_date) as end_date FROM Episodes WHERE media_id=? AND air_date IS NOT NULL AND air_date != ''", (media_id,))
+            show_dates = cursor.fetchone()
+            if show_dates and show_dates['start_date']:
+                from datetime import datetime
+                try:
+                    s_dt = datetime.strptime(show_dates['start_date'], '%Y-%m-%d')
+                    start_str = s_dt.strftime('%Y')
+                    if show_dates['end_date'] and show_dates['start_date'] != show_dates['end_date']:
+                        e_dt = datetime.strptime(show_dates['end_date'], '%Y-%m-%d')
+                        end_str = e_dt.strftime('%Y')
+                        if start_str != end_str:
+                            ctk.CTkLabel(info_frame, text=f"Aired: {start_str} – {end_str}", font=("Inter", 12, "bold"), text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 5))
+                        else:
+                            ctk.CTkLabel(info_frame, text=f"Aired: {start_str}", font=("Inter", 12, "bold"), text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 5))
+                    else:
+                        ctk.CTkLabel(info_frame, text=f"Aired: {start_str}", font=("Inter", 12, "bold"), text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 5))
+                except ValueError:
+                    pass
+
         # Ratings Row
         ratings_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
         ratings_frame.pack(anchor="w", pady=(5, 10))
@@ -1563,7 +1604,7 @@ class App(ctk.CTk):
                     if btn.cget('fg_color') == TEXT_PRIMARY:
                         active_season = s
                         break
-            self._load_episodes(media_id, active_season)
+            self._load_episodes(media_id, active_season, reset_scroll=False)
 
         self.data_manager.submit_write_task(_write, callback=lambda: self.after(0, refresh_ui))
 
@@ -1713,7 +1754,7 @@ class App(ctk.CTk):
                     if btn.cget('fg_color') == TEXT_PRIMARY:
                         active_season = s
                         break
-            self._load_episodes(media_id, active_season)
+            self._load_episodes(media_id, active_season, reset_scroll=False)
 
         # Restore Sync Button State
         if hasattr(self, '_current_sync_btn') and self._current_sync_btn.winfo_exists():
@@ -1726,7 +1767,7 @@ class App(ctk.CTk):
             self._current_sync_btn.configure(text="🔄 Refresh Data", state="normal", text_color=TEXT_PRIMARY)
         messagebox.showerror("Sync Failed", f"Could not sync data from TMDB:\n{error_msg}")
 
-    def _load_episodes(self, media_id, season_num):
+    def _load_episodes(self, media_id, season_num, reset_scroll=True):
         if hasattr(self, 'season_btns'):
             for s, btn in self.season_btns:
                 if s == season_num:
@@ -1767,7 +1808,7 @@ class App(ctk.CTk):
                     pass
 
         # Reset scrollbar to the top when changing seasons
-        if hasattr(self, '_current_detail_scroll') and self._current_detail_scroll.winfo_exists():
+        if reset_scroll and hasattr(self, '_current_detail_scroll') and self._current_detail_scroll.winfo_exists():
             self._current_detail_scroll._parent_canvas.yview_moveto(0)
 
         for widget in self.ep_list_frame.winfo_children():
@@ -2086,7 +2127,7 @@ class App(ctk.CTk):
                     text=f"{self._current_watched_eps} / {self._current_total_eps} Eps",
                     fg_color=status_color
                 )
-            self._load_episodes(media_id, season_num)
+            self._load_episodes(media_id, season_num, reset_scroll=False)
 
         self.data_manager.submit_write_task(_write, callback=lambda: self.after(0, refresh_ui))
 
@@ -2107,7 +2148,7 @@ class App(ctk.CTk):
             if delta > 0:
                 w_cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
 
-        self.data_manager.submit_write_task(_write, callback=lambda: self.after(0, lambda: self._load_episodes(media_id, season_num)))
+        self.data_manager.submit_write_task(_write, callback=lambda: self.after(0, lambda: self._load_episodes(media_id, season_num, reset_scroll=False)))
 
     # =========================================================================
     # VLC PLAYBACK & TRACKING
@@ -2251,7 +2292,7 @@ class App(ctk.CTk):
     def _refresh_if_on_episode(self, media_id, season_num):
         # We check if the ep_list_frame exists and is visible. Simplistic refresh.
         if hasattr(self, 'ep_list_frame') and self.ep_list_frame.winfo_exists():
-            self._load_episodes(media_id, season_num)
+            self._load_episodes(media_id, season_num, reset_scroll=False)
 
     # =========================================================================
     # SCANNER & UNMATCHED
