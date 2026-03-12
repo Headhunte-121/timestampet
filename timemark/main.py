@@ -37,7 +37,6 @@ class App(ctk.CTk):
 
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
-        self.current_unmatched_files = []
         self._setup_layout()
         self._show_dashboard()
 
@@ -87,9 +86,9 @@ class App(ctk.CTk):
     def _highlight_nav(self, active_text):
         for text, btn in self.nav_btns.items():
             if text == active_text:
-                btn.configure(fg_color=("gray75", "gray25"))
+                btn.configure(fg_color=VLC_ORANGE, text_color="white")
             else:
-                btn.configure(fg_color="transparent")
+                btn.configure(fg_color="transparent", text_color=("gray10", "gray90"))
 
     # =========================================================================
     # DASHBOARD
@@ -135,9 +134,10 @@ class App(ctk.CTk):
         cw_eps = []
         for m_id in recent_media_ids:
             cursor.execute("""
-                SELECT e.*, m.title as show_title, m.poster_path
+                SELECT e.*, m.title as show_title, m.poster_path, l.file_path
                 FROM Episodes e
                 JOIN Media m ON e.media_id = m.id
+                LEFT JOIN Local_Files l ON e.id = l.episode_id
                 WHERE e.media_id = ? AND e.status IN ('Watching', 'Unwatched')
                 ORDER BY e.season_num ASC, e.ep_num ASC
                 LIMIT 1
@@ -145,18 +145,6 @@ class App(ctk.CTk):
             ep = cursor.fetchone()
             if ep:
                 cw_eps.append(ep)
-
-        # If no history or no unwatched from history, just get some unwatched
-        if not cw_eps:
-             cursor.execute("""
-                 SELECT e.*, m.title as show_title, m.poster_path
-                 FROM Episodes e
-                 JOIN Media m ON e.media_id = m.id
-                 WHERE e.status IN ('Watching', 'Unwatched')
-                 ORDER BY e.status DESC, e.season_num ASC, e.ep_num ASC
-                 LIMIT 10
-             """)
-             cw_eps = cursor.fetchall()
 
         if not cw_eps:
             ctk.CTkLabel(cw_frame, text="Nothing to continue watching.").pack(padx=20, pady=20)
@@ -167,35 +155,53 @@ class App(ctk.CTk):
         conn.close()
 
     def _create_episode_card(self, parent, ep_row):
-        card = ctk.CTkFrame(parent, width=150, height=200)
-        card.pack(side="left", padx=10)
+        card = ctk.CTkFrame(parent, width=300, height=120, fg_color="#1E1E1E")
+        card.pack(side="left", padx=10, pady=10)
         card.pack_propagate(False)
 
-        img_label = ctk.CTkLabel(card, text="No Image", width=130, height=100, fg_color="gray30")
-        img_label.pack(pady=5)
+        left_col = ctk.CTkFrame(card, width=80, height=120, fg_color="transparent")
+        left_col.pack(side="left")
+        left_col.pack_propagate(False)
+
+        img_label = ctk.CTkLabel(left_col, text="No Image", width=80, height=120, fg_color="gray30")
+        img_label.pack(fill="both", expand=True)
 
         if ep_row['poster_path']:
             local_img = POSTER_CACHE_DIR / ep_row['poster_path'].lstrip('/')
             if local_img.exists():
-                img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(130, 100))
+                img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(80, 120))
                 img_label.configure(image=img, text="")
 
-        title = f"{ep_row['show_title']}\nS{ep_row['season_num']}E{ep_row['ep_num']}"
-        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=12, weight="bold"), wraplength=130).pack(pady=5)
+        right_col = ctk.CTkFrame(card, fg_color="transparent")
+        right_col.pack(side="left", fill="both", expand=True, padx=10, pady=5)
 
-        if ep_row['status'] == 'Watching':
-            if ep_row['runtime'] > 0:
-                pct = int((ep_row['last_position'] / (ep_row['runtime'] * 60)) * 100)
-                status_text = f"Watching ({pct}%)"
-            else:
-                status_text = "Watching (Resumable)"
+        title = f"{ep_row['show_title']}"
+        subtitle = f"S{ep_row['season_num']:02}E{ep_row['ep_num']:02} - {ep_row['title']}"
+
+        ctk.CTkLabel(right_col, text=title, font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(right_col, text=subtitle, font=ctk.CTkFont(size=12), text_color="gray", anchor="w").pack(fill="x")
+
+        # Progress bar
+        progress_val = 0.0
+        if ep_row['status'] == 'Watching' and ep_row['runtime'] > 0:
+            progress_val = min(1.0, ep_row['last_position'] / (ep_row['runtime'] * 60))
+
+        prog_bar = ctk.CTkProgressBar(right_col, height=8, progress_color=VLC_ORANGE)
+        prog_bar.pack(fill="x", pady=10)
+        prog_bar.set(progress_val)
+
+        # Play button
+        has_file = bool(ep_row.get('file_path'))
+        if has_file:
+            play_btn = ctk.CTkButton(right_col, text="▶ Play", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=24,
+                                     command=lambda e=ep_row: self._play_episode(e))
+            play_btn.pack(anchor="w")
         else:
-            status_text = "Unwatched"
-        ctk.CTkLabel(card, text=status_text, font=ctk.CTkFont(size=10), text_color="gray").pack()
+            play_btn = ctk.CTkButton(right_col, text="❌ Missing File", fg_color="gray30", hover_color="gray30", height=24, state="disabled")
+            play_btn.pack(anchor="w")
 
         card.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
-        for child in card.winfo_children():
-            child.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
+        img_label.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
 
     # =========================================================================
     # TV SHOWS / MOVIES LIBRARY
@@ -430,36 +436,49 @@ class App(ctk.CTk):
         conn.close()
 
         for ep in episodes:
-            row = ctk.CTkFrame(self.ep_list_frame)
-            row.pack(fill="x", pady=2)
+            row = ctk.CTkFrame(self.ep_list_frame, fg_color="#1E1E1E", corner_radius=8)
+            row.pack(fill="x", pady=4, padx=10)
 
-            # Status Icon
+            # Left side: Status + Title
+            left_frame = ctk.CTkFrame(row, fg_color="transparent")
+            left_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+
             icon = "⬛" # Unwatched
             if ep['status'] == 'Completed':
                 icon = "✅"
             elif ep['status'] == 'Watching':
                 icon = "⏳"
 
-            ctk.CTkLabel(row, text=icon, width=30).pack(side="left", padx=5)
+            ctk.CTkLabel(left_frame, text=icon, font=ctk.CTkFont(size=14)).pack(side="left", padx=(0, 10))
 
-            # Title
-            title_text = f"{ep['ep_num']}. {ep['title']}"
-            color = "white" if ep['status'] == 'Completed' else "gray"
-            ctk.CTkLabel(row, text=title_text, width=250, anchor="w", text_color=color).pack(side="left", padx=10)
+            title_text = f"S{ep['season_num']:02}E{ep['ep_num']:02} - {ep['title']}"
+            title_font = ctk.CTkFont(size=14, weight="bold") if ep['status'] != 'Completed' else ctk.CTkFont(size=14)
+            color = "white" if ep['status'] != 'Completed' else "gray"
+            ctk.CTkLabel(left_frame, text=title_text, font=title_font, text_color=color, anchor="w").pack(side="left")
+
+            runtime_text = f" • {ep['runtime']} min" if ep['runtime'] else ""
+            ctk.CTkLabel(left_frame, text=runtime_text, font=ctk.CTkFont(size=12), text_color="gray", anchor="w").pack(side="left")
+
+            # Right side: Controls
+            right_frame = ctk.CTkFrame(row, fg_color="transparent")
+            right_frame.pack(side="right", padx=10, pady=10)
+
+            # Watch Count controls
+            ctk.CTkButton(right_frame, text="-", width=30, height=24, fg_color="gray30", hover_color="gray50",
+                          command=lambda e_id=ep['id'], m_id=media_id, s=season_num: self._adj_watch(e_id, m_id, s, -1)).pack(side="left", padx=2)
+            ctk.CTkLabel(right_frame, text=f"Watch Count: {ep['watch_count']}", width=100).pack(side="left", padx=5)
+            ctk.CTkButton(right_frame, text="+", width=30, height=24, fg_color="gray30", hover_color="gray50",
+                          command=lambda e_id=ep['id'], m_id=media_id, s=season_num: self._adj_watch(e_id, m_id, s, 1)).pack(side="left", padx=2)
 
             # Play Button
             has_file = bool(ep['file_path'])
-            play_color = VLC_ORANGE if has_file else "gray30"
-            play_hover = VLC_ORANGE_HOVER if has_file else "gray30"
-
-            play_btn = ctk.CTkButton(row, text="▶", width=40, fg_color=play_color, hover_color=play_hover,
-                                     command=lambda e=ep: self._play_episode(e) if e['file_path'] else None)
-            play_btn.pack(side="left", padx=10)
-
-            # Watch Count controls
-            ctk.CTkButton(row, text="-", width=30, fg_color="gray", command=lambda e_id=ep['id'], m_id=media_id, s=season_num: self._adj_watch(e_id, m_id, s, -1)).pack(side="left", padx=2)
-            ctk.CTkLabel(row, text=f"Count: {ep['watch_count']}", width=70).pack(side="left", padx=5)
-            ctk.CTkButton(row, text="+", width=30, fg_color="gray", command=lambda e_id=ep['id'], m_id=media_id, s=season_num: self._adj_watch(e_id, m_id, s, 1)).pack(side="left", padx=2)
+            if has_file:
+                play_btn = ctk.CTkButton(right_frame, text="▶ Play Local", width=120, height=30, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, font=ctk.CTkFont(weight="bold"),
+                                         command=lambda e=ep: self._play_episode(e))
+                play_btn.pack(side="left", padx=(10, 0))
+            else:
+                play_btn = ctk.CTkButton(right_frame, text="❌ Missing File", width=120, height=30, fg_color="gray30", hover_color="gray30", font=ctk.CTkFont(weight="bold"), state="disabled")
+                play_btn.pack(side="left", padx=(10, 0))
 
     def _adj_watch(self, episode_id, media_id, season_num, delta):
         conn = self.data_manager.get_db_connection()
@@ -524,7 +543,7 @@ class App(ctk.CTk):
         if high_water_mark > 0.90:
             cursor.execute("""
                 UPDATE Episodes
-                SET watch_count = watch_count + 1, status = 'Completed', last_position = 0.0
+                SET watch_count = watch_count + 1, status = 'Completed', last_position = 0
                 WHERE id = ?
             """, (episode_id,))
             cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
@@ -535,7 +554,7 @@ class App(ctk.CTk):
                     UPDATE Episodes
                     SET status = 'Watching', last_position = ?
                     WHERE id = ? AND status != 'Completed'
-                """, (last_time_seconds, episode_id))
+                """, (int(last_time_seconds), episode_id))
 
         conn.commit()
         conn.close()
@@ -566,70 +585,102 @@ class App(ctk.CTk):
 
             threading.Thread(target=run_scan, daemon=True).start()
 
-    def _finish_scan(self, unmatched):
-        self.current_unmatched_files.extend(unmatched)
-        ToastNotification(self, title="Scan Complete", message=f"Finished. Found {len(unmatched)} unmatched files.", duration=4000, color="#1b5e20")
+    def _finish_scan(self, new_count):
+        ToastNotification(self, title="Scan Complete", message=f"Finished. Found {new_count} new unmatched files.", duration=4000, color="#1b5e20")
         # If user is currently looking at unmatched list, refresh it
-        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == ("gray75", "gray25"):
+        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == VLC_ORANGE:
             self._show_unmatched()
 
     def _show_unmatched(self):
         self._highlight_nav("❓ Unmatched Files")
         self._clear_main_frame()
 
-        ctk.CTkLabel(self.main_frame, text="Unmatched Files", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=20)
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Unmatched_Files")
+        unmatched_files = cursor.fetchall()
 
-        if not self.current_unmatched_files:
-            ctk.CTkLabel(self.main_frame, text="No unmatched files.").pack(pady=20)
+        cursor.execute("SELECT COUNT(DISTINCT group_key) as group_count FROM Unmatched_Files")
+        row = cursor.fetchone()
+        group_count = row['group_count'] if row else 0
+        conn.close()
+
+        ctk.CTkLabel(self.main_frame, text="Unmatched Files", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=(20, 5))
+
+        if not unmatched_files:
+            ctk.CTkLabel(self.main_frame, text="No unmatched files on your hard drive.").pack(pady=20)
             return
+
+        ctk.CTkLabel(self.main_frame, text=f"You have {group_count} unrecognized series on your hard drive.", font=ctk.CTkFont(size=14), text_color="gray").pack(anchor="w", padx=20, pady=(0, 20))
 
         scroll = ctk.CTkScrollableFrame(self.main_frame)
         scroll.pack(fill="both", expand=True, padx=20, pady=10)
 
         # Group files
         groups = {}
-        for idx, uf in enumerate(self.current_unmatched_files):
-            g_key = uf.get('group_key', 'Unknown')
+        for uf in unmatched_files:
+            g_key = uf['group_key'] or 'Unknown'
             if g_key not in groups:
                 groups[g_key] = []
-            groups[g_key].append((idx, uf))
+            groups[g_key].append(uf)
 
         for group_name, files in groups.items():
-            group_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-            group_frame.pack(fill="x", pady=5)
+            card = ctk.CTkFrame(scroll, fg_color="#1E1E1E", corner_radius=10)
+            card.pack(fill="x", pady=10, padx=10)
 
-            header_frame = ctk.CTkFrame(group_frame, fg_color=("gray85", "gray15"))
-            header_frame.pack(fill="x")
+            # Card Header
+            header_frame = ctk.CTkFrame(card, fg_color="transparent")
+            header_frame.pack(fill="x", padx=15, pady=15)
 
-            # Label
-            label_text = f"📁 {group_name} — {len(files)} files detected"
-            header_label = ctk.CTkLabel(header_frame, text=label_text, font=ctk.CTkFont(weight="bold"))
-            header_label.pack(side="left", padx=10, pady=5)
+            title_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+            title_frame.pack(side="left", fill="both", expand=True)
 
-            # Content frame to be toggled
-            content_frame = ctk.CTkFrame(group_frame, fg_color="transparent")
+            ctk.CTkLabel(title_frame, text=f"📁 {group_name}", font=ctk.CTkFont(size=18, weight="bold"), anchor="w").pack(fill="x")
+
+            # Subtext logic: Check if files share the same directory path
+            import os
+            dirs = set(os.path.dirname(f['file_path']) for f in files)
+            dir_text = next(iter(dirs)) if len(dirs) == 1 else "Multiple Directories"
+            subtext = f"{len(files)} episodes found in {dir_text}"
+            ctk.CTkLabel(title_frame, text=subtext, font=ctk.CTkFont(size=12), text_color="gray", anchor="w").pack(fill="x")
+
+            # Content frame (hidden by default)
+            content_frame = ctk.CTkFrame(card, fg_color="transparent")
 
             # Toggle logic
-            def toggle(e, cf=content_frame):
+            def toggle(cf=content_frame):
                 if cf.winfo_ismapped():
                     cf.pack_forget()
                 else:
-                    cf.pack(fill="x", pady=(5, 0))
+                    cf.pack(fill="x", padx=15, pady=(0, 15))
 
-            header_frame.bind("<Button-1>", toggle)
-            header_label.bind("<Button-1>", toggle)
+            # Actions
+            actions_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+            actions_frame.pack(side="right")
 
-            # Search & Match All
-            match_btn = ctk.CTkButton(header_frame, text="🔍 Search & Match All",
-                                      command=lambda gn=group_name, fs=files: self._match_group(gn, fs))
-            match_btn.pack(side="right", padx=10, pady=5)
+            ctk.CTkButton(actions_frame, text="🔍 Search TMDB & Match All", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, font=ctk.CTkFont(weight="bold"),
+                          command=lambda gn=group_name, fs=files: self._match_group(gn, fs)).pack(side="left", padx=5)
+
+            ctk.CTkButton(actions_frame, text="👁️ View Files", fg_color="gray30", hover_color="gray50",
+                          command=lambda cf=content_frame: toggle(cf)).pack(side="left", padx=5)
+
+            ctk.CTkButton(actions_frame, text="🗑️ Ignore", fg_color="#b71c1c", hover_color="#8e0000",
+                          command=lambda gn=group_name: self._ignore_group(gn)).pack(side="left", padx=5)
 
             # Files inside group
-            for idx, uf in files:
-                row = ctk.CTkFrame(content_frame)
-                row.pack(fill="x", pady=2, padx=(20, 0))
-                ctk.CTkLabel(row, text=uf['filename'], width=400, anchor="w").pack(side="left", padx=10)
-                ctk.CTkButton(row, text="Assign...", command=lambda idx=idx: self._assign_unmatched(idx)).pack(side="right", padx=10)
+            for uf in files:
+                row = ctk.CTkFrame(content_frame, fg_color="transparent")
+                row.pack(fill="x", pady=2)
+                ctk.CTkLabel(row, text=uf['filename'], font=ctk.CTkFont(family="monospace", size=11), anchor="w").pack(side="left", padx=10, fill="x", expand=True)
+                ctk.CTkButton(row, text="Assign...", width=80, height=24, command=lambda f=uf: self._assign_unmatched(f)).pack(side="right", padx=10)
+
+    def _ignore_group(self, group_name):
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM Unmatched_Files WHERE group_key=?", (group_name,))
+        conn.commit()
+        conn.close()
+        self._show_unmatched()
 
     def _match_group(self, group_name, files):
         # Trigger TMDB search with the group name
@@ -702,9 +753,8 @@ class App(ctk.CTk):
                 if pending_group:
                     import sqlite3
                     assigned_count = 0
-                    files_to_remove = []
 
-                    for idx, uf in pending_group:
+                    for uf in pending_group:
                         s_num = uf.get('parsed_season')
                         e_num = uf.get('parsed_episode')
 
@@ -720,15 +770,15 @@ class App(ctk.CTk):
                                         INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?)
                                         ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path
                                     """, (ep['id'], uf['file_path']))
+
+                                    # Delete from Unmatched_Files
+                                    cursor.execute("DELETE FROM Unmatched_Files WHERE file_path=?", (uf['file_path'],))
+
                                     assigned_count += 1
-                                    files_to_remove.append(uf)
                                 except sqlite3.IntegrityError:
                                     pass
 
                     conn.commit()
-
-                    if files_to_remove:
-                        self.current_unmatched_files = [f for f in self.current_unmatched_files if f not in files_to_remove]
 
                     self.after(0, lambda ac=assigned_count: messagebox.showinfo("Success", f"Added {details['title']} and assigned {ac} files!"))
                     self._pending_group_match = None
@@ -747,16 +797,14 @@ class App(ctk.CTk):
         threading.Thread(target=fetch_and_save, daemon=True).start()
 
     def _refresh_if_on_unmatched(self):
-        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == ("gray75", "gray25"):
+        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == VLC_ORANGE:
             self._show_unmatched()
 
     # =========================================================================
     # MEDIA DEEP DIVE
     # =========================================================================
 
-    def _assign_unmatched(self, uf_idx):
-        # Extremely simplified assignment logic for MVP
-        uf = self.current_unmatched_files[uf_idx]
+    def _assign_unmatched(self, uf):
 
         dialog = ctk.CTkToplevel(self)
         dialog.title("Assign File")
@@ -824,10 +872,10 @@ class App(ctk.CTk):
                         INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?)
                         ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path
                     """, (ep['id'], uf['file_path']))
+                    cursor.execute("DELETE FROM Unmatched_Files WHERE file_path=?", (uf['file_path'],))
                     conn.commit()
                     conn.close()
 
-                    self.current_unmatched_files.pop(uf_idx)
                     dialog.destroy()
                     self._show_unmatched()
                 else:

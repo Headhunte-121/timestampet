@@ -31,7 +31,7 @@ class Episode:
     title: str
     runtime: int
     watch_count: int
-    last_position: float # Percentage 0.0 to 1.0
+    last_position: int # Absolute seconds
     status: str # 'Unwatched', 'Watching', 'Completed'
 
 @dataclass
@@ -79,7 +79,7 @@ class DataManager:
                     title TEXT,
                     runtime INTEGER,
                     watch_count INTEGER DEFAULT 0,
-                    last_position REAL DEFAULT 0.0,
+                    last_position INTEGER DEFAULT 0,
                     status TEXT DEFAULT 'Unwatched',
                     FOREIGN KEY (media_id) REFERENCES Media (id),
                     UNIQUE(media_id, season_num, ep_num)
@@ -101,6 +101,17 @@ class DataManager:
                     episode_id INTEGER,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (episode_id) REFERENCES Episodes (id)
+                )
+            ''')
+
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS Unmatched_Files (
+                    file_path TEXT PRIMARY KEY,
+                    filename TEXT,
+                    parsed_series TEXT,
+                    parsed_season INTEGER,
+                    parsed_episode INTEGER,
+                    group_key TEXT
                 )
             ''')
 

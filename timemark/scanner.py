@@ -41,19 +41,20 @@ def parse_filename(filename: str) -> Tuple[Optional[str], Optional[int], Optiona
 
     return None, None, None
 
-def scan_directory(directory: str, data_manager: DataManager) -> List[dict]:
+def scan_directory(directory: str, data_manager: DataManager) -> int:
     """
     Scans a directory for video files.
     Matches S01E01 files to the database (if the show is tracked).
-    Returns a list of unmatched files for manual assignment.
+    Inserts unmatched files into Unmatched_Files table.
+    Returns the number of new unmatched files found.
     """
     root_path = Path(directory)
     if not root_path.is_dir():
-        return []
+        return 0
 
     conn = data_manager.get_db_connection()
     cursor = conn.cursor()
-    unmatched = []
+    new_unmatched_count = 0
 
     for file_path in root_path.rglob('*'):
         if file_path.is_file() and file_path.suffix.lower() in VIDEO_EXTENSIONS:
@@ -134,14 +135,16 @@ def scan_directory(directory: str, data_manager: DataManager) -> List[dict]:
                 if group_key:
                     group_key = re.sub(r'[\.\_]', ' ', group_key).strip()
 
-                unmatched.append({
-                    "file_path": str_path,
-                    "filename": file_path.name,
-                    "parsed_series": series_name,
-                    "parsed_season": season_num,
-                    "parsed_episode": episode_num,
-                    "group_key": group_key
-                })
+                import sqlite3
+                try:
+                    cursor.execute("""
+                        INSERT INTO Unmatched_Files (file_path, filename, parsed_series, parsed_season, parsed_episode, group_key)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (str_path, file_path.name, series_name, season_num, episode_num, group_key))
+                    conn.commit()
+                    new_unmatched_count += 1
+                except sqlite3.IntegrityError:
+                    pass # Already in Unmatched_Files
 
     conn.close()
-    return unmatched
+    return new_unmatched_count
