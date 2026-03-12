@@ -28,3 +28,9 @@ The following discrepancies between the codebase and the Master List have been f
 
 Update 2. Portable Data Storage (config.py):
    - Changed the default application data storage directory from OS-specific roaming folders (like `%APPDATA%`) to a portable `WatchMark` folder located in the same directory as `run.py`. This ensures all settings, database files, and cache remain with the application files.
+update 3:
+- Database Fetch Subqueries: Modified base SQL queries in main.py (`_render_library` and `_show_dashboard`) to fetch pre-calculated stats: MIN(air_date), MAX(air_date), and completed episode counts to prevent database lag during hover.
+- Static Card Layer UI: Modified `_create_poster_card` to show Original Year in the bottom left, Progress bar on the bottom edge, and a persistent "★ {rating}/5" badge in the top right.
+- Hover Overlay Rebuild: Created an `info_overlay` with `fg_color="#141519"` and a 10px implicit margin that displays the calculated Season Year Range, Watched Episodes fraction, truncated Synopsis, Last Watched human-readable string, and Play action center shifted downward.
+- Hover Ghosting Bug Fix: Refactored Event Bindings by binding `<Enter>` and `<Leave>` to the parent `CTkFrame` container, using boundary coordinate checking alongside a `hover_active` flag, guaranteeing a fluid fade-in without flickering when hovering over text children.
+- New Native Helper Function: Implemented `_get_time_ago(timestamp)` in main.py to gracefully convert history timestamps into "Time Ago" human-readable strings entirely using the native standard Python `datetime` library without timezone issues.

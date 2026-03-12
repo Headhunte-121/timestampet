@@ -358,7 +358,9 @@ class App(ctk.CTk):
         cursor.execute("""
             SELECT m.*,
                    (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') as completed_eps,
-                   (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched
+                   (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched,
+                   (SELECT MIN(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as min_year,
+                   (SELECT MAX(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as max_year
             FROM Media m
             ORDER BY m.id DESC LIMIT 15
         """)
@@ -513,7 +515,9 @@ class App(ctk.CTk):
         base_query = """
             SELECT m.*,
                    (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') as completed_eps,
-                   (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched
+                   (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched,
+                   (SELECT MIN(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as min_year,
+                   (SELECT MAX(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as max_year
             FROM Media m
         """
         where_clauses = []
@@ -593,6 +597,36 @@ class App(ctk.CTk):
         else:
             self._library_render_state = None
 
+    def _get_time_ago(self, timestamp_str: str) -> str:
+        if not timestamp_str:
+            return ""
+        try:
+            from datetime import datetime, timezone
+            dt = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            diff = now - dt
+
+            if diff.days > 365:
+                years = diff.days // 365
+                return f"{years} year{'s' if years > 1 else ''} ago"
+            if diff.days > 30:
+                months = diff.days // 30
+                return f"{months} month{'s' if months > 1 else ''} ago"
+            if diff.days > 0:
+                return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+
+            hours = diff.seconds // 3600
+            if hours > 0:
+                return f"{hours} hour{'s' if hours > 1 else ''} ago"
+
+            minutes = diff.seconds // 60
+            if minutes > 0:
+                return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+
+            return "Just now"
+        except Exception:
+            return ""
+
     def _create_poster_card(self, parent, item, grid_pos=None):
         card = ctk.CTkFrame(parent, width=160, height=260, fg_color="transparent", corner_radius=8)
 
@@ -608,33 +642,29 @@ class App(ctk.CTk):
         img_label = ctk.CTkLabel(card, text="No Poster", width=160, height=240, fg_color=SURFACE_COLOR, corner_radius=8)
         img_label.pack()
 
-        # Create overlay elements that we'll show on hover
-        overlay_frame = ctk.CTkFrame(card, fg_color=BG_COLOR, corner_radius=8, width=160, height=240)
-        # We don't pack it initially
-        overlay_btn = ctk.CTkButton(overlay_frame, text="▶", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
-                                    width=50, height=50, corner_radius=25, font=("Inter", 20, "normal"))
-        overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
+        # Star rating badge (STATIC LAYER)
+        user_rating = item['user_rating'] if 'user_rating' in item.keys() and item['user_rating'] is not None else 0
+        if user_rating > 0:
+            star_lbl = ctk.CTkLabel(card, text=f"★ {user_rating}/5", fg_color="#181A20", text_color=VLC_ORANGE, font=("Inter", 12, "bold"), corner_radius=10, padx=6, pady=2)
+            star_lbl.place(relx=0.95, rely=0.03, anchor="ne")
 
-        # Last Engaged Poster Badge & Legacy Archive Check
-        last_watched = item['last_watched'] if 'last_watched' in item.keys() else None
+        # Original Year badge (STATIC LAYER)
+        rel_date = item['release_date'] if 'release_date' in item.keys() and item['release_date'] else None
+        year_str = rel_date[:4] if rel_date else "Unknown"
+
         c_eps = item['completed_eps'] if 'completed_eps' in item.keys() else 0
+        t_eps = item['total_episodes'] if 'total_episodes' in item.keys() and item['total_episodes'] is not None else 0
+        last_watched = item['last_watched'] if 'last_watched' in item.keys() else None
 
-        if last_watched:
-            watch_yr = last_watched[:4]
-            tag_lbl = ctk.CTkLabel(card, text=watch_yr, fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
-            tag_lbl.place(relx=0.05, rely=0.88) # Bottom-left corner
-        elif c_eps > 0:
-            # Episodes are marked completed, but there is no history. This means it was Archived.
-            tag_lbl = ctk.CTkLabel(card, text="Archived", fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
-            tag_lbl.place(relx=0.05, rely=0.88)
-
-        title_lbl = ctk.CTkLabel(card, text=((item['title'] or 'Unknown Title')), font=("Inter", 13, "bold"),
-                                 wraplength=150, text_color=TEXT_PRIMARY)
-        # title_lbl.pack(pady=(5, 0)) # Depending on layout needs, hide title to make it cleaner
+        # Display Archived tag if appropriate, else year
+        if not last_watched and c_eps > 0:
+            year_lbl = ctk.CTkLabel(card, text="Archived", fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
+            year_lbl.place(relx=0.05, rely=0.88)
+        else:
+            year_lbl = ctk.CTkLabel(card, text=year_str, fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
+            year_lbl.place(relx=0.05, rely=0.88)
 
         # Progress bar at bottom
-        t_eps = item['total_episodes'] if item['total_episodes'] is not None else 0
-
         prog_color = "#333" # Gray (Unwatched)
         prog_val = 0.0
         if t_eps > 0:
@@ -648,10 +678,55 @@ class App(ctk.CTk):
         prog_bar.place(x=0, rely=1.0, anchor="sw", relwidth=1.0)
         prog_bar.set(prog_val)
 
-        # Star rating badge
-        if 'user_rating' in item.keys() and item['user_rating'] > 0:
-            star_lbl = ctk.CTkLabel(card, text="★", fg_color="#181A20", text_color=VLC_ORANGE, font=("Inter", 14, "normal"), corner_radius=10, width=20, height=20)
-            star_lbl.place(relx=0.85, rely=0.05, anchor="ne")
+        # HOVER LAYER (info_overlay)
+        info_overlay = ctk.CTkFrame(card, fg_color="#141519", corner_radius=8)
+
+        # Calculate Year Range
+        min_year = item['min_year'][:4] if 'min_year' in item.keys() and item['min_year'] else None
+        max_year = item['max_year'][:4] if 'max_year' in item.keys() and item['max_year'] else None
+        status = item['status'] if 'status' in item.keys() else None
+
+        year_range = year_str
+        if min_year:
+            if max_year and min_year != max_year:
+                year_range = f"{min_year} — {max_year}"
+            else:
+                year_range = min_year
+        if status in ['Watching', 'Plan to Watch'] and not (status == 'Completed' and t_eps > 0 and c_eps == t_eps):
+            # If currently airing or open ended
+            import datetime
+            curr_year = str(datetime.datetime.now().year)
+            if min_year and max_year == curr_year: # Dynamically use current system year
+                 year_range = f"{min_year} — Present"
+
+        # Content for info_overlay
+        title_text = item['title'] or 'Unknown Title'
+        title_lbl = ctk.CTkLabel(info_overlay, text=title_text, font=("Inter", 16, "bold"), text_color=TEXT_PRIMARY, wraplength=120)
+        title_lbl.pack(pady=(15, 5), padx=10, anchor="w")
+
+        range_lbl = ctk.CTkLabel(info_overlay, text=year_range, font=("Inter", 12, "bold"), text_color=TEXT_SECONDARY)
+        range_lbl.pack(padx=10, anchor="w")
+
+        stats_lbl = ctk.CTkLabel(info_overlay, text=f"Watched: {c_eps} / {t_eps} Eps", font=("Inter", 12, "normal"), text_color=TEXT_PRIMARY)
+        stats_lbl.pack(pady=(10, 5), padx=10, anchor="w")
+
+        # Synopsis snippet
+        synopsis_text = item['synopsis'] or ''
+        if len(synopsis_text) > 80:
+            synopsis_text = synopsis_text[:77] + "..."
+
+        synop_lbl = ctk.CTkLabel(info_overlay, text=synopsis_text, font=("Inter", 11, "normal"), text_color=TEXT_SECONDARY, wraplength=130, justify="left")
+        synop_lbl.pack(padx=10, anchor="w")
+
+        if last_watched:
+            time_ago_str = self._get_time_ago(last_watched)
+            last_lbl = ctk.CTkLabel(info_overlay, text=f"Last viewed: {time_ago_str}", font=("Inter", 10, "normal"), text_color=TEXT_SECONDARY)
+            last_lbl.pack(pady=(10, 0), padx=10, anchor="w")
+
+        # Action Center (Bottom)
+        overlay_btn = ctk.CTkButton(info_overlay, text="▶", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
+                                    width=50, height=50, corner_radius=25, font=("Inter", 20, "normal"))
+        overlay_btn.place(relx=0.5, rely=0.85, anchor="center")
 
         def load_poster():
             if item['poster_path']:
@@ -666,12 +741,15 @@ class App(ctk.CTk):
         # Async load to prevent main thread blocking
         threading.Thread(target=load_poster, daemon=True).start()
 
+        # Hover state flag
+        card.hover_active = False
+
         def on_enter(e):
-            overlay_frame.place(x=0, y=0)
-            # pseudo alpha, just dimming it by putting solid frame and relying on button
+            card.hover_active = True
+            info_overlay.place(relx=0.03, rely=0.03, relwidth=0.94, relheight=0.94)
 
         def on_leave(e):
-            # Check if mouse is still inside the card bounds
+            # Check if mouse is still inside the card bounds (with padding margin of error)
             x, y = e.widget.winfo_pointerxy()
             cx = card.winfo_rootx()
             cy = card.winfo_rooty()
@@ -679,16 +757,26 @@ class App(ctk.CTk):
             ch = card.winfo_height()
 
             if not (cx <= x <= cx + cw and cy <= y <= cy + ch):
-                 overlay_frame.place_forget()
+                card.hover_active = False
+                info_overlay.place_forget()
 
-        # Bindings
-        img_label.bind("<Enter>", on_enter)
-        overlay_frame.bind("<Leave>", on_leave)
+        # Bindings: Bind to card directly
+        card.bind("<Enter>", on_enter)
+        card.bind("<Leave>", on_leave)
+
+        # Bind overlay so leaving the overlay triggers the card leave logic
+        info_overlay.bind("<Leave>", on_leave)
 
         # Click actions
         overlay_btn.configure(command=lambda mid=item['id']: self._show_media_details(mid))
-        overlay_frame.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
+        info_overlay.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
         img_label.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
+
+        # Ensure all child widgets pass their events or don't block
+        for child in info_overlay.winfo_children():
+            if isinstance(child, ctk.CTkLabel):
+                child.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
+
 
     # =========================================================================
     # WATCH HISTORY LOG
