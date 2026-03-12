@@ -120,7 +120,8 @@ def get_tv_season_episodes(api_key: str, tmdb_id: str, season_num: int) -> List[
                 "title": ep.get("name") or "",
                 "overview": ep.get("overview") or "",
                 "runtime": ep.get("runtime") or 0,
-                "still_path": ep.get("still_path") or ""
+                "still_path": ep.get("still_path") or "",
+                "air_date": ep.get("air_date") or ""
             })
         return formatted
     except requests.exceptions.RequestException as e:
