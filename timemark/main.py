@@ -290,9 +290,16 @@ class App(ctk.CTk):
         self.update()
 
         def run_search():
+            import requests
             try:
                 results = search_media(api_key, query)
                 self.after(0, lambda: self._display_search_results(results))
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 401:
+                    self.after(0, lambda: messagebox.showerror("API Error", "Invalid TMDB API Key. Please check your settings."))
+                else:
+                    self.after(0, lambda: ToastNotification(self, title="API Error", message=f"TMDB returned an error: {e.response.status_code}", duration=5000, color="#b71c1c"))
+                self.after(0, self._clear_results_frame)
             except Exception as e:
                 self.after(0, lambda: ToastNotification(self, title="Offline Mode", message="Cannot reach TMDB.", duration=5000, color="#b71c1c"))
                 self.after(0, self._clear_results_frame)
@@ -681,9 +688,10 @@ class App(ctk.CTk):
 
         def search_tmdb():
             dialog.destroy()
+            self._show_search()
+            # _show_search recreates self.search_entry, so we interact with it *after* calling it
             self.search_entry.delete(0, 'end')
             self.search_entry.insert(0, uf['parsed_series'] if uf['parsed_series'] else uf['filename'])
-            self._show_search()
             self._perform_search()
 
         ctk.CTkButton(dialog, text="Search TMDB", command=search_tmdb, fg_color="#3a7ebf", hover_color="#2b5e8f").pack(pady=(10, 5))
