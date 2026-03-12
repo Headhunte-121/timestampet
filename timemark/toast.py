@@ -6,15 +6,15 @@ class ToastNotification(ctk.CTkToplevel):
         self.overrideredirect(True)
         self.attributes('-topmost', True)
 
-        # We need a small border or clean frame
-        self.frame = ctk.CTkFrame(self, fg_color=color, corner_radius=5, border_width=2, border_color="#1e1e1e")
+        # Sleeker dark theme look
+        self.frame = ctk.CTkFrame(self, fg_color="#1F222A", corner_radius=8, border_width=2, border_color=color)
         self.frame.pack(fill="both", expand=True, padx=2, pady=2)
 
-        title_lbl = ctk.CTkLabel(self.frame, text=title, font=ctk.CTkFont(weight="bold", size=14))
-        title_lbl.pack(anchor="w", padx=10, pady=(10, 2))
+        title_lbl = ctk.CTkLabel(self.frame, text=title, font=ctk.CTkFont(family="Inter", weight="bold", size=14), text_color="#FFFFFF")
+        title_lbl.pack(anchor="w", padx=15, pady=(15, 2))
 
-        msg_lbl = ctk.CTkLabel(self.frame, text=message, font=ctk.CTkFont(size=12), justify="left", wraplength=250)
-        msg_lbl.pack(anchor="w", padx=10, pady=(0, 10))
+        msg_lbl = ctk.CTkLabel(self.frame, text=message, font=ctk.CTkFont(family="Inter", size=12), text_color="#8E929C", justify="left", wraplength=270)
+        msg_lbl.pack(anchor="w", padx=15, pady=(0, 15))
 
         # Position at bottom right of screen
         self.update_idletasks()
@@ -29,7 +29,7 @@ class ToastNotification(ctk.CTkToplevel):
 
         self.geometry(f"+{x}+{y}")
 
-        # Fade in or just show
+        # Semi transparent background
         self.attributes("-alpha", 0.95)
 
         # Auto-destroy

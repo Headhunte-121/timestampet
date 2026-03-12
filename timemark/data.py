@@ -19,6 +19,7 @@ class Media:
     title: str
     synopsis: str
     poster_path: str
+    backdrop_path: str
     total_episodes: int
     status: str # 'Plan to Watch', 'Watching', 'Completed'
 
@@ -30,6 +31,7 @@ class Episode:
     ep_num: int
     title: str
     runtime: int
+    still_path: str
     watch_count: int
     last_position: int # Absolute seconds
     status: str # 'Unwatched', 'Watching', 'Completed'
@@ -65,6 +67,7 @@ class DataManager:
                     title TEXT,
                     synopsis TEXT,
                     poster_path TEXT,
+                    backdrop_path TEXT,
                     total_episodes INTEGER,
                     status TEXT
                 )
@@ -78,6 +81,7 @@ class DataManager:
                     ep_num INTEGER,
                     title TEXT,
                     runtime INTEGER,
+                    still_path TEXT,
                     watch_count INTEGER DEFAULT 0,
                     last_position INTEGER DEFAULT 0,
                     status TEXT DEFAULT 'Unwatched',
@@ -114,6 +118,17 @@ class DataManager:
                     group_key TEXT
                 )
             ''')
+
+            # Migrations for new columns
+            try:
+                cursor.execute("ALTER TABLE Media ADD COLUMN backdrop_path TEXT")
+            except sqlite3.OperationalError:
+                pass # Column already exists
+
+            try:
+                cursor.execute("ALTER TABLE Episodes ADD COLUMN still_path TEXT")
+            except sqlite3.OperationalError:
+                pass # Column already exists
 
             conn.commit()
 

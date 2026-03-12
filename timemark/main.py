@@ -10,20 +10,37 @@ from PIL import Image
 from .data import DataManager, POSTER_CACHE_DIR
 from .scanner import scan_directory
 from .vlc_integration import get_vlc_path, play_in_vlc, get_vlc_status
-from .tmdb_api import search_media, get_media_details, get_tv_season_episodes, download_poster
+from .tmdb_api import search_media, get_media_details, get_tv_season_episodes, download_image
 from .toast import ToastNotification
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
-VLC_ORANGE = "#FF8800"
-VLC_ORANGE_HOVER = "#E67A00"
+VLC_ORANGE = "#FF6B00"
+VLC_ORANGE_HOVER = "#E66000"
+BG_COLOR = "#0D0F14"
+SURFACE_COLOR = "#1F222A"
+TEXT_PRIMARY = "#FFFFFF"
+TEXT_SECONDARY = "#8E929C"
+SUCCESS_COLOR = "#1b5e20"
+DANGER_COLOR = "#b71c1c"
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.data_manager = DataManager()
         self.title("WatchMark Media Tracker")
+
+        # Configure root app colors
+        self.configure(fg_color=BG_COLOR)
+
+        # Load custom fonts
+        font_dir = Path(__file__).parent / "assets" / "fonts"
+        if font_dir.exists():
+            for f_name in ["Inter-Regular.ttf", "Inter-Medium.ttf", "Inter-Bold.ttf"]:
+                f_path = font_dir / f_name
+                if f_path.exists():
+                    ctk.FontManager.load_font(str(f_path))
 
         geo = self.data_manager.settings.get("window_geometry", "1200x800")
         pos = self.data_manager.settings.get("window_position", "+100+100")
@@ -47,37 +64,86 @@ class App(ctk.CTk):
         self.destroy()
 
     def _setup_layout(self):
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
+        # --- TOP BAR (Custom Header below OS native) ---
+        self.top_bar = ctk.CTkFrame(self, height=60, corner_radius=0, fg_color=BG_COLOR)
+        self.top_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
+        self.top_bar.grid_columnconfigure(1, weight=1)
+        self.top_bar.grid_propagate(False)
+
+        # Search Bar in Top Bar
+        search_container = ctk.CTkFrame(self.top_bar, fg_color="transparent")
+        search_container.grid(row=0, column=1, pady=10)
+
+        self.quick_search_var = ctk.StringVar()
+        self.quick_search_entry = ctk.CTkEntry(
+            search_container,
+            textvariable=self.quick_search_var,
+            placeholder_text="Quick Search Local Library...",
+            width=350,
+            height=36,
+            corner_radius=18,
+            fg_color=SURFACE_COLOR,
+            border_color="#333",
+            font=ctk.CTkFont(family="Inter", size=13)
+        )
+        self.quick_search_entry.pack(side="left")
+        self.quick_search_entry.bind("<KeyRelease>", self._handle_quick_search)
+        self.quick_search_entry.bind("<Return>", self._handle_quick_search)
+
         # --- SIDEBAR ---
-        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
-        self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
+        self.sidebar_frame = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=BG_COLOR)
+        self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(6, weight=1) # Push settings to bottom
 
-        logo_label = ctk.CTkLabel(self.sidebar_frame, text="WatchMark", font=ctk.CTkFont(size=20, weight="bold"))
-        logo_label.grid(row=0, column=0, padx=20, pady=(20, 20))
+        logo_label = ctk.CTkLabel(self.sidebar_frame, text="▶ WatchMark", font=ctk.CTkFont(family="Inter", size=22, weight="bold"), text_color=TEXT_PRIMARY)
+        logo_label.grid(row=0, column=0, padx=20, pady=(20, 30), sticky="w")
 
         self.nav_btns = {}
+        self.nav_indicators = {}
 
         def create_nav_btn(row, text, command):
-            btn = ctk.CTkButton(self.sidebar_frame, text=text, anchor="w", fg_color="transparent",
-                                text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), command=command)
-            btn.grid(row=row, column=0, padx=10, pady=5, sticky="ew")
+            container = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent", height=40)
+            container.grid(row=row, column=0, sticky="ew", pady=2)
+            container.grid_propagate(False)
+
+            indicator = ctk.CTkFrame(container, width=4, corner_radius=0, fg_color="transparent")
+            indicator.pack(side="left", fill="y")
+
+            btn = ctk.CTkButton(container, text=text, anchor="w", fg_color="transparent",
+                                text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=command,
+                                font=ctk.CTkFont(family="Inter", size=14, weight="bold"))
+            btn.pack(side="left", fill="both", expand=True, padx=(10, 15))
+
             self.nav_btns[text] = btn
+            self.nav_indicators[text] = indicator
             return btn
 
-        create_nav_btn(1, "🏠 Dashboard", self._show_dashboard)
-        create_nav_btn(2, "📺 TV Shows", self._show_tv_shows)
-        create_nav_btn(3, "🎬 Movies", self._show_movies)
-        create_nav_btn(4, "🔍 Search", self._show_search)
-        create_nav_btn(5, "❓ Unmatched Files", self._show_unmatched)
+        create_nav_btn(1, "Dashboard", self._show_dashboard)
+        create_nav_btn(2, "TV Shows", self._show_tv_shows)
+        create_nav_btn(3, "Movies", self._show_movies)
+        create_nav_btn(4, "Search", self._show_search)
+        create_nav_btn(5, "Unmatched", self._show_unmatched)
 
-        create_nav_btn(7, "⚙️ Settings", self._show_settings)
+        # Bottom section: Settings & Status
+        bottom_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        bottom_frame.grid(row=7, column=0, sticky="ew", pady=(0, 20), padx=20)
+
+        settings_btn = ctk.CTkButton(bottom_frame, text="⚙️ Settings", anchor="w", fg_color="transparent",
+                                     text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=self._show_settings,
+                                     font=ctk.CTkFont(family="Inter", size=14, weight="bold"))
+        settings_btn.pack(fill="x", pady=(0, 10))
+        self.nav_btns["Settings"] = settings_btn
+
+        # Dummy status indicator
+        status_lbl = ctk.CTkLabel(bottom_frame, text="🟢 DB Connected", font=ctk.CTkFont(family="Inter", size=11), text_color=SUCCESS_COLOR)
+        status_lbl.pack(anchor="w", padx=10)
 
         # --- MAIN CONTENT AREA ---
-        self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        self.main_frame.grid(row=0, column=1, sticky="nsew")
+        self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color=BG_COLOR)
+        self.main_frame.grid(row=1, column=1, sticky="nsew")
 
     def _clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
@@ -86,55 +152,140 @@ class App(ctk.CTk):
     def _highlight_nav(self, active_text):
         for text, btn in self.nav_btns.items():
             if text == active_text:
-                btn.configure(fg_color=VLC_ORANGE, text_color="white")
+                if text != "Settings":
+                    btn.configure(fg_color=SURFACE_COLOR, text_color=TEXT_PRIMARY)
+                    self.nav_indicators[text].configure(fg_color=VLC_ORANGE)
+                else:
+                    btn.configure(fg_color=SURFACE_COLOR, text_color=TEXT_PRIMARY)
             else:
-                btn.configure(fg_color="transparent", text_color=("gray10", "gray90"))
+                if text != "Settings":
+                    btn.configure(fg_color="transparent", text_color=TEXT_SECONDARY)
+                    self.nav_indicators[text].configure(fg_color="transparent")
+                else:
+                    btn.configure(fg_color="transparent", text_color=TEXT_SECONDARY)
+
+    def _handle_quick_search(self, event):
+        query = self.quick_search_var.get().strip().lower()
+        if not query:
+            return
+
+        # Route to a generic library view that searches both TV and Movies
+        self._show_library("All", filter_query=query)
 
     # =========================================================================
     # DASHBOARD
     # =========================================================================
     def _show_dashboard(self):
-        self._highlight_nav("🏠 Dashboard")
+        self._highlight_nav("Dashboard")
         self._clear_main_frame()
 
-        ctk.CTkLabel(self.main_frame, text="Dashboard", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=20)
+        # Make main frame scrollable for dashboard
+        dash_scroll = ctk.CTkScrollableFrame(self.main_frame, fg_color="transparent")
+        dash_scroll.pack(fill="both", expand=True)
 
         conn = self.data_manager.get_db_connection()
         cursor = conn.cursor()
 
-        # Total Stats
-        cursor.execute("SELECT COUNT(*) as count FROM Episodes WHERE status = 'Completed'")
-        eps_watched = cursor.fetchone()['count']
+        # 1. Fetch the absolute most recently watched episode for the Hero Section
+        cursor.execute("""
+            SELECT e.*, m.title as show_title, m.backdrop_path, l.file_path, m.type as media_type
+            FROM History h
+            JOIN Episodes e ON h.episode_id = e.id
+            JOIN Media m ON e.media_id = m.id
+            LEFT JOIN Local_Files l ON e.id = l.episode_id
+            ORDER BY h.timestamp DESC
+            LIMIT 1
+        """)
+        hero_ep = cursor.fetchone()
 
-        cursor.execute("SELECT COUNT(*) as count FROM History")
-        total_watches = cursor.fetchone()['count']
+        if hero_ep:
+            # Render Hero Section
+            hero_frame = ctk.CTkFrame(dash_scroll, height=350, fg_color=SURFACE_COLOR, corner_radius=12)
+            hero_frame.pack(fill="x", padx=20, pady=(20, 10))
+            hero_frame.pack_propagate(False)
 
-        stats_frame = ctk.CTkFrame(self.main_frame)
-        stats_frame.pack(fill="x", padx=20, pady=10)
-        ctk.CTkLabel(stats_frame, text=f"Total Episodes Completed: {eps_watched}  |  Total Rewatches Logged: {total_watches}", font=ctk.CTkFont(size=16)).pack(pady=20)
+            bg_label = ctk.CTkLabel(hero_frame, text="")
+            bg_label.place(x=0, y=0, relwidth=1.0, relheight=1.0)
 
-        # Continue Watching (Episodes in 'Watching' status or next unwatched)
-        ctk.CTkLabel(self.main_frame, text="Continue Watching", font=ctk.CTkFont(size=18, weight="bold")).pack(anchor="w", padx=20, pady=(20, 10))
+            def load_hero_bg():
+                if hero_ep['backdrop_path']:
+                    local_img = POSTER_CACHE_DIR / hero_ep['backdrop_path'].lstrip('/')
+                    if local_img.exists():
+                        try:
+                            pil_img = Image.open(local_img)
+                            w, h = pil_img.size
+                            target_h = int(w * (350/1000))
+                            if h > target_h:
+                                top = (h - target_h) // 2
+                                pil_img = pil_img.crop((0, top, w, top + target_h))
+                            backdrop_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(1000, 350))
+                            self.after(0, lambda: bg_label.configure(image=backdrop_img))
+                        except Exception:
+                            pass
+            threading.Thread(target=load_hero_bg, daemon=True).start()
 
-        cw_frame = ctk.CTkScrollableFrame(self.main_frame, orientation="horizontal", height=200)
-        cw_frame.pack(fill="x", padx=20)
+            # Text content
+            content_frame = ctk.CTkFrame(hero_frame, fg_color="transparent")
+            content_frame.place(relx=0.05, rely=0.5, anchor="w")
 
-        # 1. Get most recently watched shows based on History
-        # 2. For those shows, get the lowest episode with status 'Watching' or 'Unwatched'
+            ctk.CTkLabel(content_frame, text="UP NEXT", font=ctk.CTkFont(family="Inter", size=14, weight="bold"), text_color=VLC_ORANGE).pack(anchor="w")
+            ctk.CTkLabel(content_frame, text=hero_ep['show_title'], font=ctk.CTkFont(family="Inter", size=48, weight="bold"), text_color=TEXT_PRIMARY).pack(anchor="w", pady=(5, 0))
+
+            if hero_ep['media_type'] == 'TV':
+                ep_sub = f"S{hero_ep['season_num']:02}E{hero_ep['ep_num']:02} - {hero_ep['title']}"
+            else:
+                ep_sub = hero_ep['title']
+
+            ctk.CTkLabel(content_frame, text=ep_sub, font=ctk.CTkFont(family="Inter", size=18), text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 20))
+
+            if hero_ep['file_path']:
+                play_btn = ctk.CTkButton(content_frame, text="▶ Resume", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=45, width=150,
+                                         font=ctk.CTkFont(family="Inter", size=16, weight="bold"),
+                                         command=lambda e=hero_ep: self._play_episode(e))
+                play_btn.pack(anchor="w")
+            else:
+                play_btn = ctk.CTkButton(content_frame, text="❌ Missing File", fg_color=DANGER_COLOR, hover_color="#8e0000", height=45, width=150,
+                                         font=ctk.CTkFont(family="Inter", size=16, weight="bold"), state="disabled")
+                play_btn.pack(anchor="w")
+
+            # Progress bar
+            if hero_ep['status'] == 'Watching' and hero_ep['runtime'] > 0:
+                progress_val = min(1.0, hero_ep['last_position'] / (hero_ep['runtime'] * 60))
+                prog_bar = ctk.CTkProgressBar(content_frame, width=300, height=6, progress_color=VLC_ORANGE, fg_color=SURFACE_COLOR)
+                prog_bar.pack(anchor="w", pady=(15, 0))
+                prog_bar.set(progress_val)
+        else:
+            # Empty state hero
+            hero_frame = ctk.CTkFrame(dash_scroll, height=300, fg_color=SURFACE_COLOR, corner_radius=12)
+            hero_frame.pack(fill="x", padx=20, pady=(20, 10))
+            hero_frame.pack_propagate(False)
+            ctk.CTkLabel(hero_frame, text="Welcome to WatchMark", font=ctk.CTkFont(family="Inter", size=32, weight="bold")).pack(pady=(100, 10))
+            ctk.CTkLabel(hero_frame, text="Scan your local folder or search TMDB to get started.", text_color=TEXT_SECONDARY).pack()
+
+        # --- Horizontal Rows ---
+
+        # Continue Watching (Other than hero)
+        ctk.CTkLabel(dash_scroll, text="Continue Watching", font=ctk.CTkFont(family="Inter", size=20, weight="bold")).pack(anchor="w", padx=25, pady=(20, 10))
+        cw_frame = ctk.CTkScrollableFrame(dash_scroll, orientation="horizontal", height=220, fg_color="transparent")
+        cw_frame.pack(fill="x", padx=15)
+
         cursor.execute("""
             SELECT e.media_id, MAX(h.timestamp) as last_watched
             FROM History h
             JOIN Episodes e ON h.episode_id = e.id
             GROUP BY e.media_id
             ORDER BY last_watched DESC
-            LIMIT 10
+            LIMIT 15
         """)
         recent_media_ids = [r['media_id'] for r in cursor.fetchall()]
 
         cw_eps = []
         for m_id in recent_media_ids:
+            if hero_ep and m_id == hero_ep['media_id']:
+                continue # Skip the one in the hero
+
             cursor.execute("""
-                SELECT e.*, m.title as show_title, m.poster_path, l.file_path
+                SELECT e.*, m.title as show_title, m.backdrop_path, m.poster_path, l.file_path, m.type as media_type, e.still_path
                 FROM Episodes e
                 JOIN Media m ON e.media_id = m.id
                 LEFT JOIN Local_Files l ON e.id = l.episode_id
@@ -147,58 +298,89 @@ class App(ctk.CTk):
                 cw_eps.append(ep)
 
         if not cw_eps:
-            ctk.CTkLabel(cw_frame, text="Nothing to continue watching.").pack(padx=20, pady=20)
+            ctk.CTkLabel(cw_frame, text="No other shows in progress.", text_color=TEXT_SECONDARY).pack(padx=10, pady=50)
         else:
             for ep in cw_eps:
-                self._create_episode_card(cw_frame, ep)
+                self._create_horizontal_episode_card(cw_frame, ep)
+
+
+        # Recently Added
+        ctk.CTkLabel(dash_scroll, text="Recently Added", font=ctk.CTkFont(family="Inter", size=20, weight="bold")).pack(anchor="w", padx=25, pady=(20, 10))
+        ra_frame = ctk.CTkScrollableFrame(dash_scroll, orientation="horizontal", height=280, fg_color="transparent")
+        ra_frame.pack(fill="x", padx=15)
+
+        cursor.execute("SELECT * FROM Media ORDER BY id DESC LIMIT 15")
+        recent_media = cursor.fetchall()
+
+        if not recent_media:
+             ctk.CTkLabel(ra_frame, text="Library is empty.", text_color=TEXT_SECONDARY).pack(padx=10, pady=50)
+        else:
+            for item in recent_media:
+                self._create_poster_card(ra_frame, item)
+
+        # Stats Row
+        ctk.CTkLabel(dash_scroll, text="Your Stats", font=ctk.CTkFont(family="Inter", size=20, weight="bold")).pack(anchor="w", padx=25, pady=(20, 10))
+        stats_frame = ctk.CTkFrame(dash_scroll, fg_color="transparent")
+        stats_frame.pack(fill="x", padx=20, pady=(0, 20))
+
+        cursor.execute("SELECT COUNT(*) as count FROM Episodes WHERE status = 'Completed'")
+        eps_watched = cursor.fetchone()['count']
+        cursor.execute("SELECT SUM(runtime) as r FROM Episodes WHERE status = 'Completed'")
+        r_val = cursor.fetchone()['r']
+        hrs_watched = round((r_val or 0) / 60)
+        cursor.execute("SELECT COUNT(*) as c FROM Media WHERE status = 'Completed'")
+        shows_completed = cursor.fetchone()['c']
+
+        def make_stat_card(parent, title, value):
+            f = ctk.CTkFrame(parent, fg_color=SURFACE_COLOR, corner_radius=12, height=100)
+            f.pack(side="left", fill="x", expand=True, padx=5)
+            f.pack_propagate(False)
+            ctk.CTkLabel(f, text=title, font=ctk.CTkFont(family="Inter", size=14), text_color=TEXT_SECONDARY).pack(pady=(20, 5))
+            ctk.CTkLabel(f, text=str(value), font=ctk.CTkFont(family="Inter", size=28, weight="bold"), text_color=VLC_ORANGE).pack()
+
+        make_stat_card(stats_frame, "Episodes Watched", eps_watched)
+        make_stat_card(stats_frame, "Hours Watched", hrs_watched)
+        make_stat_card(stats_frame, "Shows Completed", shows_completed)
 
         conn.close()
 
-    def _create_episode_card(self, parent, ep_row):
-        card = ctk.CTkFrame(parent, width=300, height=120, fg_color="#1E1E1E")
-        card.pack(side="left", padx=10, pady=10)
+    def _create_horizontal_episode_card(self, parent, ep_row):
+        card = ctk.CTkFrame(parent, width=280, height=200, fg_color=SURFACE_COLOR, corner_radius=8)
+        card.pack(side="left", padx=10, pady=5)
         card.pack_propagate(False)
 
-        left_col = ctk.CTkFrame(card, width=80, height=120, fg_color="transparent")
-        left_col.pack(side="left")
-        left_col.pack_propagate(False)
+        img_label = ctk.CTkLabel(card, text="No Image", width=280, height=158, fg_color="#15171e")
+        img_label.pack(fill="x")
 
-        img_label = ctk.CTkLabel(left_col, text="No Image", width=80, height=120, fg_color="gray30")
-        img_label.pack(fill="both", expand=True)
+        # Prioritize still -> backdrop
+        img_path = ep_row['still_path'] if 'still_path' in ep_row.keys() and ep_row['still_path'] else (ep_row['backdrop_path'] if 'backdrop_path' in ep_row.keys() else None)
+        def load_img():
+            if img_path:
+                local_img = POSTER_CACHE_DIR / img_path.lstrip('/')
+                if local_img.exists():
+                    try:
+                        img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(280, 158))
+                        self.after(0, lambda: img_label.configure(image=img, text=""))
+                    except: pass
+        threading.Thread(target=load_img, daemon=True).start()
 
-        if ep_row['poster_path']:
-            local_img = POSTER_CACHE_DIR / ep_row['poster_path'].lstrip('/')
-            if local_img.exists():
-                img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(80, 120))
-                img_label.configure(image=img, text="")
-
-        right_col = ctk.CTkFrame(card, fg_color="transparent")
-        right_col.pack(side="left", fill="both", expand=True, padx=10, pady=5)
-
-        title = f"{ep_row['show_title']}"
-        subtitle = f"S{ep_row['season_num']:02}E{ep_row['ep_num']:02} - {ep_row['title']}"
-
-        ctk.CTkLabel(right_col, text=title, font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(fill="x")
-        ctk.CTkLabel(right_col, text=subtitle, font=ctk.CTkFont(size=12), text_color="gray", anchor="w").pack(fill="x")
-
-        # Progress bar
+        # Progress bar at bottom of thumbnail
         progress_val = 0.0
         if ep_row['status'] == 'Watching' and ep_row['runtime'] > 0:
             progress_val = min(1.0, ep_row['last_position'] / (ep_row['runtime'] * 60))
 
-        prog_bar = ctk.CTkProgressBar(right_col, height=8, progress_color=VLC_ORANGE)
-        prog_bar.pack(fill="x", pady=10)
+        prog_bar = ctk.CTkProgressBar(card, height=4, progress_color=VLC_ORANGE, fg_color="#15171e", corner_radius=0)
+        prog_bar.place(x=0, y=154, relwidth=1.0)
         prog_bar.set(progress_val)
 
-        # Play button
-        has_file = bool(ep_row.get('file_path'))
-        if has_file:
-            play_btn = ctk.CTkButton(right_col, text="▶ Play", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=24,
-                                     command=lambda e=ep_row: self._play_episode(e))
-            play_btn.pack(anchor="w")
-        else:
-            play_btn = ctk.CTkButton(right_col, text="❌ Missing File", fg_color="gray30", hover_color="gray30", height=24, state="disabled")
-            play_btn.pack(anchor="w")
+        info_frame = ctk.CTkFrame(card, fg_color="transparent")
+        info_frame.pack(fill="both", expand=True, padx=10)
+
+        title = f"{ep_row['show_title']}"
+        subtitle = f"S{ep_row['season_num']:02}E{ep_row['ep_num']:02}" if ep_row['media_type'] == 'TV' else ep_row['title']
+
+        ctk.CTkLabel(info_frame, text=title, font=ctk.CTkFont(family="Inter", size=13, weight="bold"), anchor="w").pack(side="left")
+        ctk.CTkLabel(info_frame, text=subtitle, font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY, anchor="e").pack(side="right")
 
         card.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
         img_label.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
@@ -206,86 +388,179 @@ class App(ctk.CTk):
     # =========================================================================
     # TV SHOWS / MOVIES LIBRARY
     # =========================================================================
-    def _show_tv_shows(self):
-        self._highlight_nav("📺 TV Shows")
-        self._show_library("TV")
+    def _show_tv_shows(self, filter_query=None):
+        self._highlight_nav("TV Shows")
+        self._show_library("TV", filter_query)
 
     def _show_movies(self):
-        self._highlight_nav("🎬 Movies")
+        self._highlight_nav("Movies")
         self._show_library("Movie")
 
-    def _show_library(self, media_type):
+    def _show_library(self, media_type, filter_query=None):
         self._clear_main_frame()
 
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=20)
 
-        title = "TV Shows" if media_type == "TV" else "Movies"
-        ctk.CTkLabel(header_frame, text=title, font=ctk.CTkFont(size=24, weight="bold")).pack(side="left")
+        if media_type == "All":
+            title = "Search Results"
+        else:
+            title = "TV Shows" if media_type == "TV" else "Movies"
+
+        ctk.CTkLabel(header_frame, text=title, font=ctk.CTkFont(family="Inter", size=24, weight="bold")).pack(side="left")
 
         scan_btn = ctk.CTkButton(header_frame, text="📂 Scan Local Folder", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=self._scan_folder)
         scan_btn.pack(side="right")
 
-        grid_frame = ctk.CTkScrollableFrame(self.main_frame)
+        grid_frame = ctk.CTkScrollableFrame(self.main_frame, fg_color="transparent")
         grid_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         conn = self.data_manager.get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Media WHERE type=?", (media_type,))
+
+        if media_type == "All":
+            if filter_query:
+                cursor.execute("SELECT * FROM Media WHERE title LIKE ?", (f"%{filter_query}%",))
+            else:
+                cursor.execute("SELECT * FROM Media")
+        else:
+            if filter_query:
+                cursor.execute("SELECT * FROM Media WHERE type=? AND title LIKE ?", (media_type, f"%{filter_query}%"))
+            else:
+                cursor.execute("SELECT * FROM Media WHERE type=?", (media_type,))
+
         media_items = cursor.fetchall()
         conn.close()
 
         if not media_items:
-            ctk.CTkLabel(grid_frame, text=f"No {title} tracked yet. Use Search to add some!").pack(pady=50)
+            msg = f"No {title} tracked yet. Use Search to add some!"
+            if filter_query:
+                msg = f"'{filter_query}' not found in library. Press Enter in Search to query TMDB."
+
+            ctk.CTkLabel(grid_frame, text=msg, font=ctk.CTkFont(family="Inter", size=16), text_color=TEXT_SECONDARY).pack(pady=50)
             return
 
-        col = 0
-        row = 0
+        # Chunked rendering to prevent main thread freeze
         max_cols = 5
+        self._library_render_state = {'index': 0, 'row': 0, 'col': 0, 'items': media_items, 'parent': grid_frame, 'max_cols': max_cols}
+        self._render_library_chunk()
 
-        for item in media_items:
-            card = ctk.CTkFrame(grid_frame, width=160, height=280)
-            card.grid(row=row, column=col, padx=10, pady=10)
+    def _render_library_chunk(self):
+        state = getattr(self, '_library_render_state', None)
+        if not state:
+            return
+
+        items = state['items']
+        parent = state['parent']
+
+        # Ensure parent still exists
+        if not parent.winfo_exists():
+            return
+
+        chunk_size = 15 # Render 15 items per chunk
+        end_idx = min(state['index'] + chunk_size, len(items))
+
+        for i in range(state['index'], end_idx):
+            item = items[i]
+            self._create_poster_card(parent, item, grid_pos=(state['row'], state['col']))
+
+            state['col'] += 1
+            if state['col'] >= state['max_cols']:
+                state['col'] = 0
+                state['row'] += 1
+
+        state['index'] = end_idx
+
+        if state['index'] < len(items):
+            self.after(50, self._render_library_chunk)
+        else:
+            self._library_render_state = None
+
+    def _create_poster_card(self, parent, item, grid_pos=None):
+        card = ctk.CTkFrame(parent, width=160, height=260, fg_color="transparent", corner_radius=8)
+
+        if grid_pos:
+            card.grid(row=grid_pos[0], column=grid_pos[1], padx=10, pady=10)
+        else:
+            card.pack(side="left", padx=10, pady=5)
+
+        card.pack_propagate(False)
+        if grid_pos:
             card.grid_propagate(False)
 
-            img_label = ctk.CTkLabel(card, text="No Poster", width=140, height=210, fg_color="gray30")
-            img_label.pack(pady=(10, 5))
+        img_label = ctk.CTkLabel(card, text="No Poster", width=160, height=240, fg_color=SURFACE_COLOR, corner_radius=8)
+        img_label.pack()
 
+        # Create overlay elements that we'll show on hover
+        overlay_frame = ctk.CTkFrame(card, fg_color=BG_COLOR, corner_radius=8, width=160, height=240)
+        # We don't pack it initially
+        overlay_btn = ctk.CTkButton(overlay_frame, text="▶", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
+                                    width=50, height=50, corner_radius=25, font=ctk.CTkFont(size=20))
+        overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
+
+        title_lbl = ctk.CTkLabel(card, text=item['title'], font=ctk.CTkFont(family="Inter", size=13, weight="bold"),
+                                 wraplength=150, text_color=TEXT_PRIMARY)
+        # title_lbl.pack(pady=(5, 0)) # Depending on layout needs, hide title to make it cleaner
+
+        def load_poster():
             if item['poster_path']:
                 local_img = POSTER_CACHE_DIR / item['poster_path'].lstrip('/')
                 if local_img.exists():
-                    img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(140, 210))
-                    img_label.configure(image=img, text="")
+                    try:
+                        img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(160, 240))
+                        self.after(0, lambda: img_label.configure(image=img, text=""))
+                    except: pass
 
-            ctk.CTkLabel(card, text=item['title'], font=ctk.CTkFont(weight="bold"), wraplength=140).pack()
+        # Async load to prevent main thread blocking
+        threading.Thread(target=load_poster, daemon=True).start()
 
-            card.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
-            for child in card.winfo_children():
-                child.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
+        def on_enter(e):
+            overlay_frame.place(x=0, y=0)
+            # pseudo alpha, just dimming it by putting solid frame and relying on button
 
-            col += 1
-            if col >= max_cols:
-                col = 0
-                row += 1
+        def on_leave(e):
+            # Check if mouse is still inside the card bounds
+            x, y = e.widget.winfo_pointerxy()
+            cx = card.winfo_rootx()
+            cy = card.winfo_rooty()
+            cw = card.winfo_width()
+            ch = card.winfo_height()
+
+            if not (cx <= x <= cx + cw and cy <= y <= cy + ch):
+                 overlay_frame.place_forget()
+
+        # Bindings
+        img_label.bind("<Enter>", on_enter)
+        overlay_frame.bind("<Leave>", on_leave)
+
+        # Click actions
+        overlay_btn.configure(command=lambda mid=item['id']: self._show_media_details(mid))
+        overlay_frame.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
+        img_label.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
 
     # =========================================================================
     # SEARCH & DISCOVER
     # =========================================================================
     def _show_search(self):
         self._pending_group_match = None # Clear pending matches when opening standard search
-        self._highlight_nav("🔍 Search")
+        self._highlight_nav("Search")
         self._clear_main_frame()
 
         top_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         top_frame.pack(fill="x", padx=20, pady=20)
 
-        self.search_entry = ctk.CTkEntry(top_frame, placeholder_text="Search TMDB for Shows or Movies...", width=400)
+        ctk.CTkLabel(top_frame, text="Discover Media", font=ctk.CTkFont(family="Inter", size=24, weight="bold"), text_color=TEXT_PRIMARY).pack(side="left")
+
+        search_box = ctk.CTkFrame(top_frame, fg_color="transparent")
+        search_box.pack(side="right")
+
+        self.search_entry = ctk.CTkEntry(search_box, placeholder_text="Search TMDB for Shows or Movies...", width=350, height=36, corner_radius=18, fg_color=SURFACE_COLOR, border_color="#333", font=ctk.CTkFont(family="Inter", size=13))
         self.search_entry.pack(side="left", padx=(0, 10))
         self.search_entry.bind("<Return>", lambda e: self._perform_search())
 
-        ctk.CTkButton(top_frame, text="Search", command=self._perform_search).pack(side="left")
+        ctk.CTkButton(search_box, text="Search TMDB", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=36, corner_radius=18, command=self._perform_search).pack(side="left")
 
-        self.results_frame = ctk.CTkScrollableFrame(self.main_frame)
+        self.results_frame = ctk.CTkScrollableFrame(self.main_frame, fg_color="transparent")
         self.results_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
     def _perform_search(self):
@@ -300,7 +575,8 @@ class App(ctk.CTk):
         for widget in self.results_frame.winfo_children():
             widget.destroy()
 
-        ctk.CTkLabel(self.results_frame, text="Searching...").pack(pady=20)
+        # Try to download skeleton posters immediately or just text
+        ctk.CTkLabel(self.results_frame, text=f"Searching TMDB for '{query}'...", font=ctk.CTkFont(family="Inter", size=16), text_color=TEXT_SECONDARY).pack(pady=50)
         self.update()
 
         def run_search():
@@ -328,24 +604,126 @@ class App(ctk.CTk):
         self._clear_results_frame()
 
         if not results:
-            ctk.CTkLabel(self.results_frame, text="No results found.").pack(pady=20)
+            ctk.CTkLabel(self.results_frame, text="No results found.", font=ctk.CTkFont(family="Inter", size=16), text_color=TEXT_SECONDARY).pack(pady=50)
             return
 
-        for i, res in enumerate(results):
-            row = ctk.CTkFrame(self.results_frame)
-            row.pack(fill="x", pady=5)
+        # Check existing media to mark "In Library"
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT tmdb_id FROM Media")
+        existing_ids = set(r['tmdb_id'] for r in cursor.fetchall())
+        conn.close()
 
-            info = f"[{res['type']}] {res['title']} ({res['release_date'][:4] if res['release_date'] else 'N/A'})"
-            ctk.CTkLabel(row, text=info, font=ctk.CTkFont(weight="bold")).pack(side="left", padx=10, pady=10)
+        # Chunked rendering
+        max_cols = 5
+        self._search_render_state = {'index': 0, 'row': 0, 'col': 0, 'items': results, 'parent': self.results_frame, 'max_cols': max_cols, 'existing_ids': existing_ids}
+        self._render_search_chunk()
 
-            btn = ctk.CTkButton(row, text="+ Add to Tracker", command=lambda r=res: self._add_to_tracker(r))
-            btn.pack(side="right", padx=10, pady=10)
+    def _render_search_chunk(self):
+        state = getattr(self, '_search_render_state', None)
+        if not state:
+            return
+
+        items = state['items']
+        parent = state['parent']
+        existing_ids = state['existing_ids']
+
+        if not parent.winfo_exists():
+            return
+
+        chunk_size = 15
+        end_idx = min(state['index'] + chunk_size, len(items))
+
+        for i in range(state['index'], end_idx):
+            res = items[i]
+            is_tracked = res['tmdb_id'] in existing_ids
+            self._create_search_poster_card(parent, res, is_tracked, grid_pos=(state['row'], state['col']))
+
+            state['col'] += 1
+            if state['col'] >= state['max_cols']:
+                state['col'] = 0
+                state['row'] += 1
+
+        state['index'] = end_idx
+
+        if state['index'] < len(items):
+            self.after(50, self._render_search_chunk)
+        else:
+            self._search_render_state = None
+
+    def _create_search_poster_card(self, parent, item, is_tracked, grid_pos=None):
+        card = ctk.CTkFrame(parent, width=160, height=280, fg_color="transparent", corner_radius=8)
+
+        if grid_pos:
+            card.grid(row=grid_pos[0], column=grid_pos[1], padx=10, pady=10)
+        else:
+            card.pack(side="left", padx=10, pady=5)
+
+        card.pack_propagate(False)
+        if grid_pos:
+            card.grid_propagate(False)
+
+        img_label = ctk.CTkLabel(card, text="No Poster", width=160, height=240, fg_color=SURFACE_COLOR, corner_radius=8)
+        img_label.pack()
+
+        # Year subtitle
+        year = item['release_date'][:4] if item.get('release_date') else "N/A"
+        title_lbl = ctk.CTkLabel(card, text=f"{item['title']}\n({year})", font=ctk.CTkFont(family="Inter", size=12, weight="bold"),
+                                 wraplength=150, text_color=TEXT_PRIMARY)
+        title_lbl.pack(pady=(5, 0))
+
+        # We download poster asynchronously if not cached
+        def load_poster():
+            if item['poster_path']:
+                from .tmdb_api import download_image
+                local_path = download_image(item['poster_path'])
+                if local_path:
+                    try:
+                        img = ctk.CTkImage(light_image=Image.open(local_path), dark_image=Image.open(local_path), size=(160, 240))
+                        self.after(0, lambda: img_label.configure(image=img, text=""))
+                    except: pass
+        threading.Thread(target=load_poster, daemon=True).start()
+
+        # Hover overlay
+        overlay_frame = ctk.CTkFrame(card, fg_color=BG_COLOR, corner_radius=8, width=160, height=240)
+
+        btn_text = "✓ In Library" if is_tracked else "+ Add to Tracker"
+        btn_color = SUCCESS_COLOR if is_tracked else VLC_ORANGE
+        btn_hover = SUCCESS_COLOR if is_tracked else VLC_ORANGE_HOVER
+
+        overlay_btn = ctk.CTkButton(overlay_frame, text=btn_text, fg_color=btn_color, hover_color=btn_hover,
+                                    width=120, height=40, corner_radius=20, font=ctk.CTkFont(family="Inter", weight="bold"),
+                                    state="disabled" if is_tracked else "normal")
+        overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
+
+        def on_enter(e):
+            overlay_frame.place(x=0, y=0)
+
+        def on_leave(e):
+            x, y = e.widget.winfo_pointerxy()
+            cx = card.winfo_rootx()
+            cy = card.winfo_rooty()
+            cw = card.winfo_width()
+            ch = card.winfo_height()
+            if not (cx <= x <= cx + cw and cy <= y <= cy + ch):
+                 overlay_frame.place_forget()
+
+        img_label.bind("<Enter>", on_enter)
+        overlay_frame.bind("<Leave>", on_leave)
+
+        if not is_tracked:
+            # We pass a callback to disable button after adding
+            def add_wrapper():
+                self._add_to_tracker(item)
+                overlay_btn.configure(text="Adding...", state="disabled")
+            overlay_btn.configure(command=add_wrapper)
 
     def _add_to_tracker(self, media_data):
         api_key = self.data_manager.settings.get("tmdb_api_key")
 
     def _show_media_details(self, media_id):
         self._clear_main_frame()
+        self._highlight_nav(None) # Clear specific nav
 
         conn = self.data_manager.get_db_connection()
         cursor = conn.cursor()
@@ -357,38 +735,110 @@ class App(ctk.CTk):
             conn.close()
             return
 
-        # Header
-        header = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        header.pack(fill="x", padx=20, pady=20)
+        detail_scroll = ctk.CTkScrollableFrame(self.main_frame, fg_color="transparent")
+        detail_scroll.pack(fill="both", expand=True)
 
-        img_label = ctk.CTkLabel(header, text="No Poster", width=150, height=225, fg_color="gray30")
-        img_label.pack(side="left", padx=(0, 20))
+        # Back Button
+        ctk.CTkButton(detail_scroll, text="← Back", width=60, fg_color="transparent", hover_color=SURFACE_COLOR,
+                      command=lambda: self._show_library(media['type'])).pack(anchor="w", padx=20, pady=(10, 0))
 
-        if media['poster_path']:
-            local_img = POSTER_CACHE_DIR / media['poster_path'].lstrip('/')
-            if local_img.exists():
-                img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(150, 225))
-                img_label.configure(image=img, text="")
+        # Header with Backdrop Banner
+        header = ctk.CTkFrame(detail_scroll, fg_color="transparent", height=300)
+        header.pack(fill="x", padx=20, pady=(10, 20))
+        header.pack_propagate(False)
 
+        # Banner Image
+        banner_lbl = ctk.CTkLabel(header, text="", fg_color=SURFACE_COLOR, height=200, corner_radius=12)
+        banner_lbl.place(x=0, y=0, relwidth=1.0, height=200)
+
+        def load_banner():
+            if media['backdrop_path']:
+                local_img = POSTER_CACHE_DIR / media['backdrop_path'].lstrip('/')
+                if local_img.exists():
+                    try:
+                        pil_img = Image.open(local_img)
+                        w, h = pil_img.size
+                        target_h = int(w * (200/1000))
+                        if h > target_h:
+                            top = (h - target_h) // 2
+                            pil_img = pil_img.crop((0, top, w, top + target_h))
+                        img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(1000, 200))
+                        self.after(0, lambda: banner_lbl.configure(image=img))
+                    except: pass
+        threading.Thread(target=load_banner, daemon=True).start()
+
+        # Poster Image (Overlapping banner)
+        img_label = ctk.CTkLabel(header, text="No Poster", width=140, height=210, fg_color="#1E1E1E", corner_radius=8)
+        img_label.place(x=20, y=50)
+
+        def load_poster():
+            if media['poster_path']:
+                local_img = POSTER_CACHE_DIR / media['poster_path'].lstrip('/')
+                if local_img.exists():
+                    try:
+                        img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(140, 210))
+                        self.after(0, lambda: img_label.configure(image=img, text=""))
+                    except: pass
+        threading.Thread(target=load_poster, daemon=True).start()
+
+        # Info Frame
         info_frame = ctk.CTkFrame(header, fg_color="transparent")
-        info_frame.pack(side="left", fill="both", expand=True)
+        info_frame.place(x=180, y=100)
 
-        ctk.CTkLabel(info_frame, text=media['title'], font=ctk.CTkFont(size=28, weight="bold")).pack(anchor="w")
-        ctk.CTkLabel(info_frame, text=media['synopsis'], wraplength=700, justify="left").pack(anchor="w", pady=10)
+        # Drop shadow text effect or semi transparent bg could go here, for now just offset below banner if needed
+        # Actually since banner is 200px tall and y is 100, text overlaps banner.
+        # Ensure readable text by adding a slight background to text if on banner.
+        # simpler: just push text down below banner
+        info_frame.place(x=180, y=210) # Place below banner to ensure readability
 
-        # Stats Bar
+        # Let's adjust header height to fit poster + some text
+        header.configure(height=350)
+
+        title_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
+        title_frame.pack(anchor="w", fill="x")
+
+        ctk.CTkLabel(title_frame, text=media['title'], font=ctk.CTkFont(family="Inter", size=32, weight="bold"), text_color=TEXT_PRIMARY).pack(side="left")
+
         cursor.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (media_id,))
         watched_eps = cursor.fetchone()['c']
 
-        cursor.execute("SELECT SUM(watch_count) as s FROM Episodes WHERE media_id=?", (media_id,))
-        total_watches_row = cursor.fetchone()
-        total_watches = total_watches_row['s'] if total_watches_row['s'] else 0
+        tags_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
+        tags_frame.pack(anchor="w", pady=(5, 10))
 
-        stats_text = f"Episodes Watched: {watched_eps} / {media['total_episodes']}  |  Total Rewatches: {total_watches}"
-        ctk.CTkLabel(info_frame, text=stats_text, font=ctk.CTkFont(weight="bold", text_color=VLC_ORANGE)).pack(anchor="w", pady=10)
+        type_tag = ctk.CTkLabel(tags_frame, text=media['type'], fg_color=SURFACE_COLOR, corner_radius=10, font=ctk.CTkFont(size=12), padx=10)
+        type_tag.pack(side="left", padx=(0, 5))
+
+        status_text = "Completed" if watched_eps == media['total_episodes'] and watched_eps > 0 else "Watching"
+        status_color = SUCCESS_COLOR if status_text == "Completed" else VLC_ORANGE
+
+        stat_tag = ctk.CTkLabel(tags_frame, text=f"{watched_eps} / {media['total_episodes']} Eps", fg_color=status_color, corner_radius=10, font=ctk.CTkFont(size=12, weight="bold"), padx=10, text_color="white")
+        stat_tag.pack(side="left")
+
+        ctk.CTkLabel(info_frame, text=media['synopsis'], font=ctk.CTkFont(family="Inter", size=13), text_color=TEXT_SECONDARY, wraplength=700, justify="left").pack(anchor="w", pady=5)
+
+        # Action Row
+        actions = ctk.CTkFrame(detail_scroll, fg_color="transparent")
+        actions.pack(fill="x", padx=20, pady=(0, 20))
+
+        # Get next episode to play
+        cursor.execute("""
+            SELECT e.*, l.file_path FROM Episodes e
+            LEFT JOIN Local_Files l ON e.id = l.episode_id
+            WHERE e.media_id = ? AND e.status IN ('Unwatched', 'Watching')
+            ORDER BY e.season_num ASC, e.ep_num ASC LIMIT 1
+        """, (media_id,))
+        next_ep = cursor.fetchone()
+
+        if next_ep and next_ep['file_path']:
+            play_btn = ctk.CTkButton(actions, text="▶ Play Next", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=36,
+                                     font=ctk.CTkFont(family="Inter", weight="bold"), command=lambda e=next_ep: self._play_episode(e))
+            play_btn.pack(side="left", padx=(0, 10))
+
+        ctk.CTkButton(actions, text="✓ Mark All Watched", fg_color=SURFACE_COLOR, hover_color="#333", height=36,
+                      command=lambda m=media_id: self._mark_all_watched(m)).pack(side="left", padx=(0, 10))
 
         # Main Area (Tabs for Seasons if TV)
-        content_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        content_frame = ctk.CTkFrame(detail_scroll, fg_color="transparent")
         content_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         if media['type'] == 'TV':
@@ -397,27 +847,47 @@ class App(ctk.CTk):
 
             if seasons:
                 # Top horizontal scroll for season buttons
-                season_scroll = ctk.CTkScrollableFrame(content_frame, orientation="horizontal", height=50)
+                season_scroll = ctk.CTkScrollableFrame(content_frame, orientation="horizontal", height=50, fg_color="transparent")
                 season_scroll.pack(fill="x", pady=(0, 10))
 
-                self.ep_list_frame = ctk.CTkScrollableFrame(content_frame)
+                self.ep_list_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
                 self.ep_list_frame.pack(fill="both", expand=True)
 
+                self.season_btns = []
+
                 for s in seasons:
-                    btn = ctk.CTkButton(season_scroll, text=f"Season {s}", width=80,
+                    btn = ctk.CTkButton(season_scroll, text=f"Season {s}", width=100, height=32, corner_radius=16,
+                                        fg_color=SURFACE_COLOR, text_color=TEXT_SECONDARY, hover_color="#333",
+                                        font=ctk.CTkFont(family="Inter", weight="bold"),
                                         command=lambda s_num=s, m_id=media_id: self._load_episodes(m_id, s_num))
                     btn.pack(side="left", padx=5)
+                    self.season_btns.append((s, btn))
 
                 # Load first season by default
                 self._load_episodes(media_id, seasons[0])
         else:
-            self.ep_list_frame = ctk.CTkScrollableFrame(content_frame)
+            self.ep_list_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
             self.ep_list_frame.pack(fill="both", expand=True)
             self._load_episodes(media_id, 1)
 
         conn.close()
 
+    def _mark_all_watched(self, media_id):
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE Episodes SET status='Completed', watch_count=MAX(1, watch_count) WHERE media_id=?", (media_id,))
+        conn.commit()
+        conn.close()
+        self._show_media_details(media_id)
+
     def _load_episodes(self, media_id, season_num):
+        if hasattr(self, 'season_btns'):
+            for s, btn in self.season_btns:
+                if s == season_num:
+                    btn.configure(fg_color=TEXT_PRIMARY, text_color=BG_COLOR)
+                else:
+                    btn.configure(fg_color=SURFACE_COLOR, text_color=TEXT_SECONDARY)
+
         for widget in self.ep_list_frame.winfo_children():
             widget.destroy()
 
@@ -433,52 +903,80 @@ class App(ctk.CTk):
         """, (media_id, season_num))
 
         episodes = cursor.fetchall()
+
+        cursor.execute("SELECT type FROM Media WHERE id=?", (media_id,))
+        m_type = cursor.fetchone()['type']
         conn.close()
 
         for ep in episodes:
-            row = ctk.CTkFrame(self.ep_list_frame, fg_color="#1E1E1E", corner_radius=8)
-            row.pack(fill="x", pady=4, padx=10)
+            row = ctk.CTkFrame(self.ep_list_frame, fg_color=SURFACE_COLOR, corner_radius=8, height=80)
+            row.pack(fill="x", pady=6)
+            row.pack_propagate(False)
 
-            # Left side: Status + Title
-            left_frame = ctk.CTkFrame(row, fg_color="transparent")
-            left_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+            # Still Image
+            img_frame = ctk.CTkFrame(row, width=120, height=68, fg_color=BG_COLOR, corner_radius=6)
+            img_frame.pack(side="left", padx=(6, 15), pady=6)
+            img_frame.pack_propagate(False)
 
-            icon = "⬛" # Unwatched
+            img_lbl = ctk.CTkLabel(img_frame, text="")
+            img_lbl.pack(fill="both", expand=True)
+
+            def load_still():
+                if ep['still_path']:
+                    from .tmdb_api import download_image
+                    local_path = download_image(ep['still_path'])
+                    if local_path:
+                        try:
+                            img = ctk.CTkImage(light_image=Image.open(local_path), dark_image=Image.open(local_path), size=(120, 68))
+                            self.after(0, lambda: img_lbl.configure(image=img))
+                        except: pass
+            threading.Thread(target=load_still, daemon=True).start()
+
+            # Middle: Status + Title
+            mid_frame = ctk.CTkFrame(row, fg_color="transparent")
+            mid_frame.pack(side="left", fill="both", expand=True, pady=10)
+
+            icon = "○" # Unwatched
             if ep['status'] == 'Completed':
-                icon = "✅"
+                icon = "✓"
             elif ep['status'] == 'Watching':
-                icon = "⏳"
+                icon = "◐"
 
-            ctk.CTkLabel(left_frame, text=icon, font=ctk.CTkFont(size=14)).pack(side="left", padx=(0, 10))
+            color = TEXT_PRIMARY if ep['status'] != 'Completed' else TEXT_SECONDARY
 
-            title_text = f"S{ep['season_num']:02}E{ep['ep_num']:02} - {ep['title']}"
-            title_font = ctk.CTkFont(size=14, weight="bold") if ep['status'] != 'Completed' else ctk.CTkFont(size=14)
-            color = "white" if ep['status'] != 'Completed' else "gray"
-            ctk.CTkLabel(left_frame, text=title_text, font=title_font, text_color=color, anchor="w").pack(side="left")
+            title_row = ctk.CTkFrame(mid_frame, fg_color="transparent")
+            title_row.pack(anchor="w", fill="x")
 
-            runtime_text = f" • {ep['runtime']} min" if ep['runtime'] else ""
-            ctk.CTkLabel(left_frame, text=runtime_text, font=ctk.CTkFont(size=12), text_color="gray", anchor="w").pack(side="left")
+            ctk.CTkLabel(title_row, text=icon, font=ctk.CTkFont(family="Inter", size=18, weight="bold"), text_color=VLC_ORANGE if ep['status'] == 'Watching' else color).pack(side="left", padx=(0, 10))
+
+            if m_type == 'TV':
+                ep_id_text = f"{ep['ep_num']}. "
+                ctk.CTkLabel(title_row, text=ep_id_text, font=ctk.CTkFont(family="Inter", size=15, weight="bold"), text_color=TEXT_SECONDARY).pack(side="left")
+
+            title_font = ctk.CTkFont(family="Inter", size=15, weight="bold") if ep['status'] != 'Completed' else ctk.CTkFont(family="Inter", size=15)
+            ctk.CTkLabel(title_row, text=ep['title'], font=title_font, text_color=color, anchor="w").pack(side="left")
+
+            runtime_text = f"{ep['runtime']}m" if ep['runtime'] else ""
+            if runtime_text:
+                ctk.CTkLabel(mid_frame, text=runtime_text, font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY, anchor="w").pack(anchor="w", padx=(30, 0))
 
             # Right side: Controls
             right_frame = ctk.CTkFrame(row, fg_color="transparent")
-            right_frame.pack(side="right", padx=10, pady=10)
-
-            # Watch Count controls
-            ctk.CTkButton(right_frame, text="-", width=30, height=24, fg_color="gray30", hover_color="gray50",
-                          command=lambda e_id=ep['id'], m_id=media_id, s=season_num: self._adj_watch(e_id, m_id, s, -1)).pack(side="left", padx=2)
-            ctk.CTkLabel(right_frame, text=f"Watch Count: {ep['watch_count']}", width=100).pack(side="left", padx=5)
-            ctk.CTkButton(right_frame, text="+", width=30, height=24, fg_color="gray30", hover_color="gray50",
-                          command=lambda e_id=ep['id'], m_id=media_id, s=season_num: self._adj_watch(e_id, m_id, s, 1)).pack(side="left", padx=2)
+            right_frame.pack(side="right", padx=15, pady=10)
 
             # Play Button
             has_file = bool(ep['file_path'])
             if has_file:
-                play_btn = ctk.CTkButton(right_frame, text="▶ Play Local", width=120, height=30, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, font=ctk.CTkFont(weight="bold"),
-                                         command=lambda e=ep: self._play_episode(e))
-                play_btn.pack(side="left", padx=(10, 0))
+                # Use a circular play button for sleekness
+                play_btn = ctk.CTkButton(right_frame, text="▶", width=40, height=40, corner_radius=20,
+                                         fg_color="transparent", border_color=VLC_ORANGE, border_width=2,
+                                         hover_color=VLC_ORANGE_HOVER, text_color=VLC_ORANGE,
+                                         font=ctk.CTkFont(size=18), command=lambda e=ep: self._play_episode(e))
+                play_btn.pack(side="right")
             else:
-                play_btn = ctk.CTkButton(right_frame, text="❌ Missing File", width=120, height=30, fg_color="gray30", hover_color="gray30", font=ctk.CTkFont(weight="bold"), state="disabled")
-                play_btn.pack(side="left", padx=(10, 0))
+                play_btn = ctk.CTkButton(right_frame, text="❌", width=40, height=40, corner_radius=20,
+                                         fg_color="transparent", text_color=DANGER_COLOR, state="disabled")
+                play_btn.pack(side="right")
 
     def _adj_watch(self, episode_id, media_id, season_num, delta):
         conn = self.data_manager.get_db_connection()
@@ -588,11 +1086,11 @@ class App(ctk.CTk):
     def _finish_scan(self, new_count):
         ToastNotification(self, title="Scan Complete", message=f"Finished. Found {new_count} new unmatched files.", duration=4000, color="#1b5e20")
         # If user is currently looking at unmatched list, refresh it
-        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == VLC_ORANGE:
+        if hasattr(self, 'nav_btns') and self.nav_btns["Unmatched"].cget("fg_color") == SURFACE_COLOR:
             self._show_unmatched()
 
     def _show_unmatched(self):
-        self._highlight_nav("❓ Unmatched Files")
+        self._highlight_nav("Unmatched")
         self._clear_main_frame()
 
         conn = self.data_manager.get_db_connection()
@@ -613,8 +1111,19 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(self.main_frame, text=f"You have {group_count} unrecognized series on your hard drive.", font=ctk.CTkFont(size=14), text_color="gray").pack(anchor="w", padx=20, pady=(0, 20))
 
-        scroll = ctk.CTkScrollableFrame(self.main_frame)
-        scroll.pack(fill="both", expand=True, padx=20, pady=10)
+        # Split pane for Unmatched
+        split_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        split_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # Left Pane: Inbox List
+        inbox_frame = ctk.CTkScrollableFrame(split_frame, width=300, fg_color=SURFACE_COLOR, corner_radius=12)
+        inbox_frame.pack(side="left", fill="y", padx=(0, 10))
+
+        # Right Pane: Action Area
+        self.action_area = ctk.CTkFrame(split_frame, fg_color="transparent")
+        self.action_area.pack(side="left", fill="both", expand=True)
+
+        ctk.CTkLabel(self.action_area, text="Select a group to triage.", font=ctk.CTkFont(family="Inter", size=16), text_color=TEXT_SECONDARY).pack(pady=100)
 
         # Group files
         groups = {}
@@ -625,54 +1134,65 @@ class App(ctk.CTk):
             groups[g_key].append(uf)
 
         for group_name, files in groups.items():
-            card = ctk.CTkFrame(scroll, fg_color="#1E1E1E", corner_radius=10)
-            card.pack(fill="x", pady=10, padx=10)
+            item_btn = ctk.CTkButton(inbox_frame, text=f"📁 {group_name} ({len(files)})", anchor="w",
+                                     fg_color="transparent", hover_color="#333", text_color=TEXT_PRIMARY,
+                                     font=ctk.CTkFont(family="Inter", size=14, weight="bold"), height=40,
+                                     command=lambda gn=group_name, fs=files: self._populate_triage(gn, fs))
+            item_btn.pack(fill="x", pady=2, padx=5)
 
-            # Card Header
-            header_frame = ctk.CTkFrame(card, fg_color="transparent")
-            header_frame.pack(fill="x", padx=15, pady=15)
+    def _populate_triage(self, group_name, files, restore_scroll=False):
+        # Save toggle state if it exists
+        is_manual = getattr(self, "show_manual", ctk.BooleanVar(value=False)).get()
 
-            title_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-            title_frame.pack(side="left", fill="both", expand=True)
+        for widget in self.action_area.winfo_children():
+            widget.destroy()
 
-            ctk.CTkLabel(title_frame, text=f"📁 {group_name}", font=ctk.CTkFont(size=18, weight="bold"), anchor="w").pack(fill="x")
+        top = ctk.CTkFrame(self.action_area, fg_color="transparent")
+        top.pack(fill="x", pady=20)
 
-            # Subtext logic: Check if files share the same directory path
-            import os
-            dirs = set(os.path.dirname(f['file_path']) for f in files)
-            dir_text = next(iter(dirs)) if len(dirs) == 1 else "Multiple Directories"
-            subtext = f"{len(files)} episodes found in {dir_text}"
-            ctk.CTkLabel(title_frame, text=subtext, font=ctk.CTkFont(size=12), text_color="gray", anchor="w").pack(fill="x")
+        search_var = ctk.StringVar(value=group_name)
+        search_entry = ctk.CTkEntry(top, textvariable=search_var, font=ctk.CTkFont(family="Inter", size=24, weight="bold"),
+                                    height=50, fg_color=SURFACE_COLOR, border_color="#333")
+        search_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
 
-            # Content frame (hidden by default)
-            content_frame = ctk.CTkFrame(card, fg_color="transparent")
+        ctk.CTkButton(top, text="Search TMDB", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=50,
+                      font=ctk.CTkFont(family="Inter", size=16, weight="bold"),
+                      command=lambda: self._match_group(search_var.get(), files)).pack(side="left")
 
-            # Toggle logic
-            def toggle(cf=content_frame):
-                if cf.winfo_ismapped():
-                    cf.pack_forget()
-                else:
-                    cf.pack(fill="x", padx=15, pady=(0, 15))
+        ctk.CTkButton(top, text="🗑️ Ignore", fg_color=DANGER_COLOR, hover_color="#8e0000", height=50, width=50,
+                      command=lambda: self._ignore_group(group_name)).pack(side="left", padx=(10, 0))
 
-            # Actions
-            actions_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-            actions_frame.pack(side="right")
+        # Middle: instructions / results / toggle
+        mid_frame = ctk.CTkFrame(self.action_area, fg_color="transparent")
+        mid_frame.pack(fill="x", pady=(0, 20))
 
-            ctk.CTkButton(actions_frame, text="🔍 Search TMDB & Match All", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, font=ctk.CTkFont(weight="bold"),
-                          command=lambda gn=group_name, fs=files: self._match_group(gn, fs)).pack(side="left", padx=5)
+        ctk.CTkLabel(mid_frame, text="Click 'Search TMDB' to find a match and assign all below files.",
+                     font=ctk.CTkFont(family="Inter", size=14), text_color=TEXT_SECONDARY).pack(side="left")
 
-            ctk.CTkButton(actions_frame, text="👁️ View Files", fg_color="gray30", hover_color="gray50",
-                          command=lambda cf=content_frame: toggle(cf)).pack(side="left", padx=5)
+        # Toggle for manual matching
+        if not hasattr(self, "show_manual") or not restore_scroll:
+            self.show_manual = ctk.BooleanVar(value=False)
 
-            ctk.CTkButton(actions_frame, text="🗑️ Ignore", fg_color="#b71c1c", hover_color="#8e0000",
-                          command=lambda gn=group_name: self._ignore_group(gn)).pack(side="left", padx=5)
+        manual_switch = ctk.CTkSwitch(mid_frame, text="Advanced / Manual Match", variable=self.show_manual,
+                                      command=lambda gn=group_name, fs=files: self._populate_triage(gn, fs, restore_scroll=True),
+                                      font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY)
+        manual_switch.pack(side="right")
 
-            # Files inside group
-            for uf in files:
-                row = ctk.CTkFrame(content_frame, fg_color="transparent")
-                row.pack(fill="x", pady=2)
-                ctk.CTkLabel(row, text=uf['filename'], font=ctk.CTkFont(family="monospace", size=11), anchor="w").pack(side="left", padx=10, fill="x", expand=True)
-                ctk.CTkButton(row, text="Assign...", width=80, height=24, command=lambda f=uf: self._assign_unmatched(f)).pack(side="right", padx=10)
+        # Bottom: Clean table of files
+        table_frame = ctk.CTkScrollableFrame(self.action_area, fg_color=SURFACE_COLOR, corner_radius=12)
+        table_frame.pack(fill="both", expand=True)
+
+        for i, uf in enumerate(files):
+            row = ctk.CTkFrame(table_frame, fg_color="transparent" if i % 2 == 0 else "#252830", height=30)
+            row.pack(fill="x")
+            row.pack_propagate(False)
+
+            ctk.CTkLabel(row, text=uf['filename'], font=ctk.CTkFont(family="Inter", size=13), anchor="w").pack(side="left", padx=10)
+
+            # Advanced Match
+            if self.show_manual.get():
+                ctk.CTkButton(row, text="Manual...", width=60, height=24, fg_color="transparent", hover_color="#333", text_color=TEXT_SECONDARY,
+                              command=lambda f=uf: self._assign_unmatched(f)).pack(side="right", padx=10)
 
     def _ignore_group(self, group_name):
         conn = self.data_manager.get_db_connection()
@@ -703,9 +1223,11 @@ class App(ctk.CTk):
                 details = get_media_details(api_key, media_data['tmdb_id'], media_data['type'])
                 if not details: return
 
-                # Download Poster
+                # Download Poster & Backdrop
                 if details['poster_path']:
-                    download_poster(details['poster_path'])
+                    download_image(details['poster_path'])
+                if details.get('backdrop_path'):
+                    download_image(details['backdrop_path'])
 
                 conn = self.data_manager.get_db_connection()
                 cursor = conn.cursor()
@@ -720,10 +1242,10 @@ class App(ctk.CTk):
                 else:
                     # Insert Media
                     cursor.execute("""
-                        INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, total_episodes, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, backdrop_path, total_episodes, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """, (details['tmdb_id'], details['type'], details['title'], details['synopsis'],
-                          details['poster_path'], details['total_episodes'], details['status']))
+                          details['poster_path'], details.get('backdrop_path', ''), details['total_episodes'], details['status']))
 
                     media_id = cursor.lastrowid
 
@@ -735,16 +1257,19 @@ class App(ctk.CTk):
 
                             eps = get_tv_season_episodes(api_key, details['tmdb_id'], s_num)
                             for ep in eps:
+                                still_path = ep.get('still_path', '')
+                                # User requested NOT to download every episode image synchronously here.
+                                # It will be downloaded lazy-loaded on the Media details screen.
                                 cursor.execute("""
-                                    INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
-                                    VALUES (?, ?, ?, ?, ?)
-                                """, (media_id, s_num, ep['ep_num'], ep['title'], ep['runtime']))
+                                    INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path)
+                                    VALUES (?, ?, ?, ?, ?, ?)
+                                """, (media_id, s_num, ep['ep_num'], ep['title'], ep['runtime'], still_path))
                     else:
                         # Movie has 1 dummy episode
                         cursor.execute("""
-                            INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
-                            VALUES (?, 1, 1, ?, ?)
-                        """, (media_id, 1, 1, details['title'], details.get('runtime', 0)))
+                            INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path)
+                            VALUES (?, 1, 1, ?, ?, ?)
+                        """, (media_id, 1, 1, details['title'], details.get('runtime', 0), details.get('backdrop_path', '')))
 
                     conn.commit()
 
@@ -797,7 +1322,7 @@ class App(ctk.CTk):
         threading.Thread(target=fetch_and_save, daemon=True).start()
 
     def _refresh_if_on_unmatched(self):
-        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == VLC_ORANGE:
+        if hasattr(self, 'nav_btns') and self.nav_btns["Unmatched"].cget("fg_color") == SURFACE_COLOR:
             self._show_unmatched()
 
     # =========================================================================
@@ -890,7 +1415,7 @@ class App(ctk.CTk):
     # SETTINGS
     # =========================================================================
     def _show_settings(self):
-        self._highlight_nav("⚙️ Settings")
+        self._highlight_nav("Settings")
         self._clear_main_frame()
 
         ctk.CTkLabel(self.main_frame, text="Settings", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=20)
