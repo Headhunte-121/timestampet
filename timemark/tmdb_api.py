@@ -126,7 +126,7 @@ def get_tv_season_episodes(api_key: str, tmdb_id: str, season_num: int) -> List[
         print(f"TMDB Season Error: {e}")
         raise e
 
-def download_image(image_path: str) -> Optional[str]:
+def download_image(image_path: str, size: str = "w500") -> Optional[str]:
     """
     Downloads an image (poster, backdrop, still) from TMDB and caches it locally.
     Returns the local path or None if failed.
@@ -134,13 +134,15 @@ def download_image(image_path: str) -> Optional[str]:
     if not image_path:
         return None
 
-    filename = image_path.lstrip('/')
+    # Prefix filename with size to cache different resolutions separately
+    filename = f"{size}_{image_path.lstrip('/')}"
     local_path = POSTER_CACHE_DIR / filename
 
     if local_path.exists():
         return str(local_path)
 
-    url = f"{TMDB_IMAGE_BASE}{image_path}"
+    base_url = "https://image.tmdb.org/t/p/"
+    url = f"{base_url}{size}{image_path}"
     try:
         response = requests.get(url, stream=True, timeout=10.0)
         response.raise_for_status()
