@@ -204,11 +204,15 @@ class App(ctk.CTk):
         conn = self.data_manager.get_db_connection()
         cursor = conn.cursor()
 
-        # 1. Fetch the most recently engaged SHOW, then get its next unwatched episode
+        # 1. Fetch the most recently engaged SHOW that still has unwatched episodes
         cursor.execute("""
             SELECT e.media_id, MAX(h.timestamp) as last_watched
             FROM History h
             JOIN Episodes e ON h.episode_id = e.id
+            WHERE EXISTS (
+                SELECT 1 FROM Episodes e2
+                WHERE e2.media_id = e.media_id AND e2.status IN ('Watching', 'Unwatched')
+            )
             GROUP BY e.media_id
             ORDER BY last_watched DESC
             LIMIT 1
@@ -240,10 +244,11 @@ class App(ctk.CTk):
 
             def load_hero_bg():
                 if hero_ep['backdrop_path']:
-                    local_img = POSTER_CACHE_DIR / hero_ep['backdrop_path'].lstrip('/')
-                    if local_img.exists():
+                    from .tmdb_api import download_image
+                    local_img_path = download_image(hero_ep['backdrop_path'], size="w1280")
+                    if local_img_path:
                         try:
-                            pil_img = Image.open(local_img)
+                            pil_img = Image.open(local_img_path)
                             w, h = pil_img.size
                             target_h = int(w * (350/1000))
                             if h > target_h:
@@ -304,6 +309,10 @@ class App(ctk.CTk):
             SELECT e.media_id, MAX(h.timestamp) as last_watched
             FROM History h
             JOIN Episodes e ON h.episode_id = e.id
+            WHERE EXISTS (
+                SELECT 1 FROM Episodes e2
+                WHERE e2.media_id = e.media_id AND e2.status IN ('Watching', 'Unwatched')
+            )
             GROUP BY e.media_id
             ORDER BY last_watched DESC
             LIMIT 15
@@ -387,10 +396,11 @@ class App(ctk.CTk):
         img_path = ep_row['still_path'] if 'still_path' in ep_row.keys() and ep_row['still_path'] else (ep_row['backdrop_path'] if 'backdrop_path' in ep_row.keys() else None)
         def load_img():
             if img_path:
-                local_img = POSTER_CACHE_DIR / img_path.lstrip('/')
-                if local_img.exists():
+                from .tmdb_api import download_image
+                local_img_path = download_image(img_path, size="w500")
+                if local_img_path:
                     try:
-                        img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(280, 158))
+                        img = ctk.CTkImage(light_image=Image.open(local_img_path), dark_image=Image.open(local_img_path), size=(280, 158))
                         self.after(0, lambda: img_label.configure(image=img, text=""))
                     except: pass
         threading.Thread(target=load_img, daemon=True).start()
@@ -535,10 +545,11 @@ class App(ctk.CTk):
 
         def load_poster():
             if item['poster_path']:
-                local_img = POSTER_CACHE_DIR / item['poster_path'].lstrip('/')
-                if local_img.exists():
+                from .tmdb_api import download_image
+                local_img_path = download_image(item['poster_path'], size="w500")
+                if local_img_path:
                     try:
-                        img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(160, 240))
+                        img = ctk.CTkImage(light_image=Image.open(local_img_path), dark_image=Image.open(local_img_path), size=(160, 240))
                         self.after(0, lambda: img_label.configure(image=img, text=""))
                     except: pass
 
@@ -785,10 +796,11 @@ class App(ctk.CTk):
 
         def load_banner():
             if media['backdrop_path']:
-                local_img = POSTER_CACHE_DIR / media['backdrop_path'].lstrip('/')
-                if local_img.exists():
+                from .tmdb_api import download_image
+                local_img_path = download_image(media['backdrop_path'], size="w1280")
+                if local_img_path:
                     try:
-                        pil_img = Image.open(local_img)
+                        pil_img = Image.open(local_img_path)
                         w, h = pil_img.size
                         target_h = int(w * (200/1000))
                         if h > target_h:
@@ -812,10 +824,11 @@ class App(ctk.CTk):
 
         def load_poster():
             if media['poster_path']:
-                local_img = POSTER_CACHE_DIR / media['poster_path'].lstrip('/')
-                if local_img.exists():
+                from .tmdb_api import download_image
+                local_img_path = download_image(media['poster_path'], size="w500")
+                if local_img_path:
                     try:
-                        img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(140, 210))
+                        img = ctk.CTkImage(light_image=Image.open(local_img_path), dark_image=Image.open(local_img_path), size=(140, 210))
                         self.after(0, lambda: img_label.configure(image=img, text=""))
                     except: pass
         threading.Thread(target=load_poster, daemon=True).start()
