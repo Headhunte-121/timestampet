@@ -4,26 +4,12 @@ from pathlib import Path
 
 def get_app_data_dir(app_name="WatchMark"):
     """
-    Returns the appropriate application data directory based on the OS.
-    Windows: %APPDATA%/WatchMark
-    Mac: ~/Library/Application Support/WatchMark
-    Linux: ~/.config/WatchMark
+    Returns the application data directory alongside the application source.
     """
-    home = Path.home()
-    if sys.platform == "win32":
-        app_data = os.environ.get("APPDATA")
-        if app_data:
-            base_dir = Path(app_data)
-        else:
-            base_dir = home / "AppData" / "Roaming"
-    elif sys.platform == "darwin":
-        base_dir = home / "Library" / "Application Support"
-    else:  # Linux and other Unix-like
-        config_home = os.environ.get("XDG_CONFIG_HOME")
-        if config_home:
-            base_dir = Path(config_home)
-        else:
-            base_dir = home / ".config"
+    # Path(__file__) is timemark/config.py
+    # Path(__file__).parent is timemark/
+    # Path(__file__).parent.parent is the root directory containing run.py
+    base_dir = Path(__file__).parent.parent
 
     app_dir = base_dir / app_name
     app_dir.mkdir(parents=True, exist_ok=True)
