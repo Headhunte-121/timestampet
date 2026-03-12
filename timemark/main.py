@@ -183,7 +183,14 @@ class App(ctk.CTk):
         title = f"{ep_row['show_title']}\nS{ep_row['season_num']}E{ep_row['ep_num']}"
         ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=12, weight="bold"), wraplength=130).pack(pady=5)
 
-        status_text = f"Watching ({int(ep_row['last_position']*100)}%)" if ep_row['status'] == 'Watching' else "Unwatched"
+        if ep_row['status'] == 'Watching':
+            if ep_row['runtime'] > 0:
+                pct = int((ep_row['last_position'] / (ep_row['runtime'] * 60)) * 100)
+                status_text = f"Watching ({pct}%)"
+            else:
+                status_text = "Watching (Resumable)"
+        else:
+            status_text = "Unwatched"
         ctk.CTkLabel(card, text=status_text, font=ctk.CTkFont(size=10), text_color="gray").pack()
 
         card.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
@@ -343,55 +350,6 @@ class App(ctk.CTk):
                 conn = self.data_manager.get_db_connection()
                 cursor = conn.cursor()
 
-                # Check if exists
-                cursor.execute("SELECT id FROM Media WHERE tmdb_id=?", (details['tmdb_id'],))
-                existing = cursor.fetchone()
-                if existing:
-                    self.after(0, lambda: messagebox.showinfo("Exists", "This media is already tracked."))
-                    conn.close()
-                    return
-
-                # Insert Media
-                cursor.execute("""
-                    INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, total_episodes, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (details['tmdb_id'], details['type'], details['title'], details['synopsis'],
-                      details['poster_path'], details['total_episodes'], details['status']))
-
-                media_id = cursor.lastrowid
-
-                # Fetch Episodes if TV Show
-                if details['type'] == 'TV':
-                    for season in details['seasons']:
-                        s_num = season.get('season_number')
-                        if s_num == 0: continue # Skip specials usually
-
-                        eps = get_tv_season_episodes(api_key, details['tmdb_id'], s_num)
-                        for ep in eps:
-                            cursor.execute("""
-                                INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
-                                VALUES (?, ?, ?, ?, ?)
-                            """, (media_id, s_num, ep['ep_num'], ep['title'], ep['runtime']))
-                else:
-                    # Movie has 1 dummy episode
-                    cursor.execute("""
-                        INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
-                        VALUES (?, 1, 1, ?, ?)
-                    """, (media_id, details['title'], details.get('runtime', 0)))
-
-                conn.commit()
-                conn.close()
-
-                self.after(0, lambda: messagebox.showinfo("Success", f"Added {details['title']} to tracker!"))
-
-            except Exception as e:
-                self.after(0, lambda: messagebox.showerror("Error", f"Failed to add media: {e}"))
-
-        threading.Thread(target=fetch_and_save, daemon=True).start()
-
-    # =========================================================================
-    # MEDIA DEEP DIVE
-    # =========================================================================
     def _show_media_details(self, media_id):
         self._clear_main_frame()
 
@@ -548,11 +506,10 @@ class App(ctk.CTk):
             messagebox.showerror("File Missing", "The linked file no longer exists.")
             return
 
-        # Start time (if partial watch, maybe we want to resume? For now starting at 0 to keep it simple,
-        # but could calculate start_time = last_position * runtime)
+        # Start time
         start_sec = 0
-        if ep_data['last_position'] > 0 and ep_data['runtime'] > 0:
-            start_sec = int(ep_data['last_position'] * ep_data['runtime'] * 60)
+        if ep_data['last_position'] > 0:
+            start_sec = int(ep_data['last_position'])
 
         proc = play_in_vlc(vlc_path, file_path, start_time=start_sec)
 
@@ -561,6 +518,7 @@ class App(ctk.CTk):
 
     def _vlc_heartbeat(self, proc, episode_id, media_id, season_num):
         high_water_mark = 0.0
+        last_time_seconds = 0.0
 
         while proc.poll() is None:
             time.sleep(5)
@@ -569,6 +527,7 @@ class App(ctk.CTk):
                 pos = status['time'] / status['length']
                 if pos > high_water_mark:
                     high_water_mark = pos
+                last_time_seconds = status['time']
 
         # Process closed
         conn = self.data_manager.get_db_connection()
@@ -588,7 +547,7 @@ class App(ctk.CTk):
                     UPDATE Episodes
                     SET status = 'Watching', last_position = ?
                     WHERE id = ? AND status != 'Completed'
-                """, (high_water_mark, episode_id))
+                """, (last_time_seconds, episode_id))
 
         conn.commit()
         conn.close()
@@ -639,12 +598,173 @@ class App(ctk.CTk):
         scroll = ctk.CTkScrollableFrame(self.main_frame)
         scroll.pack(fill="both", expand=True, padx=20, pady=10)
 
+        # Group files
+        groups = {}
         for idx, uf in enumerate(self.current_unmatched_files):
-            row = ctk.CTkFrame(scroll)
-            row.pack(fill="x", pady=2)
+            g_key = uf.get('group_key', 'Unknown')
+            if g_key not in groups:
+                groups[g_key] = []
+            groups[g_key].append((idx, uf))
 
-            ctk.CTkLabel(row, text=uf['filename'], width=400, anchor="w").pack(side="left", padx=10)
-            ctk.CTkButton(row, text="Assign...", command=lambda idx=idx: self._assign_unmatched(idx)).pack(side="right", padx=10)
+        for group_name, files in groups.items():
+            group_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+            group_frame.pack(fill="x", pady=5)
+
+            header_frame = ctk.CTkFrame(group_frame, fg_color=("gray85", "gray15"))
+            header_frame.pack(fill="x")
+
+            # Label
+            label_text = f"📁 {group_name} — {len(files)} files detected"
+            header_label = ctk.CTkLabel(header_frame, text=label_text, font=ctk.CTkFont(weight="bold"))
+            header_label.pack(side="left", padx=10, pady=5)
+
+            # Content frame to be toggled
+            content_frame = ctk.CTkFrame(group_frame, fg_color="transparent")
+
+            # Toggle logic
+            def toggle(e, cf=content_frame):
+                if cf.winfo_ismapped():
+                    cf.pack_forget()
+                else:
+                    cf.pack(fill="x", pady=(5, 0))
+
+            header_frame.bind("<Button-1>", toggle)
+            header_label.bind("<Button-1>", toggle)
+
+            # Search & Match All
+            match_btn = ctk.CTkButton(header_frame, text="🔍 Search & Match All",
+                                      command=lambda gn=group_name, fs=files: self._match_group(gn, fs))
+            match_btn.pack(side="right", padx=10, pady=5)
+
+            # Files inside group
+            for idx, uf in files:
+                row = ctk.CTkFrame(content_frame)
+                row.pack(fill="x", pady=2, padx=(20, 0))
+                ctk.CTkLabel(row, text=uf['filename'], width=400, anchor="w").pack(side="left", padx=10)
+                ctk.CTkButton(row, text="Assign...", command=lambda idx=idx: self._assign_unmatched(idx)).pack(side="right", padx=10)
+
+    def _match_group(self, group_name, files):
+        # Trigger TMDB search with the group name
+        self._show_search()
+        self.search_entry.delete(0, 'end')
+        self.search_entry.insert(0, group_name)
+
+        # Override the _add_to_tracker slightly for this workflow
+        # Instead of just adding, we also assign the files in this group.
+        # We can do this by setting a state or passing a callback.
+        self._pending_group_match = files
+        self._perform_search()
+
+    def _add_to_tracker(self, media_data):
+        api_key = self.data_manager.settings.get("tmdb_api_key")
+
+        def fetch_and_save():
+            try:
+                # 1. Fetch details
+                details = get_media_details(api_key, media_data['tmdb_id'], media_data['type'])
+                if not details: return
+
+                # Download Poster
+                if details['poster_path']:
+                    download_poster(details['poster_path'])
+
+                conn = self.data_manager.get_db_connection()
+                cursor = conn.cursor()
+
+                # Check if exists
+                cursor.execute("SELECT id FROM Media WHERE tmdb_id=?", (details['tmdb_id'],))
+                existing = cursor.fetchone()
+
+                media_id = None
+                if existing:
+                    media_id = existing['id']
+                else:
+                    # Insert Media
+                    cursor.execute("""
+                        INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, total_episodes, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (details['tmdb_id'], details['type'], details['title'], details['synopsis'],
+                          details['poster_path'], details['total_episodes'], details['status']))
+
+                    media_id = cursor.lastrowid
+
+                    # Fetch Episodes if TV Show
+                    if details['type'] == 'TV':
+                        for season in details['seasons']:
+                            s_num = season.get('season_number')
+                            if s_num == 0: continue # Skip specials usually
+
+                            eps = get_tv_season_episodes(api_key, details['tmdb_id'], s_num)
+                            for ep in eps:
+                                cursor.execute("""
+                                    INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
+                                    VALUES (?, ?, ?, ?, ?)
+                                """, (media_id, s_num, ep['ep_num'], ep['title'], ep['runtime']))
+                    else:
+                        # Movie has 1 dummy episode
+                        cursor.execute("""
+                            INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
+                            VALUES (?, 1, 1, ?, ?)
+                        """, (media_id, 1, 1, details['title'], details.get('runtime', 0)))
+
+                    conn.commit()
+
+                # Check for pending group match
+                pending_group = getattr(self, '_pending_group_match', None)
+                if pending_group:
+                    import sqlite3
+                    assigned_count = 0
+                    files_to_remove = []
+
+                    for idx, uf in pending_group:
+                        s_num = uf.get('parsed_season')
+                        e_num = uf.get('parsed_episode')
+
+                        if details['type'] == 'Movie':
+                            s_num, e_num = 1, 1
+
+                        if s_num is not None and e_num is not None:
+                            cursor.execute("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?", (media_id, s_num, e_num))
+                            ep = cursor.fetchone()
+                            if ep:
+                                try:
+                                    cursor.execute("""
+                                        INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?)
+                                        ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path
+                                    """, (ep['id'], uf['file_path']))
+                                    assigned_count += 1
+                                    files_to_remove.append(uf)
+                                except sqlite3.IntegrityError:
+                                    pass
+
+                    conn.commit()
+
+                    if files_to_remove:
+                        self.current_unmatched_files = [f for f in self.current_unmatched_files if f not in files_to_remove]
+
+                    self.after(0, lambda ac=assigned_count: messagebox.showinfo("Success", f"Added {details['title']} and assigned {ac} files!"))
+                    self._pending_group_match = None
+                else:
+                    if not existing:
+                        self.after(0, lambda: messagebox.showinfo("Success", f"Added {details['title']} to tracker!"))
+                    else:
+                        self.after(0, lambda: messagebox.showinfo("Exists", "This media is already tracked."))
+
+                conn.close()
+                self.after(0, self._refresh_if_on_unmatched)
+
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to add media: {e}"))
+
+        threading.Thread(target=fetch_and_save, daemon=True).start()
+
+    def _refresh_if_on_unmatched(self):
+        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == ("gray75", "gray25"):
+            self._show_unmatched()
+
+    # =========================================================================
+    # MEDIA DEEP DIVE
+    # =========================================================================
 
     def _assign_unmatched(self, uf_idx):
         # Extremely simplified assignment logic for MVP

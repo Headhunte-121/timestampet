@@ -144,4 +144,4 @@ def download_poster(poster_path: str) -> Optional[str]:
         return str(local_path)
     except requests.exceptions.RequestException as e:
         print(f"Poster Download Error: {e}")
-        raise e
+        return None
