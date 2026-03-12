@@ -144,6 +144,7 @@ class App(ctk.CTk):
         create_nav_btn("Movies", self._show_movies)
         create_nav_btn("Search", self._show_search)
         create_nav_btn("Inbox", self._show_unmatched)
+        create_nav_btn("🕒 History", self._show_history)
 
         # Bottom section: Settings & Status
         bottom_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
@@ -242,10 +243,10 @@ class App(ctk.CTk):
             bg_label = ctk.CTkLabel(hero_frame, text="")
             bg_label.place(x=0, y=0, relwidth=1.0, relheight=1.0)
 
-            def load_hero_bg():
-                if hero_ep['backdrop_path']:
+            def load_hero_bg(ep_data, label):
+                if ep_data['backdrop_path']:
                     from .tmdb_api import download_image
-                    local_img_path = download_image(hero_ep['backdrop_path'], size="w1280")
+                    local_img_path = download_image(ep_data['backdrop_path'], size="w1280")
                     if local_img_path:
                         try:
                             pil_img = Image.open(local_img_path)
@@ -255,10 +256,10 @@ class App(ctk.CTk):
                                 top = (h - target_h) // 2
                                 pil_img = pil_img.crop((0, top, w, top + target_h))
                             backdrop_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(1000, 350))
-                            self.after(0, lambda: bg_label.configure(image=backdrop_img))
+                            self.after(0, lambda: label.configure(image=backdrop_img) if label.winfo_exists() else None)
                         except Exception:
                             pass
-            threading.Thread(target=load_hero_bg, daemon=True).start()
+            threading.Thread(target=load_hero_bg, args=(hero_ep, bg_label), daemon=True).start()
 
             # Text content
             content_frame = ctk.CTkFrame(hero_frame, fg_color="transparent")
@@ -300,27 +301,23 @@ class App(ctk.CTk):
 
         # --- Horizontal Rows ---
 
-        # Continue Watching (Other than hero)
-        ctk.CTkLabel(dash_scroll, text="Continue Watching", font=("Inter", 20, "bold")).pack(anchor="w", padx=25, pady=(20, 10))
+        # Up Next Smart Queue (Continue Watching)
+        ctk.CTkLabel(dash_scroll, text="Up Next", font=("Inter", 20, "bold")).pack(anchor="w", padx=25, pady=(20, 10))
         cw_frame = ctk.CTkScrollableFrame(dash_scroll, orientation="horizontal", height=220, fg_color="transparent")
         cw_frame.pack(fill="x", padx=15)
 
+        # Logic: Find shows where at least one episode is watched, but not all episodes are watched.
+        # Note: We use a subquery to count completed episodes to be accurate.
         cursor.execute("""
-            SELECT e.media_id, MAX(h.timestamp) as last_watched
-            FROM History h
-            JOIN Episodes e ON h.episode_id = e.id
-            WHERE EXISTS (
-                SELECT 1 FROM Episodes e2
-                WHERE e2.media_id = e.media_id AND e2.status IN ('Watching', 'Unwatched')
-            )
-            GROUP BY e.media_id
-            ORDER BY last_watched DESC
-            LIMIT 15
+            SELECT m.id as media_id
+            FROM Media m
+            WHERE (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') > 0
+              AND (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') < m.total_episodes
         """)
-        recent_media_ids = [r['media_id'] for r in cursor.fetchall()]
+        active_media_ids = [r['media_id'] for r in cursor.fetchall()]
 
         cw_eps = []
-        for m_id in recent_media_ids:
+        for m_id in active_media_ids:
             if hero_ep and m_id == hero_ep['media_id']:
                 continue # Skip the one in the hero
 
@@ -342,7 +339,6 @@ class App(ctk.CTk):
         else:
             for ep in cw_eps:
                 self._create_horizontal_episode_card(cw_frame, ep)
-
 
         # Recently Added
         ctk.CTkLabel(dash_scroll, text="Recently Added", font=("Inter", 20, "bold")).pack(anchor="w", padx=25, pady=(20, 10))
@@ -389,8 +385,13 @@ class App(ctk.CTk):
         card.pack(side="left", padx=10, pady=5)
         card.pack_propagate(False)
 
-        img_label = ctk.CTkLabel(card, text="No Image", width=280, height=158, fg_color="#15171e")
-        img_label.pack(fill="x")
+        # Container for image and play overlay
+        img_container = ctk.CTkFrame(card, width=280, height=158, fg_color="transparent")
+        img_container.pack(fill="x")
+        img_container.pack_propagate(False)
+
+        img_label = ctk.CTkLabel(img_container, text="No Image", width=280, height=158, fg_color="#15171e")
+        img_label.place(x=0, y=0, relwidth=1.0, relheight=1.0)
 
         # Prioritize still -> backdrop
         img_path = ep_row['still_path'] if 'still_path' in ep_row.keys() and ep_row['still_path'] else (ep_row['backdrop_path'] if 'backdrop_path' in ep_row.keys() else None)
@@ -405,6 +406,12 @@ class App(ctk.CTk):
                     except: pass
         threading.Thread(target=load_img, daemon=True).start()
 
+        # Play overlay button
+        play_btn = ctk.CTkButton(img_container, text="▶", width=40, height=40, corner_radius=20,
+                                 fg_color="rgba(255, 107, 0, 0.8)", hover_color=VLC_ORANGE_HOVER,
+                                 font=("Inter", 18, "normal"), command=lambda e=ep_row: self._play_episode(e))
+        play_btn.place(relx=0.5, rely=0.5, anchor="center")
+
         # Progress bar at bottom of thumbnail
         progress_val = 0.0
         if ep_row['status'] == 'Watching' and (ep_row['runtime'] or 0) > 0:
@@ -418,7 +425,14 @@ class App(ctk.CTk):
         info_frame.pack(fill="both", expand=True, padx=10)
 
         title = f"{(ep_row['show_title'] or 'Unknown Show')}"
-        subtitle = f"S{ep_row['season_num']:02}E{ep_row['ep_num']:02}" if ep_row['media_type'] == 'TV' else (ep_row['title'] or 'Unknown Title')
+        if ep_row['media_type'] == 'TV':
+            subtitle = f"S{ep_row['season_num']:02}E{ep_row['ep_num']:02} - {(ep_row['title'] or 'Unknown')}"
+        else:
+            subtitle = (ep_row['title'] or 'Unknown Title')
+
+        # Truncate subtitle if too long
+        if len(subtitle) > 25:
+            subtitle = subtitle[:22] + "..."
 
         ctk.CTkLabel(info_frame, text=title, font=("Inter", 13, "bold"), anchor="w").pack(side="left")
         ctk.CTkLabel(info_frame, text=subtitle, font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY, anchor="e").pack(side="right")
@@ -437,7 +451,7 @@ class App(ctk.CTk):
         self._highlight_nav("Movies")
         self._show_library("Movie")
 
-    def _show_library(self, media_type, filter_query=None):
+    def _show_library(self, media_type, filter_query=None, sort_by="Recently Added", hide_completed=False):
         self._clear_main_frame()
 
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -453,23 +467,58 @@ class App(ctk.CTk):
         scan_btn = ctk.CTkButton(header_frame, text="📂 Scan Local Folder", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=self._scan_folder)
         scan_btn.pack(side="right")
 
+        # Controls Bar (Sorting & Filtering)
+        controls_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent", height=40)
+        controls_frame.pack(fill="x", padx=20, pady=(0, 10))
+
+        sort_var = ctk.StringVar(value=sort_by)
+        hide_var = ctk.BooleanVar(value=hide_completed)
+
+        sort_dropdown = ctk.CTkOptionMenu(controls_frame, values=["Recently Added", "Alphabetical (A-Z)", "Release Year", "My Top Rated"],
+                                          variable=sort_var, command=lambda v: self._show_library(media_type, filter_query, v, hide_var.get()),
+                                          fg_color=SURFACE_COLOR, button_color=SURFACE_COLOR, button_hover_color="#333", font=("Inter", 12, "normal"))
+        sort_dropdown.pack(side="left")
+
+        hide_switch = ctk.CTkSwitch(controls_frame, text="Hide Completed", variable=hide_var, font=("Inter", 12, "normal"),
+                                    command=lambda: self._show_library(media_type, filter_query, sort_var.get(), hide_var.get()))
+        hide_switch.pack(side="left", padx=20)
+
         grid_frame = ctk.CTkScrollableFrame(self.main_frame, fg_color="transparent")
         grid_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         conn = self.data_manager.get_db_connection()
         cursor = conn.cursor()
 
-        if media_type == "All":
-            if filter_query:
-                cursor.execute("SELECT * FROM Media WHERE title LIKE ?", (f"%{filter_query}%",))
-            else:
-                cursor.execute("SELECT * FROM Media")
-        else:
-            if filter_query:
-                cursor.execute("SELECT * FROM Media WHERE type=? AND title LIKE ?", (media_type, f"%{filter_query}%"))
-            else:
-                cursor.execute("SELECT * FROM Media WHERE type=?", (media_type,))
+        # Build query
+        base_query = "SELECT m.* FROM Media m"
+        where_clauses = []
+        params = []
 
+        if media_type != "All":
+            where_clauses.append("m.type=?")
+            params.append(media_type)
+
+        if filter_query:
+            where_clauses.append("m.title LIKE ?")
+            params.append(f"%{filter_query}%")
+
+        if hide_completed:
+            where_clauses.append("(SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') < m.total_episodes")
+
+        if where_clauses:
+            base_query += " WHERE " + " AND ".join(where_clauses)
+
+        # Handle Sorting
+        if sort_by == "Alphabetical (A-Z)":
+            base_query += " ORDER BY m.title ASC"
+        elif sort_by == "Release Year":
+            base_query += " ORDER BY CASE WHEN m.release_date IS NULL OR m.release_date = '' THEN 1 ELSE 0 END, m.release_date DESC"
+        elif sort_by == "My Top Rated":
+            base_query += " ORDER BY m.user_rating DESC, m.id DESC"
+        else: # Default: Recently Added
+            base_query += " ORDER BY m.id DESC"
+
+        cursor.execute(base_query, tuple(params))
         media_items = cursor.fetchall()
         conn.close()
 
@@ -539,6 +588,23 @@ class App(ctk.CTk):
                                     width=50, height=50, corner_radius=25, font=("Inter", 20, "normal"))
         overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
 
+        # Year-at-a-glance tag
+        conn = self.data_manager.get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (item['id'],))
+        w_c = c.fetchone()['c']
+        conn.close()
+
+        if w_c > 0 and w_c == item['total_episodes']:
+            if 'release_date' in item.keys() and item['release_date']:
+                year_str = item['release_date'][:4]
+                tag_text = f"Watched: {year_str}"
+            else:
+                tag_text = "Legacy"
+
+            tag_lbl = ctk.CTkLabel(card, text=tag_text, fg_color="#181A20", text_color=TEXT_SECONDARY, font=("Inter", 11, "bold"), corner_radius=6, padx=8, pady=2)
+            tag_lbl.place(relx=0.05, rely=0.05)
+
         title_lbl = ctk.CTkLabel(card, text=((item['title'] or 'Unknown Title')), font=("Inter", 13, "bold"),
                                  wraplength=150, text_color=TEXT_PRIMARY)
         # title_lbl.pack(pady=(5, 0)) # Depending on layout needs, hide title to make it cleaner
@@ -550,7 +616,7 @@ class App(ctk.CTk):
                 if local_img_path:
                     try:
                         img = ctk.CTkImage(light_image=Image.open(local_img_path), dark_image=Image.open(local_img_path), size=(160, 240))
-                        self.after(0, lambda: img_label.configure(image=img, text=""))
+                        self.after(0, lambda: img_label.configure(image=img, text="") if img_label.winfo_exists() else None)
                     except: pass
 
         # Async load to prevent main thread blocking
@@ -579,6 +645,214 @@ class App(ctk.CTk):
         overlay_btn.configure(command=lambda mid=item['id']: self._show_media_details(mid))
         overlay_frame.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
         img_label.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
+
+    # =========================================================================
+    # WATCH HISTORY LOG
+    # =========================================================================
+    def _show_history(self):
+        self._highlight_nav("🕒 History")
+        self._clear_main_frame()
+
+        top_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        top_frame.pack(fill="x", padx=20, pady=20)
+        ctk.CTkLabel(top_frame, text="Watch History", font=("Inter", 24, "bold"), text_color=TEXT_PRIMARY).pack(side="left")
+
+        history_scroll = ctk.CTkScrollableFrame(self.main_frame, fg_color="transparent")
+        history_scroll.pack(fill="both", expand=True, padx=20, pady=10)
+
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+
+        # Query all history joined with episodes and media
+        cursor.execute("""
+            SELECT h.id as hist_id, h.timestamp, e.id as episode_id, e.season_num, e.ep_num, e.title as ep_title, e.still_path,
+                   m.id as media_id, m.title as show_title, m.poster_path, m.backdrop_path, m.type as media_type
+            FROM History h
+            JOIN Episodes e ON h.episode_id = e.id
+            JOIN Media m ON e.media_id = m.id
+            ORDER BY h.timestamp DESC
+        """)
+        history_entries = cursor.fetchall()
+        conn.close()
+
+        if not history_entries:
+            ctk.CTkLabel(history_scroll, text="No history recorded yet.", text_color=TEXT_SECONDARY).pack(pady=50)
+            return
+
+        from datetime import datetime, timezone
+
+        # Grouping and Collapsing Variables
+        grouped_data = {}
+
+        # We need to collapse entries that are >5 within a 60 second window.
+        # First, convert all to local datetime objects to make comparisons easier
+        parsed_entries = []
+        for row in history_entries:
+            try:
+                # SQLite CURRENT_TIMESTAMP format is 'YYYY-MM-DD HH:MM:SS' in UTC
+                dt_utc = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+                # astimezone() without arguments uses the local system timezone
+                dt_local = dt_utc.astimezone()
+                parsed_entries.append((dt_local, row))
+            except Exception:
+                pass
+
+        # Perform the "Mass Import" collapsing pass
+        collapsed_entries = []
+        i = 0
+        while i < len(parsed_entries):
+            current_dt, current_row = parsed_entries[i]
+
+            # Look ahead to see how many entries are within 60 seconds of this one
+            window_entries = [current_row]
+            j = i + 1
+            while j < len(parsed_entries):
+                next_dt, next_row = parsed_entries[j]
+                # Since they are sorted DESC, current_dt > next_dt
+                diff = (current_dt - next_dt).total_seconds()
+                if diff <= 60:
+                    window_entries.append(next_row)
+                    j += 1
+                else:
+                    break
+
+            if len(window_entries) > 5:
+                # Collapse into a "Mass Import" object
+                collapsed_entries.append({
+                    "type": "mass_import",
+                    "dt_local": current_dt,
+                    "count": len(window_entries),
+                    "entries": window_entries
+                })
+                i = j # Skip the collapsed items
+            else:
+                # Just add the current item
+                collapsed_entries.append({
+                    "type": "single",
+                    "dt_local": current_dt,
+                    "row": current_row
+                })
+                i += 1
+
+        # Group by Date String
+        for item in collapsed_entries:
+            dt_local = item["dt_local"]
+            date_str = dt_local.strftime("%A, %B %d, %Y")
+            if date_str not in grouped_data:
+                grouped_data[date_str] = []
+            grouped_data[date_str].append(item)
+
+        # Chunked Rendering for History Timeline
+        self._history_render_state = {
+            'groups': list(grouped_data.items()),
+            'group_idx': 0,
+            'item_idx': 0,
+            'parent': history_scroll
+        }
+        self._render_history_chunk()
+
+    def _render_history_chunk(self):
+        state = getattr(self, '_history_render_state', None)
+        if not state:
+            return
+
+        groups = state['groups']
+        parent = state['parent']
+
+        if not parent.winfo_exists():
+            return
+
+        items_rendered = 0
+        max_items_per_chunk = 15
+
+        while state['group_idx'] < len(groups) and items_rendered < max_items_per_chunk:
+            date_str, items = groups[state['group_idx']]
+
+            # If it's the first item in the group, render the date header
+            if state['item_idx'] == 0:
+                header_frame = ctk.CTkFrame(parent, fg_color="transparent")
+                header_frame.pack(fill="x", pady=(20, 10))
+                ctk.CTkLabel(header_frame, text=date_str, font=("Inter", 16, "bold"), text_color=TEXT_PRIMARY).pack(side="left")
+
+            while state['item_idx'] < len(items) and items_rendered < max_items_per_chunk:
+                item = items[state['item_idx']]
+                if item["type"] == "single":
+                    self._create_history_row(parent, item["row"], item["dt_local"])
+                elif item["type"] == "mass_import":
+                    self._create_mass_import_row(parent, item["count"], item["dt_local"])
+
+                state['item_idx'] += 1
+                items_rendered += 1
+
+            # Move to next group if finished with current group
+            if state['item_idx'] >= len(items):
+                state['group_idx'] += 1
+                state['item_idx'] = 0
+
+        if state['group_idx'] < len(groups):
+            self.after(50, self._render_history_chunk)
+        else:
+            self._history_render_state = None
+
+    def _create_history_row(self, parent, row, dt_local):
+        item_frame = ctk.CTkFrame(parent, height=70, fg_color=SURFACE_COLOR, corner_radius=8)
+        item_frame.pack(fill="x", pady=4)
+        item_frame.pack_propagate(False)
+
+        # Poster thumbnail
+        img_lbl = ctk.CTkLabel(item_frame, text="", width=45, height=60, fg_color="#1E1E1E", corner_radius=4)
+        img_lbl.pack(side="left", padx=10, pady=5)
+
+        def load_hist_poster(path, lbl):
+            if path:
+                from .tmdb_api import download_image
+                local_path = download_image(path, size="w500")
+                if local_path:
+                    try:
+                        from PIL import Image
+                        img = ctk.CTkImage(light_image=Image.open(local_path), dark_image=Image.open(local_path), size=(45, 60))
+                        self.after(0, lambda: lbl.configure(image=img) if lbl.winfo_exists() else None)
+                    except: pass
+
+        threading.Thread(target=load_hist_poster, args=(row['poster_path'], img_lbl), daemon=True).start()
+
+        # Text Content
+        text_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
+        text_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+
+        show_title = row['show_title'] or 'Unknown Show'
+        if row['media_type'] == 'TV':
+            ep_sub = f"S{row['season_num']:02}E{row['ep_num']:02} - {row['ep_title'] or 'Unknown Title'}"
+        else:
+            ep_sub = row['ep_title'] or 'Movie'
+
+        ctk.CTkLabel(text_frame, text=f"Watched {show_title}", font=("Inter", 14, "bold"), text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
+        ctk.CTkLabel(text_frame, text=ep_sub, font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY, anchor="w").pack(fill="x")
+
+        # Time
+        time_str = dt_local.strftime("%I:%M %p")
+        ctk.CTkLabel(item_frame, text=time_str, font=("Inter", 12, "bold"), text_color=TEXT_SECONDARY).pack(side="right", padx=20)
+
+        # Click to navigate
+        item_frame.bind("<Button-1>", lambda e, mid=row['media_id']: self._show_media_details(mid))
+        img_lbl.bind("<Button-1>", lambda e, mid=row['media_id']: self._show_media_details(mid))
+        for child in text_frame.winfo_children():
+            child.bind("<Button-1>", lambda e, mid=row['media_id']: self._show_media_details(mid))
+
+    def _create_mass_import_row(self, parent, count, dt_local):
+        item_frame = ctk.CTkFrame(parent, height=50, fg_color="#181A20", corner_radius=8, border_width=1, border_color="#333")
+        item_frame.pack(fill="x", pady=4)
+        item_frame.pack_propagate(False)
+
+        ctk.CTkLabel(item_frame, text="📦", font=("Inter", 20, "normal")).pack(side="left", padx=15)
+
+        text_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
+        text_frame.pack(side="left", fill="both", expand=True, pady=13)
+        ctk.CTkLabel(text_frame, text=f"Bulk Update: {count} Episodes Marked as Completed", font=("Inter", 13, "bold"), text_color=TEXT_SECONDARY, anchor="w").pack(fill="x")
+
+        time_str = dt_local.strftime("%I:%M %p")
+        ctk.CTkLabel(item_frame, text=time_str, font=("Inter", 12, "bold"), text_color=TEXT_SECONDARY).pack(side="right", padx=20)
+
 
     # =========================================================================
     # SEARCH & DISCOVER
@@ -722,7 +996,7 @@ class App(ctk.CTk):
                 if local_path:
                     try:
                         img = ctk.CTkImage(light_image=Image.open(local_path), dark_image=Image.open(local_path), size=(160, 240))
-                        self.after(0, lambda: img_label.configure(image=img, text=""))
+                        self.after(0, lambda: img_label.configure(image=img, text="") if img_label.winfo_exists() else None)
                     except: pass
         threading.Thread(target=load_poster, daemon=True).start()
 
@@ -736,7 +1010,12 @@ class App(ctk.CTk):
         overlay_btn = ctk.CTkButton(overlay_frame, text=btn_text, fg_color=btn_color, hover_color=btn_hover,
                                     width=120, height=40, corner_radius=20, font=("Inter", 13, "bold"),
                                     state="disabled" if is_tracked else "normal")
-        overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
+        overlay_btn.place(relx=0.5, rely=0.45, anchor="center")
+
+        archive_var = ctk.BooleanVar(value=False)
+        if not is_tracked:
+            archive_cb = ctk.CTkCheckBox(overlay_frame, text="Archive", variable=archive_var, font=("Inter", 11, "normal"), text_color=TEXT_SECONDARY, checkbox_height=14, checkbox_width=14)
+            archive_cb.place(relx=0.5, rely=0.65, anchor="center")
 
         def on_enter(e):
             overlay_frame.place(x=0, y=0)
@@ -756,11 +1035,11 @@ class App(ctk.CTk):
         if not is_tracked:
             # We pass a callback to disable button after adding
             def add_wrapper():
-                self._add_to_tracker(item)
+                self._add_to_tracker(item, archive=archive_var.get())
                 overlay_btn.configure(text="Adding...", state="disabled")
             overlay_btn.configure(command=add_wrapper)
 
-    def _add_to_tracker(self, media_data):
+    def _add_to_tracker(self, media_data, archive=False):
         api_key = self.data_manager.settings.get("tmdb_api_key")
 
     def _show_media_details(self, media_id, target_season=None):
@@ -807,7 +1086,7 @@ class App(ctk.CTk):
                             top = (h - target_h) // 2
                             pil_img = pil_img.crop((0, top, w, top + target_h))
                         img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(1000, 200))
-                        self.after(0, lambda: banner_lbl.configure(image=img))
+                        self.after(0, lambda: banner_lbl.configure(image=img) if banner_lbl.winfo_exists() else None)
                     except: pass
         threading.Thread(target=load_banner, daemon=True).start()
 
@@ -829,9 +1108,10 @@ class App(ctk.CTk):
                 if local_img_path:
                     try:
                         img = ctk.CTkImage(light_image=Image.open(local_img_path), dark_image=Image.open(local_img_path), size=(140, 210))
-                        self.after(0, lambda: img_label.configure(image=img, text=""))
+                        self.after(0, lambda: img_label.configure(image=img, text="") if img_label.winfo_exists() else None)
                     except: pass
         threading.Thread(target=load_poster, daemon=True).start()
+        self._current_poster_lbl = img_label
 
         # Info Frame
         info_frame = ctk.CTkFrame(sub_header_frame, fg_color="transparent")
@@ -841,7 +1121,9 @@ class App(ctk.CTk):
         title_frame.pack(anchor="w", fill="x")
 
         safe_title = media['title'] or 'Unknown Title'
-        ctk.CTkLabel(title_frame, text=safe_title, font=("Inter", 32, "bold"), text_color=TEXT_PRIMARY).pack(side="left")
+        title_lbl = ctk.CTkLabel(title_frame, text=safe_title, font=("Inter", 32, "bold"), text_color=TEXT_PRIMARY)
+        title_lbl.pack(side="left")
+        self._current_title_lbl = title_lbl
 
         cursor.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (media_id,))
         watched_eps = cursor.fetchone()['c']
@@ -864,7 +1146,9 @@ class App(ctk.CTk):
         self._current_total_eps = total_episodes
 
         safe_synopsis = media['synopsis'] or 'No overview available.'
-        ctk.CTkLabel(info_frame, text=safe_synopsis, font=("Inter", 13, "normal"), text_color=TEXT_SECONDARY, wraplength=700, justify="left").pack(anchor="w", pady=5)
+        synopsis_lbl = ctk.CTkLabel(info_frame, text=safe_synopsis, font=("Inter", 13, "normal"), text_color=TEXT_SECONDARY, wraplength=700, justify="left")
+        synopsis_lbl.pack(anchor="w", pady=5)
+        self._current_synopsis_lbl = synopsis_lbl
 
         # Ratings Row
         ratings_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
@@ -872,8 +1156,10 @@ class App(ctk.CTk):
 
         # TMDB Badge
         tmdb_score = round(media['vote_average'] if 'vote_average' in media.keys() and media['vote_average'] is not None else 0.0, 1)
-        ctk.CTkLabel(ratings_frame, text=f"⭐ TMDB: {tmdb_score}/10", fg_color="#181A20", text_color="#F5C518",
-                     font=("Inter", 12, "bold"), corner_radius=6, padx=8, pady=4).pack(side="left", padx=(0, 15))
+        tmdb_badge_lbl = ctk.CTkLabel(ratings_frame, text=f"⭐ TMDB: {tmdb_score}/10", fg_color="#181A20", text_color="#F5C518",
+                     font=("Inter", 12, "bold"), corner_radius=6, padx=8, pady=4)
+        tmdb_badge_lbl.pack(side="left", padx=(0, 15))
+        self._current_tmdb_badge_lbl = tmdb_badge_lbl
 
         # User Rating Stars
         stars_frame = ctk.CTkFrame(ratings_frame, fg_color="transparent")
@@ -884,11 +1170,11 @@ class App(ctk.CTk):
         self.star_btns = []
 
         def set_rating(rating_val):
-            conn = self.data_manager.get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE Media SET user_rating=? WHERE id=?", (rating_val, media_id))
-            conn.commit()
-            conn.close()
+            def _write(conn):
+                cursor = conn.cursor()
+                cursor.execute("UPDATE Media SET user_rating=? WHERE id=?", (rating_val, media_id))
+            self.data_manager.submit_write_task(_write)
+
             # Update star colors visually
             for i, btn in enumerate(self.star_btns):
                 if i < rating_val:
@@ -922,8 +1208,11 @@ class App(ctk.CTk):
                                      font=("Inter", 13, "bold"), command=lambda e=next_ep: self._play_episode(e))
             play_btn.pack(side="left", padx=(0, 10))
 
+        archive_var = ctk.BooleanVar(value=False)
         ctk.CTkButton(actions, text="✓ Mark All Watched", fg_color=SURFACE_COLOR, hover_color="#333", height=36,
-                      command=lambda m=media_id: self._mark_all_watched(m)).pack(side="left", padx=(0, 10))
+                      command=lambda m=media_id: self._mark_all_watched(m, archive_var.get())).pack(side="left", padx=(0, 10))
+
+        ctk.CTkCheckBox(actions, text="Archive (No Hist.)", variable=archive_var, font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 15))
 
         sync_btn = ctk.CTkButton(actions, text="🔄 Refresh Data", fg_color="transparent", border_color="#555", border_width=1,
                                  hover_color=SURFACE_COLOR, text_color=TEXT_PRIMARY, height=36, font=("Inter", 13, "bold"),
@@ -935,6 +1224,12 @@ class App(ctk.CTk):
         # Main Area (Tabs for Seasons if TV)
         content_frame = ctk.CTkFrame(detail_scroll, fg_color="transparent")
         content_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # Destructive action: Remove Show button in left info column
+        remove_btn = ctk.CTkButton(info_frame, text="🗑️ Remove Show from Library", fg_color="transparent", text_color=DANGER_COLOR,
+                                   hover_color="#331111", border_width=1, border_color=DANGER_COLOR, height=36,
+                                   command=lambda m=media_id: self._remove_show(m))
+        remove_btn.pack(anchor="w", pady=(20, 0))
 
         self.ep_list_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
 
@@ -971,13 +1266,116 @@ class App(ctk.CTk):
 
         conn.close()
 
-    def _mark_all_watched(self, media_id):
-        conn = self.data_manager.get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE Episodes SET status='Completed', watch_count=MAX(1, watch_count) WHERE media_id=?", (media_id,))
-        conn.commit()
-        conn.close()
-        self._show_media_details(media_id)
+    def _remove_show(self, media_id):
+        # Spawn confirmation modal
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Confirm Removal")
+        dialog.geometry("400x200")
+        dialog.grab_set()
+
+        ctk.CTkLabel(dialog, text="Are you sure?", font=("Inter", 16, "bold"), text_color=DANGER_COLOR).pack(pady=(20, 10))
+        ctk.CTkLabel(dialog, text="This will delete all your watch history for this show.\nLocal files will NOT be deleted.",
+                     font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY).pack(pady=(0, 20))
+
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack()
+
+        ctk.CTkButton(btn_frame, text="Cancel", fg_color=SURFACE_COLOR, hover_color="#333", command=dialog.destroy).pack(side="left", padx=10)
+
+        def confirm_removal():
+            dialog.destroy()
+
+            # Fetch poster info for filesystem deletion before DB delete
+            conn = self.data_manager.get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT poster_path, backdrop_path, type FROM Media WHERE id=?", (media_id,))
+            m_info = cursor.fetchone()
+
+            paths_to_remove = []
+            if m_info:
+                if m_info['poster_path']: paths_to_remove.append(m_info['poster_path'])
+                if m_info['backdrop_path']: paths_to_remove.append(m_info['backdrop_path'])
+
+            cursor.execute("SELECT still_path FROM Episodes WHERE media_id=?", (media_id,))
+            eps = cursor.fetchall()
+            for ep in eps:
+                if ep['still_path']: paths_to_remove.append(ep['still_path'])
+            conn.close()
+
+            # Execute DB deletes synchronously via queue
+            def _write(conn):
+                cursor = conn.cursor()
+
+                # First delete Local_Files
+                cursor.execute("DELETE FROM Local_Files WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id=?)", (media_id,))
+
+                # Second delete History
+                cursor.execute("DELETE FROM History WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id=?)", (media_id,))
+
+                # Third delete Episodes
+                cursor.execute("DELETE FROM Episodes WHERE media_id=?", (media_id,))
+
+                # Finally delete Media
+                cursor.execute("DELETE FROM Media WHERE id=?", (media_id,))
+
+            def on_complete():
+                # Delete cached files in background
+                def cleanup_files():
+                    import os
+                    from pathlib import Path
+                    from .data import POSTER_CACHE_DIR
+
+                    prefixes = ["w500", "w1280"]
+                    for path in paths_to_remove:
+                        filename_base = path.lstrip('/')
+                        for prefix in prefixes:
+                            cached_file = POSTER_CACHE_DIR / f"{prefix}_{filename_base}"
+                            if cached_file.exists():
+                                try:
+                                    os.remove(cached_file)
+                                except Exception:
+                                    pass
+
+                threading.Thread(target=cleanup_files, daemon=True).start()
+
+                # Navigate back to library
+                self.after(0, lambda m_type=m_info['type'] if m_info else 'TV': self._show_library(m_type))
+
+            self.data_manager.submit_write_task(_write, callback=on_complete)
+
+        ctk.CTkButton(btn_frame, text="Remove", fg_color=DANGER_COLOR, hover_color="#8e0000", command=confirm_removal).pack(side="left", padx=10)
+
+    def _mark_all_watched(self, media_id, archive=False):
+        def _write(conn):
+            cursor = conn.cursor()
+            cursor.execute("UPDATE Episodes SET status='Completed', watch_count=MAX(1, watch_count) WHERE media_id=?", (media_id,))
+            if not archive:
+                # Add all episodes to history
+                cursor.execute("SELECT id FROM Episodes WHERE media_id=?", (media_id,))
+                ep_ids = cursor.fetchall()
+                for ep in ep_ids:
+                    cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (ep['id'],))
+
+        # Perform an in-place seamless update
+        def refresh_ui():
+            # Update the progress badge
+            if hasattr(self, '_current_progress_badge') and self._current_progress_badge.winfo_exists():
+                self._current_watched_eps = self._current_total_eps
+                self._current_progress_badge.configure(
+                    text=f"{self._current_watched_eps} / {self._current_total_eps} Eps",
+                    fg_color=SUCCESS_COLOR
+                )
+
+            # Rebuild the episode list
+            active_season = 1
+            if hasattr(self, 'season_btns'):
+                for s, btn in self.season_btns:
+                    if btn.cget('fg_color') == TEXT_PRIMARY:
+                        active_season = s
+                        break
+            self._load_episodes(media_id, active_season)
+
+        self.data_manager.submit_write_task(_write, callback=lambda: self.after(0, refresh_ui))
 
     def _sync_media(self, media_id):
         api_key = self.data_manager.settings.get("tmdb_api_key")
@@ -1001,61 +1399,137 @@ class App(ctk.CTk):
 
                 tmdb_id = media_info['tmdb_id']
                 m_type = media_info['type']
+                conn.close()
 
                 details = get_media_details(api_key, tmdb_id, m_type)
                 if not details:
-                    conn.close()
                     return
 
-                # Update Media table properties
-                cursor.execute("""
-                    UPDATE Media SET
-                        title=?, synopsis=?, poster_path=?, backdrop_path=?, total_episodes=?, status=?, vote_average=?
-                    WHERE id=?
-                """, ((details['title'] or 'Unknown Title'), details['synopsis'], details['poster_path'], details.get('backdrop_path', ''), details['total_episodes'], details['status'], details.get('vote_average', 0.0), media_id))
-
-                if m_type == 'TV':
-                    for season in details['seasons']:
-                        s_num = season.get('season_number')
-                        if s_num == 0: continue
-
-                        eps = get_tv_season_episodes(api_key, tmdb_id, s_num)
-                        for ep in eps:
-                            # Insert new episode, update if exists
-                            # Check if episode exists first because sqlite3 might rollback the entire transaction on IntegrityError if not handled properly in python sqlite3 module
-                            cursor.execute("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?", (media_id, s_num, ep['ep_num']))
-                            existing_ep = cursor.fetchone()
-
-                            if not existing_ep:
-                                cursor.execute("""
-                                    INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                                """, (media_id, s_num, ep['ep_num'], (ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), ep.get('still_path', ''), ep.get('overview', '')))
-                            else:
-                                cursor.execute("""
-                                    UPDATE Episodes SET title=?, runtime=?, still_path=?, overview=?
-                                    WHERE id=?
-                                """, ((ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), ep.get('still_path', ''), ep.get('overview', ''), existing_ep['id']))
-
-                # We don't need to do anything else for movies since there's only one dummy episode which rarely updates.
-
-                conn.commit()
-                conn.close()
-
-                # Fetching new posters if they changed might be heavy, but download_image caches them based on filename
+                # Download images immediately here so they are ready
                 if details['poster_path']: download_image(details['poster_path'])
                 if details.get('backdrop_path'): download_image(details['backdrop_path'])
 
-                self.after(0, lambda: self._finish_sync(media_id))
+                def _write(w_conn):
+                    w_cursor = w_conn.cursor()
+                    w_cursor.execute("""
+                        UPDATE Media SET
+                            title=?, synopsis=?, poster_path=?, backdrop_path=?, total_episodes=?, status=?, vote_average=?
+                        WHERE id=?
+                    """, ((details['title'] or 'Unknown Title'), details['synopsis'], details['poster_path'], details.get('backdrop_path', ''), details['total_episodes'], details['status'], details.get('vote_average', 0.0), media_id))
+
+                    # We will return whether any new episodes were added so we can avoid rebuilding ep_list_frame if unnecessary
+                    new_episodes_added = False
+
+                    if m_type == 'TV':
+                        for season in details['seasons']:
+                            s_num = season.get('season_number')
+                            if s_num == 0: continue
+
+                            eps = get_tv_season_episodes(api_key, tmdb_id, s_num)
+                            for ep in eps:
+                                w_cursor.execute("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?", (media_id, s_num, ep['ep_num']))
+                                existing_ep = w_cursor.fetchone()
+
+                                if not existing_ep:
+                                    w_cursor.execute("""
+                                        INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    """, (media_id, s_num, ep['ep_num'], (ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), ep.get('still_path', ''), ep.get('overview', '')))
+                                    new_episodes_added = True
+                                else:
+                                    w_cursor.execute("""
+                                        UPDATE Episodes SET title=?, runtime=?, still_path=?, overview=?
+                                        WHERE id=?
+                                    """, ((ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), ep.get('still_path', ''), ep.get('overview', ''), existing_ep['id']))
+
+                    return new_episodes_added
+
+                # We submit write task but don't need its return value asynchronously,
+                # however, to know about new_episodes_added cleanly, we can execute the DB write locally since we are in a background thread anyway.
+                # Since the requirement is to use the task queue for writes, we'll wrap the logic to capture the result.
+
+                result_container = {}
+                def _write_wrapper(w_conn):
+                    result_container['new_episodes'] = _write(w_conn)
+
+                def on_complete():
+                    self.after(0, lambda: self._finish_sync(media_id, details, result_container.get('new_episodes', False)))
+
+                self.data_manager.submit_write_task(_write_wrapper, callback=on_complete)
             except Exception as e:
                 self.after(0, lambda: self._fail_sync(str(e)))
 
         threading.Thread(target=perform_sync, daemon=True).start()
 
-    def _finish_sync(self, media_id):
-        # Refresh UI, assuming we are still looking at the same show
-        self._show_media_details(media_id)
-        ToastNotification(self, title="Sync Complete", message="Data refreshed successfully.", duration=3000, color="#1b5e20")
+    def _finish_sync(self, media_id, details, new_episodes_added):
+        # In-place UI Update
+        if hasattr(self, '_current_title_lbl') and self._current_title_lbl.winfo_exists():
+            self._current_title_lbl.configure(text=details['title'] or 'Unknown Title')
+
+        if hasattr(self, '_current_synopsis_lbl') and self._current_synopsis_lbl.winfo_exists():
+            self._current_synopsis_lbl.configure(text=details['synopsis'] or 'No overview available.')
+
+        if hasattr(self, '_current_tmdb_badge_lbl') and self._current_tmdb_badge_lbl.winfo_exists():
+            score = round(details.get('vote_average', 0.0), 1)
+            self._current_tmdb_badge_lbl.configure(text=f"⭐ TMDB: {score}/10")
+
+        # Update progress badge
+        self._current_total_eps = details['total_episodes']
+        if hasattr(self, '_current_progress_badge') and self._current_progress_badge.winfo_exists():
+            status_text = "Completed" if self._current_watched_eps == self._current_total_eps and self._current_watched_eps > 0 else "Watching"
+            status_color = SUCCESS_COLOR if status_text == "Completed" else VLC_ORANGE
+            self._current_progress_badge.configure(
+                text=f"{self._current_watched_eps} / {self._current_total_eps} Eps",
+                fg_color=status_color
+            )
+
+        # Update Images if changed
+        def update_imgs():
+            if details['backdrop_path'] and hasattr(self, '_current_banner_lbl'):
+                from .tmdb_api import download_image
+                local_img_path = download_image(details['backdrop_path'], size="w1280")
+                if local_img_path:
+                    try:
+                        pil_img = Image.open(local_img_path)
+                        w, h = pil_img.size
+                        target_h = int(w * (200/1000))
+                        if h > target_h:
+                            top = (h - target_h) // 2
+                            pil_img = pil_img.crop((0, top, w, top + target_h))
+                        img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(1000, 200))
+                        self.after(0, lambda: self._current_banner_lbl.configure(image=img) if self._current_banner_lbl.winfo_exists() else None)
+                    except: pass
+
+            if details['poster_path'] and hasattr(self, '_current_poster_lbl'):
+                from .tmdb_api import download_image
+                local_img_path = download_image(details['poster_path'], size="w500")
+                if local_img_path:
+                    try:
+                        img = ctk.CTkImage(light_image=Image.open(local_img_path), dark_image=Image.open(local_img_path), size=(140, 210))
+                        self.after(0, lambda: self._current_poster_lbl.configure(image=img) if self._current_poster_lbl.winfo_exists() else None)
+                    except: pass
+
+        threading.Thread(target=update_imgs, daemon=True).start()
+
+        # Update Episode List only if necessary
+        if new_episodes_added:
+            # We determine the active season to reload it. If it's a TV show, we can just call show_media_details again,
+            # but to be truly seamless, we should rebuild the ep_list_frame manually.
+            # To keep it simple and safe based on instructions:
+            # "only destroy and rebuild the ep_list_frame"
+            active_season = 1
+            if hasattr(self, 'season_btns'):
+                for s, btn in self.season_btns:
+                    if btn.cget('fg_color') == TEXT_PRIMARY:
+                        active_season = s
+                        break
+            self._load_episodes(media_id, active_season)
+
+        # Restore Sync Button State
+        if hasattr(self, '_current_sync_btn') and self._current_sync_btn.winfo_exists():
+            self._current_sync_btn.configure(text="Updated!", text_color=SUCCESS_COLOR)
+            self.after(2000, lambda: self._current_sync_btn.configure(text="🔄 Refresh Data", state="normal", text_color=TEXT_PRIMARY) if self._current_sync_btn.winfo_exists() else None)
+
 
     def _fail_sync(self, error_msg):
         if hasattr(self, '_current_sync_btn') and self._current_sync_btn.winfo_exists():
@@ -1243,37 +1717,34 @@ class App(ctk.CTk):
             )
 
         # 2. Update Database Asynchronously
-        def db_update():
-            conn = self.data_manager.get_db_connection()
+        def _write(conn):
             cursor = conn.cursor()
             if mark_as_completed:
                 cursor.execute("UPDATE Episodes SET watch_count=MAX(1, watch_count), status='Completed' WHERE id=?", (episode_id,))
                 cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
             else:
                 cursor.execute("UPDATE Episodes SET watch_count=0, status='Unwatched' WHERE id=?", (episode_id,))
-            conn.commit()
-            conn.close()
 
-        threading.Thread(target=db_update, daemon=True).start()
+        self.data_manager.submit_write_task(_write)
 
     def _adj_watch(self, episode_id, media_id, season_num, delta):
+        # Read synchronously
         conn = self.data_manager.get_db_connection()
         cursor = conn.cursor()
-
         cursor.execute("SELECT watch_count FROM Episodes WHERE id=?", (episode_id,))
         count = cursor.fetchone()['watch_count']
+        conn.close()
 
         new_count = max(0, count + delta)
         status = 'Completed' if new_count > 0 else 'Unwatched'
 
-        cursor.execute("UPDATE Episodes SET watch_count=?, status=? WHERE id=?", (new_count, status, episode_id))
-        if delta > 0:
-            cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
+        def _write(w_conn):
+            w_cursor = w_conn.cursor()
+            w_cursor.execute("UPDATE Episodes SET watch_count=?, status=? WHERE id=?", (new_count, status, episode_id))
+            if delta > 0:
+                w_cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
 
-        conn.commit()
-        conn.close()
-
-        self._load_episodes(media_id, season_num)
+        self.data_manager.submit_write_task(_write, callback=lambda: self.after(0, lambda: self._load_episodes(media_id, season_num)))
 
     # =========================================================================
     # VLC PLAYBACK & TRACKING
@@ -1313,27 +1784,24 @@ class App(ctk.CTk):
                 last_time_seconds = status['time']
 
         # Process closed
-        conn = self.data_manager.get_db_connection()
-        cursor = conn.cursor()
-
-        if high_water_mark > 0.90:
-            cursor.execute("""
-                UPDATE Episodes
-                SET watch_count = watch_count + 1, status = 'Completed', last_position = 0
-                WHERE id = ?
-            """, (episode_id,))
-            cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
-        else:
-            # If we didn't hit 90%, but we watched something, mark as watching
-            if high_water_mark > 0.05: # At least 5% to avoid accidental clicks
+        def _write(conn):
+            cursor = conn.cursor()
+            if high_water_mark > 0.90:
                 cursor.execute("""
                     UPDATE Episodes
-                    SET status = 'Watching', last_position = ?
-                    WHERE id = ? AND status != 'Completed'
-                """, (int(last_time_seconds), episode_id))
-
-        conn.commit()
-        conn.close()
+                    SET watch_count = watch_count + 1, status = 'Completed', last_position = 0
+                    WHERE id = ?
+                """, (episode_id,))
+                cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
+            else:
+                # If we didn't hit 90%, but we watched something, mark as watching
+                if high_water_mark > 0.05: # At least 5% to avoid accidental clicks
+                    cursor.execute("""
+                        UPDATE Episodes
+                        SET status = 'Watching', last_position = ?
+                        WHERE id = ? AND status != 'Completed'
+                    """, (int(last_time_seconds), episode_id))
+        self.data_manager.submit_write_task(_write)
 
         # Refresh UI if we are still on that page
         self.after(0, lambda: self._refresh_if_on_episode(media_id, season_num))
@@ -1492,12 +1960,12 @@ class App(ctk.CTk):
         self._pending_group_match = files
         self._perform_search()
 
-    def _add_to_tracker(self, media_data):
+    def _add_to_tracker(self, media_data, archive=False):
         api_key = self.data_manager.settings.get("tmdb_api_key")
 
         def fetch_and_save():
             try:
-                # 1. Fetch details
+                # 1. Fetch details (Network calls happen off the main thread, before the DB lock)
                 details = get_media_details(api_key, media_data['tmdb_id'], media_data['type'])
                 if not details: return
 
@@ -1507,92 +1975,90 @@ class App(ctk.CTk):
                 if details.get('backdrop_path'):
                     download_image(details['backdrop_path'])
 
-                conn = self.data_manager.get_db_connection()
-                cursor = conn.cursor()
+                # Pre-fetch TV seasons to avoid network calls inside the DB write lock
+                all_eps = []
+                if details['type'] == 'TV':
+                    for season in details['seasons']:
+                        s_num = season.get('season_number')
+                        if s_num == 0: continue
+                        eps = get_tv_season_episodes(api_key, details['tmdb_id'], s_num)
+                        all_eps.extend(eps)
 
-                # Check if exists
-                cursor.execute("SELECT id FROM Media WHERE tmdb_id=?", (details['tmdb_id'],))
-                existing = cursor.fetchone()
-
-                media_id = None
-                if existing:
-                    media_id = existing['id']
-                else:
-                    # Insert Media
-                    cursor.execute("""
-                        INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, backdrop_path, total_episodes, status, vote_average)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (details['tmdb_id'], details['type'], (details['title'] or 'Unknown Title'), details['synopsis'],
-                          details['poster_path'], details.get('backdrop_path', ''), details['total_episodes'], details['status'], details.get('vote_average', 0.0)))
-
-                    media_id = cursor.lastrowid
-
-                    # Fetch Episodes if TV Show
-                    if details['type'] == 'TV':
-                        for season in details['seasons']:
-                            s_num = season.get('season_number')
-                            if s_num == 0: continue # Skip specials usually
-
-                            eps = get_tv_season_episodes(api_key, details['tmdb_id'], s_num)
-                            for ep in eps:
-                                still_path = ep.get('still_path', '')
-                                # User requested NOT to download every episode image synchronously here.
-                                # It will be downloaded lazy-loaded on the Media details screen.
-                                cursor.execute("""
-                                    INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                                """, (media_id, s_num, ep['ep_num'], (ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), still_path, ep.get('overview', '')))
-                    else:
-                        # Movie has 1 dummy episode
-                        cursor.execute("""
-                            INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview)
-                            VALUES (?, 1, 1, ?, ?, ?, ?)
-                        """, (media_id, 1, 1, (details['title'] or 'Unknown Title'), details.get('runtime', 0), details.get('backdrop_path', ''), details['synopsis']))
-
-                    conn.commit()
-
-                # Check for pending group match
+                # Capture pending group match early
                 pending_group = getattr(self, '_pending_group_match', None)
-                if pending_group:
-                    import sqlite3
-                    assigned_count = 0
 
-                    for uf in pending_group:
-                        s_num = uf['parsed_season'] if 'parsed_season' in uf.keys() and uf['parsed_season'] is not None else None
-                        e_num = uf['parsed_episode'] if 'parsed_episode' in uf.keys() and uf['parsed_episode'] is not None else None
+                # Shared state to communicate result from queue thread back to main thread
+                result_state = {"status": None, "assigned_count": 0}
 
-                        if details['type'] == 'Movie':
-                            s_num, e_num = 1, 1
+                # 2. Execute DB writes safely via task queue
+                def _write(conn):
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT id FROM Media WHERE tmdb_id=?", (details['tmdb_id'],))
+                    existing = cursor.fetchone()
 
-                        if s_num is not None and e_num is not None:
-                            cursor.execute("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?", (media_id, s_num, e_num))
-                            ep = cursor.fetchone()
-                            if ep:
-                                try:
-                                    cursor.execute("""
-                                        INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?)
-                                        ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path
-                                    """, (ep['id'], uf['file_path']))
-
-                                    # Delete from Unmatched_Files
-                                    cursor.execute("DELETE FROM Unmatched_Files WHERE file_path=?", (uf['file_path'],))
-
-                                    assigned_count += 1
-                                except sqlite3.IntegrityError:
-                                    pass
-
-                    conn.commit()
-
-                    self.after(0, lambda ac=assigned_count: messagebox.showinfo("Success", f"Added {(details['title'] or 'Unknown Title')} and assigned {ac} files!"))
-                    self._pending_group_match = None
-                else:
-                    if not existing:
-                        self.after(0, lambda: messagebox.showinfo("Success", f"Added {(details['title'] or 'Unknown Title')} to tracker!"))
+                    if existing:
+                        result_state["status"] = "exists"
+                        media_id = existing['id']
                     else:
-                        self.after(0, lambda: messagebox.showinfo("Exists", "This media is already tracked."))
+                        cursor.execute("""
+                                INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (details['tmdb_id'], details['type'], (details['title'] or 'Unknown Title'), details['synopsis'],
+                                  details['poster_path'], details.get('backdrop_path', ''), details['total_episodes'], details['status'], details.get('vote_average', 0.0), details.get('release_date', '')))
 
-                conn.close()
-                self.after(0, self._refresh_if_on_unmatched)
+                        media_id = cursor.lastrowid
+                        result_state["status"] = "added"
+
+                        if details['type'] == 'TV':
+                            for ep in all_eps:
+                                still_path = ep.get('still_path', '')
+                                cursor.execute("""
+                                    INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview, status, watch_count)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (media_id, ep['season_num'], ep['ep_num'], (ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), still_path, ep.get('overview', ''), 'Completed' if archive else 'Unwatched', 1 if archive else 0))
+                        else:
+                            cursor.execute("""
+                                INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview, status, watch_count)
+                                VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?)
+                            """, (media_id, 1, 1, (details['title'] or 'Unknown Title'), details.get('runtime', 0), details.get('backdrop_path', ''), details['synopsis'], 'Completed' if archive else 'Unwatched', 1 if archive else 0))
+
+                    if pending_group:
+                        import sqlite3
+                        assigned_count = 0
+                        for uf in pending_group:
+                            s_num = uf['parsed_season'] if 'parsed_season' in uf.keys() and uf['parsed_season'] is not None else None
+                            e_num = uf['parsed_episode'] if 'parsed_episode' in uf.keys() and uf['parsed_episode'] is not None else None
+                            if details['type'] == 'Movie':
+                                s_num, e_num = 1, 1
+
+                            if s_num is not None and e_num is not None:
+                                cursor.execute("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?", (media_id, s_num, e_num))
+                                ep_row = cursor.fetchone()
+                                if ep_row:
+                                    try:
+                                        cursor.execute("""
+                                            INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?)
+                                            ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path
+                                        """, (ep_row['id'], uf['file_path']))
+                                        cursor.execute("DELETE FROM Unmatched_Files WHERE file_path=?", (uf['file_path'],))
+                                        assigned_count += 1
+                                    except sqlite3.IntegrityError:
+                                        pass
+                        result_state["assigned_count"] = assigned_count
+
+                def on_complete():
+                    if pending_group:
+                        self.after(0, lambda: messagebox.showinfo("Success", f"Added {(details['title'] or 'Unknown Title')} and assigned {result_state['assigned_count']} files!"))
+                        self._pending_group_match = None
+                    else:
+                        if result_state["status"] == "added":
+                            self.after(0, lambda: messagebox.showinfo("Success", f"Added {(details['title'] or 'Unknown Title')} to tracker!"))
+                        elif result_state["status"] == "exists":
+                            self.after(0, lambda: messagebox.showinfo("Exists", "This media is already tracked."))
+
+                    self.after(0, self._refresh_if_on_unmatched)
+
+                self.data_manager.submit_write_task(_write, callback=on_complete)
 
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Error", f"Failed to add media: {e}"))

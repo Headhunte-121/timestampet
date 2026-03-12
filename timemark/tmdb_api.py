@@ -88,7 +88,8 @@ def get_media_details(api_key: str, tmdb_id: str, media_type: str) -> Optional[D
             "seasons": r.get("seasons") or [] if media_type == "TV" else [],
             "runtime": r.get("runtime") or 0 if media_type == "Movie" else 0,
             "status": "Plan to Watch",
-            "vote_average": r.get("vote_average") or 0.0
+            "vote_average": r.get("vote_average") or 0.0,
+            "release_date": (r.get("first_air_date") or "") if media_type == "TV" else (r.get("release_date") or "")
         }
         return details
     except requests.exceptions.RequestException as e:
