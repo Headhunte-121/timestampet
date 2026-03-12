@@ -87,7 +87,8 @@ def get_media_details(api_key: str, tmdb_id: str, media_type: str) -> Optional[D
             "total_episodes": r.get("number_of_episodes", 1) if media_type == "TV" else 1,
             "seasons": r.get("seasons", []) if media_type == "TV" else [],
             "runtime": r.get("runtime", 0) if media_type == "Movie" else 0,
-            "status": "Plan to Watch"
+            "status": "Plan to Watch",
+            "vote_average": r.get("vote_average", 0.0)
         }
         return details
     except requests.exceptions.RequestException as e:
@@ -116,6 +117,7 @@ def get_tv_season_episodes(api_key: str, tmdb_id: str, season_num: int) -> List[
                 "season_num": season_num,
                 "ep_num": ep.get("episode_number"),
                 "title": ep.get("name", ""),
+                "overview": ep.get("overview", ""),
                 "runtime": ep.get("runtime", 0) or 0,
                 "still_path": ep.get("still_path", "")
             })
