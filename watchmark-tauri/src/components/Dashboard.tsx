@@ -3,58 +3,140 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
 import { Play } from "lucide-react";
 
-export default function Dashboard({ onMediaSelect, refreshTrigger }: any) {
-  const [data, setData] = useState<any>(null);
+// Types matching the Rust backend structure
+interface Episode {
+  id: number;
+  media_id: number;
+  show_title: string | null;
+  title: string | null;
+  season_num: number;
+  ep_num: number;
+  backdrop_path: string | null;
+  still_path: string | null;
+  file_path: string | null;
+  status: string;
+  last_position: number;
+  runtime: number; // in minutes
+  media_type: string;
+}
+
+interface Media {
+  id: number;
+  title: string | null;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  user_rating: number;
+  total_episodes: number;
+  completed_eps: number;
+  media_type: string;
+}
+
+interface Stats {
+  hrs_watched: string;
+  shows_completed: number;
+  avg_rating: number;
+}
+
+interface DashboardData {
+  hero_ep: Episode | null;
+  cw_eps: Episode[];
+  recent_media: Media[];
+  stats: Stats;
+}
+
+// Unsplash placeholders
+const PLACEHOLDER_BACKDROP = "https://images.unsplash.com/photo-1542293787-827fb705d15a?q=80&w=2560&auto=format&fit=crop";
+const PLACEHOLDER_POSTER = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop";
+
+export default function Dashboard({ onMediaSelect, refreshTrigger }: { onMediaSelect: (id: number) => void, refreshTrigger: number }) {
+  const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
-    invoke("get_dashboard_data").then(setData).catch(console.error);
+    invoke<DashboardData>("get_dashboard_data")
+      .then(setData)
+      .catch((err) => {
+        console.error("Failed to load dashboard data:", err);
+        // Fallback or empty state if needed
+      });
   }, [refreshTrigger]);
 
-  if (!data) return <div className="p-8 text-gray-400">Loading Dashboard...</div>;
+  if (!data) {
+    // Skeleton Loading State
+    return (
+      <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 scrollbar-hide animate-pulse">
+        {/* Hero Skeleton */}
+        <div className="relative w-full h-[450px] bg-[#1F222A] rounded-2xl overflow-hidden mb-12" />
+
+        {/* Continue Watching Skeleton */}
+        <div className="h-8 w-64 bg-[#1F222A] rounded mb-6 mt-12" />
+        <div className="flex gap-6 overflow-x-hidden pb-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="flex-none min-w-[320px] h-[220px] bg-[#1F222A] rounded-xl" />
+          ))}
+        </div>
+
+        {/* Recently Added Skeleton */}
+        <div className="h-8 w-64 bg-[#1F222A] rounded mb-6 mt-12" />
+        <div className="flex gap-6 overflow-x-hidden pb-8">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="flex-none min-w-[180px] aspect-[2/3] bg-[#1F222A] rounded-xl" />
+          ))}
+        </div>
+
+        {/* Stats Skeleton */}
+        <div className="h-8 w-64 bg-[#1F222A] rounded mb-6 mt-12" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-32 bg-[#1F222A] rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Derived progress logic
+  const calculateProgress = (lastPos: number, runtimeMins: number) => {
+    if (runtimeMins <= 0) return 0;
+    return Math.min(100, (lastPos / (runtimeMins * 60)) * 100);
+  };
 
   return (
-    <div className="pb-24">
-      {/* Hero Banner */}
+    <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 scrollbar-hide">
+      {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
-        <div className="relative w-full h-[60vh] min-h-[400px]">
-          <div className="absolute inset-0">
-            {data.hero_ep.backdrop_path ? (
-              <img
-                src={`https://image.tmdb.org/t/p/original${data.hero_ep.backdrop_path}`}
-                alt="Hero"
-                className="w-full h-full object-cover opacity-80"
-              />
-            ) : (
-              <div className="w-full h-full bg-[#1F222A]" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0D0F14] via-[#0D0F14]/60 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0D0F14] via-[#0D0F14]/60 to-transparent" />
-          </div>
+        <div className="relative w-full h-[450px] rounded-2xl overflow-hidden group">
+          <img
+            src={data.hero_ep.backdrop_path ? `https://image.tmdb.org/t/p/original${data.hero_ep.backdrop_path}` : PLACEHOLDER_BACKDROP}
+            alt="Hero Backdrop"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0D0F14] via-[#0D0F14]/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0D0F14] via-[#0D0F14]/40 to-transparent" />
 
-          <div className="absolute bottom-0 left-0 p-12 w-full max-w-4xl z-10">
-            <h2 className="text-[#FF6B00] font-bold tracking-widest text-sm mb-4 uppercase">
+          <div className="absolute bottom-8 left-8 w-full max-w-2xl z-10">
+            <h2 className="text-[#FF6B00] font-bold tracking-widest text-sm mb-2 uppercase">
               {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume Session" : "Up Next"}
             </h2>
-            <h1 className="text-6xl font-extrabold text-white mb-4 tracking-tight">
+            <h1 className="text-5xl font-black text-white mb-2 tracking-tight truncate">
               {data.hero_ep.show_title || "Unknown Show"}
             </h1>
-            <p className="text-2xl text-gray-300 font-medium mb-8">
+            <p className="text-lg text-gray-300 mb-6 truncate">
               {data.hero_ep.media_type === "TV"
-                ? `S${String(data.hero_ep.season_num).padStart(2, '0')} E${String(data.hero_ep.ep_num).padStart(2, '0')} - ${data.hero_ep.title}`
-                : data.hero_ep.title}
+                ? `S${String(data.hero_ep.season_num).padStart(2, '0')}E${String(data.hero_ep.ep_num).padStart(2, '0')} - ${data.hero_ep.title || 'Unknown Episode'}`
+                : data.hero_ep.title || "No Title"}
             </p>
 
             <div className="flex items-center gap-4">
               <button
                 onClick={() => {
                   invoke("play_episode_cmd", {
-                    episodeId: data.hero_ep.id,
-                    filePath: data.hero_ep.file_path,
-                    lastPosition: data.hero_ep.last_position,
+                    episodeId: data.hero_ep!.id,
+                    filePath: data.hero_ep!.file_path,
+                    lastPosition: data.hero_ep!.last_position,
                   }).catch(alert);
                 }}
                 disabled={!data.hero_ep.file_path}
-                className={`flex items-center gap-2 px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 ${
+                className={`flex items-center gap-2 px-8 py-3 rounded-lg font-bold transition-all duration-300 ${
                   data.hero_ep.file_path
                     ? "bg-[#FF6B00] hover:bg-[#E66000] text-white hover:scale-105"
                     : "bg-red-900/50 text-red-200 cursor-not-allowed"
@@ -62,141 +144,160 @@ export default function Dashboard({ onMediaSelect, refreshTrigger }: any) {
               >
                 {data.hero_ep.file_path ? (
                   <>
-                    <Play fill="currentColor" /> Play Next
+                    <Play fill="currentColor" className="w-5 h-5" /> Play Next
                   </>
                 ) : (
                   "❌ Missing File"
                 )}
               </button>
               <button
-                onClick={() => onMediaSelect(data.hero_ep.media_id)}
-                className="px-8 py-4 rounded-full font-bold text-lg bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all duration-300 hover:scale-105"
+                onClick={() => onMediaSelect(data.hero_ep!.media_id)}
+                className="px-8 py-3 rounded-lg font-bold bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all duration-300 hover:scale-105"
               >
                 More Info
               </button>
             </div>
+
             {data.hero_ep.status === "Watching" && data.hero_ep.runtime > 0 && (
-              <div className="mt-8 w-64 bg-white/10 h-1.5 rounded-full overflow-hidden">
+              <div className="w-64 h-1.5 bg-white/20 rounded-full mt-6 overflow-hidden">
                 <div
-                  className="bg-[#FF6B00] h-full"
-                  style={{ width: `${Math.min(100, (data.hero_ep.last_position / (data.hero_ep.runtime * 60)) * 100)}%` }}
+                  className="h-full bg-[#FF6B00] rounded-full"
+                  style={{ width: `${calculateProgress(data.hero_ep.last_position, data.hero_ep.runtime)}%` }}
                 />
               </div>
             )}
           </div>
         </div>
       ) : (
-        <div className="h-[40vh] flex items-center justify-center bg-[#1F222A] rounded-2xl m-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold mb-4">Welcome to WatchMark</h1>
-            <p className="text-gray-400">Scan your local folder or search TMDB to get started.</p>
-          </div>
+        <div className="w-full h-[450px] bg-[#1F222A]/80 backdrop-blur-xl rounded-2xl flex flex-col items-center justify-center text-center">
+          <h1 className="text-4xl font-bold mb-4 text-white">Welcome to WatchMark</h1>
+          <p className="text-gray-400 max-w-md">Scan your local folder or search TMDB to get started and build your library.</p>
         </div>
       )}
 
-      {/* Up Next Horizontal Row */}
+      {/* B. Continue Watching (Horizontal Row) */}
       {data.cw_eps?.length > 0 && (
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold px-12 mb-6">Continue Watching</h2>
-          <div className="flex overflow-x-auto px-12 pb-8 gap-6 snap-x hide-scrollbar">
-            {data.cw_eps.map((ep: any) => (
-              <motion.div
-                key={ep.id}
-                whileHover={{ scale: 1.05 }}
-                className="relative flex-none w-[320px] aspect-video bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group snap-start"
-                onClick={() => onMediaSelect(ep.media_id)}
-              >
-                <img
-                  src={`https://image.tmdb.org/t/p/w500${ep.still_path || ep.backdrop_path}`}
-                  alt={ep.show_title}
-                  className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    invoke("play_episode_cmd", {
-                      episodeId: ep.id,
-                      filePath: ep.file_path,
-                      lastPosition: ep.last_position,
-                    }).catch(alert);
-                  }}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-[#FF6B00] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 hover:bg-[#E66000] z-20"
+        <>
+          <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Continue Watching</h2>
+          <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x">
+            {data.cw_eps.map((ep) => {
+              const imagePath = ep.still_path || ep.backdrop_path;
+              const imgUrl = imagePath ? `https://image.tmdb.org/t/p/w500${imagePath}` : PLACEHOLDER_BACKDROP;
+              const progress = calculateProgress(ep.last_position, ep.runtime);
+
+              return (
+                <motion.div
+                  key={ep.id}
+                  onClick={() => onMediaSelect(ep.media_id)}
+                  whileHover={{ scale: 1.02 }}
+                  className="flex-none min-w-[320px] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative"
                 >
-                  <Play fill="currentColor" />
-                </button>
-                <div className="absolute bottom-0 left-0 p-4 w-full z-10">
-                  <h3 className="font-bold text-lg truncate">{ep.show_title}</h3>
-                  <p className="text-sm text-gray-300 truncate">
-                    {ep.media_type === "TV" ? `S${ep.season_num}E${ep.ep_num} - ${ep.title}` : ep.title}
-                  </p>
-                </div>
-                {ep.status === "Watching" && ep.runtime > 0 && (
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10">
-                    <div
-                      className="h-full bg-[#FF6B00]"
-                      style={{ width: `${Math.min(100, (ep.last_position / (ep.runtime * 60)) * 100)}%` }}
+                  <div className="w-full h-[180px] relative overflow-hidden">
+                    <img
+                      src={imgUrl}
+                      alt={ep.show_title || "Show Thumbnail"}
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        invoke("play_episode_cmd", {
+                          episodeId: ep.id,
+                          filePath: ep.file_path,
+                          lastPosition: ep.last_position,
+                        }).catch(alert);
+                      }}
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-[#FF6B00] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 z-20 hover:bg-[#E66000]"
+                    >
+                      <Play fill="currentColor" className="w-5 h-5 ml-1" />
+                    </button>
                   </div>
-                )}
-              </motion.div>
-            ))}
+
+                  {ep.status === "Watching" && ep.runtime > 0 && (
+                    <div className="h-1 w-full bg-white/10">
+                      <div
+                        className="h-full bg-[#FF6B00]"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="p-4 flex justify-between items-center bg-[#1F222A]">
+                    <h3 className="font-bold text-white truncate pr-2">{ep.show_title || "Unknown Show"}</h3>
+                    <span className="text-xs font-medium text-gray-400 whitespace-nowrap">
+                      {ep.media_type === "TV" ? `S${ep.season_num}E${ep.ep_num}` : (ep.title || "No Title")}
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
-        </div>
+        </>
       )}
 
-      {/* Recently Added Grid */}
+      {/* C. Recently Added (Poster Grid Row) */}
       {data.recent_media?.length > 0 && (
-        <div className="mt-8 px-12">
-          <h2 className="text-2xl font-bold mb-6">Recently Added</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-6">
-            {data.recent_media.map((media: any) => (
-              <motion.div
-                key={media.id}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="relative aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group shadow-lg"
-                onClick={() => onMediaSelect(media.id)}
-              >
-                <img
-                  src={`https://image.tmdb.org/t/p/w500${media.poster_path}`}
-                  alt={media.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-xs font-bold text-[#FF6B00]">
-                  ★ {media.user_rating > 0 ? `${media.user_rating}/5` : 'Unrated'}
-                </div>
-                {media.total_episodes > 0 && (
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20">
-                    <div
-                      className="h-full bg-green-500"
-                      style={{ width: `${Math.min(100, (media.completed_eps / media.total_episodes) * 100)}%` }}
-                    />
+        <>
+          <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Recently Added</h2>
+          <div className="flex gap-6 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
+            {data.recent_media.map((media) => {
+              const imgUrl = media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : PLACEHOLDER_POSTER;
+
+              return (
+                <div
+                  key={media.id}
+                  onClick={() => onMediaSelect(media.id)}
+                  className="relative flex-none min-w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-all duration-300 hover:scale-105 hover:z-10 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A]"
+                >
+                  <img
+                    src={imgUrl}
+                    alt={media.title || "Unknown Title"}
+                    className="w-full h-full object-cover"
+                  />
+
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-sm">
+                    <div className="w-14 h-14 bg-[#FF6B00] text-white rounded-full flex items-center justify-center shadow-lg shadow-black/50 scale-75 group-hover:scale-100 transition-transform duration-300">
+                      <Play fill="currentColor" className="w-6 h-6 ml-1" />
+                    </div>
                   </div>
-                )}
-              </motion.div>
-            ))}
+
+                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-yellow-500 shadow-md">
+                    ★ {media.user_rating > 0 ? media.user_rating.toFixed(1) : 'Unrated'}
+                  </div>
+
+                  {media.total_episodes > 0 && (
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20">
+                      <div
+                        className="h-full bg-green-500"
+                        style={{ width: `${Math.min(100, (media.completed_eps / media.total_episodes) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+        </>
       )}
 
-      {/* Stats Row */}
-      <div className="mt-16 px-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-[#1F222A]/50 backdrop-blur-sm p-6 rounded-2xl border border-white/5">
-            <h3 className="text-gray-400 font-medium mb-2">Total Hours Watched</h3>
-            <p className="text-4xl font-black text-[#FF6B00]">{data.stats.hrs_watched}</p>
-          </div>
-          <div className="bg-[#1F222A]/50 backdrop-blur-sm p-6 rounded-2xl border border-white/5">
-            <h3 className="text-gray-400 font-medium mb-2">Shows Completed</h3>
-            <p className="text-4xl font-black text-[#FF6B00]">{data.stats.shows_completed}</p>
-          </div>
-          <div className="bg-[#1F222A]/50 backdrop-blur-sm p-6 rounded-2xl border border-white/5">
-            <h3 className="text-gray-400 font-medium mb-2">Average Rating</h3>
-            <p className="text-4xl font-black text-[#FF6B00]">★ {data.stats.avg_rating.toFixed(1)}</p>
-          </div>
+      {/* D. Quick Stats */}
+      <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Your Stats</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="bg-[#1F222A]/80 backdrop-blur-xl rounded-xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Shows Tracked</h3>
+          <p className="text-4xl font-bold text-[#FF6B00] mt-2">{data.stats.shows_completed}</p>
+        </div>
+        <div className="bg-[#1F222A]/80 backdrop-blur-xl rounded-xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Hours Watched</h3>
+          <p className="text-4xl font-bold text-[#FF6B00] mt-2">{data.stats.hrs_watched}</p>
+        </div>
+        <div className="bg-[#1F222A]/80 backdrop-blur-xl rounded-xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Average Rating</h3>
+          <p className="text-4xl font-bold text-[#FF6B00] mt-2">★ {data.stats.avg_rating.toFixed(1)}</p>
         </div>
       </div>
-
     </div>
   );
 }
