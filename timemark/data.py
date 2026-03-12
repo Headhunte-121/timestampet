@@ -189,6 +189,41 @@ class DataManager:
             except sqlite3.OperationalError:
                 pass
 
+            try:
+                cursor.execute("ALTER TABLE Episodes ADD COLUMN air_date TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE History ADD COLUMN is_legacy INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE History ADD COLUMN session_id TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE History ADD COLUMN start_time DATETIME")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE History ADD COLUMN end_time DATETIME")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE History ADD COLUMN pause_count INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE History ADD COLUMN completion_ratio REAL DEFAULT 0.0")
+            except sqlite3.OperationalError:
+                pass
+
             conn.commit()
 
     def get_db_connection(self):
