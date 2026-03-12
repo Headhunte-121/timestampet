@@ -1,6 +1,19 @@
 import os
 import time
+
 import customtkinter as ctk
+
+# --- MONKEY PATCH TURBO SCROLL FOR CTKSCROLLABLEFRAME ---
+original_mouse_wheel = ctk.windows.widgets.ctk_scrollable_frame.CTkScrollableFrame._mouse_wheel_all
+def turbo_mouse_wheel(self, event):
+    if self.winfo_exists():
+        if event.state == 0 and event.delta:
+            # Multiply scroll delta by 4 for native, fast feel
+            event.delta = event.delta * 4
+    return original_mouse_wheel(self, event)
+
+ctk.windows.widgets.ctk_scrollable_frame.CTkScrollableFrame._mouse_wheel_all = turbo_mouse_wheel
+# --------------------------------------------------------
 from tkinter import messagebox, filedialog
 from typing import Optional, Any, List, Tuple
 from pathlib import Path
@@ -125,21 +138,17 @@ class App(ctk.CTk):
         create_nav_btn(2, "TV Shows", self._show_tv_shows)
         create_nav_btn(3, "Movies", self._show_movies)
         create_nav_btn(4, "Search", self._show_search)
+        create_nav_btn(5, "📥 Inbox", self._show_unmatched)
+
+        # Internally keep track of Inbox without the icon to map easily
+        self.nav_btns["Inbox"] = self.nav_btns["📥 Inbox"]
+        self.nav_indicators["Inbox"] = self.nav_indicators["📥 Inbox"]
+        del self.nav_btns["📥 Inbox"]
+        del self.nav_indicators["📥 Inbox"]
 
         # Bottom section: Settings & Status
         bottom_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
         bottom_frame.grid(row=7, column=0, sticky="ew", pady=(0, 20), padx=20)
-
-        inbox_btn = ctk.CTkButton(bottom_frame, text="📥 Inbox", anchor="w", fg_color="transparent",
-                                  text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=self._show_unmatched,
-                                  font=ctk.CTkFont(family="Inter", size=14, weight="bold"))
-        inbox_btn.pack(fill="x", pady=(0, 5))
-        self.nav_btns["Inbox"] = inbox_btn
-
-        # Add indicator for Inbox as well (though placed differently)
-        indicator = ctk.CTkFrame(inbox_btn, width=4, corner_radius=0, fg_color="transparent")
-        indicator.place(x=0, y=0, relheight=1.0)
-        self.nav_indicators["Inbox"] = indicator
 
         settings_btn = ctk.CTkButton(bottom_frame, text="⚙️ Settings", anchor="w", fg_color="transparent",
                                      text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=self._show_settings,
@@ -239,12 +248,12 @@ class App(ctk.CTk):
             content_frame.place(relx=0.05, rely=0.5, anchor="w")
 
             ctk.CTkLabel(content_frame, text="UP NEXT", font=ctk.CTkFont(family="Inter", size=14, weight="bold"), text_color=VLC_ORANGE).pack(anchor="w")
-            ctk.CTkLabel(content_frame, text=hero_ep['show_title'], font=ctk.CTkFont(family="Inter", size=48, weight="bold"), text_color=TEXT_PRIMARY).pack(anchor="w", pady=(5, 0))
+            ctk.CTkLabel(content_frame, text=(hero_ep['show_title'] or 'Unknown Show'), font=ctk.CTkFont(family="Inter", size=48, weight="bold"), text_color=TEXT_PRIMARY).pack(anchor="w", pady=(5, 0))
 
             if hero_ep['media_type'] == 'TV':
-                ep_sub = f"S{hero_ep['season_num']:02}E{hero_ep['ep_num']:02} - {hero_ep['title']}"
+                ep_sub = f"S{hero_ep['season_num']:02}E{hero_ep['ep_num']:02} - {(hero_ep['title'] or 'Unknown Title')}"
             else:
-                ep_sub = hero_ep['title']
+                ep_sub = (hero_ep['title'] or 'Unknown Title')
 
             ctk.CTkLabel(content_frame, text=ep_sub, font=ctk.CTkFont(family="Inter", size=18), text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 20))
 
@@ -259,8 +268,8 @@ class App(ctk.CTk):
                 play_btn.pack(anchor="w")
 
             # Progress bar
-            if hero_ep['status'] == 'Watching' and hero_ep['runtime'] > 0:
-                progress_val = min(1.0, hero_ep['last_position'] / (hero_ep['runtime'] * 60))
+            if hero_ep['status'] == 'Watching' and (hero_ep['runtime'] or 0) > 0:
+                progress_val = min(1.0, hero_ep['last_position'] / ((hero_ep['runtime'] or 0) * 60))
                 prog_bar = ctk.CTkProgressBar(content_frame, width=300, height=6, progress_color=VLC_ORANGE, fg_color=SURFACE_COLOR)
                 prog_bar.pack(anchor="w", pady=(15, 0))
                 prog_bar.set(progress_val)
@@ -376,8 +385,8 @@ class App(ctk.CTk):
 
         # Progress bar at bottom of thumbnail
         progress_val = 0.0
-        if ep_row['status'] == 'Watching' and ep_row['runtime'] > 0:
-            progress_val = min(1.0, ep_row['last_position'] / (ep_row['runtime'] * 60))
+        if ep_row['status'] == 'Watching' and (ep_row['runtime'] or 0) > 0:
+            progress_val = min(1.0, ep_row['last_position'] / ((ep_row['runtime'] or 0) * 60))
 
         prog_bar = ctk.CTkProgressBar(card, height=4, progress_color=VLC_ORANGE, fg_color="#15171e", corner_radius=0)
         prog_bar.place(x=0, y=154, relwidth=1.0)
@@ -386,8 +395,8 @@ class App(ctk.CTk):
         info_frame = ctk.CTkFrame(card, fg_color="transparent")
         info_frame.pack(fill="both", expand=True, padx=10)
 
-        title = f"{ep_row['show_title']}"
-        subtitle = f"S{ep_row['season_num']:02}E{ep_row['ep_num']:02}" if ep_row['media_type'] == 'TV' else ep_row['title']
+        title = f"{(ep_row['show_title'] or 'Unknown Show')}"
+        subtitle = f"S{ep_row['season_num']:02}E{ep_row['ep_num']:02}" if ep_row['media_type'] == 'TV' else (ep_row['title'] or 'Unknown Title')
 
         ctk.CTkLabel(info_frame, text=title, font=ctk.CTkFont(family="Inter", size=13, weight="bold"), anchor="w").pack(side="left")
         ctk.CTkLabel(info_frame, text=subtitle, font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY, anchor="e").pack(side="right")
@@ -508,7 +517,7 @@ class App(ctk.CTk):
                                     width=50, height=50, corner_radius=25, font=ctk.CTkFont(size=20))
         overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
 
-        title_lbl = ctk.CTkLabel(card, text=item['title'], font=ctk.CTkFont(family="Inter", size=13, weight="bold"),
+        title_lbl = ctk.CTkLabel(card, text=((item['title'] or 'Unknown Title')), font=ctk.CTkFont(family="Inter", size=13, weight="bold"),
                                  wraplength=150, text_color=TEXT_PRIMARY)
         # title_lbl.pack(pady=(5, 0)) # Depending on layout needs, hide title to make it cleaner
 
@@ -678,7 +687,7 @@ class App(ctk.CTk):
 
         # Year subtitle
         year = item['release_date'][:4] if item.get('release_date') else "N/A"
-        title_lbl = ctk.CTkLabel(card, text=f"{item['title']}\n({year})", font=ctk.CTkFont(family="Inter", size=12, weight="bold"),
+        title_lbl = ctk.CTkLabel(card, text=f"{((item['title'] or 'Unknown Title'))}\n({year})", font=ctk.CTkFont(family="Inter", size=12, weight="bold"),
                                  wraplength=150, text_color=TEXT_PRIMARY)
         title_lbl.pack(pady=(5, 0))
 
@@ -749,26 +758,10 @@ class App(ctk.CTk):
         detail_scroll.pack(fill="both", expand=True)
         self._current_detail_scroll = detail_scroll
 
-        # Intercept and multiply mousewheel scrolling for "Turbo Scroll"
-        def turbo_scroll(event):
-            # In Tkinter, event.widget is the widget under the mouse.
-            # We only turbo scroll if the mouse is inside our detail_scroll canvas to prevent side-effects.
-            # CustomTkinter usually binds to <MouseWheel> on the root window for its own `ScrollableFrame`.
-            # To override, we can just intercept the event and stop propagation or override the default binding.
-            if event.state == 0 and event.delta:
-                delta = int(event.delta * 4)
-                # Instead of yview_scroll which might conflict, we call `_parent_canvas.yview_scroll` directly
-                detail_scroll._parent_canvas.yview_scroll(int(-1*(delta/120)), "units")
-
-        if os.name == 'nt':
-            detail_scroll._parent_canvas.bind("<MouseWheel>", turbo_scroll)
-        elif os.name == 'posix':
-            detail_scroll._parent_canvas.bind("<Button-4>", lambda e: detail_scroll._parent_canvas.yview_scroll(-3, "units"))
-            detail_scroll._parent_canvas.bind("<Button-5>", lambda e: detail_scroll._parent_canvas.yview_scroll(3, "units"))
 
         # Back Button
         ctk.CTkButton(detail_scroll, text="← Back", width=60, fg_color="transparent", hover_color=SURFACE_COLOR,
-                      command=lambda: self._show_library(media['type'])).pack(anchor="w", padx=20, pady=(10, 0))
+                      command=lambda: self._show_library((media['type'] or 'Unknown Type'))).pack(anchor="w", padx=20, pady=(10, 0))
 
         # Header with Backdrop Banner
         header = ctk.CTkFrame(detail_scroll, fg_color="transparent")
@@ -822,7 +815,7 @@ class App(ctk.CTk):
         title_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
         title_frame.pack(anchor="w", fill="x")
 
-        safe_title = media['title'] if media['title'] else "Unknown Title"
+        safe_title = media['title'] or 'Unknown Title'
         ctk.CTkLabel(title_frame, text=safe_title, font=ctk.CTkFont(family="Inter", size=32, weight="bold"), text_color=TEXT_PRIMARY).pack(side="left")
 
         cursor.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (media_id,))
@@ -831,7 +824,7 @@ class App(ctk.CTk):
         tags_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
         tags_frame.pack(anchor="w", pady=(5, 10))
 
-        safe_type = media['type'] if media['type'] else "Unknown Type"
+        safe_type = (media['type'] or 'Unknown Type') if (media['type'] or 'Unknown Type') else "Unknown Type"
         type_tag = ctk.CTkLabel(tags_frame, text=safe_type, fg_color=SURFACE_COLOR, corner_radius=10, font=ctk.CTkFont(size=12), padx=10)
         type_tag.pack(side="left", padx=(0, 5))
 
@@ -841,8 +834,11 @@ class App(ctk.CTk):
 
         stat_tag = ctk.CTkLabel(tags_frame, text=f"{watched_eps} / {total_episodes} Eps", fg_color=status_color, corner_radius=10, font=ctk.CTkFont(size=12, weight="bold"), padx=10, text_color="white")
         stat_tag.pack(side="left")
+        self._current_progress_badge = stat_tag
+        self._current_watched_eps = watched_eps
+        self._current_total_eps = total_episodes
 
-        safe_synopsis = media['synopsis'] if media['synopsis'] else "No overview available."
+        safe_synopsis = media['synopsis'] or 'No overview available.'
         ctk.CTkLabel(info_frame, text=safe_synopsis, font=ctk.CTkFont(family="Inter", size=13), text_color=TEXT_SECONDARY, wraplength=700, justify="left").pack(anchor="w", pady=5)
 
         # Ratings Row
@@ -877,8 +873,8 @@ class App(ctk.CTk):
 
         for i in range(1, 6):
             star_color = VLC_ORANGE if i <= user_rating else "#444"
-            btn = ctk.CTkButton(stars_frame, text="★", width=25, height=25, fg_color="transparent", hover_color=SURFACE_COLOR,
-                                text_color=star_color, font=ctk.CTkFont(size=20),
+            btn = ctk.CTkButton(stars_frame, text="★", width=25, height=25, fg_color="transparent", hover_color="transparent",
+                                text_color=star_color, font=ctk.CTkFont(size=22),
                                 command=lambda r=i: set_rating(r))
             btn.pack(side="left", padx=1)
             self.star_btns.append(btn)
@@ -904,7 +900,7 @@ class App(ctk.CTk):
         ctk.CTkButton(actions, text="✓ Mark All Watched", fg_color=SURFACE_COLOR, hover_color="#333", height=36,
                       command=lambda m=media_id: self._mark_all_watched(m)).pack(side="left", padx=(0, 10))
 
-        sync_btn = ctk.CTkButton(actions, text="🔄 Refresh Data", fg_color="transparent", border_color=SURFACE_COLOR, border_width=2,
+        sync_btn = ctk.CTkButton(actions, text="🔄 Refresh Data", fg_color="transparent", border_color="#555", border_width=1,
                                  hover_color=SURFACE_COLOR, text_color=TEXT_PRIMARY, height=36, font=ctk.CTkFont(family="Inter", weight="bold"),
                                  command=lambda m=media_id: self._sync_media(m))
         sync_btn.pack(side="left", padx=(0, 10))
@@ -917,7 +913,7 @@ class App(ctk.CTk):
 
         self.ep_list_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
 
-        if media['type'] == 'TV':
+        if (media['type'] or 'Unknown Type') == 'TV':
             cursor.execute("SELECT DISTINCT season_num FROM Episodes WHERE media_id=? ORDER BY season_num", (media_id,))
             seasons = [r['season_num'] for r in cursor.fetchall()]
 
@@ -991,7 +987,7 @@ class App(ctk.CTk):
                     UPDATE Media SET
                         title=?, synopsis=?, poster_path=?, backdrop_path=?, total_episodes=?, status=?, vote_average=?
                     WHERE id=?
-                """, (details['title'], details['synopsis'], details['poster_path'], details.get('backdrop_path', ''), details['total_episodes'], details['status'], details.get('vote_average', 0.0), media_id))
+                """, ((details['title'] or 'Unknown Title'), details['synopsis'], details['poster_path'], details.get('backdrop_path', ''), details['total_episodes'], details['status'], details.get('vote_average', 0.0), media_id))
 
                 if m_type == 'TV':
                     for season in details['seasons']:
@@ -1009,12 +1005,12 @@ class App(ctk.CTk):
                                 cursor.execute("""
                                     INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview)
                                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                                """, (media_id, s_num, ep['ep_num'], ep['title'], ep['runtime'], ep.get('still_path', ''), ep.get('overview', '')))
+                                """, (media_id, s_num, ep['ep_num'], (ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), ep.get('still_path', ''), ep.get('overview', '')))
                             else:
                                 cursor.execute("""
                                     UPDATE Episodes SET title=?, runtime=?, still_path=?, overview=?
                                     WHERE id=?
-                                """, (ep['title'], ep['runtime'], ep.get('still_path', ''), ep.get('overview', ''), existing_ep['id']))
+                                """, ((ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), ep.get('still_path', ''), ep.get('overview', ''), existing_ep['id']))
 
                 # We don't need to do anything else for movies since there's only one dummy episode which rarely updates.
 
@@ -1085,13 +1081,13 @@ class App(ctk.CTk):
             img_frame.pack(side="left", padx=(6, 15), pady=6)
             img_frame.pack_propagate(False)
 
-            # Loading State (Animated Pulse or distinct color)
-            img_lbl = ctk.CTkLabel(img_frame, text="Loading...", text_color="#444", fg_color="#181A20", font=ctk.CTkFont(size=10))
+            # Loading State (Skeleton Box)
+            img_lbl = ctk.CTkLabel(img_frame, text="", fg_color="#1A1C23", font=ctk.CTkFont(size=10))
             img_lbl.pack(fill="both", expand=True)
 
             def load_still(ep_data, fallback_backdrop):
                 from .tmdb_api import download_image
-                from PIL import ImageFilter
+                from PIL import ImageFilter, ImageEnhance
 
                 final_img_path = None
                 is_fallback = False
@@ -1108,9 +1104,11 @@ class App(ctk.CTk):
                         pil_img = Image.open(final_img_path)
                         if is_fallback:
                             # Blur the backdrop so it's clearly a fallback
-                            pil_img = pil_img.filter(ImageFilter.GaussianBlur(radius=5))
+                            pil_img = pil_img.filter(ImageFilter.GaussianBlur(radius=8))
 
-                            # We could also draw text here using ImageDraw, but doing it via CTkLabel text is easier.
+                            # Add a heavy dark overlay
+                            enhancer = ImageEnhance.Brightness(pil_img)
+                            pil_img = enhancer.enhance(0.4)
 
                         # Crop to 16:9 aspect roughly (120x68)
                         w, h = pil_img.size
@@ -1123,7 +1121,7 @@ class App(ctk.CTk):
 
                         def update_ui():
                             img_lbl.configure(image=img, text=f"EP {ep_data['ep_num']}" if is_fallback else "",
-                                              font=ctk.CTkFont(size=16, weight="bold"), text_color="white")
+                                              font=ctk.CTkFont(family="Inter", size=16, weight="bold"), text_color="#B3B3B3")
                         self.after(0, update_ui)
                     except Exception as e:
                         pass
@@ -1149,8 +1147,7 @@ class App(ctk.CTk):
 
             status_btn = ctk.CTkButton(title_row, text=icon, width=30, height=30, corner_radius=15,
                                        fg_color="transparent", hover_color=hover_color,
-                                       text_color=icon_color, font=ctk.CTkFont(family="Inter", size=18, weight="bold"),
-                                       command=lambda e=ep['id'], m=media_id, s=season_num, c=is_completed: self._toggle_watch_status(e, m, s, not c))
+                                       text_color=icon_color, font=ctk.CTkFont(family="Inter", size=18, weight="bold"))
             status_btn.pack(side="left", padx=(0, 5))
 
             color = TEXT_PRIMARY if ep['status'] != 'Completed' else TEXT_SECONDARY
@@ -1160,18 +1157,24 @@ class App(ctk.CTk):
                 ctk.CTkLabel(title_row, text=ep_id_text, font=ctk.CTkFont(family="Inter", size=15, weight="bold"), text_color=TEXT_SECONDARY).pack(side="left")
 
             title_font = ctk.CTkFont(family="Inter", size=15, weight="bold") if ep['status'] != 'Completed' else ctk.CTkFont(family="Inter", size=15)
-            ctk.CTkLabel(title_row, text=ep['title'], font=title_font, text_color=color, anchor="w").pack(side="left")
 
-            runtime_text = f"{ep['runtime']}m" if ep['runtime'] else ""
+            # Keep a reference to the label to mutate its color/font later
+            ep_title_lbl = ctk.CTkLabel(title_row, text=(ep['title'] or 'Unknown Title'), font=title_font, text_color=color, anchor="w")
+            ep_title_lbl.pack(side="left")
+
+            # Bind the toggle command
+            status_btn.configure(command=lambda btn=status_btn, lbl=ep_title_lbl, eid=ep['id'], mid=media_id, s=season_num, c=is_completed: self._toggle_watch_status_inplace(btn, lbl, eid, mid, s, not c))
+
+            runtime_text = f"{(ep['runtime'] or 0)}m" if (ep['runtime'] or 0) else ""
             if runtime_text:
                 ctk.CTkLabel(title_row, text=runtime_text, font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY).pack(side="left", padx=(10, 0))
 
             # Episode Synopsis
-            if 'overview' in ep.keys() and ep['overview']:
-                synopsis = ep['overview']
+            if 'overview' in ep.keys() and (ep['overview'] or ''):
+                synopsis = (ep['overview'] or '')
                 if len(synopsis) > 120:
                     synopsis = synopsis[:117] + "..."
-                ctk.CTkLabel(mid_frame, text=synopsis, font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY, anchor="w", justify="left").pack(anchor="w", padx=(30, 0), pady=(2, 0))
+                ctk.CTkLabel(mid_frame, text=synopsis, font=ctk.CTkFont(family="Inter", size=11), text_color=TEXT_SECONDARY, anchor="w", justify="left").pack(anchor="w", padx=(38, 0), pady=(0, 0))
 
             # Right side: Controls
             right_frame = ctk.CTkFrame(row, fg_color="transparent")
@@ -1191,21 +1194,42 @@ class App(ctk.CTk):
                                          fg_color="transparent", text_color=TEXT_SECONDARY, state="disabled", font=ctk.CTkFont(size=18))
                 play_btn.pack(side="right")
 
-    def _toggle_watch_status(self, episode_id, media_id, season_num, mark_as_completed):
-        conn = self.data_manager.get_db_connection()
-        cursor = conn.cursor()
-
+    def _toggle_watch_status_inplace(self, btn, lbl, episode_id, media_id, season_num, mark_as_completed):
+        # 1. Update UI Instantly
         if mark_as_completed:
-            cursor.execute("UPDATE Episodes SET watch_count=MAX(1, watch_count), status='Completed' WHERE id=?", (episode_id,))
-            cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
+            btn.configure(text="✓", text_color=SUCCESS_COLOR, hover_color="#333")
+            lbl.configure(text_color=TEXT_SECONDARY, font=ctk.CTkFont(family="Inter", size=15))
+            self._current_watched_eps += 1
         else:
-            cursor.execute("UPDATE Episodes SET watch_count=0, status='Unwatched' WHERE id=?", (episode_id,))
+            btn.configure(text="○", text_color=TEXT_SECONDARY, hover_color=SUCCESS_COLOR)
+            lbl.configure(text_color=TEXT_PRIMARY, font=ctk.CTkFont(family="Inter", size=15, weight="bold"))
+            self._current_watched_eps = max(0, self._current_watched_eps - 1)
 
-        conn.commit()
-        conn.close()
+        # Re-bind the opposite action
+        btn.configure(command=lambda: self._toggle_watch_status_inplace(btn, lbl, episode_id, media_id, season_num, not mark_as_completed))
 
-        # Refresh the entire details view to update header badges and the list
-        self._show_media_details(media_id, target_season=season_num)
+        # Update the main progress badge
+        if hasattr(self, '_current_progress_badge') and self._current_progress_badge.winfo_exists():
+            status_text = "Completed" if self._current_watched_eps == self._current_total_eps and self._current_watched_eps > 0 else "Watching"
+            status_color = SUCCESS_COLOR if status_text == "Completed" else VLC_ORANGE
+            self._current_progress_badge.configure(
+                text=f"{self._current_watched_eps} / {self._current_total_eps} Eps",
+                fg_color=status_color
+            )
+
+        # 2. Update Database Asynchronously
+        def db_update():
+            conn = self.data_manager.get_db_connection()
+            cursor = conn.cursor()
+            if mark_as_completed:
+                cursor.execute("UPDATE Episodes SET watch_count=MAX(1, watch_count), status='Completed' WHERE id=?", (episode_id,))
+                cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
+            else:
+                cursor.execute("UPDATE Episodes SET watch_count=0, status='Unwatched' WHERE id=?", (episode_id,))
+            conn.commit()
+            conn.close()
+
+        threading.Thread(target=db_update, daemon=True).start()
 
     def _adj_watch(self, episode_id, media_id, season_num, delta):
         conn = self.data_manager.get_db_connection()
@@ -1473,7 +1497,7 @@ class App(ctk.CTk):
                     cursor.execute("""
                         INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, backdrop_path, total_episodes, status, vote_average)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (details['tmdb_id'], details['type'], details['title'], details['synopsis'],
+                    """, (details['tmdb_id'], details['type'], (details['title'] or 'Unknown Title'), details['synopsis'],
                           details['poster_path'], details.get('backdrop_path', ''), details['total_episodes'], details['status'], details.get('vote_average', 0.0)))
 
                     media_id = cursor.lastrowid
@@ -1492,13 +1516,13 @@ class App(ctk.CTk):
                                 cursor.execute("""
                                     INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview)
                                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                                """, (media_id, s_num, ep['ep_num'], ep['title'], ep['runtime'], still_path, ep.get('overview', '')))
+                                """, (media_id, s_num, ep['ep_num'], (ep['title'] or 'Unknown Title'), (ep['runtime'] or 0), still_path, ep.get('overview', '')))
                     else:
                         # Movie has 1 dummy episode
                         cursor.execute("""
                             INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview)
                             VALUES (?, 1, 1, ?, ?, ?, ?)
-                        """, (media_id, 1, 1, details['title'], details.get('runtime', 0), details.get('backdrop_path', ''), details['synopsis']))
+                        """, (media_id, 1, 1, (details['title'] or 'Unknown Title'), details.get('runtime', 0), details.get('backdrop_path', ''), details['synopsis']))
 
                     conn.commit()
 
@@ -1534,11 +1558,11 @@ class App(ctk.CTk):
 
                     conn.commit()
 
-                    self.after(0, lambda ac=assigned_count: messagebox.showinfo("Success", f"Added {details['title']} and assigned {ac} files!"))
+                    self.after(0, lambda ac=assigned_count: messagebox.showinfo("Success", f"Added {(details['title'] or 'Unknown Title')} and assigned {ac} files!"))
                     self._pending_group_match = None
                 else:
                     if not existing:
-                        self.after(0, lambda: messagebox.showinfo("Success", f"Added {details['title']} to tracker!"))
+                        self.after(0, lambda: messagebox.showinfo("Success", f"Added {(details['title'] or 'Unknown Title')} to tracker!"))
                     else:
                         self.after(0, lambda: messagebox.showinfo("Exists", "This media is already tracked."))
 
@@ -1577,8 +1601,8 @@ class App(ctk.CTk):
             ctk.CTkLabel(dialog, text="No Media tracked in DB.").pack(pady=10)
             return
 
-        media_names = [f"[{m['type']}] {m['title']}" for m in media_items]
-        media_map = {f"[{m['type']}] {m['title']}": (m['id'], m['type']) for m in media_items}
+        media_names = [f"[{m['type']}] {(m['title'] or 'Unknown Title')}" for m in media_items]
+        media_map = {f"[{m['type']}] {(m['title'] or 'Unknown Title')}": (m['id'], m['type']) for m in media_items}
 
         media_var = ctk.StringVar(value=media_names[0])
         opt = ctk.CTkOptionMenu(dialog, variable=media_var, values=media_names)
