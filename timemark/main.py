@@ -100,7 +100,7 @@ class App(ctk.CTk):
             corner_radius=18,
             fg_color=SURFACE_COLOR,
             border_color="#333",
-            font=ctk.CTkFont(family="Inter", size=13)
+            font=("Inter", 13, "normal")
         )
         self.quick_search_entry.pack(side="left")
         self.quick_search_entry.bind("<KeyRelease>", self._handle_quick_search)
@@ -111,7 +111,7 @@ class App(ctk.CTk):
         self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(6, weight=1) # Push settings to bottom
 
-        logo_label = ctk.CTkLabel(self.sidebar_frame, text="▶ WatchMark", font=ctk.CTkFont(family="Inter", size=22, weight="bold"), text_color=TEXT_PRIMARY)
+        logo_label = ctk.CTkLabel(self.sidebar_frame, text="▶ WatchMark", font=("Inter", 22, "bold"), text_color=TEXT_PRIMARY)
         logo_label.grid(row=0, column=0, padx=20, pady=(20, 30), sticky="w")
 
         self.nav_btns = {}
@@ -127,7 +127,7 @@ class App(ctk.CTk):
 
             btn = ctk.CTkButton(container, text=text, anchor="w", fg_color="transparent",
                                 text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=command,
-                                font=ctk.CTkFont(family="Inter", size=14, weight="bold"))
+                                font=("Inter", 14, "bold"))
             btn.pack(side="left", fill="both", expand=True, padx=(10, 15))
 
             self.nav_btns[text] = btn
@@ -146,12 +146,12 @@ class App(ctk.CTk):
 
         settings_btn = ctk.CTkButton(bottom_frame, text="⚙️ Settings", anchor="w", fg_color="transparent",
                                      text_color=TEXT_SECONDARY, hover_color=SURFACE_COLOR, command=self._show_settings,
-                                     font=ctk.CTkFont(family="Inter", size=14, weight="bold"))
+                                     font=("Inter", 14, "bold"))
         settings_btn.pack(fill="x", pady=(0, 10))
         self.nav_btns["Settings"] = settings_btn
 
         # Dummy status indicator
-        status_lbl = ctk.CTkLabel(bottom_frame, text="🟢 DB Connected", font=ctk.CTkFont(family="Inter", size=11), text_color=SUCCESS_COLOR)
+        status_lbl = ctk.CTkLabel(bottom_frame, text="🟢 DB Connected", font=("Inter", 11, "normal"), text_color=SUCCESS_COLOR)
         status_lbl.pack(anchor="w", padx=10)
 
         # --- MAIN CONTENT AREA ---
@@ -241,24 +241,24 @@ class App(ctk.CTk):
             content_frame = ctk.CTkFrame(hero_frame, fg_color="transparent")
             content_frame.place(relx=0.05, rely=0.5, anchor="w")
 
-            ctk.CTkLabel(content_frame, text="UP NEXT", font=ctk.CTkFont(family="Inter", size=14, weight="bold"), text_color=VLC_ORANGE).pack(anchor="w")
-            ctk.CTkLabel(content_frame, text=(hero_ep['show_title'] or 'Unknown Show'), font=ctk.CTkFont(family="Inter", size=48, weight="bold"), text_color=TEXT_PRIMARY).pack(anchor="w", pady=(5, 0))
+            ctk.CTkLabel(content_frame, text="UP NEXT", font=("Inter", 14, "bold"), text_color=VLC_ORANGE).pack(anchor="w")
+            ctk.CTkLabel(content_frame, text=(hero_ep['show_title'] or 'Unknown Show'), font=("Inter", 48, "bold"), text_color=TEXT_PRIMARY).pack(anchor="w", pady=(5, 0))
 
             if hero_ep['media_type'] == 'TV':
                 ep_sub = f"S{hero_ep['season_num']:02}E{hero_ep['ep_num']:02} - {(hero_ep['title'] or 'Unknown Title')}"
             else:
                 ep_sub = (hero_ep['title'] or 'Unknown Title')
 
-            ctk.CTkLabel(content_frame, text=ep_sub, font=ctk.CTkFont(family="Inter", size=18), text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 20))
+            ctk.CTkLabel(content_frame, text=ep_sub, font=("Inter", 18, "normal"), text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 20))
 
             if hero_ep['file_path']:
                 play_btn = ctk.CTkButton(content_frame, text="▶ Resume", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=45, width=150,
-                                         font=ctk.CTkFont(family="Inter", size=16, weight="bold"),
+                                         font=("Inter", 16, "bold"),
                                          command=lambda e=hero_ep: self._play_episode(e))
                 play_btn.pack(anchor="w")
             else:
                 play_btn = ctk.CTkButton(content_frame, text="❌ Missing File", fg_color=DANGER_COLOR, hover_color="#8e0000", height=45, width=150,
-                                         font=ctk.CTkFont(family="Inter", size=16, weight="bold"), state="disabled")
+                                         font=("Inter", 16, "bold"), state="disabled")
                 play_btn.pack(anchor="w")
 
             # Progress bar
@@ -272,13 +272,13 @@ class App(ctk.CTk):
             hero_frame = ctk.CTkFrame(dash_scroll, height=300, fg_color=SURFACE_COLOR, corner_radius=12)
             hero_frame.pack(fill="x", padx=20, pady=(20, 10))
             hero_frame.pack_propagate(False)
-            ctk.CTkLabel(hero_frame, text="Welcome to WatchMark", font=ctk.CTkFont(family="Inter", size=32, weight="bold")).pack(pady=(100, 10))
+            ctk.CTkLabel(hero_frame, text="Welcome to WatchMark", font=("Inter", 32, "bold")).pack(pady=(100, 10))
             ctk.CTkLabel(hero_frame, text="Scan your local folder or search TMDB to get started.", text_color=TEXT_SECONDARY).pack()
 
         # --- Horizontal Rows ---
 
         # Continue Watching (Other than hero)
-        ctk.CTkLabel(dash_scroll, text="Continue Watching", font=ctk.CTkFont(family="Inter", size=20, weight="bold")).pack(anchor="w", padx=25, pady=(20, 10))
+        ctk.CTkLabel(dash_scroll, text="Continue Watching", font=("Inter", 20, "bold")).pack(anchor="w", padx=25, pady=(20, 10))
         cw_frame = ctk.CTkScrollableFrame(dash_scroll, orientation="horizontal", height=220, fg_color="transparent")
         cw_frame.pack(fill="x", padx=15)
 
@@ -318,7 +318,7 @@ class App(ctk.CTk):
 
 
         # Recently Added
-        ctk.CTkLabel(dash_scroll, text="Recently Added", font=ctk.CTkFont(family="Inter", size=20, weight="bold")).pack(anchor="w", padx=25, pady=(20, 10))
+        ctk.CTkLabel(dash_scroll, text="Recently Added", font=("Inter", 20, "bold")).pack(anchor="w", padx=25, pady=(20, 10))
         ra_frame = ctk.CTkScrollableFrame(dash_scroll, orientation="horizontal", height=280, fg_color="transparent")
         ra_frame.pack(fill="x", padx=15)
 
@@ -332,7 +332,7 @@ class App(ctk.CTk):
                 self._create_poster_card(ra_frame, item)
 
         # Stats Row
-        ctk.CTkLabel(dash_scroll, text="Your Stats", font=ctk.CTkFont(family="Inter", size=20, weight="bold")).pack(anchor="w", padx=25, pady=(20, 10))
+        ctk.CTkLabel(dash_scroll, text="Your Stats", font=("Inter", 20, "bold")).pack(anchor="w", padx=25, pady=(20, 10))
         stats_frame = ctk.CTkFrame(dash_scroll, fg_color="transparent")
         stats_frame.pack(fill="x", padx=20, pady=(0, 20))
 
@@ -348,8 +348,8 @@ class App(ctk.CTk):
             f = ctk.CTkFrame(parent, fg_color=SURFACE_COLOR, corner_radius=12, height=100)
             f.pack(side="left", fill="x", expand=True, padx=5)
             f.pack_propagate(False)
-            ctk.CTkLabel(f, text=title, font=ctk.CTkFont(family="Inter", size=14), text_color=TEXT_SECONDARY).pack(pady=(20, 5))
-            ctk.CTkLabel(f, text=str(value), font=ctk.CTkFont(family="Inter", size=28, weight="bold"), text_color=VLC_ORANGE).pack()
+            ctk.CTkLabel(f, text=title, font=("Inter", 14, "normal"), text_color=TEXT_SECONDARY).pack(pady=(20, 5))
+            ctk.CTkLabel(f, text=str(value), font=("Inter", 28, "bold"), text_color=VLC_ORANGE).pack()
 
         make_stat_card(stats_frame, "Episodes Watched", eps_watched)
         make_stat_card(stats_frame, "Hours Watched", hrs_watched)
@@ -392,8 +392,8 @@ class App(ctk.CTk):
         title = f"{(ep_row['show_title'] or 'Unknown Show')}"
         subtitle = f"S{ep_row['season_num']:02}E{ep_row['ep_num']:02}" if ep_row['media_type'] == 'TV' else (ep_row['title'] or 'Unknown Title')
 
-        ctk.CTkLabel(info_frame, text=title, font=ctk.CTkFont(family="Inter", size=13, weight="bold"), anchor="w").pack(side="left")
-        ctk.CTkLabel(info_frame, text=subtitle, font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY, anchor="e").pack(side="right")
+        ctk.CTkLabel(info_frame, text=title, font=("Inter", 13, "bold"), anchor="w").pack(side="left")
+        ctk.CTkLabel(info_frame, text=subtitle, font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY, anchor="e").pack(side="right")
 
         card.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
         img_label.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
@@ -420,7 +420,7 @@ class App(ctk.CTk):
         else:
             title = "TV Shows" if media_type == "TV" else "Movies"
 
-        ctk.CTkLabel(header_frame, text=title, font=ctk.CTkFont(family="Inter", size=24, weight="bold")).pack(side="left")
+        ctk.CTkLabel(header_frame, text=title, font=("Inter", 24, "bold")).pack(side="left")
 
         scan_btn = ctk.CTkButton(header_frame, text="📂 Scan Local Folder", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=self._scan_folder)
         scan_btn.pack(side="right")
@@ -450,7 +450,7 @@ class App(ctk.CTk):
             if filter_query:
                 msg = f"'{filter_query}' not found in library. Press Enter in Search to query TMDB."
 
-            ctk.CTkLabel(grid_frame, text=msg, font=ctk.CTkFont(family="Inter", size=16), text_color=TEXT_SECONDARY).pack(pady=50)
+            ctk.CTkLabel(grid_frame, text=msg, font=("Inter", 16, "normal"), text_color=TEXT_SECONDARY).pack(pady=50)
             return
 
         # Chunked rendering to prevent main thread freeze
@@ -508,10 +508,10 @@ class App(ctk.CTk):
         overlay_frame = ctk.CTkFrame(card, fg_color=BG_COLOR, corner_radius=8, width=160, height=240)
         # We don't pack it initially
         overlay_btn = ctk.CTkButton(overlay_frame, text="▶", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
-                                    width=50, height=50, corner_radius=25, font=ctk.CTkFont(size=20))
+                                    width=50, height=50, corner_radius=25, font=("Inter", 20, "normal"))
         overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
 
-        title_lbl = ctk.CTkLabel(card, text=((item['title'] or 'Unknown Title')), font=ctk.CTkFont(family="Inter", size=13, weight="bold"),
+        title_lbl = ctk.CTkLabel(card, text=((item['title'] or 'Unknown Title')), font=("Inter", 13, "bold"),
                                  wraplength=150, text_color=TEXT_PRIMARY)
         # title_lbl.pack(pady=(5, 0)) # Depending on layout needs, hide title to make it cleaner
 
@@ -562,12 +562,12 @@ class App(ctk.CTk):
         top_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         top_frame.pack(fill="x", padx=20, pady=20)
 
-        ctk.CTkLabel(top_frame, text="Discover Media", font=ctk.CTkFont(family="Inter", size=24, weight="bold"), text_color=TEXT_PRIMARY).pack(side="left")
+        ctk.CTkLabel(top_frame, text="Discover Media", font=("Inter", 24, "bold"), text_color=TEXT_PRIMARY).pack(side="left")
 
         search_box = ctk.CTkFrame(top_frame, fg_color="transparent")
         search_box.pack(side="right")
 
-        self.search_entry = ctk.CTkEntry(search_box, placeholder_text="Search TMDB for Shows or Movies...", width=350, height=36, corner_radius=18, fg_color=SURFACE_COLOR, border_color="#333", font=ctk.CTkFont(family="Inter", size=13))
+        self.search_entry = ctk.CTkEntry(search_box, placeholder_text="Search TMDB for Shows or Movies...", width=350, height=36, corner_radius=18, fg_color=SURFACE_COLOR, border_color="#333", font=("Inter", 13, "normal"))
         self.search_entry.pack(side="left", padx=(0, 10))
         self.search_entry.bind("<Return>", lambda e: self._perform_search())
 
@@ -589,7 +589,7 @@ class App(ctk.CTk):
             widget.destroy()
 
         # Try to download skeleton posters immediately or just text
-        ctk.CTkLabel(self.results_frame, text=f"Searching TMDB for '{query}'...", font=ctk.CTkFont(family="Inter", size=16), text_color=TEXT_SECONDARY).pack(pady=50)
+        ctk.CTkLabel(self.results_frame, text=f"Searching TMDB for '{query}'...", font=("Inter", 16, "normal"), text_color=TEXT_SECONDARY).pack(pady=50)
         self.update()
 
         def run_search():
@@ -617,7 +617,7 @@ class App(ctk.CTk):
         self._clear_results_frame()
 
         if not results:
-            ctk.CTkLabel(self.results_frame, text="No results found.", font=ctk.CTkFont(family="Inter", size=16), text_color=TEXT_SECONDARY).pack(pady=50)
+            ctk.CTkLabel(self.results_frame, text="No results found.", font=("Inter", 16, "normal"), text_color=TEXT_SECONDARY).pack(pady=50)
             return
 
         # Check existing media to mark "In Library"
@@ -681,7 +681,7 @@ class App(ctk.CTk):
 
         # Year subtitle
         year = item['release_date'][:4] if ('release_date' in item.keys() and item['release_date'] is not None) else "N/A"
-        title_lbl = ctk.CTkLabel(card, text=f"{((item['title'] or 'Unknown Title'))}\n({year})", font=ctk.CTkFont(family="Inter", size=12, weight="bold"),
+        title_lbl = ctk.CTkLabel(card, text=f"{((item['title'] or 'Unknown Title'))}\n({year})", font=("Inter", 12, "bold"),
                                  wraplength=150, text_color=TEXT_PRIMARY)
         title_lbl.pack(pady=(5, 0))
 
@@ -705,7 +705,7 @@ class App(ctk.CTk):
         btn_hover = SUCCESS_COLOR if is_tracked else VLC_ORANGE_HOVER
 
         overlay_btn = ctk.CTkButton(overlay_frame, text=btn_text, fg_color=btn_color, hover_color=btn_hover,
-                                    width=120, height=40, corner_radius=20, font=ctk.CTkFont(family="Inter", weight="bold"),
+                                    width=120, height=40, corner_radius=20, font=("Inter", 13, "bold"),
                                     state="disabled" if is_tracked else "normal")
         overlay_btn.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -810,7 +810,7 @@ class App(ctk.CTk):
         title_frame.pack(anchor="w", fill="x")
 
         safe_title = media['title'] or 'Unknown Title'
-        ctk.CTkLabel(title_frame, text=safe_title, font=ctk.CTkFont(family="Inter", size=32, weight="bold"), text_color=TEXT_PRIMARY).pack(side="left")
+        ctk.CTkLabel(title_frame, text=safe_title, font=("Inter", 32, "bold"), text_color=TEXT_PRIMARY).pack(side="left")
 
         cursor.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (media_id,))
         watched_eps = cursor.fetchone()['c']
@@ -819,21 +819,21 @@ class App(ctk.CTk):
         tags_frame.pack(anchor="w", pady=(5, 10))
 
         safe_type = (media['type'] or 'Unknown Type') if (media['type'] or 'Unknown Type') else "Unknown Type"
-        type_tag = ctk.CTkLabel(tags_frame, text=safe_type, fg_color=SURFACE_COLOR, corner_radius=10, font=ctk.CTkFont(size=12), padx=10)
+        type_tag = ctk.CTkLabel(tags_frame, text=safe_type, fg_color=SURFACE_COLOR, corner_radius=10, font=("Inter", 12, "normal"), padx=10)
         type_tag.pack(side="left", padx=(0, 5))
 
         total_episodes = media['total_episodes'] if media['total_episodes'] is not None else 0
         status_text = "Completed" if watched_eps == total_episodes and watched_eps > 0 else "Watching"
         status_color = SUCCESS_COLOR if status_text == "Completed" else VLC_ORANGE
 
-        stat_tag = ctk.CTkLabel(tags_frame, text=f"{watched_eps} / {total_episodes} Eps", fg_color=status_color, corner_radius=10, font=ctk.CTkFont(size=12, weight="bold"), padx=10, text_color="white")
+        stat_tag = ctk.CTkLabel(tags_frame, text=f"{watched_eps} / {total_episodes} Eps", fg_color=status_color, corner_radius=10, font=("Inter", 12, "bold"), padx=10, text_color="white")
         stat_tag.pack(side="left")
         self._current_progress_badge = stat_tag
         self._current_watched_eps = watched_eps
         self._current_total_eps = total_episodes
 
         safe_synopsis = media['synopsis'] or 'No overview available.'
-        ctk.CTkLabel(info_frame, text=safe_synopsis, font=ctk.CTkFont(family="Inter", size=13), text_color=TEXT_SECONDARY, wraplength=700, justify="left").pack(anchor="w", pady=5)
+        ctk.CTkLabel(info_frame, text=safe_synopsis, font=("Inter", 13, "normal"), text_color=TEXT_SECONDARY, wraplength=700, justify="left").pack(anchor="w", pady=5)
 
         # Ratings Row
         ratings_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
@@ -842,12 +842,12 @@ class App(ctk.CTk):
         # TMDB Badge
         tmdb_score = round(media['vote_average'] if 'vote_average' in media.keys() and media['vote_average'] is not None else 0.0, 1)
         ctk.CTkLabel(ratings_frame, text=f"⭐ TMDB: {tmdb_score}/10", fg_color="#181A20", text_color="#F5C518",
-                     font=ctk.CTkFont(family="Inter", size=12, weight="bold"), corner_radius=6, padx=8, pady=4).pack(side="left", padx=(0, 15))
+                     font=("Inter", 12, "bold"), corner_radius=6, padx=8, pady=4).pack(side="left", padx=(0, 15))
 
         # User Rating Stars
         stars_frame = ctk.CTkFrame(ratings_frame, fg_color="transparent")
         stars_frame.pack(side="left")
-        ctk.CTkLabel(stars_frame, text="My Score: ", font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 5))
+        ctk.CTkLabel(stars_frame, text="My Score: ", font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 5))
 
         user_rating = media['user_rating'] if 'user_rating' in media.keys() and media['user_rating'] is not None else 0
         self.star_btns = []
@@ -867,8 +867,8 @@ class App(ctk.CTk):
 
         for i in range(1, 6):
             star_color = VLC_ORANGE if i <= user_rating else "#444"
-            btn = ctk.CTkButton(stars_frame, text="★", width=25, height=25, fg_color="transparent", hover_color="transparent",
-                                text_color=star_color, font=ctk.CTkFont(size=22),
+            btn = ctk.CTkButton(stars_frame, text="★", width=25, height=25, fg_color="transparent", hover_color=SURFACE_COLOR,
+                                text_color=star_color, font=("Inter", 22, "normal"),
                                 command=lambda r=i: set_rating(r))
             btn.pack(side="left", padx=1)
             self.star_btns.append(btn)
@@ -888,14 +888,14 @@ class App(ctk.CTk):
 
         if next_ep and next_ep['file_path']:
             play_btn = ctk.CTkButton(actions, text="▶ Play Next", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=36,
-                                     font=ctk.CTkFont(family="Inter", weight="bold"), command=lambda e=next_ep: self._play_episode(e))
+                                     font=("Inter", 13, "bold"), command=lambda e=next_ep: self._play_episode(e))
             play_btn.pack(side="left", padx=(0, 10))
 
         ctk.CTkButton(actions, text="✓ Mark All Watched", fg_color=SURFACE_COLOR, hover_color="#333", height=36,
                       command=lambda m=media_id: self._mark_all_watched(m)).pack(side="left", padx=(0, 10))
 
         sync_btn = ctk.CTkButton(actions, text="🔄 Refresh Data", fg_color="transparent", border_color="#555", border_width=1,
-                                 hover_color=SURFACE_COLOR, text_color=TEXT_PRIMARY, height=36, font=ctk.CTkFont(family="Inter", weight="bold"),
+                                 hover_color=SURFACE_COLOR, text_color=TEXT_PRIMARY, height=36, font=("Inter", 13, "bold"),
                                  command=lambda m=media_id: self._sync_media(m))
         sync_btn.pack(side="left", padx=(0, 10))
         # Store a reference to the sync button to change its state during sync
@@ -923,7 +923,7 @@ class App(ctk.CTk):
                 for s in seasons:
                     btn = ctk.CTkButton(season_scroll, text=f"Season {s}", width=100, height=32, corner_radius=16,
                                         fg_color=SURFACE_COLOR, text_color=TEXT_SECONDARY, hover_color="#333",
-                                        font=ctk.CTkFont(family="Inter", weight="bold"),
+                                        font=("Inter", 13, "bold"),
                                         command=lambda s_num=s, m_id=media_id: self._load_episodes(m_id, s_num))
                     btn.pack(side="left", padx=5)
                     self.season_btns.append((s, btn))
@@ -933,7 +933,7 @@ class App(ctk.CTk):
                 self._load_episodes(media_id, initial_season)
             else:
                 self.ep_list_frame.pack(fill="both", expand=True)
-                ctk.CTkLabel(self.ep_list_frame, text="No episode data found. Try refreshing or re-adding this show.", font=ctk.CTkFont(family="Inter", size=14), text_color=TEXT_SECONDARY).pack(pady=50)
+                ctk.CTkLabel(self.ep_list_frame, text="No episode data found. Try refreshing or re-adding this show.", font=("Inter", 14, "normal"), text_color=TEXT_SECONDARY).pack(pady=50)
         else:
             self.ep_list_frame.pack(fill="both", expand=True)
             self._load_episodes(media_id, 1)
@@ -1076,7 +1076,7 @@ class App(ctk.CTk):
             img_frame.pack_propagate(False)
 
             # Loading State (Skeleton Box)
-            img_lbl = ctk.CTkLabel(img_frame, text="", fg_color="#1A1C23", font=ctk.CTkFont(size=10))
+            img_lbl = ctk.CTkLabel(img_frame, text="", fg_color="#1A1C23", font=("Inter", 10, "normal"))
             img_lbl.pack(fill="both", expand=True)
 
             def load_still(ep_data, fallback_backdrop):
@@ -1115,7 +1115,7 @@ class App(ctk.CTk):
 
                         def update_ui():
                             img_lbl.configure(image=img, text=f"EP {ep_data['ep_num']}" if is_fallback else "",
-                                              font=ctk.CTkFont(family="Inter", size=16, weight="bold"), text_color="#B3B3B3")
+                                              font=("Inter", 16, "bold"), text_color="#B3B3B3")
                         self.after(0, update_ui)
                     except Exception as e:
                         pass
@@ -1141,16 +1141,16 @@ class App(ctk.CTk):
 
             status_btn = ctk.CTkButton(title_row, text=icon, width=30, height=30, corner_radius=15,
                                        fg_color="transparent", hover_color=hover_color,
-                                       text_color=icon_color, font=ctk.CTkFont(family="Inter", size=18, weight="bold"))
+                                       text_color=icon_color, font=("Inter", 18, "bold"))
             status_btn.pack(side="left", padx=(0, 5))
 
             color = TEXT_PRIMARY if ep['status'] != 'Completed' else TEXT_SECONDARY
 
             if m_type == 'TV':
                 ep_id_text = f"{ep['ep_num']}. "
-                ctk.CTkLabel(title_row, text=ep_id_text, font=ctk.CTkFont(family="Inter", size=15, weight="bold"), text_color=TEXT_SECONDARY).pack(side="left")
+                ctk.CTkLabel(title_row, text=ep_id_text, font=("Inter", 15, "bold"), text_color=TEXT_SECONDARY).pack(side="left")
 
-            title_font = ctk.CTkFont(family="Inter", size=15, weight="bold") if ep['status'] != 'Completed' else ctk.CTkFont(family="Inter", size=15)
+            title_font = ("Inter", 15, "bold") if ep['status'] != 'Completed' else ("Inter", 15, "normal")
 
             # Keep a reference to the label to mutate its color/font later
             ep_title_lbl = ctk.CTkLabel(title_row, text=(ep['title'] or 'Unknown Title'), font=title_font, text_color=color, anchor="w")
@@ -1161,14 +1161,14 @@ class App(ctk.CTk):
 
             runtime_text = f"{(ep['runtime'] or 0)}m" if (ep['runtime'] or 0) else ""
             if runtime_text:
-                ctk.CTkLabel(title_row, text=runtime_text, font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY).pack(side="left", padx=(10, 0))
+                ctk.CTkLabel(title_row, text=runtime_text, font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY).pack(side="left", padx=(10, 0))
 
             # Episode Synopsis
             if 'overview' in ep.keys() and (ep['overview'] or ''):
                 synopsis = (ep['overview'] or '')
                 if len(synopsis) > 120:
                     synopsis = synopsis[:117] + "..."
-                ctk.CTkLabel(mid_frame, text=synopsis, font=ctk.CTkFont(family="Inter", size=11), text_color=TEXT_SECONDARY, anchor="w", justify="left").pack(anchor="w", padx=(38, 0), pady=(0, 0))
+                ctk.CTkLabel(mid_frame, text=synopsis, font=("Inter", 11, "normal"), text_color=TEXT_SECONDARY, anchor="w", justify="left").pack(anchor="w", padx=(38, 0), pady=(0, 0))
 
             # Right side: Controls
             right_frame = ctk.CTkFrame(row, fg_color="transparent")
@@ -1181,22 +1181,22 @@ class App(ctk.CTk):
                 play_btn = ctk.CTkButton(right_frame, text="▶", width=40, height=40, corner_radius=20,
                                          fg_color="transparent", border_color=VLC_ORANGE, border_width=2,
                                          hover_color=VLC_ORANGE_HOVER, text_color=VLC_ORANGE,
-                                         font=ctk.CTkFont(size=18), command=lambda e=ep: self._play_episode(e))
+                                         font=("Inter", 18, "normal"), command=lambda e=ep: self._play_episode(e))
                 play_btn.pack(side="right")
             else:
                 play_btn = ctk.CTkButton(right_frame, text="☁️", width=40, height=40, corner_radius=20,
-                                         fg_color="transparent", text_color=TEXT_SECONDARY, state="disabled", font=ctk.CTkFont(size=18))
+                                         fg_color="transparent", text_color=TEXT_SECONDARY, state="disabled", font=("Inter", 18, "normal"))
                 play_btn.pack(side="right")
 
     def _toggle_watch_status_inplace(self, btn, lbl, episode_id, media_id, season_num, mark_as_completed):
         # 1. Update UI Instantly
         if mark_as_completed:
             btn.configure(text="✓", text_color=SUCCESS_COLOR, hover_color="#333")
-            lbl.configure(text_color=TEXT_SECONDARY, font=ctk.CTkFont(family="Inter", size=15))
+            lbl.configure(text_color=TEXT_SECONDARY, font=("Inter", 15, "normal"))
             self._current_watched_eps += 1
         else:
             btn.configure(text="○", text_color=TEXT_SECONDARY, hover_color=SUCCESS_COLOR)
-            lbl.configure(text_color=TEXT_PRIMARY, font=ctk.CTkFont(family="Inter", size=15, weight="bold"))
+            lbl.configure(text_color=TEXT_PRIMARY, font=("Inter", 15, "bold"))
             self._current_watched_eps = max(0, self._current_watched_eps - 1)
 
         # Re-bind the opposite action
@@ -1350,13 +1350,13 @@ class App(ctk.CTk):
         group_count = row['group_count'] if row else 0
         conn.close()
 
-        ctk.CTkLabel(self.main_frame, text="Unmatched Files", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=(20, 5))
+        ctk.CTkLabel(self.main_frame, text="Unmatched Files", font=("Inter", 24, "bold")).pack(anchor="w", padx=20, pady=(20, 5))
 
         if not unmatched_files:
             ctk.CTkLabel(self.main_frame, text="No unmatched files on your hard drive.").pack(pady=20)
             return
 
-        ctk.CTkLabel(self.main_frame, text=f"You have {group_count} unrecognized series on your hard drive.", font=ctk.CTkFont(size=14), text_color="gray").pack(anchor="w", padx=20, pady=(0, 20))
+        ctk.CTkLabel(self.main_frame, text=f"You have {group_count} unrecognized series on your hard drive.", font=("Inter", 14, "normal"), text_color="gray").pack(anchor="w", padx=20, pady=(0, 20))
 
         # Split pane for Unmatched
         split_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -1370,7 +1370,7 @@ class App(ctk.CTk):
         self.action_area = ctk.CTkFrame(split_frame, fg_color="transparent")
         self.action_area.pack(side="left", fill="both", expand=True)
 
-        ctk.CTkLabel(self.action_area, text="Select a group to triage.", font=ctk.CTkFont(family="Inter", size=16), text_color=TEXT_SECONDARY).pack(pady=100)
+        ctk.CTkLabel(self.action_area, text="Select a group to triage.", font=("Inter", 16, "normal"), text_color=TEXT_SECONDARY).pack(pady=100)
 
         # Group files
         groups = {}
@@ -1383,7 +1383,7 @@ class App(ctk.CTk):
         for group_name, files in groups.items():
             item_btn = ctk.CTkButton(inbox_frame, text=f"📁 {group_name} ({len(files)})", anchor="w",
                                      fg_color="transparent", hover_color="#333", text_color=TEXT_PRIMARY,
-                                     font=ctk.CTkFont(family="Inter", size=14, weight="bold"), height=40,
+                                     font=("Inter", 14, "bold"), height=40,
                                      command=lambda gn=group_name, fs=files: self._populate_triage(gn, fs))
             item_btn.pack(fill="x", pady=2, padx=5)
 
@@ -1398,12 +1398,12 @@ class App(ctk.CTk):
         top.pack(fill="x", pady=20)
 
         search_var = ctk.StringVar(value=group_name)
-        search_entry = ctk.CTkEntry(top, textvariable=search_var, font=ctk.CTkFont(family="Inter", size=24, weight="bold"),
+        search_entry = ctk.CTkEntry(top, textvariable=search_var, font=("Inter", 24, "bold"),
                                     height=50, fg_color=SURFACE_COLOR, border_color="#333")
         search_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
 
         ctk.CTkButton(top, text="Search TMDB", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, height=50,
-                      font=ctk.CTkFont(family="Inter", size=16, weight="bold"),
+                      font=("Inter", 16, "bold"),
                       command=lambda: self._match_group(search_var.get(), files)).pack(side="left")
 
         ctk.CTkButton(top, text="🗑️ Ignore", fg_color=DANGER_COLOR, hover_color="#8e0000", height=50, width=50,
@@ -1414,7 +1414,7 @@ class App(ctk.CTk):
         mid_frame.pack(fill="x", pady=(0, 20))
 
         ctk.CTkLabel(mid_frame, text="Click 'Search TMDB' to find a match and assign all below files.",
-                     font=ctk.CTkFont(family="Inter", size=14), text_color=TEXT_SECONDARY).pack(side="left")
+                     font=("Inter", 14, "normal"), text_color=TEXT_SECONDARY).pack(side="left")
 
         # Toggle for manual matching
         if not hasattr(self, "show_manual") or not restore_scroll:
@@ -1422,7 +1422,7 @@ class App(ctk.CTk):
 
         manual_switch = ctk.CTkSwitch(mid_frame, text="Advanced / Manual Match", variable=self.show_manual,
                                       command=lambda gn=group_name, fs=files: self._populate_triage(gn, fs, restore_scroll=True),
-                                      font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY)
+                                      font=("Inter", 12, "normal"), text_color=TEXT_SECONDARY)
         manual_switch.pack(side="right")
 
         # Bottom: Clean table of files
@@ -1434,7 +1434,7 @@ class App(ctk.CTk):
             row.pack(fill="x")
             row.pack_propagate(False)
 
-            ctk.CTkLabel(row, text=uf['filename'], font=ctk.CTkFont(family="Inter", size=13), anchor="w").pack(side="left", padx=10)
+            ctk.CTkLabel(row, text=uf['filename'], font=("Inter", 13, "normal"), anchor="w").pack(side="left", padx=10)
 
             # Advanced Match
             if self.show_manual.get():
@@ -1665,19 +1665,19 @@ class App(ctk.CTk):
         self._highlight_nav("Settings")
         self._clear_main_frame()
 
-        ctk.CTkLabel(self.main_frame, text="Settings", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=20)
+        ctk.CTkLabel(self.main_frame, text="Settings", font=("Inter", 24, "bold")).pack(anchor="w", padx=20, pady=20)
 
         form_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         form_frame.pack(fill="x", padx=20)
 
         # TMDB Key
-        ctk.CTkLabel(form_frame, text="TMDB API Key:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(10, 5))
+        ctk.CTkLabel(form_frame, text="TMDB API Key:", font=("Inter", 13, "bold")).pack(anchor="w", pady=(10, 5))
         tmdb_entry = ctk.CTkEntry(form_frame, width=400)
         tmdb_entry.pack(anchor="w")
         tmdb_entry.insert(0, self.data_manager.settings.get("tmdb_api_key", ""))
 
         # VLC Path
-        ctk.CTkLabel(form_frame, text="VLC Executable Path:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(form_frame, text="VLC Executable Path:", font=("Inter", 13, "bold")).pack(anchor="w", pady=(20, 5))
         vlc_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
         vlc_frame.pack(fill="x")
 
