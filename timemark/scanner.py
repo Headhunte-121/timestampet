@@ -93,7 +93,7 @@ def scan_directory(directory: str, data_manager: DataManager) -> List[dict]:
                     matched_media_id = None
                     for movie in movies:
                         safe_db_name = "".join(c for c in movie['title'].lower() if c.isalnum())
-                        if safe_series == safe_db_name or safe_series in safe_db_name or safe_db_name in safe_series:
+                        if safe_series == safe_db_name:
                             matched_media_id = movie['id']
                             break
 
@@ -109,19 +109,38 @@ def scan_directory(directory: str, data_manager: DataManager) -> List[dict]:
 
             if matched_ep_id:
                 # Upsert to Local_Files
-                cursor.execute("""
-                    INSERT INTO Local_Files (episode_id, file_path)
-                    VALUES (?, ?)
-                    ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path
-                """, (matched_ep_id, str_path))
-                conn.commit()
+                import sqlite3
+                try:
+                    cursor.execute("""
+                        INSERT INTO Local_Files (episode_id, file_path)
+                        VALUES (?, ?)
+                        ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path
+                    """, (matched_ep_id, str_path))
+                    conn.commit()
+                except sqlite3.IntegrityError:
+                    pass # File path already claimed by another episode
             else:
+                # Determine group key for unmatched files
+                group_key = series_name
+                if not group_key:
+                    # Fallback regex
+                    fallback_match = re.search(r"^(.+?)(?=\.[sS]\d\d|\.\d{4})", file_path.stem)
+                    if fallback_match:
+                        group_key = fallback_match.group(1)
+                    else:
+                        group_key = file_path.stem
+
+                # Clean group key
+                if group_key:
+                    group_key = re.sub(r'[\.\_]', ' ', group_key).strip()
+
                 unmatched.append({
                     "file_path": str_path,
                     "filename": file_path.name,
                     "parsed_series": series_name,
                     "parsed_season": season_num,
-                    "parsed_episode": episode_num
+                    "parsed_episode": episode_num,
+                    "group_key": group_key
                 })
 
     conn.close()
