@@ -42,6 +42,7 @@ def search_media(api_key: str, query: str, include_movies: bool = True) -> List[
                     "title": r.get("name", ""),
                     "synopsis": r.get("overview", ""),
                     "poster_path": r.get("poster_path", ""),
+                    "backdrop_path": r.get("backdrop_path", ""),
                     "release_date": r.get("first_air_date", "")
                 })
             elif include_movies and media_type == "movie":
@@ -51,6 +52,7 @@ def search_media(api_key: str, query: str, include_movies: bool = True) -> List[
                     "title": r.get("title", ""),
                     "synopsis": r.get("overview", ""),
                     "poster_path": r.get("poster_path", ""),
+                    "backdrop_path": r.get("backdrop_path", ""),
                     "release_date": r.get("release_date", "")
                 })
         return filtered
@@ -81,6 +83,7 @@ def get_media_details(api_key: str, tmdb_id: str, media_type: str) -> Optional[D
             "title": r.get("name") if media_type == "TV" else r.get("title"),
             "synopsis": r.get("overview", ""),
             "poster_path": r.get("poster_path", ""),
+            "backdrop_path": r.get("backdrop_path", ""),
             "total_episodes": r.get("number_of_episodes", 1) if media_type == "TV" else 1,
             "seasons": r.get("seasons", []) if media_type == "TV" else [],
             "runtime": r.get("runtime", 0) if media_type == "Movie" else 0,
@@ -113,28 +116,29 @@ def get_tv_season_episodes(api_key: str, tmdb_id: str, season_num: int) -> List[
                 "season_num": season_num,
                 "ep_num": ep.get("episode_number"),
                 "title": ep.get("name", ""),
-                "runtime": ep.get("runtime", 0) or 0
+                "runtime": ep.get("runtime", 0) or 0,
+                "still_path": ep.get("still_path", "")
             })
         return formatted
     except requests.exceptions.RequestException as e:
         print(f"TMDB Season Error: {e}")
         raise e
 
-def download_poster(poster_path: str) -> Optional[str]:
+def download_image(image_path: str) -> Optional[str]:
     """
-    Downloads a poster from TMDB and caches it locally.
+    Downloads an image (poster, backdrop, still) from TMDB and caches it locally.
     Returns the local path or None if failed.
     """
-    if not poster_path:
+    if not image_path:
         return None
 
-    filename = poster_path.lstrip('/')
+    filename = image_path.lstrip('/')
     local_path = POSTER_CACHE_DIR / filename
 
     if local_path.exists():
         return str(local_path)
 
-    url = f"{TMDB_IMAGE_BASE}{poster_path}"
+    url = f"{TMDB_IMAGE_BASE}{image_path}"
     try:
         response = requests.get(url, stream=True, timeout=10.0)
         response.raise_for_status()
