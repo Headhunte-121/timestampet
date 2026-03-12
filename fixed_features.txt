@@ -28,7 +28,8 @@ The following discrepancies between the codebase and the Master List have been f
 
 Update 2. Portable Data Storage (config.py):
    - Changed the default application data storage directory from OS-specific roaming folders (like `%APPDATA%`) to a portable `WatchMark` folder located in the same directory as `run.py`. This ensures all settings, database files, and cache remain with the application files.
-update 3:
+
+Update 3:
 - Database Fetch Subqueries: Modified base SQL queries in main.py (`_render_library` and `_show_dashboard`) to fetch pre-calculated stats: MIN(air_date), MAX(air_date), and completed episode counts to prevent database lag during hover.
 - Static Card Layer UI: Modified `_create_poster_card` to show Original Year in the bottom left, Progress bar on the bottom edge, and a persistent "★ {rating}/5" badge in the top right.
 - Hover Overlay Rebuild: Created an `info_overlay` with `fg_color="#141519"` and a 10px implicit margin that displays the calculated Season Year Range, Watched Episodes fraction, truncated Synopsis, Last Watched human-readable string, and Play action center shifted downward.
@@ -37,3 +38,11 @@ update 3:
 - Fixed TypeError in Watch History: Resolved an application crash (`can't compare offset-naive and offset-aware datetimes`) when sorting mixed history entries by explicitly assigning timezone-aware offsets to legacy SQL timestamps via `.astimezone()` before sorting.
 - Added Status Tag visibility: Dynamically added the Status Tag (e.g., 'Returning Series' or 'Ended') to the Quick-View overlay with color-coded dark tints matching the application theme.
 - Dynamic 'Present' Year Validation: Modified the season year range calculation to dynamically check if the `max_year` matches the current system year (`datetime.datetime.now().year`) to output '— Present' instead of using a hardcoded year.
+
+Update 4: Tauri 2.0 Architectural Overhaul
+- Core Migration: Completely migrated the Python/CustomTkinter application to a high-performance Tauri 2.0 executable.
+- Pure Rust Backend: Rewrote all backend logic in 100% pure Rust (`rusqlite`, `reqwest`, `walkdir`, `tokio`). Removed all Python dependencies (no sidecars).
+- Cinematic React UI: Replaced the CustomTkinter frontend with a modern React + Tailwind CSS + Framer Motion user interface. Implemented edge-to-edge backdrop banners, frosted glassmorphism elements, and spring-based page transitions for an "Apple TV / Plex" style experience.
+- VLC Thread Polling: Reimplemented the infinite-loop VLC heartbeat monitor entirely in a Rust background thread using `std::process::Command` to spawn VLC and `reqwest` to poll the `status.json` HTTP interface, retaining exact sub-second playhead precision without Python.
+- Legacy Schema Preservation: Rust `DataManager` opens the existing legacy SQLite `.db` files and safely applies evolutionary schemas (adding missing newer columns automatically using `IF NOT EXISTS` constructs) to ensure no user history or manual mappings are lost.
+- Binge-Block Logic: Ported the sequential Auto-Binge session grouping algorithm to the new Rust application lifecycle.
