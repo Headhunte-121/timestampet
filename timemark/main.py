@@ -1,20 +1,20 @@
 import os
+import time
 import customtkinter as ctk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import messagebox, filedialog
 from typing import Optional, Any, List, Tuple
 from pathlib import Path
-import keyboard
 import threading
-from .data import DataManager, Timestamp, Episode, Season, Series
-from .scanner import scan_directory
-from .vlc_integration import get_vlc_path, parse_time_input, format_time_display, play_in_vlc, get_current_vlc_time, generate_highlight_playlist
-from .ffmpeg import export_seamless_scene
-from .toast import ToastNotification
-from .mini import MiniBar
+from PIL import Image
 
-# Configure basic appearance
+from .data import DataManager, POSTER_CACHE_DIR
+from .scanner import scan_directory
+from .vlc_integration import get_vlc_path, play_in_vlc, get_vlc_status
+from .tmdb_api import search_media, get_media_details, get_tv_season_episodes, download_poster
+from .toast import ToastNotification
+
 ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue") # We will manually set orange accents later
+ctk.set_default_color_theme("blue")
 
 VLC_ORANGE = "#FF8800"
 VLC_ORANGE_HOVER = "#E67A00"
@@ -22,930 +22,748 @@ VLC_ORANGE_HOVER = "#E67A00"
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-
         self.data_manager = DataManager()
-        self.title("TimeMark - VLC Bookmarker")
+        self.title("WatchMark Media Tracker")
 
-        # Load geometry
-        geo = self.data_manager.settings.get("window_geometry", "1000x700")
+        geo = self.data_manager.settings.get("window_geometry", "1200x800")
         pos = self.data_manager.settings.get("window_position", "+100+100")
         self.geometry(f"{geo}{pos}")
 
-        # Auto-detect VLC path if empty
         if not self.data_manager.settings.get("vlc_path"):
             auto_path = get_vlc_path()
             if auto_path:
                 self.data_manager.settings["vlc_path"] = auto_path
                 self.data_manager.save_settings()
 
-        # State tracking
-        self.selected_node_id: Optional[str] = None
-        self.selected_episode: Optional[Episode] = None
-        self.editing_timestamp_idx: Optional[int] = None
-        self.show_only_highlighted = ctk.BooleanVar(value=False)
-        self.rapid_cut_mode = ctk.BooleanVar(value=False)
-        self.active_tags: List[str] = []
-
-        self.rapid_segments: List[Tuple[float, float]] = []
-        self._current_rapid_start: float = -1
-
-        self._setup_ui()
-        self._populate_tree()
-
-        self._setup_hotkeys()
-
-        # Bind closing event to save geometry
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
-    def _setup_hotkeys(self):
-        try:
-            keyboard.add_hotkey('ctrl+shift+[', lambda: self.after(0, self._hotkey_fetch_start))
-            keyboard.add_hotkey('ctrl+shift+]', lambda: self.after(0, self._hotkey_fetch_end))
-
-            # Hook 'alt' key globally for dead man's switch in rapid cut mode
-            keyboard.on_press_key('alt', lambda _: self.after(0, self._handle_rapid_down))
-            keyboard.on_release_key('alt', lambda _: self.after(0, self._handle_rapid_up))
-        except Exception as e:
-            print(f"Failed to bind global hotkeys (you may need to run as administrator/root): {e}")
-
-    def _handle_rapid_down(self):
-        if not self.rapid_cut_mode.get() or not self.selected_episode: return
-        # Prevent auto-repeat triggers if key is held down
-        if self._current_rapid_start != -1: return
-
-        time_sec = get_current_vlc_time()
-        if time_sec >= 0:
-            self._current_rapid_start = time_sec
-            if hasattr(self, 'rapid_status_lbl'):
-                self.rapid_status_lbl.configure(text="🔴 RECORDING...", text_color="red")
-            if hasattr(self, 'mini_bar') and self.mini_bar:
-                self.mini_bar.update_status(True, self.rapid_segments)
-
-    def _handle_rapid_up(self):
-        if not self.rapid_cut_mode.get() or not self.selected_episode: return
-        if self._current_rapid_start == -1: return
-
-        end_sec = get_current_vlc_time()
-        if end_sec > self._current_rapid_start:
-            self.rapid_segments.append([self._current_rapid_start, end_sec])
-
-        self._current_rapid_start = -1
-        self._update_rapid_ui()
-
-    def _hotkey_fetch_start(self):
-        # Only fetch if an episode is selected and we are in the episode view
-        if self.selected_episode and hasattr(self, 'start_entry'):
-            self._fetch_vlc_time("start")
-
-    def _hotkey_fetch_end(self):
-        if self.selected_episode and hasattr(self, 'end_entry'):
-            self._fetch_vlc_time("end")
+        self.current_unmatched_files = []
+        self._setup_layout()
+        self._show_dashboard()
 
     def _on_closing(self):
-        # Save geometry
         self.data_manager.settings["window_geometry"] = f"{self.winfo_width()}x{self.winfo_height()}"
         self.data_manager.settings["window_position"] = f"+{self.winfo_x()}+{self.winfo_y()}"
         self.data_manager.save_settings()
         self.destroy()
 
-    def _setup_ui(self):
+    def _setup_layout(self):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
-        # --- LEFT PANE ---
-        self.left_frame = ctk.CTkFrame(self, width=300, corner_radius=0)
-        self.left_frame.grid(row=0, column=0, sticky="nsew")
-        self.left_frame.grid_rowconfigure(1, weight=1)
+        # --- SIDEBAR ---
+        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
+        self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
+        self.sidebar_frame.grid_rowconfigure(6, weight=1) # Push settings to bottom
 
-        # Left Pane Top: Scan Button & Filter Toggle
-        top_left_frame = ctk.CTkFrame(self.left_frame, fg_color="transparent")
-        top_left_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+        logo_label = ctk.CTkLabel(self.sidebar_frame, text="WatchMark", font=ctk.CTkFont(size=20, weight="bold"))
+        logo_label.grid(row=0, column=0, padx=20, pady=(20, 20))
 
-        self.scan_btn = ctk.CTkButton(
-            top_left_frame, text="📂 Scan Media Folder",
-            fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
-            command=self._scan_folder
-        )
-        self.scan_btn.pack(fill="x", pady=(0, 10))
+        self.nav_btns = {}
 
-        self.filter_switch = ctk.CTkSwitch(
-            top_left_frame, text="👁️ Show Only Highlighted",
-            variable=self.show_only_highlighted,
-            command=self._populate_tree
-        )
-        self.filter_switch.pack(anchor="w")
+        def create_nav_btn(row, text, command):
+            btn = ctk.CTkButton(self.sidebar_frame, text=text, anchor="w", fg_color="transparent",
+                                text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), command=command)
+            btn.grid(row=row, column=0, padx=10, pady=5, sticky="ew")
+            self.nav_btns[text] = btn
+            return btn
 
-        self.mini_btn = ctk.CTkButton(
-            top_left_frame, text="🔲 Switch to Mini-Mode",
-            fg_color="#555555", hover_color="#666666",
-            command=self._toggle_mini_mode
-        )
-        self.mini_btn.pack(fill="x", pady=(10, 0))
+        create_nav_btn(1, "🏠 Dashboard", self._show_dashboard)
+        create_nav_btn(2, "📺 TV Shows", self._show_tv_shows)
+        create_nav_btn(3, "🎬 Movies", self._show_movies)
+        create_nav_btn(4, "🔍 Search", self._show_search)
+        create_nav_btn(5, "❓ Unmatched Files", self._show_unmatched)
 
-        # Left Pane Middle: Treeview
-        # Tkinter Treeview needs special styling for dark mode
-        style = ttk.Style(self)
-        style.theme_use("default")
-        style.configure("Treeview",
-                        background="#2b2b2b",
-                        foreground="white",
-                        fieldbackground="#2b2b2b",
-                        borderwidth=0)
-        style.map('Treeview', background=[('selected', '#3a7ebf')])
+        create_nav_btn(7, "⚙️ Settings", self._show_settings)
 
-        self.tree = ttk.Treeview(self.left_frame, selectmode="browse", show="tree")
-        self.tree.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-        self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
+        # --- MAIN CONTENT AREA ---
+        self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.main_frame.grid(row=0, column=1, sticky="nsew")
 
-        # Add scrollbar for tree
-        tree_scrollbar = ttk.Scrollbar(self.left_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=tree_scrollbar.set)
-        tree_scrollbar.grid(row=1, column=1, sticky="ns")
-
-        # Left Pane Bottom: Edit / Delete
-        self.action_frame = ctk.CTkFrame(self.left_frame, fg_color="transparent")
-        self.action_frame.grid(row=2, column=0, padx=10, pady=(0, 20), sticky="ew")
-        self.action_frame.grid_columnconfigure((0, 1), weight=1)
-
-        self.edit_btn = ctk.CTkButton(self.action_frame, text="✎ Edit Name", command=self._edit_tree_item)
-        self.edit_btn.grid(row=0, column=0, padx=(0, 5), sticky="ew")
-
-        self.delete_btn = ctk.CTkButton(self.action_frame, text="- Delete", fg_color="#C62828", hover_color="#B71C1C", command=self._delete_tree_item)
-        self.delete_btn.grid(row=0, column=1, padx=(5, 0), sticky="ew")
-
-        # Settings Button
-        self.settings_btn = ctk.CTkButton(self.left_frame, text="⚙ Settings", fg_color="transparent", border_width=1, command=self._open_settings)
-        self.settings_btn.grid(row=3, column=0, padx=10, pady=10, sticky="ew")
-
-        # --- RIGHT PANE ---
-        self.right_frame = ctk.CTkFrame(self, corner_radius=0)
-        self.right_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-        self.right_frame.grid_rowconfigure(1, weight=1) # Allow timestamp list to expand
-
-        # Initially hide the right pane content until an episode is selected
-        self._hide_right_pane()
-
-    def _hide_right_pane(self):
-        for widget in self.right_frame.winfo_children():
+    def _clear_main_frame(self):
+        for widget in self.main_frame.winfo_children():
             widget.destroy()
 
-        self.empty_label = ctk.CTkLabel(self.right_frame, text="Select an Episode from the left to view timestamps.", text_color="gray")
-        self.empty_label.pack(expand=True)
+    def _highlight_nav(self, active_text):
+        for text, btn in self.nav_btns.items():
+            if text == active_text:
+                btn.configure(fg_color=("gray75", "gray25"))
+            else:
+                btn.configure(fg_color="transparent")
 
-    def _scan_folder(self):
-        folder = filedialog.askdirectory(title="Select Media Folder to Scan")
-        if folder:
-            scan_directory(folder, self.data_manager)
-            self._populate_tree()
-            messagebox.showinfo("Scan Complete", "Finished scanning and updating library.")
+    # =========================================================================
+    # DASHBOARD
+    # =========================================================================
+    def _show_dashboard(self):
+        self._highlight_nav("🏠 Dashboard")
+        self._clear_main_frame()
 
-    def _populate_tree(self):
-        self.tree.delete(*self.tree.get_children())
+        ctk.CTkLabel(self.main_frame, text="Dashboard", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=20)
 
-        lib = self.data_manager.library
-        filter_on = self.show_only_highlighted.get()
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
 
-        # Populate Series
-        for series_name, series in sorted(lib.series.items()):
-            series_has_highlights = False
-            s_node_children = []
+        # Total Stats
+        cursor.execute("SELECT COUNT(*) as count FROM Episodes WHERE status = 'Completed'")
+        eps_watched = cursor.fetchone()['count']
 
-            for season_num, season in sorted(series.seasons.items(), key=lambda x: int(x[0])):
-                season_has_highlights = False
-                se_node_children = []
+        cursor.execute("SELECT COUNT(*) as count FROM History")
+        total_watches = cursor.fetchone()['count']
 
-                for ep_num, episode in sorted(season.episodes.items(), key=lambda x: int(x[0])):
-                    has_ts = len(episode.timestamps) > 0
-                    if not filter_on or has_ts:
-                        se_node_children.append((episode.title, ("episode", series_name, season_num, ep_num)))
-                        if has_ts:
-                            season_has_highlights = True
-                            series_has_highlights = True
+        stats_frame = ctk.CTkFrame(self.main_frame)
+        stats_frame.pack(fill="x", padx=20, pady=10)
+        ctk.CTkLabel(stats_frame, text=f"Total Episodes Completed: {eps_watched}  |  Total Rewatches Logged: {total_watches}", font=ctk.CTkFont(size=16)).pack(pady=20)
 
-                if not filter_on or season_has_highlights:
-                    s_node_children.append((f"Season {season_num}", ("season", series_name, season_num), se_node_children))
+        # Continue Watching (Episodes in 'Watching' status or next unwatched)
+        ctk.CTkLabel(self.main_frame, text="Continue Watching", font=ctk.CTkFont(size=18, weight="bold")).pack(anchor="w", padx=20, pady=(20, 10))
 
-            if not filter_on or series_has_highlights:
-                s_node = self.tree.insert("", "end", text=series_name, values=("series", series_name))
-                for s_title, s_vals, e_children in s_node_children:
-                    se_node = self.tree.insert(s_node, "end", text=s_title, values=s_vals)
-                    for e_title, e_vals in e_children:
-                        self.tree.insert(se_node, "end", text=e_title, values=e_vals)
+        cw_frame = ctk.CTkScrollableFrame(self.main_frame, orientation="horizontal", height=200)
+        cw_frame.pack(fill="x", padx=20)
 
-        # Populate Unmatched
-        if lib.unmatched:
-            u_children = []
-            has_unmatched_ts = False
-            for ep_key, episode in sorted(lib.unmatched.items()):
-                has_ts = len(episode.timestamps) > 0
-                if not filter_on or has_ts:
-                    u_children.append((episode.title, ("unmatched_episode", ep_key)))
-                    if has_ts:
-                        has_unmatched_ts = True
+        # 1. Get most recently watched shows based on History
+        # 2. For those shows, get the lowest episode with status 'Watching' or 'Unwatched'
+        cursor.execute("""
+            SELECT e.media_id, MAX(h.timestamp) as last_watched
+            FROM History h
+            JOIN Episodes e ON h.episode_id = e.id
+            GROUP BY e.media_id
+            ORDER BY last_watched DESC
+            LIMIT 10
+        """)
+        recent_media_ids = [r['media_id'] for r in cursor.fetchall()]
 
-            if not filter_on or has_unmatched_ts:
-                u_node = self.tree.insert("", "end", text="[?] Unmatched Files", values=("unmatched_root",))
-                for e_title, e_vals in u_children:
-                    self.tree.insert(u_node, "end", text=e_title, values=e_vals)
+        cw_eps = []
+        for m_id in recent_media_ids:
+            cursor.execute("""
+                SELECT e.*, m.title as show_title, m.poster_path
+                FROM Episodes e
+                JOIN Media m ON e.media_id = m.id
+                WHERE e.media_id = ? AND e.status IN ('Watching', 'Unwatched')
+                ORDER BY e.season_num ASC, e.ep_num ASC
+                LIMIT 1
+            """, (m_id,))
+            ep = cursor.fetchone()
+            if ep:
+                cw_eps.append(ep)
 
-    def _on_tree_select(self, event):
-        selected = self.tree.selection()
-        if not selected:
-            return
+        # If no history or no unwatched from history, just get some unwatched
+        if not cw_eps:
+             cursor.execute("""
+                 SELECT e.*, m.title as show_title, m.poster_path
+                 FROM Episodes e
+                 JOIN Media m ON e.media_id = m.id
+                 WHERE e.status IN ('Watching', 'Unwatched')
+                 ORDER BY e.status DESC, e.season_num ASC, e.ep_num ASC
+                 LIMIT 10
+             """)
+             cw_eps = cursor.fetchall()
 
-        item = self.tree.item(selected[0])
-        values = item.get("values", [])
-
-        if not values:
-            return
-
-        node_type = values[0]
-
-        if node_type == "episode":
-            series_name, season_num, ep_num = str(values[1]), str(values[2]), str(values[3])
-            episode = self.data_manager.library.series[series_name].seasons[season_num].episodes[ep_num]
-            self._show_episode_view(episode)
-        elif node_type == "unmatched_episode":
-            ep_key = str(values[1])
-            episode = self.data_manager.library.unmatched[ep_key]
-            self._show_episode_view(episode)
+        if not cw_eps:
+            ctk.CTkLabel(cw_frame, text="Nothing to continue watching.").pack(padx=20, pady=20)
         else:
-            self._hide_right_pane()
+            for ep in cw_eps:
+                self._create_episode_card(cw_frame, ep)
 
-    def _show_episode_view(self, episode: Episode):
-        self.selected_episode = episode
-        self.editing_timestamp_idx = None
+        conn.close()
 
-        for widget in self.right_frame.winfo_children():
-            widget.destroy()
+    def _create_episode_card(self, parent, ep_row):
+        card = ctk.CTkFrame(parent, width=150, height=200)
+        card.pack(side="left", padx=10)
+        card.pack_propagate(False)
 
-        # TOP: Episode Info
-        info_frame = ctk.CTkFrame(self.right_frame, fg_color="transparent")
-        info_frame.pack(fill="x", padx=10, pady=10)
+        img_label = ctk.CTkLabel(card, text="No Image", width=130, height=100, fg_color="gray30")
+        img_label.pack(pady=5)
 
-        title_text = f"{episode.series} - Season {episode.season} - {episode.title}" if episode.series != "?" else episode.title
-        title_label = ctk.CTkLabel(info_frame, text=title_text, font=ctk.CTkFont(size=20, weight="bold"))
-        title_label.pack(anchor="w")
+        if ep_row['poster_path']:
+            local_img = POSTER_CACHE_DIR / ep_row['poster_path'].lstrip('/')
+            if local_img.exists():
+                img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(130, 100))
+                img_label.configure(image=img, text="")
 
-        if not episode.file_path or not os.path.exists(episode.file_path):
-            browse_btn = ctk.CTkButton(
-                self.right_frame, text="Browse for Video File...",
-                font=ctk.CTkFont(size=16), height=50,
-                command=self._browse_video_file
-            )
-            browse_btn.pack(expand=True)
+        title = f"{ep_row['show_title']}\nS{ep_row['season_num']}E{ep_row['ep_num']}"
+        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=12, weight="bold"), wraplength=130).pack(pady=5)
+
+        status_text = f"Watching ({int(ep_row['last_position']*100)}%)" if ep_row['status'] == 'Watching' else "Unwatched"
+        ctk.CTkLabel(card, text=status_text, font=ctk.CTkFont(size=10), text_color="gray").pack()
+
+        card.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
+        for child in card.winfo_children():
+            child.bind("<Button-1>", lambda e, eid=ep_row['media_id']: self._show_media_details(eid))
+
+    # =========================================================================
+    # TV SHOWS / MOVIES LIBRARY
+    # =========================================================================
+    def _show_tv_shows(self):
+        self._highlight_nav("📺 TV Shows")
+        self._show_library("TV")
+
+    def _show_movies(self):
+        self._highlight_nav("🎬 Movies")
+        self._show_library("Movie")
+
+    def _show_library(self, media_type):
+        self._clear_main_frame()
+
+        header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        header_frame.pack(fill="x", padx=20, pady=20)
+
+        title = "TV Shows" if media_type == "TV" else "Movies"
+        ctk.CTkLabel(header_frame, text=title, font=ctk.CTkFont(size=24, weight="bold")).pack(side="left")
+
+        scan_btn = ctk.CTkButton(header_frame, text="📂 Scan Local Folder", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=self._scan_folder)
+        scan_btn.pack(side="right")
+
+        grid_frame = ctk.CTkScrollableFrame(self.main_frame)
+        grid_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Media WHERE type=?", (media_type,))
+        media_items = cursor.fetchall()
+        conn.close()
+
+        if not media_items:
+            ctk.CTkLabel(grid_frame, text=f"No {title} tracked yet. Use Search to add some!").pack(pady=50)
             return
 
-        # Linked State
-        path_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
-        path_frame.pack(fill="x", pady=5)
+        col = 0
+        row = 0
+        max_cols = 5
 
-        path_label = ctk.CTkLabel(path_frame, text=episode.file_path, text_color="gray", wraplength=400)
-        path_label.pack(side="left")
+        for item in media_items:
+            card = ctk.CTkFrame(grid_frame, width=160, height=280)
+            card.grid(row=row, column=col, padx=10, pady=10)
+            card.grid_propagate(False)
 
-        change_btn = ctk.CTkButton(path_frame, text="Change File", width=100, command=self._browse_video_file)
-        change_btn.pack(side="right")
+            img_label = ctk.CTkLabel(card, text="No Poster", width=140, height=210, fg_color="gray30")
+            img_label.pack(pady=(10, 5))
 
-        actions_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
-        actions_frame.pack(anchor="w", pady=10)
+            if item['poster_path']:
+                local_img = POSTER_CACHE_DIR / item['poster_path'].lstrip('/')
+                if local_img.exists():
+                    img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(140, 210))
+                    img_label.configure(image=img, text="")
 
-        play_btn = ctk.CTkButton(
-            actions_frame, text="▶ Play Episode",
-            fg_color="#3a7ebf", hover_color="#2b5e8f",
-            command=lambda: self._play_timestamp(0)
-        )
-        play_btn.pack(side="left", padx=(0, 10))
+            ctk.CTkLabel(card, text=item['title'], font=ctk.CTkFont(weight="bold"), wraplength=140).pack()
 
-        play_hl_btn = ctk.CTkButton(
-            actions_frame, text="🎬 Play Highlight Reel",
-            fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER,
-            command=self._play_highlight_reel
-        )
-        play_hl_btn.pack(side="left")
+            card.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
+            for child in card.winfo_children():
+                child.bind("<Button-1>", lambda e, mid=item['id']: self._show_media_details(mid))
 
-        # MIDDLE: Timestamp List
-        list_frame = ctk.CTkScrollableFrame(self.right_frame)
-        list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            col += 1
+            if col >= max_cols:
+                col = 0
+                row += 1
 
-        # Headers
-        h_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
-        h_frame.pack(fill="x", pady=5)
-        h_frame.grid_columnconfigure(2, weight=1)
+    # =========================================================================
+    # SEARCH & DISCOVER
+    # =========================================================================
+    def _show_search(self):
+        self._highlight_nav("🔍 Search")
+        self._clear_main_frame()
 
-        ctk.CTkLabel(h_frame, text="Segments / Time", font=ctk.CTkFont(weight="bold"), width=150).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(h_frame, text="Tags", font=ctk.CTkFont(weight="bold"), width=100).grid(row=0, column=1, sticky="w", padx=10)
-        ctk.CTkLabel(h_frame, text="Description", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, sticky="w", padx=10)
-        ctk.CTkLabel(h_frame, text="Actions", font=ctk.CTkFont(weight="bold"), width=250).grid(row=0, column=3, sticky="e")
+        top_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        top_frame.pack(fill="x", padx=20, pady=20)
 
-        for idx, ts in enumerate(episode.timestamps):
-            row = ctk.CTkFrame(list_frame)
+        self.search_entry = ctk.CTkEntry(top_frame, placeholder_text="Search TMDB for Shows or Movies...", width=400)
+        self.search_entry.pack(side="left", padx=(0, 10))
+        self.search_entry.bind("<Return>", lambda e: self._perform_search())
+
+        ctk.CTkButton(top_frame, text="Search", command=self._perform_search).pack(side="left")
+
+        self.results_frame = ctk.CTkScrollableFrame(self.main_frame)
+        self.results_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+    def _perform_search(self):
+        query = self.search_entry.get().strip()
+        if not query: return
+
+        api_key = self.data_manager.settings.get("tmdb_api_key")
+        if not api_key:
+            messagebox.showwarning("Missing API Key", "Please add your TMDB API Key in Settings first.")
+            return
+
+        for widget in self.results_frame.winfo_children():
+            widget.destroy()
+
+        ctk.CTkLabel(self.results_frame, text="Searching...").pack(pady=20)
+        self.update()
+
+        def run_search():
+            try:
+                results = search_media(api_key, query)
+                self.after(0, lambda: self._display_search_results(results))
+            except Exception as e:
+                self.after(0, lambda: ToastNotification(self, title="Offline Mode", message="Cannot reach TMDB.", duration=5000, color="#b71c1c"))
+                self.after(0, self._clear_results_frame)
+
+        threading.Thread(target=run_search, daemon=True).start()
+
+    def _clear_results_frame(self):
+        for widget in self.results_frame.winfo_children():
+            widget.destroy()
+
+    def _display_search_results(self, results):
+        self._clear_results_frame()
+
+        if not results:
+            ctk.CTkLabel(self.results_frame, text="No results found.").pack(pady=20)
+            return
+
+        for i, res in enumerate(results):
+            row = ctk.CTkFrame(self.results_frame)
+            row.pack(fill="x", pady=5)
+
+            info = f"[{res['type']}] {res['title']} ({res['release_date'][:4] if res['release_date'] else 'N/A'})"
+            ctk.CTkLabel(row, text=info, font=ctk.CTkFont(weight="bold")).pack(side="left", padx=10, pady=10)
+
+            btn = ctk.CTkButton(row, text="+ Add to Tracker", command=lambda r=res: self._add_to_tracker(r))
+            btn.pack(side="right", padx=10, pady=10)
+
+    def _add_to_tracker(self, media_data):
+        api_key = self.data_manager.settings.get("tmdb_api_key")
+
+        def fetch_and_save():
+            try:
+                # 1. Fetch details
+                details = get_media_details(api_key, media_data['tmdb_id'], media_data['type'])
+                if not details: return
+
+                # Download Poster
+                if details['poster_path']:
+                    download_poster(details['poster_path'])
+
+                conn = self.data_manager.get_db_connection()
+                cursor = conn.cursor()
+
+                # Check if exists
+                cursor.execute("SELECT id FROM Media WHERE tmdb_id=?", (details['tmdb_id'],))
+                existing = cursor.fetchone()
+                if existing:
+                    self.after(0, lambda: messagebox.showinfo("Exists", "This media is already tracked."))
+                    conn.close()
+                    return
+
+                # Insert Media
+                cursor.execute("""
+                    INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, total_episodes, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (details['tmdb_id'], details['type'], details['title'], details['synopsis'],
+                      details['poster_path'], details['total_episodes'], details['status']))
+
+                media_id = cursor.lastrowid
+
+                # Fetch Episodes if TV Show
+                if details['type'] == 'TV':
+                    for season in details['seasons']:
+                        s_num = season.get('season_number')
+                        if s_num == 0: continue # Skip specials usually
+
+                        eps = get_tv_season_episodes(api_key, details['tmdb_id'], s_num)
+                        for ep in eps:
+                            cursor.execute("""
+                                INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
+                                VALUES (?, ?, ?, ?, ?)
+                            """, (media_id, s_num, ep['ep_num'], ep['title'], ep['runtime']))
+                else:
+                    # Movie has 1 dummy episode
+                    cursor.execute("""
+                        INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime)
+                        VALUES (?, 1, 1, ?, ?)
+                    """, (media_id, details['title'], details.get('runtime', 0)))
+
+                conn.commit()
+                conn.close()
+
+                self.after(0, lambda: messagebox.showinfo("Success", f"Added {details['title']} to tracker!"))
+
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to add media: {e}"))
+
+        threading.Thread(target=fetch_and_save, daemon=True).start()
+
+    # =========================================================================
+    # MEDIA DEEP DIVE
+    # =========================================================================
+    def _show_media_details(self, media_id):
+        self._clear_main_frame()
+
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM Media WHERE id=?", (media_id,))
+        media = cursor.fetchone()
+
+        if not media:
+            conn.close()
+            return
+
+        # Header
+        header = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        header.pack(fill="x", padx=20, pady=20)
+
+        img_label = ctk.CTkLabel(header, text="No Poster", width=150, height=225, fg_color="gray30")
+        img_label.pack(side="left", padx=(0, 20))
+
+        if media['poster_path']:
+            local_img = POSTER_CACHE_DIR / media['poster_path'].lstrip('/')
+            if local_img.exists():
+                img = ctk.CTkImage(light_image=Image.open(local_img), dark_image=Image.open(local_img), size=(150, 225))
+                img_label.configure(image=img, text="")
+
+        info_frame = ctk.CTkFrame(header, fg_color="transparent")
+        info_frame.pack(side="left", fill="both", expand=True)
+
+        ctk.CTkLabel(info_frame, text=media['title'], font=ctk.CTkFont(size=28, weight="bold")).pack(anchor="w")
+        ctk.CTkLabel(info_frame, text=media['synopsis'], wraplength=700, justify="left").pack(anchor="w", pady=10)
+
+        # Stats Bar
+        cursor.execute("SELECT COUNT(*) as c FROM Episodes WHERE media_id=? AND status='Completed'", (media_id,))
+        watched_eps = cursor.fetchone()['c']
+
+        cursor.execute("SELECT SUM(watch_count) as s FROM Episodes WHERE media_id=?", (media_id,))
+        total_watches_row = cursor.fetchone()
+        total_watches = total_watches_row['s'] if total_watches_row['s'] else 0
+
+        stats_text = f"Episodes Watched: {watched_eps} / {media['total_episodes']}  |  Total Rewatches: {total_watches}"
+        ctk.CTkLabel(info_frame, text=stats_text, font=ctk.CTkFont(weight="bold", text_color=VLC_ORANGE)).pack(anchor="w", pady=10)
+
+        # Main Area (Tabs for Seasons if TV)
+        content_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        if media['type'] == 'TV':
+            cursor.execute("SELECT DISTINCT season_num FROM Episodes WHERE media_id=? ORDER BY season_num", (media_id,))
+            seasons = [r['season_num'] for r in cursor.fetchall()]
+
+            if seasons:
+                # Top horizontal scroll for season buttons
+                season_scroll = ctk.CTkScrollableFrame(content_frame, orientation="horizontal", height=50)
+                season_scroll.pack(fill="x", pady=(0, 10))
+
+                self.ep_list_frame = ctk.CTkScrollableFrame(content_frame)
+                self.ep_list_frame.pack(fill="both", expand=True)
+
+                for s in seasons:
+                    btn = ctk.CTkButton(season_scroll, text=f"Season {s}", width=80,
+                                        command=lambda s_num=s, m_id=media_id: self._load_episodes(m_id, s_num))
+                    btn.pack(side="left", padx=5)
+
+                # Load first season by default
+                self._load_episodes(media_id, seasons[0])
+        else:
+            self.ep_list_frame = ctk.CTkScrollableFrame(content_frame)
+            self.ep_list_frame.pack(fill="both", expand=True)
+            self._load_episodes(media_id, 1)
+
+        conn.close()
+
+    def _load_episodes(self, media_id, season_num):
+        for widget in self.ep_list_frame.winfo_children():
+            widget.destroy()
+
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT e.*, l.file_path
+            FROM Episodes e
+            LEFT JOIN Local_Files l ON e.id = l.episode_id
+            WHERE e.media_id=? AND e.season_num=?
+            ORDER BY e.ep_num
+        """, (media_id, season_num))
+
+        episodes = cursor.fetchall()
+        conn.close()
+
+        for ep in episodes:
+            row = ctk.CTkFrame(self.ep_list_frame)
             row.pack(fill="x", pady=2)
-            row.grid_columnconfigure(2, weight=1)
 
-            num_segs = len(ts.segments)
-            if num_segs == 1:
-                st, et = ts.segments[0]
-                time_range = f"{format_time_display(st)} - {format_time_display(et)}"
-            else:
-                time_range = f"{num_segs} Segments (Multi)"
+            # Status Icon
+            icon = "⬛" # Unwatched
+            if ep['status'] == 'Completed':
+                icon = "✅"
+            elif ep['status'] == 'Watching':
+                icon = "⏳"
 
-            ctk.CTkLabel(row, text=time_range, width=150).grid(row=0, column=0, sticky="w", padx=5)
+            ctk.CTkLabel(row, text=icon, width=30).pack(side="left", padx=5)
 
-            tags_str = ", ".join(ts.tags)
-            ctk.CTkLabel(row, text=tags_str, width=100).grid(row=0, column=1, sticky="w", padx=10)
+            # Title
+            title_text = f"{ep['ep_num']}. {ep['title']}"
+            color = "white" if ep['status'] == 'Completed' else "gray"
+            ctk.CTkLabel(row, text=title_text, width=250, anchor="w", text_color=color).pack(side="left", padx=10)
 
-            ctk.CTkLabel(row, text=ts.description).grid(row=0, column=2, sticky="w", padx=10)
+            # Play Button
+            has_file = bool(ep['file_path'])
+            play_color = VLC_ORANGE if has_file else "gray30"
+            play_hover = VLC_ORANGE_HOVER if has_file else "gray30"
 
-            action_f = ctk.CTkFrame(row, fg_color="transparent")
-            action_f.grid(row=0, column=3, sticky="e")
+            play_btn = ctk.CTkButton(row, text="▶", width=40, fg_color=play_color, hover_color=play_hover,
+                                     command=lambda e=ep: self._play_episode(e) if e['file_path'] else None)
+            play_btn.pack(side="left", padx=10)
 
-            first_start = ts.segments[0][0] if ts.segments else 0
-            ctk.CTkButton(action_f, text="▶", width=30, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=lambda t=first_start: self._play_timestamp(t)).pack(side="left", padx=2)
-            ctk.CTkButton(action_f, text="🎬 Export Seamless", width=120, command=lambda t=ts: self._export_seamless(t)).pack(side="left", padx=2)
-            ctk.CTkButton(action_f, text="Edit", width=40, command=lambda i=idx: self._start_edit_timestamp(i)).pack(side="left", padx=2)
-            ctk.CTkButton(action_f, text="Del", width=40, fg_color="#C62828", hover_color="#B71C1C", command=lambda i=idx: self._delete_timestamp(i)).pack(side="left", padx=2)
+            # Watch Count controls
+            ctk.CTkButton(row, text="-", width=30, fg_color="gray", command=lambda e_id=ep['id'], m_id=media_id, s=season_num: self._adj_watch(e_id, m_id, s, -1)).pack(side="left", padx=2)
+            ctk.CTkLabel(row, text=f"Count: {ep['watch_count']}", width=70).pack(side="left", padx=5)
+            ctk.CTkButton(row, text="+", width=30, fg_color="gray", command=lambda e_id=ep['id'], m_id=media_id, s=season_num: self._adj_watch(e_id, m_id, s, 1)).pack(side="left", padx=2)
 
-        # BOTTOM: Add New Timestamp (Highlight Reel Optimizer)
-        input_frame = ctk.CTkFrame(self.right_frame)
-        input_frame.pack(fill="x", padx=10, pady=10)
+    def _adj_watch(self, episode_id, media_id, season_num, delta):
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
 
-        self.active_tags = []
+        cursor.execute("SELECT watch_count FROM Episodes WHERE id=?", (episode_id,))
+        count = cursor.fetchone()['watch_count']
 
-        # Row 0: Rapid Cut Mode Toggle & Pills Container
-        rapid_row = ctk.CTkFrame(input_frame, fg_color="transparent")
-        rapid_row.pack(fill="x", pady=(5, 5), padx=5)
+        new_count = max(0, count + delta)
+        status = 'Completed' if new_count > 0 else 'Unwatched'
 
-        self.rapid_switch = ctk.CTkSwitch(
-            rapid_row, text="⚡ Enable Rapid-Cut Mode (Hold ALT to record)",
-            variable=self.rapid_cut_mode,
-            command=self._toggle_rapid_mode
-        )
-        self.rapid_switch.pack(side="left")
+        cursor.execute("UPDATE Episodes SET watch_count=?, status=? WHERE id=?", (new_count, status, episode_id))
+        if delta > 0:
+            cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
 
-        self.rapid_status_lbl = ctk.CTkLabel(rapid_row, text="", width=120)
-        self.rapid_status_lbl.pack(side="left", padx=10)
+        conn.commit()
+        conn.close()
 
-        self.rapid_clear_btn = ctk.CTkButton(rapid_row, text="Clear All", fg_color="gray", width=80, command=self._clear_rapid_segments)
+        self._load_episodes(media_id, season_num)
 
-        # Timeline/Pills Container (horizontal scroll or just a wrapping frame)
-        self.pills_frame = ctk.CTkScrollableFrame(input_frame, orientation="horizontal", height=40)
-        self.pills_frame.pack(fill="x", padx=5, pady=(0, 5))
-
-        # Row 1: Time Fetchers (Single Segment Input)
-        self.time_row = ctk.CTkFrame(input_frame, fg_color="transparent")
-        self.time_row.pack(fill="x", pady=(5, 5), padx=5)
-
-        ctk.CTkButton(self.time_row, text="[ Get Start Time ]", width=120, command=lambda: self._fetch_vlc_time("start")).pack(side="left", padx=(0, 5))
-        self.start_entry = ctk.CTkEntry(self.time_row, placeholder_text="Start (MM:SS)", width=90)
-        self.start_entry.pack(side="left", padx=(0, 15))
-
-        ctk.CTkButton(self.time_row, text="[ Get End Time ]", width=120, command=lambda: self._fetch_vlc_time("end")).pack(side="left", padx=(0, 5))
-        self.end_entry = ctk.CTkEntry(self.time_row, placeholder_text="End (MM:SS)", width=90)
-        self.end_entry.pack(side="left")
-
-        self.vlc_warning_label = ctk.CTkLabel(self.time_row, text="", text_color="#C62828", font=ctk.CTkFont(size=11))
-        self.vlc_warning_label.pack(side="left", padx=10)
-
-        # Row 2: Presets and Saving
-        bot_row = ctk.CTkFrame(input_frame, fg_color="transparent")
-        bot_row.pack(fill="x", pady=(5, 10), padx=5)
-
-        tags_frame = ctk.CTkFrame(bot_row, fg_color="transparent")
-        tags_frame.pack(side="left")
-
-        ctk.CTkLabel(tags_frame, text="Tags:").pack(side="left", padx=(0, 5))
-
-        presets = self.data_manager.settings.get("tags_presets", ["Action", "Funny", "Important"])
-        self.tag_buttons = {}
-        for preset in presets:
-            btn = ctk.CTkButton(tags_frame, text=preset, width=60, fg_color="#555555", hover_color="#666666", command=lambda p=preset: self._toggle_tag(p))
-            btn.pack(side="left", padx=2)
-            self.tag_buttons[preset] = btn
-
-        self.desc_entry = ctk.CTkEntry(bot_row, placeholder_text="Optional Note", width=150)
-        self.desc_entry.pack(side="left", expand=True, fill="x", padx=10)
-
-        self.save_ts_btn = ctk.CTkButton(bot_row, text="Save Highlight", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=self._save_timestamp)
-        self.save_ts_btn.pack(side="left", padx=5)
-
-        self.cancel_ts_btn = ctk.CTkButton(bot_row, text="Cancel", fg_color="gray", command=self._cancel_edit_timestamp)
-        # Cancel btn is initially hidden
-
-        # Initial UI refresh for rapid mode
-        self._toggle_rapid_mode()
-
-    def _toggle_rapid_mode(self):
-        if self.rapid_cut_mode.get():
-            self.time_row.pack_forget() # Hide single entry
-            self.rapid_clear_btn.pack(side="left", padx=10)
-            self.pills_frame.pack(fill="x", padx=5, pady=(0, 5), before=self.time_row)
-            self._update_rapid_ui()
-        else:
-            self.pills_frame.pack_forget()
-            self.time_row.pack(fill="x", pady=(5, 5), padx=5, before=self.save_ts_btn.master)
-            self.rapid_clear_btn.pack_forget()
-            self.rapid_status_lbl.configure(text="")
-
-    def _update_rapid_ui(self):
-        if self.rapid_cut_mode.get():
-            n = len(self.rapid_segments)
-            self.rapid_status_lbl.configure(text=f"{n} Segments", text_color="white")
-
-            # Redraw pills
-            for widget in self.pills_frame.winfo_children():
-                widget.destroy()
-
-            for i, seg in enumerate(self.rapid_segments):
-                duration = max(0, seg[1] - seg[0])
-                pill = ctk.CTkFrame(self.pills_frame, fg_color="#3a7ebf", corner_radius=10)
-                pill.pack(side="left", padx=5, pady=2)
-
-                # Nudge Left (<)
-                btn_left = ctk.CTkButton(pill, text="<", width=20, height=20, fg_color="transparent",
-                                         command=lambda idx=i: self._nudge_segment(idx, -0.5))
-                btn_left.pack(side="left", padx=2)
-
-                # Label (e.g. 2.5s)
-                lbl = ctk.CTkLabel(pill, text=f"{duration:.1f}s", font=ctk.CTkFont(size=11, weight="bold"))
-                lbl.pack(side="left", padx=2)
-
-                # Nudge Right (>)
-                btn_right = ctk.CTkButton(pill, text=">", width=20, height=20, fg_color="transparent",
-                                          command=lambda idx=i: self._nudge_segment(idx, 0.5))
-                btn_right.pack(side="left", padx=2)
-
-                # Delete (X)
-                btn_del = ctk.CTkButton(pill, text="✖", width=20, height=20, fg_color="transparent", hover_color="#C62828",
-                                        command=lambda idx=i: self._delete_segment(idx))
-                btn_del.pack(side="left", padx=2)
-
-            if hasattr(self, 'mini_bar') and self.mini_bar:
-                self.mini_bar.update_status(False, self.rapid_segments)
-
-    def _delete_segment(self, idx: int):
-        if 0 <= idx < len(self.rapid_segments):
-            del self.rapid_segments[idx]
-            self._update_rapid_ui()
-
-    def _nudge_segment(self, idx: int, amount: float):
-        if 0 <= idx < len(self.rapid_segments):
-            # Nudge the end time by the amount
-            st, et = self.rapid_segments[idx]
-            self.rapid_segments[idx] = [st, max(st, et + amount)]
-            self._update_rapid_ui()
-
-    def _clear_rapid_segments(self):
-        self.rapid_segments = []
-        self._update_rapid_ui()
-        if hasattr(self, 'mini_bar') and self.mini_bar:
-            self.mini_bar.update_status(False, [])
-
-    def _toggle_tag(self, tag: str):
-        if tag in self.active_tags:
-            self.active_tags.remove(tag)
-            self.tag_buttons[tag].configure(fg_color="#555555") # Inactive state
-        else:
-            self.active_tags.append(tag)
-            self.tag_buttons[tag].configure(fg_color="#3a7ebf") # Active state
-
-    def _fetch_vlc_time(self, target: str):
-        self.vlc_warning_label.configure(text="")
-
-        time_seconds = get_current_vlc_time()
-
-        if time_seconds >= 0:
-            formatted_time = format_time_display(time_seconds)
-            if target == "start":
-                self.start_entry.delete(0, 'end')
-                self.start_entry.insert(0, formatted_time)
-            elif target == "end":
-                self.end_entry.delete(0, 'end')
-                self.end_entry.insert(0, formatted_time)
-        else:
-            self.vlc_warning_label.configure(text="⚠️ VLC connect fail")
-
-    def _browse_video_file(self):
-        if not self.selected_episode: return
-        file_path = filedialog.askopenfilename(title="Select Video File", filetypes=[("Video Files", "*.mp4 *.mkv *.avi *.mov *.wmv *.flv *.webm"), ("All Files", "*.*")])
-        if file_path:
-            self.selected_episode.file_path = file_path
-            self.data_manager.save_library()
-            self._show_episode_view(self.selected_episode)
-
-    def _play_timestamp(self, time_seconds: int):
-        vlc_path = self.data_manager.settings.get("vlc_path", "")
+    # =========================================================================
+    # VLC PLAYBACK & TRACKING
+    # =========================================================================
+    def _play_episode(self, ep_data):
+        vlc_path = self.data_manager.settings.get("vlc_path")
         if not vlc_path:
-            messagebox.showwarning("VLC Path Not Set", "Please set your VLC path in the Settings first.")
+            messagebox.showwarning("VLC Path Not Set", "Please set VLC path in Settings.")
             return
 
-        if self.selected_episode and self.selected_episode.file_path:
-            play_in_vlc(vlc_path, self.selected_episode.file_path, time_seconds)
-
-    def _play_highlight_reel(self):
-        if not self.selected_episode or not self.selected_episode.file_path:
-            return
-        vlc_path = self.data_manager.settings.get("vlc_path", "")
-        if not vlc_path:
-            messagebox.showwarning("VLC Path Not Set", "Please set your VLC path in the Settings first.")
+        file_path = ep_data['file_path']
+        if not os.path.exists(file_path):
+            messagebox.showerror("File Missing", "The linked file no longer exists.")
             return
 
-        scenes = []
-        for ts in self.selected_episode.timestamps:
-            scenes.append({
-                'file': self.selected_episode.file_path,
-                'segments': ts.segments,
-                'title': f"{ts.description} - {', '.join(ts.tags)}" if ts.description else "Highlight"
-            })
+        # Start time (if partial watch, maybe we want to resume? For now starting at 0 to keep it simple,
+        # but could calculate start_time = last_position * runtime)
+        start_sec = 0
+        if ep_data['last_position'] > 0 and ep_data['runtime'] > 0:
+            start_sec = int(ep_data['last_position'] * ep_data['runtime'] * 60)
 
-        if not scenes:
-            messagebox.showinfo("No Highlights", "There are no highlights saved for this episode.")
-            return
+        proc = play_in_vlc(vlc_path, file_path, start_time=start_sec)
 
-        generate_highlight_playlist(vlc_path, scenes)
+        if proc:
+            threading.Thread(target=self._vlc_heartbeat, args=(proc, ep_data['id'], ep_data['media_id'], ep_data['season_num']), daemon=True).start()
 
-    def _export_seamless(self, ts: Timestamp):
-        if not self.selected_episode or not self.selected_episode.file_path: return
-        if not ts.segments: return
+    def _vlc_heartbeat(self, proc, episode_id, media_id, season_num):
+        high_water_mark = 0.0
 
-        export_dir = self.data_manager.settings.get("default_export_dir", str(Path.home() / "Videos" / "TimeMark"))
-        os.makedirs(export_dir, exist_ok=True)
+        while proc.poll() is None:
+            time.sleep(5)
+            status = get_vlc_status()
+            if status and status['length'] > 0:
+                pos = status['time'] / status['length']
+                if pos > high_water_mark:
+                    high_water_mark = pos
 
-        ep = self.selected_episode
-        safe_series = "".join(c for c in ep.series if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
-        safe_desc = "".join(c for c in ts.description if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
-        if not safe_desc:
-            safe_desc = "QuickCut"
+        # Process closed
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
 
-        start_time_str = f"{ts.segments[0][0]}s"
-
-        file_name = f"{safe_series}_S{ep.season}E{ep.title.split()[-1]}_{safe_desc}_{start_time_str}.mp4"
-        output_file = os.path.join(export_dir, file_name)
-
-        ToastNotification(self, title="Export Started", message=f"Exporting seamless scene to {export_dir}...\nPlease wait.", duration=3000)
-
-        def run_export():
-            success = export_seamless_scene(ep.file_path, ts.segments, output_file)
-            self.after(0, lambda: _export_done(success, output_file))
-
-        def _export_done(success, out_file):
-            if success:
-                ToastNotification(self, title="✅ Clip Saved Successfully!", message=f"Saved to:\n{out_file}", duration=5000, color="#1b5e20")
-            else:
-                ToastNotification(self, title="❌ Export Failed", message="Failed to export seamless scene. See console.", duration=5000, color="#b71c1c")
-
-        threading.Thread(target=run_export, daemon=True).start()
-
-    def _toggle_mini_mode(self):
-        if not self.selected_episode:
-            messagebox.showwarning("No Episode", "Please select an episode first before entering Mini-Mode.")
-            return
-
-        # Ensure rapid cut mode is on
-        if not self.rapid_cut_mode.get():
-            self.rapid_cut_mode.set(True)
-            self._toggle_rapid_mode()
-
-        self.withdraw() # Hide main window
-
-        def on_export():
-            if not self.rapid_segments:
-                ToastNotification(self.mini_bar, title="No Segments", message="Hold ALT to capture segments first.", duration=3000, color="#b71c1c")
-                return
-
-            # Save the rapid segments as a Timestamp to the library
-            new_ts = Timestamp(
-                segments=list(self.rapid_segments),
-                tags=list(self.active_tags),
-                description="GhostClipper"
-            )
-            self.selected_episode.timestamps.append(new_ts)
-            self.selected_episode.timestamps.sort(key=lambda x: x.segments[0][0] if x.segments else 0)
-            self.data_manager.save_library()
-
-            # Trigger background export of the saved timestamp
-            self._export_seamless(new_ts)
-
-            # Reset buffer
-            self._clear_rapid_segments()
-
-        def on_close():
-            self.mini_bar.destroy()
-            self.mini_bar = None
-            self.deiconify() # Show main window
-            self._show_episode_view(self.selected_episode)
-
-        self.mini_bar = MiniBar(self, on_export_callback=on_export, on_close_callback=on_close)
-        self.mini_bar.update_status(False, self.rapid_segments)
-
-    def _save_timestamp(self):
-        if not self.selected_episode: return
-
-        desc = self.desc_entry.get().strip()
-        tags = list(self.active_tags)
-
-        # Decide segments based on mode
-        segments = []
-        if self.rapid_cut_mode.get():
-            if not self.rapid_segments:
-                messagebox.showwarning("No Segments", "Rapid-Cut mode is on, but no segments were recorded (Hold ALT).")
-                return
-            segments = list(self.rapid_segments)
+        if high_water_mark > 0.90:
+            cursor.execute("""
+                UPDATE Episodes
+                SET watch_count = watch_count + 1, status = 'Completed', last_position = 0.0
+                WHERE id = ?
+            """, (episode_id,))
+            cursor.execute("INSERT INTO History (episode_id) VALUES (?)", (episode_id,))
         else:
-            start_str = self.start_entry.get().strip()
-            end_str = self.end_entry.get().strip()
+            # If we didn't hit 90%, but we watched something, mark as watching
+            if high_water_mark > 0.05: # At least 5% to avoid accidental clicks
+                cursor.execute("""
+                    UPDATE Episodes
+                    SET status = 'Watching', last_position = ?
+                    WHERE id = ? AND status != 'Completed'
+                """, (high_water_mark, episode_id))
 
-            if not start_str:
-                messagebox.showwarning("Incomplete Input", "Start time is required.")
-                return
+        conn.commit()
+        conn.close()
 
-            start_seconds = parse_time_input(start_str)
-            end_seconds = parse_time_input(end_str) if end_str else start_seconds
+        # Refresh UI if we are still on that page
+        self.after(0, lambda: self._refresh_if_on_episode(media_id, season_num))
 
-            # Ensure start is before end
-            if start_seconds > end_seconds:
-                start_seconds, end_seconds = end_seconds, start_seconds
+    def _refresh_if_on_episode(self, media_id, season_num):
+        # We check if the ep_list_frame exists and is visible. Simplistic refresh.
+        if hasattr(self, 'ep_list_frame') and self.ep_list_frame.winfo_exists():
+            self._load_episodes(media_id, season_num)
 
-            segments = [[start_seconds, end_seconds]]
+    # =========================================================================
+    # SCANNER & UNMATCHED
+    # =========================================================================
+    def _scan_folder(self):
+        folder = filedialog.askdirectory(title="Select Media Folder")
+        if folder:
+            # Let the user know scanning started without freezing the UI completely
+            ToastNotification(self, title="Scan Started", message=f"Scanning {folder} in background...", duration=3000)
 
-        new_ts = Timestamp(
-            segments=segments,
-            tags=tags,
-            description=desc
-        )
+            def run_scan():
+                try:
+                    unmatched = scan_directory(folder, self.data_manager)
+                    self.after(0, lambda: self._finish_scan(unmatched))
+                except Exception as e:
+                    self.after(0, lambda: messagebox.showerror("Scan Error", str(e)))
 
-        if self.editing_timestamp_idx is not None:
-            # Update existing
-            self.selected_episode.timestamps[self.editing_timestamp_idx] = new_ts
-        else:
-            # Add new
-            self.selected_episode.timestamps.append(new_ts)
+            threading.Thread(target=run_scan, daemon=True).start()
 
-        # Sort timestamps by earliest segment start time
-        self.selected_episode.timestamps.sort(key=lambda x: x.segments[0][0] if x.segments else 0)
+    def _finish_scan(self, unmatched):
+        self.current_unmatched_files.extend(unmatched)
+        ToastNotification(self, title="Scan Complete", message=f"Finished. Found {len(unmatched)} unmatched files.", duration=4000, color="#1b5e20")
+        # If user is currently looking at unmatched list, refresh it
+        if hasattr(self, 'nav_btns') and self.nav_btns["❓ Unmatched Files"].cget("fg_color") == ("gray75", "gray25"):
+            self._show_unmatched()
 
-        self.data_manager.save_library()
-        self._clear_rapid_segments() # Reset
-        self._show_episode_view(self.selected_episode)
+    def _show_unmatched(self):
+        self._highlight_nav("❓ Unmatched Files")
+        self._clear_main_frame()
 
-        # We need to refresh tree in case filter mode is active and we just added/deleted timestamps
-        if self.show_only_highlighted.get():
-            self._populate_tree()
+        ctk.CTkLabel(self.main_frame, text="Unmatched Files", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=20)
 
-    def _start_edit_timestamp(self, idx: int):
-        ts = self.selected_episode.timestamps[idx]
-        self.editing_timestamp_idx = idx
+        if not self.current_unmatched_files:
+            ctk.CTkLabel(self.main_frame, text="No unmatched files.").pack(pady=20)
+            return
 
-        # If it's a multi-segment scene, editing is restricted to tags/desc only for now
-        # We switch to Rapid Cut mode visually but don't populate segments
-        if len(ts.segments) > 1:
-            self.rapid_cut_mode.set(True)
-            self.rapid_segments = list(ts.segments)
-            self._toggle_rapid_mode()
-        else:
-            self.rapid_cut_mode.set(False)
-            self._toggle_rapid_mode()
-            self.start_entry.delete(0, 'end')
-            self.start_entry.insert(0, format_time_display(ts.segments[0][0]))
-            self.end_entry.delete(0, 'end')
-            self.end_entry.insert(0, format_time_display(ts.segments[0][1]))
+        scroll = ctk.CTkScrollableFrame(self.main_frame)
+        scroll.pack(fill="both", expand=True, padx=20, pady=10)
 
-        self.desc_entry.delete(0, 'end')
-        self.desc_entry.insert(0, ts.description)
+        for idx, uf in enumerate(self.current_unmatched_files):
+            row = ctk.CTkFrame(scroll)
+            row.pack(fill="x", pady=2)
 
-        # Reset tag buttons
-        for p, btn in self.tag_buttons.items():
-            btn.configure(fg_color="#555555")
-        self.active_tags = []
-        for tag in ts.tags:
-            if tag in self.tag_buttons:
-                self._toggle_tag(tag)
+            ctk.CTkLabel(row, text=uf['filename'], width=400, anchor="w").pack(side="left", padx=10)
+            ctk.CTkButton(row, text="Assign...", command=lambda idx=idx: self._assign_unmatched(idx)).pack(side="right", padx=10)
 
-        self.save_ts_btn.configure(text="Update")
-        self.cancel_ts_btn.pack(side="left", padx=5)
+    def _assign_unmatched(self, uf_idx):
+        # Extremely simplified assignment logic for MVP
+        uf = self.current_unmatched_files[uf_idx]
 
-    def _cancel_edit_timestamp(self):
-        self.editing_timestamp_idx = None
-        self._clear_rapid_segments()
-        self.start_entry.delete(0, 'end')
-        self.end_entry.delete(0, 'end')
-        self.desc_entry.delete(0, 'end')
-        for p, btn in self.tag_buttons.items():
-            btn.configure(fg_color="#555555")
-        self.active_tags = []
-        self.save_ts_btn.configure(text="Save Highlight")
-        self.cancel_ts_btn.pack_forget()
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Assign File")
+        dialog.geometry("400x300")
+        dialog.grab_set()
 
-    def _delete_timestamp(self, idx: int):
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this timestamp?"):
-            del self.selected_episode.timestamps[idx]
-            self.data_manager.save_library()
-            self._show_episode_view(self.selected_episode)
+        ctk.CTkLabel(dialog, text=f"Assigning: {uf['filename']}").pack(pady=10)
 
-    def _edit_tree_item(self):
-        selected = self.tree.selection()
-        if not selected: return
+        conn = self.data_manager.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, title, type FROM Media ORDER BY title")
+        media_items = cursor.fetchall()
+        conn.close()
 
-        item = self.tree.item(selected[0])
-        values = item.get("values", [])
-        if not values: return
+        if not media_items:
+            ctk.CTkLabel(dialog, text="No Media tracked in DB.").pack(pady=10)
+            return
 
-        node_type = values[0]
+        media_names = [f"[{m['type']}] {m['title']}" for m in media_items]
+        media_map = {f"[{m['type']}] {m['title']}": (m['id'], m['type']) for m in media_items}
 
-        dialog = ctk.CTkInputDialog(text="Enter new name:", title="Edit Name")
-        new_name = dialog.get_input()
+        media_var = ctk.StringVar(value=media_names[0])
+        opt = ctk.CTkOptionMenu(dialog, variable=media_var, values=media_names)
+        opt.pack(pady=10)
 
-        if not new_name: return
+        s_entry = ctk.CTkEntry(dialog, placeholder_text="Season (e.g. 1)")
+        s_entry.pack(pady=5)
 
-        # We need to update the dictionary keys, which means we might need to recreate entries
-        lib = self.data_manager.library
+        e_entry = ctk.CTkEntry(dialog, placeholder_text="Episode (e.g. 1)")
+        e_entry.pack(pady=5)
 
-        if node_type == "episode":
-             series_name, season_num, ep_num = str(values[1]), str(values[2]), str(values[3])
-             ep = lib.series[series_name].seasons[season_num].episodes[ep_num]
-             ep.title = new_name
-             self.data_manager.save_library()
-             self._populate_tree()
-        elif node_type == "series":
-             old_name = str(values[1])
-             if new_name in lib.series:
-                 messagebox.showerror("Error", f"A series named '{new_name}' already exists.")
-                 return
+        # Pre-fill for TV shows
+        if uf['parsed_season'] is not None:
+            s_entry.insert(0, str(uf['parsed_season']))
+        if uf['parsed_episode'] is not None:
+            e_entry.insert(0, str(uf['parsed_episode']))
 
-             series_obj = lib.series.pop(old_name)
-             series_obj.name = new_name
-             # Update series name in all child episodes
-             for s_obj in series_obj.seasons.values():
-                 for ep_obj in s_obj.episodes.values():
-                     ep_obj.series = new_name
+        def search_tmdb():
+            dialog.destroy()
+            self.search_entry.delete(0, 'end')
+            self.search_entry.insert(0, uf['parsed_series'] if uf['parsed_series'] else uf['filename'])
+            self._show_search()
+            self._perform_search()
 
-             lib.series[new_name] = series_obj
-             self.data_manager.save_library()
-             self._populate_tree()
-             self._hide_right_pane()
-        elif node_type == "unmatched_episode":
-             ep_key = str(values[1])
-             ep = lib.unmatched.pop(ep_key)
-             ep.title = new_name
+        ctk.CTkButton(dialog, text="Search TMDB", command=search_tmdb, fg_color="#3a7ebf", hover_color="#2b5e8f").pack(pady=(10, 5))
 
-             # Re-evaluate the new name to see if it now matches a regex pattern
-             from .scanner import parse_filename
-             # Create a dummy filename with the new name and original extension
-             dummy_ext = ".mp4"
-             if ep.file_path and "." in ep.file_path:
-                 dummy_ext = os.path.splitext(ep.file_path)[1]
-             dummy_filename = new_name + dummy_ext
+        def save():
+            try:
+                m_id, m_type = media_map[media_var.get()]
 
-             series_name, season_num, episode_num = parse_filename(dummy_filename)
+                if m_type == "Movie":
+                    s_num, e_num = 1, 1
+                else:
+                    s_num = int(s_entry.get())
+                    e_num = int(e_entry.get())
 
-             if series_name and season_num and episode_num:
-                 # It matched! Move it to the library hierarchy
-                 if series_name not in lib.series:
-                     lib.series[series_name] = Series(name=series_name)
-                 series_obj = lib.series[series_name]
+                conn = self.data_manager.get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?", (m_id, s_num, e_num))
+                ep = cursor.fetchone()
 
-                 if season_num not in series_obj.seasons:
-                     series_obj.seasons[season_num] = Season(number=season_num)
-                 season_obj = series_obj.seasons[season_num]
+                if ep:
+                    cursor.execute("""
+                        INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?)
+                        ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path
+                    """, (ep['id'], uf['file_path']))
+                    conn.commit()
+                    conn.close()
 
-                 ep.series = series_name
-                 ep.season = season_num
-                 ep.title = f"Episode {episode_num}"
+                    self.current_unmatched_files.pop(uf_idx)
+                    dialog.destroy()
+                    self._show_unmatched()
+                else:
+                    messagebox.showerror("Error", "Episode does not exist in DB.")
+                    conn.close()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
 
-                 # If an episode already exists there, merge timestamps and replace path
-                 if episode_num in season_obj.episodes:
-                     existing_ep = season_obj.episodes[episode_num]
-                     existing_ep.file_path = ep.file_path
-                     existing_ep.timestamps.extend(ep.timestamps)
-                     # Sort timestamps
-                     existing_ep.timestamps.sort(key=lambda x: x.segments[0][0] if x.segments else 0)
-                 else:
-                     season_obj.episodes[episode_num] = ep
+        ctk.CTkButton(dialog, text="Save", command=save, fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER).pack(pady=(5, 20))
 
-                 messagebox.showinfo("Success", f"Successfully matched and moved to:\n{series_name} -> Season {season_num} -> Episode {episode_num}")
-             else:
-                 # Still unmatched, just update the key and title in unmatched dict
-                 lib.unmatched[new_name] = ep
+    # =========================================================================
+    # SETTINGS
+    # =========================================================================
+    def _show_settings(self):
+        self._highlight_nav("⚙️ Settings")
+        self._clear_main_frame()
 
-             self.data_manager.save_library()
-             self._populate_tree()
-             self._hide_right_pane()
-        else:
-             messagebox.showinfo("Not Supported", "Editing Season names directly is not supported yet.")
+        ctk.CTkLabel(self.main_frame, text="Settings", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w", padx=20, pady=20)
 
-    def _delete_tree_item(self):
-         selected = self.tree.selection()
-         if not selected: return
+        form_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        form_frame.pack(fill="x", padx=20)
 
-         item = self.tree.item(selected[0])
-         values = item.get("values", [])
-         if not values: return
-
-         node_type = values[0]
-
-         if not messagebox.askyesno("Confirm Delete", "Are you sure you want to remove this item from your library? (The actual file will NOT be deleted)."):
-             return
-
-         lib = self.data_manager.library
-
-         if node_type == "episode":
-              series_name, season_num, ep_num = str(values[1]), str(values[2]), str(values[3])
-              del lib.series[series_name].seasons[season_num].episodes[ep_num]
-              # clean up empties
-              if not lib.series[series_name].seasons[season_num].episodes:
-                  del lib.series[series_name].seasons[season_num]
-              if not lib.series[series_name].seasons:
-                  del lib.series[series_name]
-         elif node_type == "unmatched_episode":
-              ep_key = str(values[1])
-              del lib.unmatched[ep_key]
-         elif node_type == "season":
-              series_name, season_num = str(values[1]), str(values[2])
-              del lib.series[series_name].seasons[season_num]
-              if not lib.series[series_name].seasons:
-                  del lib.series[series_name]
-         elif node_type == "series":
-              series_name = str(values[1])
-              del lib.series[series_name]
-
-         self.data_manager.save_library()
-         self._hide_right_pane()
-         self._populate_tree()
-
-    def _open_settings(self):
-        settings_win = ctk.CTkToplevel(self)
-        settings_win.title("Settings")
-        settings_win.geometry("500x400")
-        settings_win.grab_set()
+        # TMDB Key
+        ctk.CTkLabel(form_frame, text="TMDB API Key:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(10, 5))
+        tmdb_entry = ctk.CTkEntry(form_frame, width=400)
+        tmdb_entry.pack(anchor="w")
+        tmdb_entry.insert(0, self.data_manager.settings.get("tmdb_api_key", ""))
 
         # VLC Path
-        ctk.CTkLabel(settings_win, text="VLC Executable Path:", font=ctk.CTkFont(weight="bold")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(form_frame, text="VLC Executable Path:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(20, 5))
+        vlc_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        vlc_frame.pack(fill="x")
 
-        vlc_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
-        vlc_frame.pack(fill="x", padx=20)
-
-        vlc_entry = ctk.CTkEntry(vlc_frame)
-        vlc_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        vlc_entry = ctk.CTkEntry(vlc_frame, width=320)
+        vlc_entry.pack(side="left")
         vlc_entry.insert(0, self.data_manager.settings.get("vlc_path", ""))
 
-        def browse_vlc():
-             path = filedialog.askopenfilename(title="Select VLC Executable")
-             if path:
-                 vlc_entry.delete(0, 'end')
-                 vlc_entry.insert(0, path)
+        def browse():
+            p = filedialog.askopenfilename()
+            if p:
+                vlc_entry.delete(0, 'end')
+                vlc_entry.insert(0, p)
 
-        ctk.CTkButton(vlc_frame, text="Browse", width=80, command=browse_vlc).pack(side="left")
+        ctk.CTkButton(vlc_frame, text="Browse", width=70, command=browse).pack(side="left", padx=10)
 
-        # Export Path
-        ctk.CTkLabel(settings_win, text="Default Export Directory:", font=ctk.CTkFont(weight="bold")).pack(pady=(15, 5), padx=20, anchor="w")
+        def save():
+            self.data_manager.settings["tmdb_api_key"] = tmdb_entry.get().strip()
+            self.data_manager.settings["vlc_path"] = vlc_entry.get().strip()
+            self.data_manager.save_settings()
+            messagebox.showinfo("Saved", "Settings saved successfully.")
 
-        exp_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
-        exp_frame.pack(fill="x", padx=20)
-
-        exp_entry = ctk.CTkEntry(exp_frame)
-        exp_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        exp_entry.insert(0, self.data_manager.settings.get("default_export_dir", ""))
-
-        def browse_exp():
-             path = filedialog.askdirectory(title="Select Default Export Directory")
-             if path:
-                 exp_entry.delete(0, 'end')
-                 exp_entry.insert(0, path)
-
-        ctk.CTkButton(exp_frame, text="Browse", width=80, command=browse_exp).pack(side="left")
-
-        def save_settings():
-             self.data_manager.settings["vlc_path"] = vlc_entry.get()
-             self.data_manager.settings["default_export_dir"] = exp_entry.get()
-             self.data_manager.save_settings()
-             settings_win.destroy()
-
-        ctk.CTkButton(settings_win, text="Save Settings", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=save_settings).pack(pady=20)
-
-        ctk.CTkLabel(settings_win, text="Library Backup:", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5), padx=20, anchor="w")
-
-        backup_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
-        backup_frame.pack(fill="x", padx=20)
-
-        def export_lib():
-             path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")], title="Export Library")
-             if path:
-                 if self.data_manager.export_library(path):
-                     messagebox.showinfo("Success", "Library exported successfully.")
-                 else:
-                     messagebox.showerror("Error", "Failed to export library.")
-
-        def import_lib():
-             path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")], title="Import Library")
-             if path:
-                 if self.data_manager.import_library(path):
-                     messagebox.showinfo("Success", "Library imported successfully. Refreshing UI...")
-                     self._populate_tree()
-                     self._hide_right_pane()
-                 else:
-                     messagebox.showerror("Error", "Failed to import library.")
-
-        ctk.CTkButton(backup_frame, text="Export Library", command=export_lib).pack(side="left", padx=(0, 10))
-        ctk.CTkButton(backup_frame, text="Import Library", command=import_lib).pack(side="left")
+        ctk.CTkButton(self.main_frame, text="Save Settings", fg_color=VLC_ORANGE, hover_color=VLC_ORANGE_HOVER, command=save).pack(pady=40, padx=20, anchor="w")
 
 if __name__ == "__main__":
     app = App()

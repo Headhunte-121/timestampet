@@ -1,31 +1,33 @@
-# TimeMark / VLC-Bookmarker
+# WatchMark Media Tracker
 
-TimeMark is a lightweight, modern desktop application designed to organize video files (like TV Shows and Anime) by Series, Season, and Episode. It is built as a highly-optimized "Highlight Reel Generator", allowing users to quickly log scenes, seamlessly skip "filler", and export stitched scenes losslessly.
+WatchMark is a pure-Python desktop application designed to bridge the gap between online media metadata (what exists in the world) and local file storage (what you actually have downloaded).
+
+It acts as a **Desktop Media Tracking Diary** to track your watch progress, completion statuses, and rewatch counts.
 
 ## Features
 
-*   **Automated Library Generation:** Recursively scans your media folders and automatically parses standard TV show filenames (e.g., `S01E01`) to build a clean Series > Season > Episode hierarchy.
-*   **VLC Highlight Reel Generation:** Automatically connects to VLC's local HTTP API to fetch precise playback positions. Plays your saved highlights seamlessly, skipping filler by generating temporary `.m3u` playlists with pre-caching enabled.
-*   **"Rapid-Cut" Logging Mode & Segment Timeline:** Watch complex sequences with rapid cuts? Enable Rapid-Cut Mode and use a "dead man's switch" global hotkey (Hold `Alt` to capture, Release to stop) to seamlessly log micro-segments. Your captured segments instantly appear as visual "Pills" in a horizontal timeline.
-*   **Pro-Editor Segment Management:** Did you hold the capture key for too long? You can instantly delete accidental micro-segments (e.g. 0.5s clips) by clicking the `✖` on a pill. Missed the start of the action? Use the Nudge buttons (`<`, `>`) on any pill to perfectly adjust the start/end times by 0.5 seconds without re-recording!
-*   **Frame-Accurate FFmpeg Export:** Extracted a multi-segment scene? Click the `[🎬 Export Seamless]` button. TimeMark silently commands `ffmpeg` in the background to automatically name, extract, and stitch your clips into a brand new, uninterrupted `.mp4` video file. We use *smart re-encoding* (`libx264 -preset ultrafast`) to ensure 100% frame-perfect cuts and absolutely zero "keyframe mismatch" artifacts!
-*   **"Ghost-Clipper" Mini-Mode:** Click `[🔲 Switch to Mini-Mode]` to shrink the app into a sleek, draggable, always-on-top overlay. The Mini-Bar glows with a red `🔴` REC indicator when you hold your global hotkey, giving you instant visual feedback without ever taking your eyes off the video.
-*   **Global Hotkeys & Quick Tags:** Log scenes entirely hands-free in the background. Press `Ctrl+Shift+[` to log Start, `Ctrl+Shift+]` to log End. Easily tag scenes using custom pre-set buttons to skip typing descriptions.
-*   **Filler Filtration:** Toggle `[👁️ Show Only Highlighted]` to instantly hide any empty seasons or episodes, allowing you to focus purely on your library of best moments.
-*   **Manual Overrides & Editing:** Did the regex miss a weird filename? TimeMark dumps unmatched files into a special category. You can easily rename them in the UI to an `S01E01` format, and the app will re-parse and automatically place them into your library hierarchy.
-*   **Persistent State:** Saves your library, custom VLC paths, and window geometry automatically to your OS-specific application data directory (`%APPDATA%` on Windows, `~/.config` on Linux, `~/Library/Application Support` on macOS) so you never lose your data or preferences.
+*   **Universal Search (TMDB):** Type a Movie or TV Show name to search The Movie Database (TMDB). Clicking "+ Add to Tracker" automatically pulls down:
+    *   Show Synopsis, Genres, and Release Dates.
+    *   High-quality Poster Art and Banners.
+    *   Complete Season/Episode structure (names, episode summaries, runtime).
+*   **Granular Watch Tracking:** Track your progress at the Show, Season, and Episode levels.
+*   **Watch Counts & History:** Keeps an exact count of how many times you have watched a specific episode or movie, along with a historical log of when you completed it.
+*   **Smart Media Scanner:** Point the app to your local media folders (e.g., `D:\TV Shows`). It uses regex to parse names (e.g., `S01E01`) and automatically links the local files to your fetched online library.
+*   **Direct Playback:** Clicking "Play" on a tracked episode launches the linked local file in VLC automatically.
+*   **Smart Playhead Tracking (VLC Heartbeat):** No need to manually click "Mark as Watched"! When WatchMark launches VLC, it silently connects to VLC's local HTTP API in the background. It polls the playhead position every 5 seconds. If you close VLC after watching 90% or more of the video, WatchMark automatically logs it as "Completed" and increments your watch count. If you close it earlier, it remembers exactly where you left off.
+*   **Missing Episodes View:** A filter that shows episodes you haven't watched, which are also missing from your hard drive, helping you figure out what to download next.
+*   **Offline Mode:** Uses local SQLite storage and caches posters locally (`Pillow` and `requests`) so the app is fully functional even if the TMDB API is unreachable or you lose internet access.
+*   **Persistent State:** Saves your library database (`watchmark.db`) and preferences to your OS-specific application data directory (`%APPDATA%` on Windows, `~/.config` on Linux, `~/Library/Application Support` on macOS).
 
 ## Requirements
 
-*   **Python 3.8+**
+*   **Python 3.10+**
 *   **VLC Media Player** installed on your system.
-*   **FFmpeg** installed and accessible on your system's PATH (required for the Seamless Export feature).
+*   **TMDB API Key** (Free, required to search and add new shows).
 *   Python Packages:
     *   `customtkinter`
     *   `requests`
-    *   `keyboard`
-    *   `packaging`
-    *   `darkdetect`
+    *   `Pillow`
 
 ## Installation
 
@@ -33,31 +35,30 @@ TimeMark is a lightweight, modern desktop application designed to organize video
 2.  Install the required Python packages:
 
     ```bash
-    pip install customtkinter requests keyboard
+    pip install customtkinter requests Pillow
     ```
 
-3.  Run the application:
-
-    ```bash
-    python run.py
-    ```
+3.  Run the application using the one-click scripts (see below).
 
 ## Usage
 
-1.  **Scan Your Media:** Click the primary `[📂 Scan Media Folder]` button on the left pane and select the directory containing your video files. TimeMark will organize them automatically.
-2.  **Log a Scene (UI):** Watch a video in VLC. When a scene starts, click `[ Get Start Time ]` to ping the VLC server and log the exact second. Click `[ Get End Time ]` when it finishes. Add tags, and hit `Save Highlight`.
-3.  **Log a Scene (Hotkeys):** With VLC open, just press `Ctrl+Shift+[` to log the start time in the background, and `Ctrl+Shift+]` to log the end time.
-4.  **Rapid-Cut Sequence Logging:** Enable the `[⚡ Enable Rapid-Cut Mode]` toggle. While watching VLC, hold the `Alt` key down to capture exactly when the good scene flashes on screen, and release `Alt` when it cuts away. Repeat.
-5.  **Review & Nudge Segments:** Look at the visual pills that appear after logging segments. If you accidentally grabbed a 0.2s clip, click `✖` to delete it. If a clip needs to be slightly longer, click the `>` button to nudge the end time by 0.5s.
-6.  **Export a Scene:** Click `[🎬 Export Seamless]` next to any saved timestamp (or directly from the Mini-Bar for pending segments) to instantly extract, stitch, and save that scene to your `Videos/TimeMark` folder. A toast notification will pop up when it's done.
-7.  **Ghost-Clipper Overlay:** Click `[🔲 Switch to Mini-Mode]` to collapse the UI. The app will float over your video, giving you a live count of your captured segments and a direct export button while staying out of your way.
-8.  **Watch the Highlight Reel:** Click `[🎬 Play Highlight Reel]` on an episode to automatically launch VLC with a seamless, pre-cached playlist that plays only your saved clips and skips all the filler.
-9.  **Edit Unmatched Files:** If a file ends up in the `[?] Unmatched Files` category, select it and click `✎ Edit Name`. Rename it using the `S01E01` format (e.g., `Breaking Bad S01E01`), and TimeMark will instantly re-parse and move it!
+### One-Click Start
+
+To avoid keeping a messy command prompt window open while you manage your media, use the provided launch scripts:
+
+*   **Windows:** Double-click `Start_WatchMark.vbs`. This will launch the application entirely in the background without a flashing terminal window. (Alternatively, run `run.bat`).
+*   **Linux / macOS:** Run the `run.sh` script to launch the app detached in the background.
+
+### Initial Setup
+
+1.  **Get a TMDB API Key:** Create a free account at [The Movie Database (TMDB)](https://www.themoviedb.org/) and generate an API Key.
+2.  **Settings:** Open WatchMark, go to the `⚙️ Settings` tab in the sidebar, and paste your TMDB API Key. You can also verify or manually set your VLC Executable Path here.
+3.  **Add Shows:** Go to the `🔍 Search` tab, search for a show you are watching, and click "+ Add to Tracker".
+4.  **Scan Your Media:** Go to the `📺 TV Shows` or `🎬 Movies` tab and click `[📂 Scan Local Folder]`. Select the directory containing your video files. WatchMark will organize them and link them to your tracked shows automatically.
+5.  **Watch:** Click on a show poster to view its episodes. Click `▶` to play a linked episode. WatchMark will monitor your VLC session and automatically mark the episode as watched when you finish!
 
 ## Architecture & Data Storage
 
-TimeMark is built using a pure Python stack. It relies on standard libraries for file parsing (`pathlib`, `re`), safe system execution (`subprocess`), HTTP requests to VLC's local API (`requests`), and object serialization (`dataclasses`, `json`).
+WatchMark uses a pure Python stack with a `customtkinter` UI.
 
-The UI is driven by `customtkinter` and standard `tkinter.ttk` elements.
-
-All user data is stored in a simple, portable `library.json` file in your system's application data folder, separating application logic from user state.
+All user data is stored in a relational `watchmark.db` SQLite database in your system's application data folder, ensuring fast queries and reliable history tracking. Poster images are downloaded once and cached locally to provide a snappy, offline-first experience.

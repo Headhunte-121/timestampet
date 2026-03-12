@@ -2,12 +2,12 @@ import os
 import sys
 from pathlib import Path
 
-def get_app_data_dir(app_name="TimeMark"):
+def get_app_data_dir(app_name="WatchMark"):
     """
     Returns the appropriate application data directory based on the OS.
-    Windows: %APPDATA%/TimeMark
-    Mac: ~/Library/Application Support/TimeMark
-    Linux: ~/.config/TimeMark
+    Windows: %APPDATA%/WatchMark
+    Mac: ~/Library/Application Support/WatchMark
+    Linux: ~/.config/WatchMark
     """
     home = Path.home()
     if sys.platform == "win32":
