@@ -103,7 +103,8 @@ class DataManager:
                     total_episodes INTEGER,
                     status TEXT,
                     vote_average REAL DEFAULT 0.0,
-                    user_rating INTEGER DEFAULT 0
+                    user_rating INTEGER DEFAULT 0,
+                    release_date TEXT
                 )
             ''')
 
@@ -116,9 +117,12 @@ class DataManager:
                     title TEXT,
                     runtime INTEGER,
                     still_path TEXT,
+                    overview TEXT,
                     watch_count INTEGER DEFAULT 0,
                     last_position INTEGER DEFAULT 0,
                     status TEXT DEFAULT 'Unwatched',
+                    completed_date TEXT,
+                    air_date TEXT,
                     FOREIGN KEY (media_id) REFERENCES Media (id),
                     UNIQUE(media_id, season_num, ep_num)
                 )
@@ -181,6 +185,26 @@ class DataManager:
 
             try:
                 cursor.execute("ALTER TABLE Media ADD COLUMN release_date TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE Episodes ADD COLUMN completed_date TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE Episodes ADD COLUMN air_date TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE Media ADD COLUMN release_date TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE Episodes ADD COLUMN overview TEXT")
             except sqlite3.OperationalError:
                 pass
 

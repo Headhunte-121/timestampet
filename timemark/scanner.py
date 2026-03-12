@@ -73,7 +73,8 @@ def scan_directory(directory: str, data_manager: DataManager) -> int:
 
                     matched_media_id = None
                     for show in shows:
-                        safe_db_name = "".join(c for c in show['title'].lower() if c.isalnum())
+                        safe_title = (show['title'] or 'Unknown Title').lower()
+                        safe_db_name = "".join(c for c in safe_title if c.isalnum())
                         if safe_series == safe_db_name or safe_series in safe_db_name or safe_db_name in safe_series:
                             matched_media_id = show['id']
                             break
@@ -93,7 +94,8 @@ def scan_directory(directory: str, data_manager: DataManager) -> int:
 
                     matched_media_id = None
                     for movie in movies:
-                        safe_db_name = "".join(c for c in movie['title'].lower() if c.isalnum())
+                        safe_title = (movie['title'] or 'Unknown Title').lower()
+                        safe_db_name = "".join(c for c in safe_title if c.isalnum())
                         if safe_series == safe_db_name:
                             matched_media_id = movie['id']
                             break

@@ -39,8 +39,8 @@ def search_media(api_key: str, query: str, include_movies: bool = True) -> List[
                 filtered.append({
                     "tmdb_id": str(r["id"]),
                     "type": "TV",
-                    "title": r.get("name") or "",
-                    "synopsis": r.get("overview") or "",
+                    "title": r.get("name") or "Unknown Title",
+                    "synopsis": r.get("overview") or "No overview available.",
                     "poster_path": r.get("poster_path") or "",
                     "backdrop_path": r.get("backdrop_path") or "",
                     "release_date": r.get("first_air_date") or ""
@@ -49,8 +49,8 @@ def search_media(api_key: str, query: str, include_movies: bool = True) -> List[
                 filtered.append({
                     "tmdb_id": str(r["id"]),
                     "type": "Movie",
-                    "title": r.get("title") or "",
-                    "synopsis": r.get("overview") or "",
+                    "title": r.get("title") or "Unknown Title",
+                    "synopsis": r.get("overview") or "No overview available.",
                     "poster_path": r.get("poster_path") or "",
                     "backdrop_path": r.get("backdrop_path") or "",
                     "release_date": r.get("release_date") or ""
@@ -80,8 +80,8 @@ def get_media_details(api_key: str, tmdb_id: str, media_type: str) -> Optional[D
         details = {
             "tmdb_id": str(r["id"]),
             "type": media_type,
-            "title": (r.get("name") or "") if media_type == "TV" else (r.get("title") or ""),
-            "synopsis": r.get("overview") or "",
+            "title": (r.get("name") or "Unknown Title") if media_type == "TV" else (r.get("title") or "Unknown Title"),
+            "synopsis": r.get("overview") or "No overview available.",
             "poster_path": r.get("poster_path") or "",
             "backdrop_path": r.get("backdrop_path") or "",
             "total_episodes": r.get("number_of_episodes") or 1 if media_type == "TV" else 1,
@@ -117,8 +117,8 @@ def get_tv_season_episodes(api_key: str, tmdb_id: str, season_num: int) -> List[
             formatted.append({
                 "season_num": season_num,
                 "ep_num": ep.get("episode_number") or 0,
-                "title": ep.get("name") or "",
-                "overview": ep.get("overview") or "",
+                "title": ep.get("name") or "Unknown Title",
+                "overview": ep.get("overview") or "No overview available.",
                 "runtime": ep.get("runtime") or 0,
                 "still_path": ep.get("still_path") or "",
                 "air_date": ep.get("air_date") or ""

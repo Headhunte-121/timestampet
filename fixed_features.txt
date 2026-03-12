@@ -1,0 +1,27 @@
+WatchMark Pro - Missing Feature Implementation Audit
+
+The following discrepancies between the codebase and the Master List have been fixed:
+
+1. Database Migrations (data.py):
+   - Added `ALTER TABLE` execution for `release_date`, `overview`, `completed_date`, and `air_date` to ensure existing `watchmark.db` files do not throw `sqlite3.OperationalError: no such column` when upgrading to the Pro features.
+
+2. Media Scanner Reliability (scanner.py):
+   - Reverted the exact-match logic back to a flexible substring match (`safe_series in safe_db_name`) to ensure reliable local folder auto-matching.
+   - Added `None` type data sanitization fallback (`Unknown Title`) when iterating through DB records during file matching.
+
+3. Deep Dive Air-Date Integration (main.py):
+   - Added parsing logic in `_show_media_details` to accurately calculate and display the Show-Level `Aired: YYYY - YYYY` context string directly below the media synopsis.
+
+4. Library "At-a-Glance" Quick Stats (main.py):
+   - Implemented an absolute-bottom aligned `CTkProgressBar` on all poster cards across the dashboard and library. Displays Gray (0%), Orange (>0%), or Green (100%).
+   - Added small Star rating badges to the top-right corner of posters if the user has provided a personal score.
+
+5. Data Sanitization (tmdb_api.py):
+   - Added robust `.get()` checks and fallback defaults (e.g. `Unknown Title` and `No overview available.`) to API responses to prevent `NoneType` rendering crashes in CustomTkinter.
+
+6. Dashboard Personal Stats Bar (main.py):
+   - Replaced "Episodes Watched" with "Total Hours Watched", "Shows Completed", and dynamically calculated the "My Average Rating" widget using `SELECT AVG(user_rating)`.
+
+7. In-Place UI Updates (main.py):
+   - Handled edge cases by adding a `reset_scroll=False` flag to `_load_episodes()`, ensuring that marking checkmarks, marking seasons watched, and clicking the sync button updates the data without throwing the user back to the top of the scroll container.
+   - Reset Dashboard view automatically if the Quick Search field is cleared.
