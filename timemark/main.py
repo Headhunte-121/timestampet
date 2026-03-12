@@ -702,7 +702,18 @@ class App(ctk.CTk):
         # Content for info_overlay
         title_text = item['title'] or 'Unknown Title'
         title_lbl = ctk.CTkLabel(info_overlay, text=title_text, font=("Inter", 16, "bold"), text_color=TEXT_PRIMARY, wraplength=120)
-        title_lbl.pack(pady=(15, 5), padx=10, anchor="w")
+        title_lbl.pack(pady=(10, 2), padx=10, anchor="w")
+
+        # Status Tag
+        if status:
+            status_color = "#1F222A"
+            if status == "Returning Series" or status == "Watching":
+                status_color = "#1A2E1A" # Subtle green tint
+            elif status == "Ended" or status == "Completed":
+                status_color = "#2A1A1A" # Subtle red tint
+
+            status_tag = ctk.CTkLabel(info_overlay, text=status, font=("Inter", 9, "bold"), text_color=TEXT_SECONDARY, fg_color=status_color, corner_radius=4, padx=6, pady=2)
+            status_tag.pack(padx=10, pady=(0, 5), anchor="w")
 
         range_lbl = ctk.CTkLabel(info_overlay, text=year_range, font=("Inter", 12, "bold"), text_color=TEXT_SECONDARY)
         range_lbl.pack(padx=10, anchor="w")
@@ -820,7 +831,8 @@ class App(ctk.CTk):
             try:
                 # If it's legacy, the timestamp might not be UTC, but let's parse consistently
                 if row['is_legacy']:
-                    dt_local = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
+                    # Force naive datetime to be offset-aware (assuming local or UTC, assigning local timezone offset)
+                    dt_local = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S').astimezone()
                 else:
                     dt_utc = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
                     dt_local = dt_utc.astimezone()
