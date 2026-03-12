@@ -138,13 +138,7 @@ class App(ctk.CTk):
         create_nav_btn(2, "TV Shows", self._show_tv_shows)
         create_nav_btn(3, "Movies", self._show_movies)
         create_nav_btn(4, "Search", self._show_search)
-        create_nav_btn(5, "📥 Inbox", self._show_unmatched)
-
-        # Internally keep track of Inbox without the icon to map easily
-        self.nav_btns["Inbox"] = self.nav_btns["📥 Inbox"]
-        self.nav_indicators["Inbox"] = self.nav_indicators["📥 Inbox"]
-        del self.nav_btns["📥 Inbox"]
-        del self.nav_indicators["📥 Inbox"]
+        create_nav_btn(5, "Inbox", self._show_unmatched)
 
         # Bottom section: Settings & Status
         bottom_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
@@ -686,7 +680,7 @@ class App(ctk.CTk):
         img_label.pack()
 
         # Year subtitle
-        year = item['release_date'][:4] if item.get('release_date') else "N/A"
+        year = item['release_date'][:4] if ('release_date' in item.keys() and item['release_date'] is not None) else "N/A"
         title_lbl = ctk.CTkLabel(card, text=f"{((item['title'] or 'Unknown Title'))}\n({year})", font=ctk.CTkFont(family="Inter", size=12, weight="bold"),
                                  wraplength=150, text_color=TEXT_PRIMARY)
         title_lbl.pack(pady=(5, 0))
@@ -846,7 +840,7 @@ class App(ctk.CTk):
         ratings_frame.pack(anchor="w", pady=(5, 10))
 
         # TMDB Badge
-        tmdb_score = round(media.get('vote_average', 0.0), 1)
+        tmdb_score = round(media['vote_average'] if 'vote_average' in media.keys() and media['vote_average'] is not None else 0.0, 1)
         ctk.CTkLabel(ratings_frame, text=f"⭐ TMDB: {tmdb_score}/10", fg_color="#181A20", text_color="#F5C518",
                      font=ctk.CTkFont(family="Inter", size=12, weight="bold"), corner_radius=6, padx=8, pady=4).pack(side="left", padx=(0, 15))
 
@@ -855,7 +849,7 @@ class App(ctk.CTk):
         stars_frame.pack(side="left")
         ctk.CTkLabel(stars_frame, text="My Score: ", font=ctk.CTkFont(family="Inter", size=12), text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 5))
 
-        user_rating = media.get('user_rating', 0)
+        user_rating = media['user_rating'] if 'user_rating' in media.keys() and media['user_rating'] is not None else 0
         self.star_btns = []
 
         def set_rating(rating_val):
@@ -1533,8 +1527,8 @@ class App(ctk.CTk):
                     assigned_count = 0
 
                     for uf in pending_group:
-                        s_num = uf.get('parsed_season')
-                        e_num = uf.get('parsed_episode')
+                        s_num = uf['parsed_season'] if 'parsed_season' in uf.keys() and uf['parsed_season'] is not None else None
+                        e_num = uf['parsed_episode'] if 'parsed_episode' in uf.keys() and uf['parsed_episode'] is not None else None
 
                         if details['type'] == 'Movie':
                             s_num, e_num = 1, 1
