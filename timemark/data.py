@@ -69,7 +69,9 @@ class DataManager:
                     poster_path TEXT,
                     backdrop_path TEXT,
                     total_episodes INTEGER,
-                    status TEXT
+                    status TEXT,
+                    vote_average REAL DEFAULT 0.0,
+                    user_rating INTEGER DEFAULT 0
                 )
             ''')
 
@@ -129,6 +131,21 @@ class DataManager:
                 cursor.execute("ALTER TABLE Episodes ADD COLUMN still_path TEXT")
             except sqlite3.OperationalError:
                 pass # Column already exists
+
+            try:
+                cursor.execute("ALTER TABLE Episodes ADD COLUMN overview TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE Media ADD COLUMN vote_average REAL DEFAULT 0.0")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE Media ADD COLUMN user_rating INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
 
             conn.commit()
 
