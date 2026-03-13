@@ -52,13 +52,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Verify Rust build is compiled with `opt-level = 'z'` or `s` for size reduction.
 - [x] Test idle RAM usage after leaving the app open in the background for 48 hours.
 
-**1.7 Cross-platform compatibility (Windows, macOS, Linux).** (Incomplete)
+**1.7 Cross-platform compatibility (Windows, macOS, Linux).** (Complete)
 
-- [ ] Ensure path separators (`\` vs `/`) are handled dynamically across all OSs.
-- [ ] Handle edge cases where Linux distributions lack a standard system tray implementation.
-- [ ] Verify macOS specific permissions for accessing external drives or Documents.
-- [ ] Test Windows SmartScreen false-positive mitigations by ensuring proper signing.
-- [ ] Ensure global keyboard shortcuts do not conflict with native OS defaults.
+- [x] Ensure path separators (`\` vs `/`) are handled dynamically across all OSs.
+- [x] Handle edge cases where Linux distributions lack a standard system tray implementation.
+- [x] Verify macOS specific permissions for accessing external drives or Documents.
+- [x] Test Windows SmartScreen false-positive mitigations by ensuring proper signing.
+- [x] Ensure global keyboard shortcuts do not conflict with native OS defaults.
 
 **1.8 Native OS window frame integration (supports Windows snap-assist and native drop shadows).** (Incomplete)
 

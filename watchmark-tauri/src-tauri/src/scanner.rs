@@ -56,7 +56,35 @@ pub fn scan_directory(
 
     let tx = conn.transaction()?;
 
-    for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
+    // Windows Long Path Support: Ensure the root directory uses \\?\ prefix if absolute
+    let root_path = std::path::PathBuf::from(directory);
+    let mut scan_path = root_path.clone();
+
+    #[cfg(windows)]
+    {
+        if root_path.is_absolute() {
+            let path_str = root_path.to_string_lossy();
+            if !path_str.starts_with(r"\\?\") {
+                scan_path = std::path::PathBuf::from(format!(r"\\?\{}", path_str));
+            }
+        }
+    }
+
+    for entry in WalkDir::new(scan_path).into_iter().filter_map(|e| {
+        match e {
+            Ok(entry) => Some(entry),
+            Err(err) => {
+                if let Some(io_err) = err.io_error() {
+                    if io_err.kind() == std::io::ErrorKind::PermissionDenied {
+                        log::warn!("Scanner skipped path due to PermissionDenied: {}", err);
+                    } else {
+                        log::error!("Scanner encountered IO error: {}", err);
+                    }
+                }
+                None
+            }
+        }
+    }) {
         let path = entry.path();
         if path.is_file() {
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {

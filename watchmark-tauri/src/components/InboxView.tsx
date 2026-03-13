@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { FolderSearch, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
+import { formatWindowsPath } from "../utils/pathUtils";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -173,9 +174,12 @@ export default function InboxView({ onMatch }: any) {
                   <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Files in this group</h3>
                   <div className="space-y-2">
                     {grouped[selectedGroup]?.map((file: any, index: number) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                        <div className="w-2 h-2 rounded-full bg-[#FF6B00]"></div>
-                        <p className="text-sm text-gray-300 font-mono break-all">{file.filename}</p>
+                      <div key={index} className="flex flex-col gap-1 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-[#FF6B00]"></div>
+                          <p className="text-sm text-gray-300 font-mono break-all">{file.filename}</p>
+                        </div>
+                        <p className="text-xs text-gray-600 font-mono break-all pl-5">{formatWindowsPath(file.file_path)}</p>
                       </div>
                     ))}
                   </div>

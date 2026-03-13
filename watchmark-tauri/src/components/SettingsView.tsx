@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
 import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
+import { formatWindowsPath } from "../utils/pathUtils";
 
 export default function SettingsView() {
   const [settings, setSettings] = useState<any>({
@@ -77,7 +78,7 @@ export default function SettingsView() {
         filters: [{ name: 'Executable', extensions: ['exe', 'app', 'bin'] }]
       });
       if (selected && typeof selected === 'string') {
-        setSettings({ ...settings, vlc_path: selected });
+        setSettings({ ...settings, vlc_path: formatWindowsPath(selected) });
       }
     } catch (e: any) {
        if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
@@ -109,7 +110,7 @@ export default function SettingsView() {
           <div className="flex gap-4">
             <input
               type="text"
-              value={settings.vlc_path}
+              value={formatWindowsPath(settings.vlc_path)}
               onChange={e => setSettings({ ...settings, vlc_path: e.target.value })}
               className="flex-1 bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
               placeholder="C:\Program Files\VideoLAN\VLC\vlc.exe"
