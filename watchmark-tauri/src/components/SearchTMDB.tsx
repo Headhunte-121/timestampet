@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Search } from "lucide-react";
+import { invokeWithTimeout } from "../utils/ipc";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -13,7 +13,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const res: any = await invoke("perform_tmdb_search", { query });
+      const res: any = await invokeWithTimeout("perform_tmdb_search", { query });
       setResults(res);
     } catch (e) {
       toast.error("Search failed: " + e);
@@ -77,14 +77,14 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
               <button
                 onClick={() => {
                   setLoading(true);
-                  invoke("add_to_tracker", {
+                  invokeWithTimeout("add_to_tracker", {
                     tmdbId: item.tmdb_id,
                     mediaType: item.type,
                     archive: false
                   }).then(() => {
                     toast.success("Added to Tracker!");
                     setLoading(false);
-                  }).catch(e => {
+                  }).catch((e: any) => {
                     toast.error("Error: " + e);
                     setLoading(false);
                   });

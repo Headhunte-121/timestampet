@@ -56,8 +56,17 @@ pub fn scan_directory(
 
     let tx = conn.transaction()?;
 
+    // Canonicalize path safely using dunce
+    let sanitized_dir = match dunce::canonicalize(directory) {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to canonicalize directory path: {}", e);
+            return Err(rusqlite::Error::InvalidPath(std::path::PathBuf::from(directory)));
+        }
+    };
+
     // Windows Long Path Support: Ensure the root directory uses \\?\ prefix if absolute
-    let root_path = std::path::PathBuf::from(directory);
+    let root_path = std::path::PathBuf::from(sanitized_dir);
     let mut scan_path = root_path.clone();
 
     #[cfg(windows)]

@@ -68,13 +68,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Verify Windows Snap-Assist snapping triggers proper layout recalculations.
 - [ ] Ensure custom macOS traffic light buttons (close/minimize/maximize) align perfectly.
 
-**1.9 Seamless IPC (Inter-Process Communication) bridging via Tauri invoke.** (Incomplete)
+**1.9 Seamless IPC (Inter-Process Communication) bridging via Tauri invoke.** (Complete)
 
-- [ ] Implement timeout safety for IPC calls that hang or take longer than expected.
-- [ ] Sanitize all string inputs sent from React to Rust to prevent injection or panics.
-- [ ] Handle edge cases where large JSON payloads block the main IPC thread.
-- [ ] Ensure type mismatches between frontend TS and backend Rust structs log clear errors.
-- [ ] Test IPC event listener cleanup so multiple listeners aren't attached on page reloads.
+- [x] Implement timeout safety for IPC calls that hang or take longer than expected.
+- [x] Sanitize all string inputs sent from React to Rust to prevent injection or panics.
+- [x] Handle edge cases where large JSON payloads block the main IPC thread.
+- [x] Ensure type mismatches between frontend TS and backend Rust structs log clear errors.
+- [x] Test IPC event listener cleanup so multiple listeners aren't attached on page reloads.
 
 **1.10 Single-thread centralized Task Queue for database writes to prevent locking.** (Incomplete)
 

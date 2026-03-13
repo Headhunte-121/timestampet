@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { FolderSearch, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
+import { invokeWithTimeout } from "../utils/ipc";
+import { invoke } from "@tauri-apps/api/core";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -47,7 +48,7 @@ export default function InboxView({ onMatch }: any) {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const res: any = await invoke("perform_tmdb_search", { query: searchQuery });
+      const res: any = await invokeWithTimeout("perform_tmdb_search", { query: searchQuery });
       setSearchResults(res);
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'")) {
@@ -63,7 +64,7 @@ export default function InboxView({ onMatch }: any) {
   const assignShow = async (tmdbId: string, mediaType: string) => {
     if (!selectedGroup) return;
     try {
-      await invoke("assign_unmatched_to_tracker", {
+      await invokeWithTimeout("assign_unmatched_to_tracker", {
         tmdbId,
         mediaType,
         groupKey: selectedGroup
