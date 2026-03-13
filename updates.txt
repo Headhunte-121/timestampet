@@ -77,3 +77,11 @@ Update 8: Framer Motion Engine 1.5 Integration
 - Performance Scaling: Staggered entry animations are now strictly limited to the first 20 items in lists, with standard viewport fade-ins applied to subsequent items to handle 500+ item grids flawlessly without tanking the CPU.
 - Animation Lockout: Implemented an `isAnimatingRef` in `MediaDetails.tsx` for destructive 'Remove Show' events. It optimistically triggers the exit animation immediately and then fires the actual backend SQL cleanup cleanly without locking the UI.
 - Backend Sync: Built out the full cascading `delete_media_cmd` functionality in Rust, securely dropping all relational tracking rows from `History`, `Local_Files`, `Episodes` and wiping `cache` files from local storage on deletion.
+
+[2026-03-13] - Performance Update: Implemented memory optimization layer (IntersectionObserver, SQLite Mutex, Release Strip).
+
+Update 9: Performance Optimization & Binary Footprint Reduction
+- SQLite Singleton Architecture: Replaced connection pooling with a single `LazyLock<Mutex<Connection>>` to eliminate idle database handle overhead and set `PRAGMA cache_size = -2000` to constrain system RAM utilization.
+- React Image Memory Caching: Built a custom lightweight `useIntersectionObserver` hook in `Library.tsx` that actively clears image `src` attributes when grid posters scroll out of view, dumping decoded texture memory and preventing Chromium GPU process bloat.
+- IPC Batching: Optimized the Rust background scanner (`commands.rs` and `scanner.rs`) to collect matched/unmatched files into chunks of 50 and emit them to the React frontend iteratively via a new `scan-match-batch` event, resolving UI freezes on massive directory scans.
+- Cargo Optimization: Updated the release profile in `Cargo.toml` with `opt-level = "z"`, `lto = true`, `codegen-units = 1`, `strip = true`, and `panic = "abort"` to aggressively minimize the final binary size.
