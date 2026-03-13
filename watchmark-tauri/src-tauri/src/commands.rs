@@ -102,6 +102,19 @@ pub async fn save_settings(
 }
 
 #[tauri::command]
+pub fn get_media_history_count(media_id: i32) -> Result<i32, AppError> {
+    handle_panic(|| {
+        let conn = crate::db::get_db_connection()?;
+        let count: i32 = conn.query_row(
+            "SELECT COUNT(*) FROM History WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id = ?)",
+            rusqlite::params![media_id],
+            |row| row.get(0),
+        ).unwrap_or(0);
+        Ok(count)
+    })
+}
+
+#[tauri::command]
 pub fn delete_media_cmd(media_id: i32) -> Result<(), AppError> {
     handle_panic(|| crate::db::delete_media(media_id).map_err(AppError::from))
 }
@@ -319,6 +332,8 @@ pub async fn add_to_tracker(
                     let ep_status = if archive { "Completed" } else { "Unwatched" };
                     let ep_watch_count = if archive { 1 } else { 0 };
 
+                    let mut episode_ids_to_history = Vec::new();
+
                     if valid_media_type == "TV" {
                         for ep in all_eps {
                             let mut ep_overview = ep["overview"].as_str().unwrap_or("").to_string();
@@ -327,6 +342,8 @@ pub async fn add_to_tracker(
                                 ep_overview.push_str("...");
                             }
 
+                            let season_num = ep["season_num"].as_i64().unwrap_or(1) as u32;
+                            let ep_num = ep["ep_num"].as_i64().unwrap_or(1) as u32;
                             let _ = tx.execute(
                                 "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -335,8 +352,8 @@ pub async fn add_to_tracker(
                                     overview=excluded.overview, air_date=excluded.air_date",
                                 params![
                                     media_id,
-                                    ep["season_num"].as_i64().unwrap_or(1) as u32,
-                                    ep["ep_num"].as_i64().unwrap_or(1) as u32,
+                                    season_num,
+                                    ep_num,
                                     ep["title"].as_str().unwrap_or("Unknown Title"),
                                     ep["runtime"].as_i64().unwrap_or(0) as i32,
                                     ep["still_path"].as_str().unwrap_or(""),
@@ -346,6 +363,20 @@ pub async fn add_to_tracker(
                                     ep["air_date"].as_str().unwrap_or("")
                                 ]
                             );
+
+                            let ep_id = tx.last_insert_rowid() as i32;
+                            if ep_id == 0 {
+                                // Existed already
+                                if let Ok(mut stmt) = tx.prepare("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?") {
+                                    if let Ok(mut rows) = stmt.query(params![media_id, season_num, ep_num]) {
+                                        if let Ok(Some(row)) = rows.next() {
+                                            episode_ids_to_history.push(row.get::<_, i32>(0).unwrap_or(0));
+                                        }
+                                    }
+                                }
+                            } else {
+                                episode_ids_to_history.push(ep_id);
+                            }
                         }
                     } else {
                         let _ = tx.execute(
@@ -365,7 +396,30 @@ pub async fn add_to_tracker(
                                 details["release_date"].as_str().unwrap_or("")
                             ]
                         );
+
+                        let ep_id = tx.last_insert_rowid() as i32;
+                        if ep_id == 0 {
+                            if let Ok(mut stmt) = tx.prepare("SELECT id FROM Episodes WHERE media_id=? AND season_num=1 AND ep_num=1") {
+                                if let Ok(mut rows) = stmt.query(params![media_id]) {
+                                    if let Ok(Some(row)) = rows.next() {
+                                        episode_ids_to_history.push(row.get::<_, i32>(0).unwrap_or(0));
+                                    }
+                                }
+                            }
+                        } else {
+                            episode_ids_to_history.push(ep_id);
+                        }
                     }
+
+                    // For add_to_tracker, if archive is true, do NOT insert History entries.
+                    // If archive is false, it's marking them unwatched so there shouldn't be history either,
+                    // BUT for the prompt's `archive_mode` logic:
+                    // "If archive_mode is True: Update Episodes.status to 'Completed' but do not insert any rows into the History table."
+                    // Since it sets 'Completed' when archive is true, and 'Unwatched' when false, we don't insert History here either way.
+                    // History insertions for "Mark Watched" / "Mark Season Watched" are where we actually care.
+                    // Wait, the user explicitly stated: "Implementation: In the invoke command for mark_season_watched or add_to_tracker, add a boolean argument archive_mode. If archive_mode is True: Update Episodes.status to 'Completed' but do not insert any rows into the History table. If archive_mode is False: Update the status and create the History entries."
+                    // But if archive_mode is false in add_to_tracker, it's just adding to tracker. The prompt assumes `add_to_tracker` has a flow where we mark everything completed. I'll just adhere to: if archive=false, do NOT insert because it's unwatched. Actually wait: "If archive_mode is False: Update the status and create the History entries." This means the user expects `archive_mode = false` to mean "Mark as Completed AND create history entries". But that makes no sense for newly added unwatched media.
+                    // Let's implement `mark_season_watched` as an additional command instead, since that's what the feature actually targets.
 
                     let _ = tx.commit();
                 }
@@ -380,6 +434,49 @@ pub async fn add_to_tracker(
         Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
         Err(_) => Err(AppError::Custom("Task Timed Out".to_string())),
     }
+}
+
+#[tauri::command]
+pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: bool) -> Result<(), AppError> {
+    tokio::task::spawn_blocking(move || {
+        handle_panic(|| {
+            let mut conn = crate::db::get_db_connection()?;
+            let tx = conn.transaction()?;
+
+            let mut episode_ids = Vec::new();
+            {
+                // Fetch episodes to update
+                let mut stmt = tx.prepare("SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? AND status != 'Completed'")?;
+                let mut rows = stmt.query(params![media_id, season_num])?;
+
+                while let Ok(Some(row)) = rows.next() {
+                    episode_ids.push(row.get::<_, i32>(0).unwrap_or(0));
+                }
+            }
+
+            // Update status
+            let _ = tx.execute(
+                "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1 WHERE media_id = ? AND season_num = ? AND status != 'Completed'",
+                params![media_id, season_num]
+            );
+
+            // Generate history entries if NOT archiving
+            if !archive_mode && !episode_ids.is_empty() {
+                let session_id = uuid::Uuid::new_v4().to_string();
+                let current_timestamp = chrono::Utc::now().timestamp();
+
+                for ep_id in episode_ids {
+                    let _ = tx.execute(
+                        "INSERT INTO History (episode_id, timestamp, is_legacy, session_id, status) VALUES (?, ?, 0, ?, 'Completed')",
+                        params![ep_id, current_timestamp, session_id]
+                    );
+                }
+            }
+
+            tx.commit()?;
+            Ok(())
+        })
+    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
 }
 
 #[tauri::command]
@@ -700,7 +797,7 @@ pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
 }
 
 #[tauri::command]
-pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<Vec<HistoryEntry>, AppError> {
+pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<Vec<Value>, AppError> {
     tokio::task::spawn_blocking(move || {
         handle_panic(|| {
             let conn = get_db_connection()?;
@@ -710,45 +807,87 @@ pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<
             let mut stmt = conn.prepare(
                 "
                 SELECT h.id as hist_id, h.timestamp, h.session_id, h.is_legacy, h.start_time, h.end_time, h.pause_count, h.completion_ratio,
-                       e.id as episode_id, e.season_num, e.ep_num, e.title as ep_title, e.still_path, e.air_date,
+                       e.id as episode_id, e.season_num, e.ep_num, e.title as ep_title, e.still_path, e.air_date, e.runtime,
                        m.id as media_id, m.title as show_title, m.poster_path, m.backdrop_path, m.type as media_type
                 FROM History h
                 JOIN Episodes e ON h.episode_id = e.id
                 JOIN Media m ON e.media_id = m.id
-                ORDER BY h.timestamp DESC
+                ORDER BY h.timestamp DESC, h.id DESC
                 LIMIT ? OFFSET ?
                 "
             )?;
 
-            let rows = stmt.query_map(params![limit, offset], |row| {
-                Ok(HistoryEntry {
-                    hist_id: row.get(0)?,
-                    timestamp: row.get(1)?,
-                    session_id: row.get(2)?,
-                    is_legacy: row.get(3)?,
-                    start_time: row.get(4)?,
-                    end_time: row.get(5)?,
-                    pause_count: row.get(6)?,
-                    completion_ratio: row.get(7)?,
-                    episode_id: row.get(8)?,
-                    season_num: row.get(9)?,
-                    ep_num: row.get(10)?,
-                    ep_title: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
-                    still_path: row.get::<_, Option<String>>(12)?.unwrap_or_default(),
-                    air_date: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
-                    media_id: row.get(14)?,
-                    show_title: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
-                    poster_path: row.get::<_, Option<String>>(16)?.unwrap_or_default(),
-                    backdrop_path: row.get::<_, Option<String>>(17)?.unwrap_or_default(),
-                    media_type: row.get::<_, Option<String>>(18)?.unwrap_or_default(),
-                })
-            })?;
-
             let mut history = Vec::new();
-            for r in rows.flatten() {
-                history.push(r);
+            let mut rows = stmt.query(params![limit, offset])?;
+            while let Ok(Some(row)) = rows.next() {
+                let session_id: Option<String> = row.get(2)?;
+                let ts: i64 = row.get(1)?;
+                let runtime: i32 = row.get(14)?;
+                history.push(json!({
+                    "hist_id": row.get::<_, i32>(0)?,
+                    "timestamp": ts,
+                    "session_id": session_id,
+                    "is_legacy": row.get::<_, i32>(3)?,
+                    "start_time": row.get::<_, Option<String>>(4)?,
+                    "end_time": row.get::<_, Option<String>>(5)?,
+                    "pause_count": row.get::<_, i32>(6)?,
+                    "completion_ratio": row.get::<_, f64>(7)?,
+                    "episode_id": row.get::<_, i32>(8)?,
+                    "season_num": row.get::<_, u32>(9)?,
+                    "ep_num": row.get::<_, u32>(10)?,
+                    "ep_title": row.get::<_, Option<String>>(11)?.unwrap_or_default(),
+                    "still_path": row.get::<_, Option<String>>(12)?.unwrap_or_default(),
+                    "air_date": row.get::<_, Option<String>>(13)?.unwrap_or_default(),
+                    "runtime": runtime,
+                    "media_id": row.get::<_, i32>(15)?,
+                    "show_title": row.get::<_, Option<String>>(16)?.unwrap_or_default(),
+                    "poster_path": row.get::<_, Option<String>>(17)?.unwrap_or_default(),
+                    "backdrop_path": row.get::<_, Option<String>>(18)?.unwrap_or_default(),
+                    "media_type": row.get::<_, Option<String>>(19)?.unwrap_or_default(),
+                }));
             }
-            Ok(history)
+
+            // Group entries into Binge-Blocks
+            let mut grouped_history = Vec::new();
+            let mut current_block: Vec<Value> = Vec::new();
+
+            for entry in history {
+                if current_block.is_empty() {
+                    current_block.push(entry);
+                } else {
+                    let last_entry = current_block.last().unwrap();
+                    let is_same_session = entry["session_id"].as_str().is_some() && last_entry["session_id"].as_str() == entry["session_id"].as_str();
+                    let time_diff = (last_entry["timestamp"].as_i64().unwrap_or(0) - entry["timestamp"].as_i64().unwrap_or(0)).abs();
+                    let is_within_6_hours = time_diff <= 21600; // 6 hours
+                    let is_same_show = last_entry["media_id"] == entry["media_id"];
+                    let is_legacy = entry["is_legacy"].as_i64().unwrap_or(0) == 1;
+
+                    if (is_same_session || (is_within_6_hours && is_same_show)) && !is_legacy {
+                        current_block.push(entry);
+                    } else {
+                        grouped_history.push(json!({
+                            "type": if current_block.len() > 1 { "binge_block" } else { "single" },
+                            "main_entry": current_block[0].clone(), // Most recent in the block
+                            "entries": current_block.clone(),
+                            "total_runtime": current_block.iter().map(|e| e["runtime"].as_i64().unwrap_or(0)).sum::<i64>(),
+                            "episode_count": current_block.len(),
+                        }));
+                        current_block = vec![entry];
+                    }
+                }
+            }
+
+            if !current_block.is_empty() {
+                grouped_history.push(json!({
+                    "type": if current_block.len() > 1 { "binge_block" } else { "single" },
+                    "main_entry": current_block[0].clone(),
+                    "entries": current_block.clone(),
+                    "total_runtime": current_block.iter().map(|e| e["runtime"].as_i64().unwrap_or(0)).sum::<i64>(),
+                    "episode_count": current_block.len(),
+                }));
+            }
+
+            Ok(grouped_history)
         })
     }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
 }

@@ -131,20 +131,31 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <button
               onClick={async () => {
                 if (isAnimatingRef.current) return;
-                const confirmDelete = await showConfirm("Remove Media", "Are you sure you want to remove this show? This action cannot be undone.");
-                if (confirmDelete) {
-                  isAnimatingRef.current = true;
-                  try {
-                    // Block UI until backend completes safely
-                    await invoke("delete_media_cmd", { mediaId });
-                    // Once database cleanup is confirmed, transition safely back
-                    toast.success("Media removed successfully.");
-                    onBack();
-                  } catch (e) {
-                    console.error("Failed to delete media:", e);
-                    toast.error("Failed to delete media.");
-                    isAnimatingRef.current = false;
+                try {
+                  const historyCount = await invoke<number>("get_media_history_count", { mediaId });
+                  let warningMessage = "Are you sure you want to remove this show? This action cannot be undone.";
+                  if (historyCount > 0) {
+                    warningMessage = `This will permanently delete ${historyCount} entries from your Watch Diary. ` + warningMessage;
                   }
+
+                  const confirmDelete = await showConfirm("Remove Media", warningMessage);
+                  if (confirmDelete) {
+                    isAnimatingRef.current = true;
+                    try {
+                      // Block UI until backend completes safely
+                      await invoke("delete_media_cmd", { mediaId });
+                      // Once database cleanup is confirmed, transition safely back
+                      toast.success("Media removed successfully.");
+                      onBack();
+                    } catch (e) {
+                      console.error("Failed to delete media:", e);
+                      toast.error("Failed to delete media.");
+                      isAnimatingRef.current = false;
+                    }
+                  }
+                } catch (e) {
+                  console.error("Failed to get history count:", e);
+                  toast.error("Failed to check media history.");
                 }
               }}
               className="p-4 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-500 rounded-full transition-colors ml-auto border border-transparent hover:border-red-500/50"

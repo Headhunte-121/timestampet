@@ -45,8 +45,10 @@ export default function History() {
         <p className="text-gray-500">No history recorded yet.</p>
       ) : (
         <div className="space-y-6 max-w-4xl pb-24">
-          {history.map((entry) => (
-            <div key={entry.hist_id} className="flex bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 items-center gap-6">
+          {history.map((group, i) => {
+            const entry = group.main_entry;
+            return (
+            <div key={i} className="flex bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 items-center gap-6">
                <img
                 src={`https://image.tmdb.org/t/p/w200${entry.poster_path}`}
                 alt={entry.show_title}
@@ -54,21 +56,32 @@ export default function History() {
               />
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-white">{entry.show_title}</h3>
-                <p className="text-gray-400">
-                  {entry.media_type === "TV" ? `Season ${entry.season_num} Episode ${entry.ep_num} - ${entry.ep_title}` : entry.ep_title}
-                </p>
+                {group.type === "binge_block" ? (
+                  <p className="text-gray-400">
+                    Watched {group.episode_count} Episodes
+                  </p>
+                ) : (
+                  <p className="text-gray-400">
+                    {entry.media_type === "TV" ? `Season ${entry.season_num} Episode ${entry.ep_num} - ${entry.ep_title}` : entry.ep_title}
+                  </p>
+                )}
                 <div className="mt-2 flex gap-4 text-sm font-medium">
-                  <span className="text-[#FF6B00]">{new Date(entry.timestamp + "Z").toLocaleString()}</span>
+                  <span className="text-[#FF6B00]">{new Date(entry.timestamp * 1000).toLocaleString()}</span>
                   {entry.is_legacy === 1 && <span className="bg-white/10 text-gray-300 px-2 rounded-md">Legacy Import</span>}
                 </div>
               </div>
-              {entry.completion_ratio < 0.90 && (
+              {group.type === "binge_block" ? (
+                <div className="text-right text-sm text-gray-400">
+                  Binge Duration: {Math.floor(group.total_runtime / 60)}h {group.total_runtime % 60}m
+                </div>
+              ) : entry.completion_ratio < 0.90 ? (
                 <div className="text-right text-sm text-gray-400">
                   Paused ({Math.round(entry.completion_ratio * 100)}%)
                 </div>
-              )}
+              ) : null}
             </div>
-          ))}
+            );
+          })}
 
           {hasMore && (
             <div className="flex justify-center mt-8">

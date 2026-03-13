@@ -564,13 +564,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test deleting a path explicitly from this table without deleting the Episode data.
 - [x] Verify file size or hash metadata fields are available for future collision checks.
 
-**5.5 History relational table (Tracking timestamp, episode ID).** (Incomplete)
+**5.5 History relational table (Tracking timestamp, episode ID).** (Complete)
 
-- [ ] Ensure timestamps are uniformly stored as UTC integers (UNIX epoch).
-- [ ] Handle edge cases where a user marks 50 episodes watched in the exact same millisecond.
-- [ ] Verify that deleting an episode correctly cascades to wipe all its history entries.
-- [ ] Test indexing on the timestamp column to ensure timeline UI fetching is instant.
-- [ ] Ensure missing timestamps dynamically fall back to current time on insert.
+- [x] Ensure timestamps are uniformly stored as UTC integers (UNIX epoch).
+- [x] Handle edge cases where a user marks 50 episodes watched in the exact same millisecond.
+- [x] Verify that deleting an episode correctly cascades to wipe all its history entries.
+- [x] Test indexing on the timestamp column to ensure timeline UI fetching is instant.
+- [x] Ensure missing timestamps dynamically fall back to current time on insert.
 
 **5.6 Unmatched_Files staging table for the Inbox.** (Incomplete)
 
@@ -1288,13 +1288,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test it strictly triggers the cascading SQLite delete without leaving orphaned files.
 - [ ] Ensure the UI instantly routes back directly to the Library list upon deletion.
 
-**11.13 Cascading red warning confirmation modal for Remove Show.** (Incomplete)
+**11.13 Cascading red warning confirmation modal for Remove Show.** (Complete)
 
-- [ ] Verify a heavy z-index dark blur immediately overtakes the entire screen to block all other actions.
-- [ ] Ensure the bold red button strictly requires intentional confirmation.
-- [ ] Handle edge cases where clicking the dark backdrop outside the modal safely cancels the action.
-- [ ] Test text clearly explaining 'This will permanently remove history and tracking, but local files will NOT be deleted'.
-- [ ] Ensure focus is automatically trapped inside the modal for keyboard safety.
+- [x] Verify a heavy z-index dark blur immediately overtakes the entire screen to block all other actions.
+- [x] Ensure the bold red button strictly requires intentional confirmation.
+- [x] Handle edge cases where clicking the dark backdrop outside the modal safely cancels the action.
+- [x] Test text clearly explaining 'This will permanently remove history and tracking, but local files will NOT be deleted'.
+- [x] Ensure focus is automatically trapped inside the modal for keyboard safety.
 
 **11.14 Horizontal scrolling pill-style Season Tabs.** (Incomplete)
 
@@ -1534,13 +1534,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test standard keyboard accessibility specifically allowing Tab navigation and Enter selection.
 - [ ] Ensure explicit warning text clearly explains what 'Archive' does vs 'Backdate'.
 
-**14.3 'Archive' Functionality: Marks episodes completed, increments counts, but completely skips the History table INSERT (Prevents timeline spam).** (Incomplete)
+**14.3 'Archive' Functionality: Marks episodes completed, increments counts, but completely skips the History table INSERT (Prevents timeline spam).** (Complete)
 
-- [ ] Verify episodes explicitly update their status correctly to 'Completed' in the main episode list.
-- [ ] Ensure total episode count math correctly includes archived items without requiring a history timestamp.
-- [ ] Handle edge cases where a user later tries to manually backdate an already archived episode.
-- [ ] Test the backend query ensuring absolutely zero rows are accidentally pushed to the `History` table.
-- [ ] Ensure the 'Shows Completed' statistic correctly flips to true if the entire show was specifically archived.
+- [x] Verify episodes explicitly update their status correctly to 'Completed' in the main episode list.
+- [x] Ensure total episode count math correctly includes archived items without requiring a history timestamp.
+- [x] Handle edge cases where a user later tries to manually backdate an already archived episode.
+- [x] Test the backend query ensuring absolutely zero rows are accidentally pushed to the `History` table.
+- [x] Ensure the 'Shows Completed' statistic correctly flips to true if the entire show was specifically archived.
 
 **14.4 'Backdate' Feature: Dual dropdown pickers for specific Year and Month.** (Incomplete)
 

@@ -302,6 +302,7 @@ fn main() {
             commands::delete_media_cmd,
             commands::get_media_details_db,
             commands::add_to_tracker,
+            commands::mark_season_watched,
             commands::get_dashboard_data,
             commands::get_library_data,
             commands::fetch_unmatched_files,
@@ -309,6 +310,7 @@ fn main() {
             commands::run_scan_directory,
             commands::perform_tmdb_search,
             commands::assign_unmatched_to_tracker,
+            commands::get_media_history_count,
             vlc::play_episode_cmd,
         ])
         .run(tauri::generate_context!())

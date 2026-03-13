@@ -175,6 +175,7 @@ pub struct Episode {
     pub media_type: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HistoryEntry {
     pub hist_id: i32,

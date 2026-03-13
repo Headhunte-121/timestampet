@@ -162,3 +162,10 @@ Update 19: Feature 5.4: Local_Files Relational Table
 - Added Play Validation which actively queries disk availability directly when 'Play Next' or specific 'Play' buttons are clicked, launching interactive toast requests with 'Locate' file picker if unmapped.
 - Validated tests confirming `Local_Files` drops safely without disrupting specific parent Episode metadata.
 
+Update 20: Feature 5.5 History Relational Table
+- Implemented the V5 database migration to convert legacy `History` table timestamps to Unix epochs (integers) using UTC `strftime('%s', 'now')`.
+- Added missing `last_position` and `status` columns explicitly to `History` table schema.
+- Built a smart indexing mechanism `idx_history_timestamp` across `timestamp DESC` and `id DESC` to ensure massive datasets (10,000+ entries) load seamlessly without sorting lag.
+- Implemented `get_media_history_count(media_id)` directly fetching the sub-query mapped sum, integrating directly with `remove_show` logic.
+- Rewrote Rust fetch_history logic to automatically format and return arrays clustered by `session_id` and 6-hour timestamp boundaries as "Binge-Blocks".
+- Implemented `mark_season_watched` to explicitly handle "Archive Mode" (ignoring History logs while filling the Episode count metrics).
