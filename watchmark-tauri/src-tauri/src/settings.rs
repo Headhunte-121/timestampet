@@ -113,12 +113,23 @@ pub fn load_settings() -> Result<Settings, String> {
 pub fn save_settings(settings: &Settings) -> Result<(), String> {
     let settings_file = get_app_data_dir().join("settings.json");
 
-    // Attempt to store in Keyring
     let mut key_stored_in_keyring = false;
+    let mut is_env_var = false;
+
+    // Check if the current key matches the environment variable exactly
+    if let Ok(env_key) = std::env::var("TMDB_API_KEY") {
+        if env_key == settings.tmdb_api_key && !settings.tmdb_api_key.is_empty() {
+            is_env_var = true;
+        }
+    }
+
+    // Attempt to store in Keyring only if it's not from the environment
     if !settings.tmdb_api_key.is_empty() {
-        if let Ok(entry) = get_keyring_entry() {
-            if entry.set_password(&settings.tmdb_api_key).is_ok() {
-                key_stored_in_keyring = true;
+        if !is_env_var {
+            if let Ok(entry) = get_keyring_entry() {
+                if entry.set_password(&settings.tmdb_api_key).is_ok() {
+                    key_stored_in_keyring = true;
+                }
             }
         }
     } else {
@@ -131,9 +142,9 @@ pub fn save_settings(settings: &Settings) -> Result<(), String> {
 
     let mut settings_to_save = settings.clone();
 
-    // If we successfully saved to keyring, remove it from the JSON.
-    // If keyring failed, obfuscate it in the JSON.
-    if key_stored_in_keyring {
+    // If we successfully saved to keyring OR it is the environment variable, remove it from the JSON.
+    // If keyring failed and it's not the environment variable, obfuscate it in the JSON.
+    if key_stored_in_keyring || is_env_var {
         settings_to_save.tmdb_api_key = String::new();
     } else if !settings.tmdb_api_key.is_empty() {
         settings_to_save.tmdb_api_key = general_purpose::STANDARD.encode(&settings.tmdb_api_key);
