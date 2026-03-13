@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { FolderSearch, Search } from "lucide-react";
+import { FolderSearch, Search, X } from "lucide-react";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -8,6 +8,7 @@ export default function InboxView({ onMatch }: any) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchUnmatched();
@@ -66,6 +67,7 @@ export default function InboxView({ onMatch }: any) {
       });
       alert(`Successfully assigned files to tracker!`);
       setSelectedGroup(null);
+      setIsModalOpen(false);
       fetchUnmatched();
       if (onMatch) onMatch();
     } catch (e: any) {
@@ -74,6 +76,13 @@ export default function InboxView({ onMatch }: any) {
       } else {
         alert("Error assigning show: " + e);
       }
+    }
+  };
+
+  const openSearchModal = () => {
+    setIsModalOpen(true);
+    if (selectedGroup) {
+      performSearch();
     }
   };
 
@@ -141,37 +150,86 @@ export default function InboxView({ onMatch }: any) {
               </div>
             ) : (
               <div className="flex flex-col h-full">
-                <div className="flex justify-between items-start mb-6">
+                <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-1">Assign: {selectedGroup}</h2>
-                    <p className="text-gray-400 text-sm">{grouped[selectedGroup]?.length || 0} files selected</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 mb-8">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                      type="text"
-                      placeholder="Search TMDB..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && performSearch()}
-                      className="w-full bg-[#15171e] text-white pl-12 pr-6 py-3 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00] transition-colors"
-                    />
+                    <h2 className="text-2xl font-bold text-white mb-1">Group: {selectedGroup}</h2>
+                    <p className="text-gray-400 text-sm">{grouped[selectedGroup]?.length || 0} files</p>
                   </div>
                   <button
-                    onClick={performSearch}
-                    disabled={isSearching}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition-colors disabled:opacity-50"
+                    onClick={openSearchModal}
+                    className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors shadow-lg shadow-orange-500/20"
                   >
-                    {isSearching ? "Searching..." : "Search"}
+                    + Add Tracker
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="flex-1 overflow-y-auto bg-black/20 rounded-xl border border-white/5 p-4">
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Files in this group</h3>
+                  <div className="space-y-2">
+                    {grouped[selectedGroup]?.map((file: any, index: number) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                        <div className="w-2 h-2 rounded-full bg-[#FF6B00]"></div>
+                        <p className="text-sm text-gray-300 font-mono break-all">{file.filename}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-12">
+          <div className="bg-[#1F222A] w-full max-w-5xl max-h-full rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Search className="w-5 h-5 text-[#FF6B00]" />
+                Assign Tracker for "{selectedGroup}"
+              </h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 border-b border-white/5 bg-black/20">
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  placeholder="Search TMDB..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && performSearch()}
+                  className="flex-1 bg-[#15171e] text-white px-6 py-3 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00] transition-colors"
+                />
+                <button
+                  onClick={performSearch}
+                  disabled={isSearching}
+                  className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition-colors disabled:opacity-50"
+                >
+                  {isSearching ? "Searching..." : "Search"}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 bg-[#0D0F14]">
+              {isSearching ? (
+                <div className="flex justify-center p-12">
+                   <div className="w-8 h-8 rounded-full border-4 border-[#FF6B00] border-t-transparent animate-spin"></div>
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="text-center text-gray-500 p-12">
+                  No results found for "{searchQuery}". Try a different search term.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                   {searchResults.map((item, i) => (
-                    <div key={i} className="bg-[#15171e] rounded-xl overflow-hidden group border border-white/5">
+                    <div key={i} className="bg-[#1F222A] rounded-xl overflow-hidden group border border-white/5 shadow-xl">
                       <div className="aspect-[2/3] relative">
                         {item.poster_path ? (
                           <img
@@ -187,29 +245,23 @@ export default function InboxView({ onMatch }: any) {
                         <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                           <button
                             onClick={() => assignShow(item.tmdb_id, item.type)}
-                            className="w-full py-2 bg-[#FF6B00] text-white font-bold rounded-lg hover:bg-[#E66000] transition-colors"
+                            className="w-full py-3 bg-[#FF6B00] text-white font-bold rounded-lg hover:bg-[#E66000] transition-colors shadow-lg"
                           >
                             Assign Show
                           </button>
                         </div>
                       </div>
                       <div className="p-4">
-                        <h3 className="text-white font-bold truncate">{item.title}</h3>
-                        <p className="text-xs text-gray-500 uppercase mt-1">
-                          {item.type} • {item.release_date?.substring(0, 4) || "Unknown"}
+                        <h3 className="text-white font-bold text-sm truncate">{item.title}</h3>
+                        <p className="text-xs text-[#FF6B00] font-bold uppercase mt-1">
+                          {item.type} • <span className="text-gray-500">{item.release_date?.substring(0, 4) || "Unknown"}</span>
                         </p>
                       </div>
                     </div>
                   ))}
                 </div>
-
-                {searchResults.length === 0 && !isSearching && (
-                  <div className="mt-8 text-center text-gray-500">
-                    Search for a show on TMDB to assign these files.
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

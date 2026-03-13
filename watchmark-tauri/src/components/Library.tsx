@@ -51,7 +51,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {filteredData.map((item, i) => (
           <motion.div
             key={item.id}
@@ -59,7 +59,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
             whileHover={{ scale: 1.05, y: -5 }}
-            className="relative aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group shadow-xl"
+            className="relative w-full aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group shadow-xl"
             onClick={() => onMediaSelect(item.id)}
           >
             {item.poster_path ? (
