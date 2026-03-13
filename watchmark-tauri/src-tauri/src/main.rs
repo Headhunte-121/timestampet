@@ -1,9 +1,9 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod error;
 mod commands;
 mod db;
+mod error;
 mod models;
 mod scanner;
 mod settings;
@@ -14,6 +14,7 @@ fn main() {
     db::init_db().expect("Failed to initialize database");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .register_asynchronous_uri_scheme_protocol("watchmark", |_app, request, responder| {
             let path = request.uri().path();
@@ -22,13 +23,15 @@ fn main() {
                     http::Response::builder()
                         .status(400)
                         .body(Vec::new())
-                        .unwrap()
+                        .unwrap(),
                 );
                 return;
             }
             let path = path[1..].to_string();
             // URL decode the path
-            let decoded_path = percent_encoding::percent_decode_str(&path).decode_utf8_lossy().to_string();
+            let decoded_path = percent_encoding::percent_decode_str(&path)
+                .decode_utf8_lossy()
+                .to_string();
 
             let safe_path = std::path::PathBuf::from(&decoded_path);
 
@@ -52,7 +55,7 @@ fn main() {
                                     http::Response::builder()
                                         .header("Access-Control-Allow-Origin", "*")
                                         .body(data)
-                                        .unwrap()
+                                        .unwrap(),
                                 );
                                 return;
                             }
@@ -64,7 +67,7 @@ fn main() {
                     http::Response::builder()
                         .status(404)
                         .body(Vec::new())
-                        .unwrap()
+                        .unwrap(),
                 );
             });
         })

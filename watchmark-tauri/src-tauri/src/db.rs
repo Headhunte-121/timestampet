@@ -1,8 +1,8 @@
 use rusqlite::{Connection, Result};
-use std::path::PathBuf;
 use std::fs;
-use std::sync::{Mutex, MutexGuard};
+use std::path::PathBuf;
 use std::sync::OnceLock;
+use std::sync::{Mutex, MutexGuard};
 
 use directories::ProjectDirs;
 
@@ -37,7 +37,9 @@ pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::
         let conn = Connection::open(db_path)?;
         let _ = conn.execute("PRAGMA cache_size = -2000;", ());
         let mutex = Mutex::new(conn);
-        DB_CONNECTION.set(mutex).map_err(|_| rusqlite::Error::InvalidPath(Default::default()))?;
+        DB_CONNECTION
+            .set(mutex)
+            .map_err(|_| rusqlite::Error::InvalidPath(Default::default()))?;
         Ok(DB_CONNECTION.get().unwrap().lock().unwrap())
     }
 }

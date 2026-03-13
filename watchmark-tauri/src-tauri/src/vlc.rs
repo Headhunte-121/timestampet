@@ -1,9 +1,9 @@
 use reqwest::Client;
 use rusqlite::params;
 use serde_json::Value;
-use tokio::process::{Child, Command};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
+use tokio::process::{Child, Command};
 
 use crate::db::get_db_connection;
 use crate::error::AppError;
@@ -165,7 +165,9 @@ pub async fn play_episode_cmd(
 ) -> Result<(), AppError> {
     let settings = crate::settings::load_settings();
     if settings.vlc_path.is_empty() {
-        return Err(AppError::Custom("VLC path not configured in Settings".to_string()));
+        return Err(AppError::Custom(
+            "VLC path not configured in Settings".to_string(),
+        ));
     }
 
     if !std::path::Path::new(&file_path).exists() {
@@ -202,8 +204,14 @@ pub async fn play_episode_cmd(
                     let last_timestamp: String = row.get(1).unwrap_or_default();
 
                     // Parse timestamp and check if within 6 hours (21600 seconds)
-                    if let Ok(last_dt) = chrono::NaiveDateTime::parse_from_str(&last_timestamp, "%Y-%m-%d %H:%M:%S") {
-                        let last_dt_utc = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(last_dt, chrono::Utc);
+                    if let Ok(last_dt) =
+                        chrono::NaiveDateTime::parse_from_str(&last_timestamp, "%Y-%m-%d %H:%M:%S")
+                    {
+                        let last_dt_utc =
+                            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+                                last_dt,
+                                chrono::Utc,
+                            );
                         let now = chrono::Utc::now();
                         if (now - last_dt_utc).num_seconds() < 21600 {
                             session_id = last_session_id;
@@ -231,18 +239,15 @@ pub async fn play_episode_cmd(
             }
 
             if status == "Watching" {
-                let _ = conn.execute("UPDATE Episodes SET status='Watching' WHERE id=?", params![episode_id])?;
+                let _ = conn.execute(
+                    "UPDATE Episodes SET status='Watching' WHERE id=?",
+                    params![episode_id],
+                )?;
             }
         } // `conn` dropped here
 
         tokio::spawn(async move {
-            vlc_heartbeat(
-                proc,
-                episode_id,
-                session_id,
-                start_dt_str,
-                app_handle,
-            ).await;
+            vlc_heartbeat(proc, episode_id, session_id, start_dt_str, app_handle).await;
         });
 
         Ok(())

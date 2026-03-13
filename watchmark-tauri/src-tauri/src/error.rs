@@ -30,7 +30,9 @@ impl Serialize for AppError {
     {
         let message = match self {
             AppError::DbError(_) => "A database error occurred.".to_string(),
-            AppError::NetworkError(_) => "A network request failed. Please check your connection.".to_string(),
+            AppError::NetworkError(_) => {
+                "A network request failed. Please check your connection.".to_string()
+            }
             AppError::IoError(_) => "An internal system file error occurred.".to_string(),
             AppError::JsonError(_) => "Failed to parse data.".to_string(),
             AppError::Panic(ref msg) => format!("Critical Error: {}", msg),

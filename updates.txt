@@ -85,3 +85,4 @@ Update 10: UI Polish - Desktop-Native Experience
 - Toast Notifications: Integrated `sonner` for non-blocking, premium toast notifications that slide in from the bottom right for success/error messages (e.g., "Added to Tracker!").
 - Seasons List: Replaced the unstyled white horizontal scrollbar in the Seasons list with a clean `flex-wrap` layout (`gap-2`), ensuring seasons dynamically stack on multiple lines for better visibility and a cleaner desktop feel.
 - Window Title Fixes: Updated `tauri.conf.json` and `index.html` to set the application window title to `WatchMark`, permanently removing "localhost:1420" and "watchmark-tauri" to create a cohesive native application feel.
+- Replaced manual directory typing prompt with Native Tauri Dialog plugin (`@tauri-apps/plugin-dialog`) for a real OS File Picker in Inbox and Settings.
