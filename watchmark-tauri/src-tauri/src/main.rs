@@ -5,6 +5,7 @@ mod commands;
 mod db;
 mod error;
 mod models;
+mod hash;
 mod scanner;
 mod settings;
 mod tmdb;
@@ -292,6 +293,10 @@ fn main() {
             });
         })
         .invoke_handler(tauri::generate_handler![
+            commands::repair_paths,
+            commands::remove_local_link,
+            commands::validate_and_hash_file,
+            commands::update_local_file,
             commands::get_settings,
             commands::save_settings,
             commands::delete_media_cmd,

@@ -18,6 +18,76 @@ pub async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings,
 }
 
 #[tauri::command]
+pub fn repair_paths(old_root: String, new_root: String) -> Result<i32, AppError> {
+    handle_panic(|| {
+        let conn = get_db_connection()?;
+        let affected = conn.execute(
+            "UPDATE Local_Files SET file_path = REPLACE(file_path, ?, ?) WHERE file_path LIKE ?",
+            params![old_root, new_root, format!("{}%", old_root)],
+        )?;
+        Ok(affected as i32)
+    })
+}
+
+#[tauri::command]
+pub fn remove_local_link(episode_id: i32) -> Result<(), AppError> {
+    handle_panic(|| {
+        let conn = get_db_connection()?;
+        conn.execute("DELETE FROM Local_Files WHERE episode_id = ?", params![episode_id])?;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub async fn validate_and_hash_file(episode_id: i32, file_path: String) -> Result<Value, AppError> {
+    let task = tokio::task::spawn_blocking(move || {
+        handle_panic(|| {
+            let path = std::path::PathBuf::from(&file_path);
+
+            if !path.exists() {
+                return Ok(json!({ "status": "missing", "path": file_path }));
+            }
+
+            let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            if file_size == 0 {
+                return Ok(json!({ "status": "corrupted", "path": file_path }));
+            }
+
+            // Calculate sparse hash
+            match crate::hash::compute_sparse_hash(&path) {
+                Ok(hash) => {
+                    if let Ok(conn) = get_db_connection() {
+                        let _ = conn.execute(
+                            "UPDATE Local_Files SET file_hash = ? WHERE episode_id = ?",
+                            params![hash, episode_id],
+                        );
+                    }
+                    Ok(json!({ "status": "ok", "hash": hash }))
+                }
+                Err(_) => {
+                    Ok(json!({ "status": "error", "message": "Failed to read file for hashing." }))
+                }
+            }
+        })
+    });
+
+    task.await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
+}
+
+#[tauri::command]
+pub fn update_local_file(episode_id: i32, new_path: String) -> Result<(), AppError> {
+    handle_panic(|| {
+        let conn = get_db_connection()?;
+        let file_size = std::fs::metadata(&new_path).map(|m| m.len()).unwrap_or(0) as i64;
+        conn.execute(
+            "INSERT INTO Local_Files (episode_id, file_path, file_size) VALUES (?, ?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path, file_size=excluded.file_size",
+            params![episode_id, new_path, file_size],
+        )?;
+        Ok(())
+    })
+}
+
+#[tauri::command]
 pub async fn save_settings(
     settings: Settings,
     state: tauri::State<'_, AppState>,

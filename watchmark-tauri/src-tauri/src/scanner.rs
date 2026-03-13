@@ -102,6 +102,11 @@ pub fn scan_directory(
                     let (series_name, season_num, episode_num) = parse_filename(&filename);
                     let str_path = path.to_string_lossy().to_string();
 
+                    let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) as i64;
+                    if file_size == 0 {
+                        log::warn!("Bit-Rot or Empty File Detected: {}", str_path);
+                    }
+
                     let mut matched_ep_id: Option<i32> = None;
 
                     if let Some(ref s_name) = series_name {
@@ -121,21 +126,19 @@ pub fn scan_directory(
                             })?;
 
                             let mut matched_media_id = None;
-                            for show in shows {
-                                if let Ok((id, title)) = show {
-                                    let safe_db_name: String = title
-                                        .chars()
-                                        .filter(|c| c.is_alphanumeric())
-                                        .collect::<String>()
-                                        .to_lowercase();
+                            for (id, title) in shows.flatten() {
+                                let safe_db_name: String = title
+                                    .chars()
+                                    .filter(|c| c.is_alphanumeric())
+                                    .collect::<String>()
+                                    .to_lowercase();
 
-                                    if safe_series == safe_db_name
-                                        || safe_db_name.contains(&safe_series)
-                                        || safe_series.contains(&safe_db_name)
-                                    {
-                                        matched_media_id = Some(id);
-                                        break;
-                                    }
+                                if safe_series == safe_db_name
+                                    || safe_db_name.contains(&safe_series)
+                                    || safe_series.contains(&safe_db_name)
+                                {
+                                    matched_media_id = Some(id);
+                                    break;
                                 }
                             }
 
@@ -160,18 +163,16 @@ pub fn scan_directory(
                             })?;
 
                             let mut matched_media_id = None;
-                            for movie in movies {
-                                if let Ok((id, title)) = movie {
-                                    let safe_db_name: String = title
-                                        .chars()
-                                        .filter(|c| c.is_alphanumeric())
-                                        .collect::<String>()
-                                        .to_lowercase();
+                            for (id, title) in movies.flatten() {
+                                let safe_db_name: String = title
+                                    .chars()
+                                    .filter(|c| c.is_alphanumeric())
+                                    .collect::<String>()
+                                    .to_lowercase();
 
-                                    if safe_series == safe_db_name {
-                                        matched_media_id = Some(id);
-                                        break;
-                                    }
+                                if safe_series == safe_db_name {
+                                    matched_media_id = Some(id);
+                                    break;
                                 }
                             }
 
@@ -188,16 +189,41 @@ pub fn scan_directory(
                     }
 
                     if let Some(ep_id) = matched_ep_id {
-                        let _ = tx.execute(
-                            "INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path",
-                            params![ep_id, str_path],
-                        );
+                        // Collision Detection: Automatic Heuristic (Larger Wins)
+                        let mut existing_size: i64 = -1;
+                        let mut update_needed = true;
+
+                        if let Ok(mut stmt) = tx.prepare("SELECT file_size FROM Local_Files WHERE episode_id = ?") {
+                            if let Ok(mut rows) = stmt.query(params![ep_id]) {
+                                if let Ok(Some(row)) = rows.next() {
+                                    existing_size = row.get(0).unwrap_or(0);
+                                } else {
+                                    // Row doesn't exist, we must insert
+                                }
+                            }
+                        }
+
+                        if existing_size != -1 {
+                            if file_size <= existing_size {
+                                update_needed = false;
+                            } else {
+                                log::info!("Auto-replaced episode_id {} with larger file: {} ({} bytes > {} bytes)", ep_id, str_path, file_size, existing_size);
+                            }
+                        }
+
+                        if update_needed {
+                            let _ = tx.execute(
+                                "INSERT INTO Local_Files (episode_id, file_path, file_size) VALUES (?, ?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path, file_size=excluded.file_size",
+                                params![ep_id, str_path, file_size],
+                            );
+                        }
                     } else {
                         let mut group_key = series_name.clone();
                         if group_key.is_none() {
                             let stem = path.file_stem().unwrap().to_string_lossy();
+                            // Fallback regex without unsupported lookaheads
                             let fallback_match =
-                                Regex::new(r"^(.+?)(?=\.[sS]\d\d|\.\d{4})").unwrap();
+                                Regex::new(r"^(.+?)(\.[sS]\d\d|\.\d{4})").unwrap();
                             if let Some(caps) = fallback_match.captures(&stem) {
                                 group_key = Some(caps.get(1).unwrap().as_str().to_string());
                             } else {
