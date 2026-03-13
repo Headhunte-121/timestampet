@@ -56,3 +56,11 @@ Update 5: Cinema-Grade UI Overhaul
   - Revamped the `Quick Stats` section into a row of sleek, frosted glass cards.
 - Dynamic Data Integration: Restored Tauri `invoke` calls to populate the UI with actual backend data, seamlessly falling back to high-res Unsplash placeholders when TMDB image paths are missing.
 - Async UX: Integrated Animated Skeleton Loaders (pulsing `#1F222A` layout boxes) to maintain layout structure and premium feel while Rust data fetches.
+
+Update 6: Polishing the Cinematic UI
+- Secondary Panels: Applied a glassy semi-transparent background (`bg-[#1F222A]/60 backdrop-blur-md`) to cards and panels.
+- Sidebar Active State: Replaced the solid boxy active state with a glowing `#FF6B00` vertical line and a subtle gradient, with text turning bright white.
+- Global Search Bar: Added a sleek, pill-shaped global quick search bar to `App.tsx` that filters the `Dashboard` and `Library` local items seamlessly.
+- Hero Banner Polish: Enforced the vibrant orange "UP NEXT" label formatting, pure white title, and layered a directional gradient from bottom-left to top-right to ensure text readability against light backdrops while fading seamlessly into pure `#0D0F14`.
+- Poster Badges: Transformed the top-right poster badges into slightly transparent `bg-black/60 backdrop-blur-md` pill shapes, utilizing the uniform `#FF6B00` for the stars and text.
+- Stats Bar Refinement: Re-styled the Dashboard Stats cards into sleek, centered widgets with massive, bold `#FF6B00` text to emphasize immersion over raw data.

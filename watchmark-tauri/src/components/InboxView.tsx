@@ -39,7 +39,7 @@ export default function InboxView({ onMatch: _onMatch }: any) {
   };
 
   return (
-    <div className="p-12 pb-24 h-full flex flex-col">
+    <div className="p-12 pb-24 pt-24 h-full flex flex-col">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-extrabold tracking-tight">Inbox</h1>
         <button
@@ -59,7 +59,7 @@ export default function InboxView({ onMatch: _onMatch }: any) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 flex-1 min-h-0">
-          <div className="col-span-1 bg-[#1F222A] rounded-2xl p-6 overflow-y-auto border border-white/5">
+          <div className="col-span-1 bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 overflow-y-auto border border-white/5">
             {Object.entries(grouped).map(([key, files]: [string, any]) => (
               <div key={key} className="p-4 hover:bg-white/5 rounded-xl cursor-pointer transition-colors mb-2">
                 <h3 className="text-white font-bold truncate">{key}</h3>
@@ -68,7 +68,7 @@ export default function InboxView({ onMatch: _onMatch }: any) {
             ))}
           </div>
 
-          <div className="col-span-2 bg-[#1F222A]/50 rounded-2xl p-8 border border-white/5 flex flex-col items-center justify-center text-center">
+          <div className="col-span-2 bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-8 border border-white/5 flex flex-col items-center justify-center text-center">
             <h2 className="text-2xl font-bold mb-4 text-white">Select a group to triage</h2>
             <p className="text-gray-400 max-w-md">
               Groups are generated automatically from filenames. Select one to assign it to a TMDB show.

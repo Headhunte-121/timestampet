@@ -20,13 +20,12 @@ This document represents the absolute state of the WatchMark codebase compared t
 - `[x]` **Strict Data Sanitization**: Fallbacks for TMDB errors (`Unknown Title`, Unsplash placeholders) exist across components.
 
 ## 2. The Dashboard (Home)
-- `[x]` **Hero Section**: 450px high banner with gradient fades, dynamic "▶ Resume" button, progress bar based on runtime math, and TMDB/Unsplash backdrop mapping.
+- `[x]` **Hero Section**: 450px high banner with complex directional gradient fades fading into pure `#0D0F14`, dynamic "▶ Resume" button, progress bar based on runtime math, and TMDB/Unsplash backdrop mapping. Emphasized pure white titles with vibrant orange "UP NEXT" indicators.
 - `[ ]` **"Up Next" Smart Queue**: **PARTIAL**. The horizontal scrolling row exists visually, but the backend query `get_dashboard_data` in `commands.rs` just grabs the *first* unwatched episode (`LIMIT 1`). It does not explicitly calculate the *next unwatched* episode reliably if the user skips around.
     - *Action Required*: Ensure the Rust SQL query robustly selects `MIN(season_num)` and `MIN(ep_num)` where `status = 'Unwatched'` for each media ID.
-- `[x]` **Recently Added**: Horizontal carousel of posters with hover effects (`scale-105`) and dark glass play overlay.
-- `[x]` **Personal Stats Bar**: Frost glass cards displaying calculated "Total Episodes Watched", "Hours Watched", and "Shows Completed".
-- `[ ]` **Global Quick Search**: **MISSING**. The pill-shaped search bar visually exists in `App.tsx` but has no `onChange` handler or debounced query connected to `perform_tmdb_search` or local DB filtering.
-    - *Action Required*: Wire the input to an `onChange` state, filter local library results, and render a dropdown or replace the main view with search results.
+- `[x]` **Recently Added**: Horizontal carousel of posters with hover effects (`scale-105`) and dark glass play overlay. Floating orange badges for user ratings (`★ 8.5/5`).
+- `[x]` **Personal Stats Bar**: Frost glass cards centered vertically/horizontally displaying massive `#FF6B00` text for "Total Episodes Watched", "Hours Watched", and "Shows Completed".
+- `[x]` **Global Quick Search**: Implemented. A persistent top pill-shaped bar filters local UI views dynamically.
 
 ## 3. Media Discovery & Inbox (Triage)
 - `[x]` **Smart Media Scanner**: Rust `scanner.rs` (assumed working per previous iterations) parses filenames via regex and matches to TMDB.

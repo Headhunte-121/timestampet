@@ -9,7 +9,7 @@ export default function History() {
   }, []);
 
   return (
-    <div className="p-12">
+    <div className="p-12 pt-24">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Watch History</h1>
 
       {history.length === 0 ? (
@@ -17,7 +17,7 @@ export default function History() {
       ) : (
         <div className="space-y-6 max-w-4xl pb-24">
           {history.map((entry) => (
-            <div key={entry.hist_id} className="flex bg-[#1F222A] p-4 rounded-xl border border-white/5 items-center gap-6">
+            <div key={entry.hist_id} className="flex bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 items-center gap-6">
                <img
                 src={`https://image.tmdb.org/t/p/w200${entry.poster_path}`}
                 alt={entry.show_title}
