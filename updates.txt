@@ -46,3 +46,13 @@ Update 4: Tauri 2.0 Architectural Overhaul
 - VLC Thread Polling: Reimplemented the infinite-loop VLC heartbeat monitor entirely in a Rust background thread using `std::process::Command` to spawn VLC and `reqwest` to poll the `status.json` HTTP interface, retaining exact sub-second playhead precision without Python.
 - Legacy Schema Preservation: Rust `DataManager` opens the existing legacy SQLite `.db` files and safely applies evolutionary schemas (adding missing newer columns automatically using `IF NOT EXISTS` constructs) to ensure no user history or manual mappings are lost.
 - Binge-Block Logic: Ported the sequential Auto-Binge session grouping algorithm to the new Rust application lifecycle.
+
+Update 5: Cinema-Grade UI Overhaul
+- Shell Refactor: Rebuilt `App.tsx` with a fixed-width glassy sidebar (`#141519/80`, `backdrop-blur-xl`), vibrant active states (`#FF6B00` borders), and a new top bar featuring a pill-shaped search input over a transparent blurred backdrop.
+- Dashboard Redesign: Overhauled `Dashboard.tsx` to match premium media interfaces (Apple TV/Plex).
+  - Implemented an immersive 450px high Hero Banner with gradient fades (`bg-gradient-to-t from-[#0D0F14]`) for the "Up Next" episode, including a calculated resume progress bar.
+  - Added horizontal, snap-scrolling `Continue Watching` row with dynamic progress bars and animated hover states.
+  - Added a `Recently Added` grid of posters with Framer Motion scaling, shadow lifting, and a glass-blur Play button overlay on hover.
+  - Revamped the `Quick Stats` section into a row of sleek, frosted glass cards.
+- Dynamic Data Integration: Restored Tauri `invoke` calls to populate the UI with actual backend data, seamlessly falling back to high-res Unsplash placeholders when TMDB image paths are missing.
+- Async UX: Integrated Animated Skeleton Loaders (pulsing `#1F222A` layout boxes) to maintain layout structure and premium feel while Rust data fetches.
