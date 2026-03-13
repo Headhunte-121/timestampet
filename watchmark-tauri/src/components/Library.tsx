@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Star } from "lucide-react";
+import { useAppStore } from "../store/useAppStore";
 
 export default function Library({ type, onMediaSelect, refreshTrigger, searchQuery = "" }: any) {
+  const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("Recently Added");
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -51,17 +53,27 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
-        {filteredData.map((item, i) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            whileHover={{ scale: 1.05, y: -5 }}
-            className="relative w-full aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group shadow-xl"
-            onClick={() => onMediaSelect(item.id)}
-          >
+      <motion.div layout className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+        <AnimatePresence mode="popLayout">
+          {filteredData.map((item, i) => {
+            const isInitialStagger = i < 20;
+            return (
+              <motion.div
+                key={item.id}
+                layout="position"
+                initial={isCinemaMode ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
+                animate={isCinemaMode && isInitialStagger ? { opacity: 1, y: 0 } : (!isCinemaMode ? { opacity: 1, y: 0 } : undefined)}
+                exit={isCinemaMode ? { opacity: 0, scale: 0.8 } : { opacity: 0, scale: 1 }}
+                whileInView={!isInitialStagger && isCinemaMode ? { opacity: 1, y: 0 } : undefined}
+                viewport={{ once: true, margin: "50px" }}
+                transition={{
+                  delay: isCinemaMode && isInitialStagger ? i * 0.05 : 0,
+                  duration: 0.3
+                }}
+                whileHover={isCinemaMode ? { scale: 1.05, y: -5 } : {}}
+                className="relative w-full aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group shadow-xl transform-gpu"
+                onClick={() => onMediaSelect(item.id)}
+              >
             {item.poster_path ? (
               <img
                 src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
@@ -108,14 +120,16 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                 />
               </div>
             )}
-          </motion.div>
-        ))}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
         {filteredData.length === 0 && (
           <div className="col-span-full py-32 text-center text-gray-500 text-lg">
             No media found in this view.
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

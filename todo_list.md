@@ -36,13 +36,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Check that `backdrop-blur` utilities don't cause extreme GPU spikes on lower-end devices.
 - [x] Test text contrast ratios in Tailwind configurations for accessibility compliance.
 
-**1.5 Framer Motion engine for 60FPS hardware-accelerated animations.** (Incomplete)
+**1.5 Framer Motion engine for 60FPS hardware-accelerated animations.** (Complete)
 
-- [ ] Provide a global toggle to disable heavy animations for battery-saving mode.
-- [ ] Ensure `<AnimatePresence>` correctly cleans up unmounted nodes to prevent ghost elements.
-- [ ] Handle edge cases where rapid clicking queues up conflicting animation states.
-- [ ] Verify complex layout animations do not cause text to jitter or blur.
-- [ ] Test animation performance limits when rendering grids of 500+ items.
+- [x] Provide a global toggle to disable heavy animations for battery-saving mode.
+- [x] Ensure `<AnimatePresence>` correctly cleans up unmounted nodes to prevent ghost elements.
+- [x] Handle edge cases where rapid clicking queues up conflicting animation states.
+- [x] Verify complex layout animations do not cause text to jitter or blur.
+- [x] Test animation performance limits when rendering grids of 500+ items.
 
 **1.6 Ultra-lightweight binary footprint (~30MB RAM usage).** (Incomplete)
 
