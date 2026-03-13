@@ -83,7 +83,7 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 let mut s_stmt = conn.prepare(
                     "SELECT DISTINCT season_num FROM Episodes WHERE media_id=? ORDER BY season_num",
                 )?;
-                let s_rows = s_stmt.query_map(params![media_id], |row| row.get::<_, i32>(0));
+                let s_rows = s_stmt.query_map(params![media_id], |row| row.get::<_, u32>(0));
                 if let Ok(s_rows_iter) = s_rows {
                     for s in s_rows_iter.flatten() {
                         seasons.push(s);
@@ -100,7 +100,7 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 FROM Episodes e
                 LEFT JOIN Local_Files l ON e.id = l.episode_id
                 WHERE e.media_id=?
-                ORDER BY e.season_num, e.ep_num
+                ORDER BY e.season_num ASC, e.ep_num ASC
             ",
             )?;
 
@@ -109,8 +109,8 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 Ok(json!({
                     "id": row.get::<_, i32>(0)?,
                     "media_id": row.get::<_, i32>(1)?,
-                    "season_num": row.get::<_, i32>(2)?,
-                    "ep_num": row.get::<_, i32>(3)?,
+                    "season_num": row.get::<_, u32>(2)?,
+                    "ep_num": row.get::<_, u32>(3)?,
                     "title": row.get::<_, Option<String>>(4)?.unwrap_or_default(),
                     "runtime": row.get::<_, i32>(5)?,
                     "still_path": row.get::<_, Option<String>>(6)?.unwrap_or_default(),
@@ -150,7 +150,15 @@ pub async fn add_to_tracker(
                 return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
             }
 
-            if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &media_type) {
+            let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
+
+            if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type) {
+
+            let mut synopsis = details["synopsis"].as_str().unwrap_or("").to_string();
+            if synopsis.chars().count() > 10000 {
+                synopsis = synopsis.chars().take(10000).collect::<String>();
+                synopsis.push_str("...");
+            }
 
             if let Some(poster) = details["poster_path"].as_str() {
                 crate::tmdb::download_image(poster, "w500");
@@ -160,12 +168,12 @@ pub async fn add_to_tracker(
             }
 
             let mut all_eps = Vec::new();
-            if media_type == "TV" {
+            if valid_media_type == "TV" {
                 if let Some(seasons) = details["seasons"].as_array() {
                     for season in seasons {
                         if let Some(s_num) = season["season_number"].as_i64() {
-                            if s_num > 0 {
-                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num) {
+                            if s_num >= 0 {
+                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num as u32) {
                                     all_eps.extend(eps);
                                 }
                             }
@@ -187,15 +195,35 @@ pub async fn add_to_tracker(
                         }
                     }
 
-                    if existing_id.is_none() {
+                    let media_id = if let Some(id) = existing_id {
                         let _ = tx.execute(
-                            "INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?
+                             WHERE id = ?",
+                            params![
+                                details["title"].as_str().unwrap_or("Unknown Title"),
+                                synopsis,
+                                details["poster_path"].as_str().unwrap_or(""),
+                                details["backdrop_path"].as_str().unwrap_or(""),
+                                details["total_episodes"].as_i64().unwrap_or(1) as i32,
+                                details["vote_average"].as_f64().unwrap_or(0.0),
+                                details["release_date"].as_str().unwrap_or(""),
+                                id
+                            ]
+                        );
+                        id
+                    } else {
+                        let _ = tx.execute(
+                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ON CONFLICT(tmdb_id, \"type\") DO UPDATE SET
+                                \"title\"=excluded.\"title\", synopsis=excluded.synopsis, poster_path=excluded.poster_path,
+                                backdrop_path=excluded.backdrop_path, total_episodes=excluded.total_episodes,
+                                vote_average=excluded.vote_average, release_date=excluded.release_date",
                             params![
                                 tmdb_id,
-                                media_type,
+                                valid_media_type,
                                 details["title"].as_str().unwrap_or("Unknown Title"),
-                                details["synopsis"].as_str().unwrap_or(""),
+                                synopsis,
                                 details["poster_path"].as_str().unwrap_or(""),
                                 details["backdrop_path"].as_str().unwrap_or(""),
                                 details["total_episodes"].as_i64().unwrap_or(1) as i32,
@@ -205,46 +233,68 @@ pub async fn add_to_tracker(
                             ]
                         );
 
-                        let media_id = tx.last_insert_rowid() as i32;
-
-                        let ep_status = if archive { "Completed" } else { "Unwatched" };
-                        let ep_watch_count = if archive { 1 } else { 0 };
-
-                        if media_type == "TV" {
-                            for ep in all_eps {
-                                let _ = tx.execute(
-                                    "INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview, status, watch_count, air_date)
-                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                    params![
-                                        media_id,
-                                        ep["season_num"].as_i64().unwrap_or(1) as i32,
-                                        ep["ep_num"].as_i64().unwrap_or(1) as i32,
-                                        ep["title"].as_str().unwrap_or("Unknown Title"),
-                                        ep["runtime"].as_i64().unwrap_or(0) as i32,
-                                        ep["still_path"].as_str().unwrap_or(""),
-                                        ep["overview"].as_str().unwrap_or(""),
-                                        ep_status,
-                                        ep_watch_count,
-                                        ep["air_date"].as_str().unwrap_or("")
-                                    ]
-                                );
+                        let mut new_id = tx.last_insert_rowid() as i32;
+                        if new_id == 0 {
+                            if let Ok(mut stmt) = tx.prepare("SELECT id FROM Media WHERE tmdb_id=? AND \"type\"=?") {
+                                if let Ok(mut rows) = stmt.query(params![tmdb_id, valid_media_type]) {
+                                    if let Ok(Some(row)) = rows.next() {
+                                        new_id = row.get::<_, i32>(0).unwrap_or(0);
+                                    }
+                                }
                             }
-                        } else {
+                        }
+                        new_id
+                    };
+
+                    let ep_status = if archive { "Completed" } else { "Unwatched" };
+                    let ep_watch_count = if archive { 1 } else { 0 };
+
+                    if valid_media_type == "TV" {
+                        for ep in all_eps {
+                            let mut ep_overview = ep["overview"].as_str().unwrap_or("").to_string();
+                            if ep_overview.chars().count() > 10000 {
+                                ep_overview = ep_overview.chars().take(10000).collect::<String>();
+                                ep_overview.push_str("...");
+                            }
+
                             let _ = tx.execute(
-                                "INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview, status, watch_count, air_date)
-                                 VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?)",
+                                "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
+                                    \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
+                                    overview=excluded.overview, air_date=excluded.air_date",
                                 params![
                                     media_id,
-                                    details["title"].as_str().unwrap_or("Unknown Title"),
-                                    details["runtime"].as_i64().unwrap_or(0) as i32,
-                                    details["backdrop_path"].as_str().unwrap_or(""),
-                                    details["synopsis"].as_str().unwrap_or(""),
+                                    ep["season_num"].as_i64().unwrap_or(1) as u32,
+                                    ep["ep_num"].as_i64().unwrap_or(1) as u32,
+                                    ep["title"].as_str().unwrap_or("Unknown Title"),
+                                    ep["runtime"].as_i64().unwrap_or(0) as i32,
+                                    ep["still_path"].as_str().unwrap_or(""),
+                                    ep_overview,
                                     ep_status,
                                     ep_watch_count,
-                                    details["release_date"].as_str().unwrap_or("")
+                                    ep["air_date"].as_str().unwrap_or("")
                                 ]
                             );
                         }
+                    } else {
+                        let _ = tx.execute(
+                            "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
+                             VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?)
+                             ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
+                                \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
+                                overview=excluded.overview, air_date=excluded.air_date",
+                            params![
+                                media_id,
+                                details["title"].as_str().unwrap_or("Unknown Title"),
+                                details["runtime"].as_i64().unwrap_or(0) as i32,
+                                details["backdrop_path"].as_str().unwrap_or(""),
+                                synopsis,
+                                ep_status,
+                                ep_watch_count,
+                                details["release_date"].as_str().unwrap_or("")
+                            ]
+                        );
                     }
 
                     let _ = tx.commit();
@@ -305,8 +355,8 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
                     hero_ep = Some(json!({
                         "id": ep_row.get::<_, i32>(0).unwrap_or(0),
                         "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
-                        "season_num": ep_row.get::<_, i32>(2).unwrap_or(0),
-                        "ep_num": ep_row.get::<_, i32>(3).unwrap_or(0),
+                        "season_num": ep_row.get::<_, u32>(2).unwrap_or(0),
+                        "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
                         "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
                         "runtime": ep_row.get::<_, i32>(5).unwrap_or(0),
                         "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
@@ -363,8 +413,8 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
                         cw_eps.push(json!({
                             "id": ep_row.get::<_, i32>(0).unwrap_or(0),
                             "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
-                            "season_num": ep_row.get::<_, i32>(2).unwrap_or(0),
-                            "ep_num": ep_row.get::<_, i32>(3).unwrap_or(0),
+                            "season_num": ep_row.get::<_, u32>(2).unwrap_or(0),
+                            "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
                             "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
                             "runtime": ep_row.get::<_, i32>(5).unwrap_or(0),
                             "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
@@ -688,6 +738,8 @@ pub async fn assign_unmatched_to_tracker(
                 return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
             }
 
+            let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
+
             // Fetch files for this group before spawning the thread
             let mut unmatched_files = Vec::new();
             if let Ok(conn) = get_db_connection() {
@@ -706,7 +758,13 @@ pub async fn assign_unmatched_to_tracker(
                 }
             }
 
-            if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &media_type) {
+            if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type) {
+
+            let mut synopsis = details["synopsis"].as_str().unwrap_or("").to_string();
+            if synopsis.chars().count() > 10000 {
+                synopsis = synopsis.chars().take(10000).collect::<String>();
+                synopsis.push_str("...");
+            }
 
             if let Some(poster) = details["poster_path"].as_str() {
                 crate::tmdb::download_image(poster, "w500");
@@ -716,12 +774,12 @@ pub async fn assign_unmatched_to_tracker(
             }
 
             let mut all_eps = Vec::new();
-            if media_type == "TV" {
+            if valid_media_type == "TV" {
                 if let Some(seasons) = details["seasons"].as_array() {
                     for season in seasons {
                         if let Some(s_num) = season["season_number"].as_i64() {
-                            if s_num > 0 {
-                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num) {
+                            if s_num >= 0 {
+                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num as u32) {
                                     all_eps.extend(eps);
                                 }
                             }
@@ -744,16 +802,34 @@ pub async fn assign_unmatched_to_tracker(
                     }
 
                     let media_id = if let Some(id) = existing_id {
+                        let _ = tx.execute(
+                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?
+                             WHERE id = ?",
+                            params![
+                                details["title"].as_str().unwrap_or("Unknown Title"),
+                                synopsis,
+                                details["poster_path"].as_str().unwrap_or(""),
+                                details["backdrop_path"].as_str().unwrap_or(""),
+                                details["total_episodes"].as_i64().unwrap_or(1) as i32,
+                                details["vote_average"].as_f64().unwrap_or(0.0),
+                                details["release_date"].as_str().unwrap_or(""),
+                                id
+                            ]
+                        );
                         id
                     } else {
                         let _ = tx.execute(
-                            "INSERT INTO Media (tmdb_id, type, title, synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ON CONFLICT(tmdb_id, \"type\") DO UPDATE SET
+                                \"title\"=excluded.\"title\", synopsis=excluded.synopsis, poster_path=excluded.poster_path,
+                                backdrop_path=excluded.backdrop_path, total_episodes=excluded.total_episodes,
+                                vote_average=excluded.vote_average, release_date=excluded.release_date",
                             params![
                                 tmdb_id,
-                                media_type,
+                                valid_media_type,
                                 details["title"].as_str().unwrap_or("Unknown Title"),
-                                details["synopsis"].as_str().unwrap_or(""),
+                                synopsis,
                                 details["poster_path"].as_str().unwrap_or(""),
                                 details["backdrop_path"].as_str().unwrap_or(""),
                                 details["total_episodes"].as_i64().unwrap_or(1) as i32,
@@ -763,53 +839,74 @@ pub async fn assign_unmatched_to_tracker(
                             ]
                         );
 
-                        let new_media_id = tx.last_insert_rowid() as i32;
-
-                        let ep_status = "Unwatched";
-                        let ep_watch_count = 0;
-
-                        if media_type == "TV" {
-                            for ep in all_eps {
-                                let _ = tx.execute(
-                                    "INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview, status, watch_count, air_date)
-                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                    params![
-                                        new_media_id,
-                                        ep["season_num"].as_i64().unwrap_or(1) as i32,
-                                        ep["ep_num"].as_i64().unwrap_or(1) as i32,
-                                        ep["title"].as_str().unwrap_or("Unknown Title"),
-                                        ep["runtime"].as_i64().unwrap_or(0) as i32,
-                                        ep["still_path"].as_str().unwrap_or(""),
-                                        ep["overview"].as_str().unwrap_or(""),
-                                        ep_status,
-                                        ep_watch_count,
-                                        ep["air_date"].as_str().unwrap_or("")
-                                    ]
-                                );
+                        let mut new_id = tx.last_insert_rowid() as i32;
+                        if new_id == 0 {
+                            if let Ok(mut stmt) = tx.prepare("SELECT id FROM Media WHERE tmdb_id=? AND \"type\"=?") {
+                                if let Ok(mut rows) = stmt.query(params![tmdb_id, valid_media_type]) {
+                                    if let Ok(Some(row)) = rows.next() {
+                                        new_id = row.get::<_, i32>(0).unwrap_or(0);
+                                    }
+                                }
                             }
-                        } else {
+                        }
+                        new_id
+                    };
+
+                    let ep_status = "Unwatched";
+                    let ep_watch_count = 0;
+
+                    if valid_media_type == "TV" {
+                        for ep in all_eps {
+                            let mut ep_overview = ep["overview"].as_str().unwrap_or("").to_string();
+                            if ep_overview.chars().count() > 10000 {
+                                ep_overview = ep_overview.chars().take(10000).collect::<String>();
+                                ep_overview.push_str("...");
+                            }
+
                             let _ = tx.execute(
-                                "INSERT INTO Episodes (media_id, season_num, ep_num, title, runtime, still_path, overview, status, watch_count, air_date)
-                                 VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?)",
+                                "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
+                                    \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
+                                    overview=excluded.overview, air_date=excluded.air_date",
                                 params![
-                                    new_media_id,
-                                    details["title"].as_str().unwrap_or("Unknown Title"),
-                                    details["runtime"].as_i64().unwrap_or(0) as i32,
-                                    details["backdrop_path"].as_str().unwrap_or(""),
-                                    details["synopsis"].as_str().unwrap_or(""),
+                                    media_id,
+                                    ep["season_num"].as_i64().unwrap_or(1) as u32,
+                                    ep["ep_num"].as_i64().unwrap_or(1) as u32,
+                                    ep["title"].as_str().unwrap_or("Unknown Title"),
+                                    ep["runtime"].as_i64().unwrap_or(0) as i32,
+                                    ep["still_path"].as_str().unwrap_or(""),
+                                    ep_overview,
                                     ep_status,
                                     ep_watch_count,
-                                    details["release_date"].as_str().unwrap_or("")
+                                    ep["air_date"].as_str().unwrap_or("")
                                 ]
                             );
                         }
-                        new_media_id
-                    };
+                    } else {
+                        let _ = tx.execute(
+                            "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
+                             VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?)
+                             ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
+                                \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
+                                overview=excluded.overview, air_date=excluded.air_date",
+                            params![
+                                media_id,
+                                details["title"].as_str().unwrap_or("Unknown Title"),
+                                details["runtime"].as_i64().unwrap_or(0) as i32,
+                                details["backdrop_path"].as_str().unwrap_or(""),
+                                synopsis,
+                                ep_status,
+                                ep_watch_count,
+                                details["release_date"].as_str().unwrap_or("")
+                            ]
+                        );
+                    }
 
                     // Now assign the unmatched files
                     for (file_path, parsed_season, parsed_ep) in &unmatched_files {
                         let mut matched_ep_id = None;
-                        if media_type == "TV" {
+                        if valid_media_type == "TV" {
                             if let (Some(s_num), Some(e_num)) = (*parsed_season, *parsed_ep) {
                                 if let Ok(mut stmt) = tx.prepare("SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? AND ep_num = ?") {
                                     if let Ok(mut rows) = stmt.query(params![media_id, s_num, e_num]) {

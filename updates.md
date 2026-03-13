@@ -133,3 +133,17 @@ Update 16: Database Initialization, Concurrency & Foreign Key Cascading [Todo 5.
 - AppData Canary Verification: Added `check_db_permissions` which tries to open the database file explicitly, or writes a temporary `.canary` file. If the OS denies write or the file is heavily locked, it triggers a custom `AppError::Fatal` resulting in a native Windows warning to the user, averting silent thread crashes.
 - Atomic Migrations: Patched the SQLite schema updater in `init_db`. Wrapped schema alterations inside safe atomic `transaction()?` structures handling `duplicate column name` exceptions logically rather than bypassing standard integrity.
 - Cascading Delete Hooks: Altered the base table `CREATE` commands for `Episodes`, `Local_Files`, and `History` to strictly implement `FOREIGN KEY (...) REFERENCES ... ON DELETE CASCADE`, shifting manual cleanup burden entirely onto native SQLite features while maintaining `PRAGMA foreign_keys = ON;`.
+
+Update 17: Feature 5.2 - Media Table Schema Hardening & Polish [Todo 5.2]
+- Enforced strict database constraints: `UNIQUE(tmdb_id, type)` correctly accommodates mixed Movie and TV entries.
+- Implemented robust `ON CONFLICT DO UPDATE` upsert logic to ensure user ratings, history, and status survive metadata refreshes safely.
+- Implemented a 10,000 character limit on synopsis text on the backend to prevent malicious API payloads from creating memory spikes.
+- Integrated robust React frontend fallbacks: A "View More/Less" toggle limits long synopses to 300 chars, and clean "No overview available" fallback logic prevents empty layouts.
+- Mapped explicit `"Unknown"` handling for the `MediaType` enum to guarantee database writes don't fail due to garbage API entries.
+
+Update 18: Feature 5.3 & 5.14 - Episodes Schema, Data Sanitization, and Cascading Deletes [Todo 5.3, 5.14]
+- Schema Hardening: Applied `UNIQUE(media_id, season_num, ep_num)` to the Episodes table and verified the `ON CONFLICT (...) DO UPDATE` logic safely catches API data changes without duplicating rows.
+- Strict Typing: Refactored season and episode integer types from `i32` to `u32` across the Rust backend, and added `CHECK(season_num >= 0)` and `CHECK(ep_num >= 0)` at the SQLite schema level to physically prevent negative numbers.
+- Safe TMDB Parsing: Implemented a robust `TmdbEpisode` struct in `models.rs` with a custom `deserialize_flexible_runtime` deserializer capable of handling strings, "N/A", nulls, or standard integers to prevent API noise from breaking the sync loop.
+- UI Labels for Specials: Mapped Season 0 specifically to output the label "Specials" in the `MediaDetails.tsx` React component, and verified backend SQL logic strictly sorts by `season_num ASC, ep_num ASC` so they appear first.
+- Cascading Deletes: Removed manual procedural row deletions (`History`, `Local_Files`, `Episodes`) in `delete_media()` and successfully tested full reliance on SQLite `ON DELETE CASCADE` relations.

@@ -18,6 +18,118 @@ where
     }
 }
 
+pub fn deserialize_flexible_runtime<'de, D>(deserializer: D) -> Result<i32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum RawRuntime {
+        Int(i32),
+        Float(f64),
+        String(String),
+        Null,
+    }
+
+    match RawRuntime::deserialize(deserializer) {
+        Ok(RawRuntime::Int(i)) => Ok(i),
+        Ok(RawRuntime::Float(f)) => Ok(f.round() as i32),
+        Ok(RawRuntime::String(s)) => {
+            if s.trim().is_empty() || s.to_lowercase() == "n/a" {
+                Ok(0)
+            } else {
+                s.parse::<i32>().or_else(|_| s.parse::<f64>().map(|f| f.round() as i32)).or(Ok(0))
+            }
+        }
+        Ok(RawRuntime::Null) | Err(_) => Ok(0),
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TmdbEpisode {
+    pub season_number: u32,
+    pub episode_number: u32,
+    pub name: Option<String>,
+    pub overview: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_runtime")]
+    pub runtime: i32,
+    pub still_path: Option<String>,
+    pub air_date: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_deserialize_flexible_runtime() {
+        let json_int = json!({
+            "season_number": 1,
+            "episode_number": 1,
+            "runtime": 45
+        });
+        let ep1: TmdbEpisode = serde_json::from_value(json_int).unwrap();
+        assert_eq!(ep1.runtime, 45);
+
+        let json_str_int = json!({
+            "season_number": 1,
+            "episode_number": 1,
+            "runtime": "45"
+        });
+        let ep2: TmdbEpisode = serde_json::from_value(json_str_int).unwrap();
+        assert_eq!(ep2.runtime, 45);
+
+        let json_na = json!({
+            "season_number": 1,
+            "episode_number": 1,
+            "runtime": "N/A"
+        });
+        let ep3: TmdbEpisode = serde_json::from_value(json_na).unwrap();
+        assert_eq!(ep3.runtime, 0);
+
+        let json_null = json!({
+            "season_number": 1,
+            "episode_number": 1,
+            "runtime": null
+        });
+        let ep4: TmdbEpisode = serde_json::from_value(json_null).unwrap();
+        assert_eq!(ep4.runtime, 0);
+
+        let json_missing = json!({
+            "season_number": 1,
+            "episode_number": 1
+        });
+        let ep5: TmdbEpisode = serde_json::from_value(json_missing).unwrap();
+        assert_eq!(ep5.runtime, 0);
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum MediaType {
+    TV,
+    Movie,
+    Unknown,
+}
+
+impl MediaType {
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "TV" => MediaType::TV,
+            "Movie" => MediaType::Movie,
+            _ => MediaType::Unknown,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MediaType::TV => "TV",
+            MediaType::Movie => "Movie",
+            MediaType::Unknown => "Unknown",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Media {
     pub id: i32,
@@ -45,8 +157,8 @@ pub struct Media {
 pub struct Episode {
     pub id: i32,
     pub media_id: i32,
-    pub season_num: i32,
-    pub ep_num: i32,
+    pub season_num: u32,
+    pub ep_num: u32,
     pub title: String,
     pub runtime: i32,
     pub still_path: String,
@@ -76,8 +188,8 @@ pub struct HistoryEntry {
 
     // Joined episode data
     pub episode_id: i32,
-    pub season_num: i32,
-    pub ep_num: i32,
+    pub season_num: u32,
+    pub ep_num: u32,
     pub ep_title: String,
     pub still_path: String,
     pub air_date: String,
@@ -95,8 +207,8 @@ pub struct UnmatchedFile {
     pub file_path: String,
     pub filename: String,
     pub parsed_series: Option<String>,
-    pub parsed_season: Option<i32>,
-    pub parsed_episode: Option<i32>,
+    pub parsed_season: Option<u32>,
+    pub parsed_episode: Option<u32>,
     pub group_key: String,
 }
 

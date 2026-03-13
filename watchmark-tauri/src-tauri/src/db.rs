@@ -154,9 +154,9 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS Media (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tmdb_id TEXT UNIQUE,
-            type TEXT,
-            title TEXT,
+            tmdb_id TEXT,
+            \"type\" TEXT NOT NULL DEFAULT 'TV',
+            \"title\" TEXT,
             synopsis TEXT,
             poster_path TEXT,
             backdrop_path TEXT,
@@ -164,7 +164,8 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             status TEXT,
             vote_average REAL DEFAULT 0.0,
             user_rating INTEGER DEFAULT 0,
-            release_date TEXT
+            release_date TEXT,
+            UNIQUE(tmdb_id, \"type\")
         )",
         (),
     )?;
@@ -173,9 +174,9 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         "CREATE TABLE IF NOT EXISTS Episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             media_id INTEGER,
-            season_num INTEGER,
-            ep_num INTEGER,
-            title TEXT,
+            season_num INTEGER CHECK(season_num >= 0),
+            ep_num INTEGER CHECK(ep_num >= 0),
+            \"title\" TEXT,
             runtime INTEGER,
             still_path TEXT,
             overview TEXT,
@@ -290,6 +291,10 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
     Ok(())
 }
 
+#[cfg(test)]
+#[path = "db_tests.rs"]
+mod db_tests;
+
 pub fn delete_media(media_id: i32) -> Result<()> {
     let mut conn = get_db_connection()?;
 
@@ -309,22 +314,8 @@ pub fn delete_media(media_id: i32) -> Result<()> {
         }
     }
 
-    // Delete History entries linked to the episodes of this media
-    tx.execute(
-        "DELETE FROM History WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id = ?)",
-        [media_id],
-    )?;
-
-    // Delete Local_Files entries linked to the episodes
-    tx.execute(
-        "DELETE FROM Local_Files WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id = ?)",
-        [media_id],
-    )?;
-
-    // Delete Episodes
-    tx.execute("DELETE FROM Episodes WHERE media_id = ?", [media_id])?;
-
-    // Delete Media
+    // Delete Media (Due to ON DELETE CASCADE and PRAGMA foreign_keys = ON, this will automatically
+    // delete all related rows in Episodes, History, and Local_Files)
     tx.execute("DELETE FROM Media WHERE id = ?", [media_id])?;
 
     tx.commit()?;
