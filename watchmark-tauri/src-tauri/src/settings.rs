@@ -31,7 +31,14 @@ pub fn load_settings() -> Result<Settings, String> {
              return Err(format!("Disk write verification failed: {}", e));
         }
 
-        return Ok(default);
+        let mut first_run_settings = default;
+        if let Ok(env_key) = std::env::var("TMDB_API_KEY") {
+            if !env_key.is_empty() {
+                first_run_settings.tmdb_api_key = env_key;
+            }
+        }
+
+        return Ok(first_run_settings);
     }
 
     let mut loaded_settings = default.clone();
@@ -46,16 +53,27 @@ pub fn load_settings() -> Result<Settings, String> {
                     if settings.height <= 0 { settings.height = 800; }
 
                     // Recover API key
-                    // Try Keyring first
                     let mut found_key = false;
-                    if let Ok(entry) = get_keyring_entry() {
-                        if let Ok(password) = entry.get_password() {
-                            settings.tmdb_api_key = password;
+
+                    // First, try Environment Variable (for cloud testing)
+                    if let Ok(env_key) = std::env::var("TMDB_API_KEY") {
+                        if !env_key.is_empty() {
+                            settings.tmdb_api_key = env_key;
                             found_key = true;
                         }
                     }
 
-                    // Fallback to obfuscated json
+                    // Next, try Keyring
+                    if !found_key {
+                        if let Ok(entry) = get_keyring_entry() {
+                            if let Ok(password) = entry.get_password() {
+                                settings.tmdb_api_key = password;
+                                found_key = true;
+                            }
+                        }
+                    }
+
+                    // Finally, fallback to obfuscated json
                     if !found_key && !settings.tmdb_api_key.is_empty() {
                         if let Ok(decoded) = general_purpose::STANDARD.decode(&settings.tmdb_api_key) {
                             if let Ok(decoded_str) = String::from_utf8(decoded) {
