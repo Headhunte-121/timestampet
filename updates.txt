@@ -86,3 +86,11 @@ Update 10: UI Polish - Desktop-Native Experience
 - Seasons List: Replaced the unstyled white horizontal scrollbar in the Seasons list with a clean `flex-wrap` layout (`gap-2`), ensuring seasons dynamically stack on multiple lines for better visibility and a cleaner desktop feel.
 - Window Title Fixes: Updated `tauri.conf.json` and `index.html` to set the application window title to `WatchMark`, permanently removing "localhost:1420" and "watchmark-tauri" to create a cohesive native application feel.
 - Replaced manual directory typing prompt with Native Tauri Dialog plugin (`@tauri-apps/plugin-dialog`) for a real OS File Picker in Inbox and Settings.
+
+Update 11: Windows Native Optimization & System Integration
+- Ensured path separators (\ vs /) are handled dynamically using Windows native logic with `std::path::PathBuf` and the `\\?\` prefix for long paths.
+- Created `pathUtils.ts` in React to normalize paths strictly to Windows `\` format visually.
+- Implemented a robust Windows System Tray (`tauri-plugin-shell`, `tauri-plugin-notification`, `tray-icon`) with a Context Menu featuring Quick Actions: Scan Directory, Resume Last Show, Check for Updates, and Quit. Double-clicking the tray immediately restores and focuses the app.
+- Configured NSIS installer with `installMode: "currentUser"` to bypass UAC prompts and handled `PermissionDenied` errors gracefully in the recursive directory scanner.
+- Verified SmartScreen mitigations by appending valid company and copyright metadata in `tauri.conf.json`.
+- Handled Global Keyboard Shortcuts securely using `tauri-plugin-global-shortcut` (Ctrl+Shift+S for Scan, Ctrl+Shift+H for Hide/Show) with native Toast fallback if shortcuts are already claimed by other Windows apps.

@@ -10,12 +10,148 @@ mod settings;
 mod tmdb;
 mod vlc;
 
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{TrayIconBuilder, MouseButton, TrayIconEvent},
+    Manager, Emitter
+};
+use tauri_plugin_notification::NotificationExt;
+
 fn main() {
     db::init_db().expect("Failed to initialize database");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .setup(|app| {
+            use tauri_plugin_global_shortcut::{ShortcutState, GlobalShortcutExt};
+
+            let app_handle = app.handle().clone();
+
+            // Register hotkey: Ctrl+Shift+S (Scan Directory)
+            let scan_shortcut = "CommandOrControl+Shift+S";
+            let hide_shortcut = "CommandOrControl+Shift+H";
+
+            if let Err(e) = app.global_shortcut().on_shortcut(scan_shortcut, {
+                move |app, shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.emit("tray-scan", ());
+                        }
+                    }
+                }
+            }) {
+                let _ = app.notification().builder().title("WatchMark").body(format!("Could not register hotkey {}: {:?}", scan_shortcut, e)).show();
+            }
+
+            if let Err(e) = app.global_shortcut().on_shortcut(hide_shortcut, {
+                move |app, shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        if let Some(window) = app.get_webview_window("main") {
+                            if window.is_visible().unwrap_or(false) {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                }
+            }) {
+                let _ = app.notification().builder().title("WatchMark").body(format!("Could not register hotkey {}: {:?}", hide_shortcut, e)).show();
+            }
+
+            use tauri::menu::PredefinedMenuItem;
+            let scan_i = MenuItem::with_id(app, "scan", "Scan Directory", true, None::<&str>)?;
+            let resume_i = MenuItem::with_id(app, "resume", "Resume Last Show", true, None::<&str>)?;
+            let update_i = MenuItem::with_id(app, "update", "Check for Updates", true, None::<&str>)?;
+            let sep_i = PredefinedMenuItem::separator(app)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&scan_i, &resume_i, &update_i, &sep_i, &quit_i])?;
+
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| {
+                    match event.id.as_ref() {
+                        "scan" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.unminimize();
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                                let _ = window.emit("tray-scan", ());
+                            }
+                        }
+                        "resume" => {
+                            // Resume last show logic to spawn VLC directly
+                            if let Ok(conn) = db::get_db_connection() {
+                                // Simplified: Query to get the last watched episode path.
+                                // Assuming history table has timestamp and episode_id.
+                                let result: rusqlite::Result<(i32, String)> = conn.query_row(
+                                    "SELECT History.episode_id, Local_Files.file_path FROM History
+                                     JOIN Local_Files ON History.episode_id = Local_Files.episode_id
+                                     ORDER BY History.timestamp DESC LIMIT 1",
+                                    [],
+                                    |row: &rusqlite::Row| Ok((row.get(0)?, row.get(1)?)),
+                                );
+
+                                match result {
+                                    Ok((ep_id, file_path)) => {
+                                        // Fetch the position from episodes if available (optional)
+                                        let last_position: i32 = conn.query_row("SELECT last_position FROM Episodes WHERE id = ?1", [ep_id], |row: &rusqlite::Row| row.get(0)).unwrap_or(0);
+
+                                        // Spawn VLC (non-blocking) using vlc.rs functionality or directly.
+                                        let app_handle = app.clone();
+
+                                        tokio::spawn(async move {
+                                            if let Err(e) = crate::vlc::play_episode_cmd(app_handle.clone(), ep_id, file_path, last_position).await {
+                                                let _ = app_handle.notification()
+                                                    .builder()
+                                                    .title("WatchMark")
+                                                    .body(format!("Cannot resume: {}", e))
+                                                    .show();
+                                            }
+                                        });
+                                    }
+                                    Err(_) => {
+                                        let _ = app.notification()
+                                            .builder()
+                                            .title("WatchMark")
+                                            .body("Cannot resume: File not found.")
+                                            .show();
+                                    }
+                                }
+                            }
+                        }
+                        "update" => {
+                            // Placeholder for update check
+                        }
+                        "quit" => {
+                            std::process::exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| match event {
+                    TrayIconEvent::DoubleClick { button: MouseButton::Left, .. } => {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.unminimize();
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .build(app)?;
+
+            Ok(())
+        })
         .register_asynchronous_uri_scheme_protocol("watchmark", |_app, request, responder| {
             let path = request.uri().path();
             if path.is_empty() {
