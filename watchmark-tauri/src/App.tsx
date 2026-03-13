@@ -49,9 +49,9 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#0D0F14] text-white overflow-hidden selection:bg-orange-500/30">
+    <div className="h-screen overflow-hidden flex bg-cinema-black text-white selection:bg-brand-orange/30">
       {/* Glassy Sidebar */}
-      <aside className="w-64 flex flex-col bg-black/40 backdrop-blur-xl border-r border-white/5 z-50">
+      <aside className="flex-none w-64 flex flex-col bg-surface-gray/80 backdrop-blur-xl border-r border-white/5 z-50 transform-gpu will-change-transform motion-reduce:bg-surface-gray motion-reduce:backdrop-blur-none">
         <div className="p-6">
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
             <span className="text-[#FF6B00]">▶</span> WatchMark
@@ -99,7 +99,7 @@ function App() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative overflow-y-auto overflow-x-hidden">
+      <main className="flex-1 flex flex-col relative overflow-hidden">
         {/* Global Search Bar */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4 pointer-events-none">
           <div className="relative pointer-events-auto">
@@ -114,23 +114,25 @@ function App() {
           </div>
         </div>
 
-        {selectedMediaId ? (
-          <MediaDetails
-            mediaId={selectedMediaId}
-            onBack={() => setSelectedMediaId(null)}
-            refreshTrigger={refreshTrigger}
-          />
-        ) : (
-          <div className="h-full w-full animate-in fade-in duration-300">
-            {currentView === "dashboard" && <Dashboard onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-            {currentView === "tv" && <Library type="TV" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-            {currentView === "movies" && <Library type="Movie" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-            {currentView === "search" && <SearchTMDB onMediaSelect={setSelectedMediaId} />}
-            {currentView === "inbox" && <InboxView onMatch={() => setRefreshTrigger(prev => prev + 1)} />}
-            {currentView === "history" && <History />}
-            {currentView === "settings" && <SettingsView />}
-          </div>
-        )}
+        <div className="flex-1 overflow-y-auto">
+          {selectedMediaId ? (
+            <MediaDetails
+              mediaId={selectedMediaId}
+              onBack={() => setSelectedMediaId(null)}
+              refreshTrigger={refreshTrigger}
+            />
+          ) : (
+            <div className="h-full w-full animate-in fade-in duration-300">
+              {currentView === "dashboard" && <Dashboard onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+              {currentView === "tv" && <Library type="TV" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+              {currentView === "movies" && <Library type="Movie" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+              {currentView === "search" && <SearchTMDB onMediaSelect={setSelectedMediaId} />}
+              {currentView === "inbox" && <InboxView onMatch={() => setRefreshTrigger(prev => prev + 1)} />}
+              {currentView === "history" && <History />}
+              {currentView === "settings" && <SettingsView />}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

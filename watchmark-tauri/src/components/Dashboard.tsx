@@ -115,7 +115,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide">
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
-        <div className="relative w-full h-[450px] rounded-2xl overflow-hidden group">
+        <div className="relative aspect-video w-full max-h-[450px] rounded-2xl overflow-hidden group">
           <img
             src={data.hero_ep.backdrop_path ? `https://image.tmdb.org/t/p/original${data.hero_ep.backdrop_path}` : PLACEHOLDER_BACKDROP}
             alt="Hero Backdrop"
