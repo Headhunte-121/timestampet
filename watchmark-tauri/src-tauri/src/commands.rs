@@ -20,6 +20,13 @@ pub fn save_settings(settings: Settings) -> Result<(), AppError> {
 }
 
 #[tauri::command]
+pub fn delete_media_cmd(media_id: i32) -> Result<(), AppError> {
+    handle_panic(|| {
+        crate::db::delete_media(media_id).map_err(AppError::from)
+    })
+}
+
+#[tauri::command]
 pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;

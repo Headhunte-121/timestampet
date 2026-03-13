@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Play, Star } from "lucide-react";
+import { useAppStore } from "../store/useAppStore";
 
 // Types matching the Rust backend structure
 interface Episode {
@@ -49,6 +50,7 @@ const PLACEHOLDER_BACKDROP = "https://images.unsplash.com/photo-1542293787-827fb
 const PLACEHOLDER_POSTER = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop";
 
 export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery = "" }: { onMediaSelect: (id: number) => void, refreshTrigger: number, searchQuery?: string }) {
+  const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
@@ -116,10 +118,12 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
         <div className="relative aspect-video w-full max-h-[450px] rounded-2xl overflow-hidden group">
-          <img
+          <motion.img
             src={data.hero_ep.backdrop_path ? `https://image.tmdb.org/t/p/original${data.hero_ep.backdrop_path}` : PLACEHOLDER_BACKDROP}
             alt="Hero Backdrop"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover origin-center"
+            animate={isCinemaMode ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+            transition={isCinemaMode ? { duration: 30, repeat: Infinity, repeatType: "reverse", ease: "linear" } : { duration: 0 }}
           />
           {/* Layered directional gradient: Bottom-left pure black fading up to top-right transparent */}
           <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] via-[#0D0F14]/80 to-transparent" />
@@ -190,7 +194,8 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {filteredCW.length > 0 && (
         <>
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Continue Watching</h2>
-          <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x">
+          <motion.div layout className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x">
+            <AnimatePresence mode="popLayout">
             {filteredCW.map((ep) => {
               const imagePath = ep.still_path || ep.backdrop_path;
               const imgUrl = imagePath ? `https://image.tmdb.org/t/p/w500${imagePath}` : PLACEHOLDER_BACKDROP;
@@ -199,9 +204,14 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
               return (
                 <motion.div
                   key={ep.id}
+                  layout="position"
+                  initial={isCinemaMode ? { opacity: 0, scale: 0.9 } : { opacity: 1, scale: 1 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={isCinemaMode ? { opacity: 0, scale: 0.9, width: 0, marginLeft: -24 } : { opacity: 0 }}
+                  transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}
                   onClick={() => onMediaSelect(ep.media_id)}
-                  whileHover={{ scale: 1.02 }}
-                  className="flex-none min-w-[320px] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative"
+                  whileHover={isCinemaMode ? { scale: 1.02 } : {}}
+                  className="flex-none min-w-[320px] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative transform-gpu"
                 >
                   <div className="w-full h-[180px] relative overflow-hidden">
                     <img
@@ -244,7 +254,8 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                 </motion.div>
               );
             })}
-          </div>
+            </AnimatePresence>
+          </motion.div>
         </>
       )}
 
@@ -252,15 +263,22 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {filteredRecent.length > 0 && (
         <>
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Recently Added</h2>
-          <div className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
+          <motion.div layout className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
+            <AnimatePresence mode="popLayout">
             {filteredRecent.map((media) => {
               const imgUrl = media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : PLACEHOLDER_POSTER;
 
               return (
-                <div
+                <motion.div
                   key={media.id}
+                  layout="position"
+                  initial={isCinemaMode ? { opacity: 0, scale: 0.9 } : { opacity: 1, scale: 1 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={isCinemaMode ? { opacity: 0, scale: 0.9, width: 0, marginLeft: -16 } : { opacity: 0 }}
+                  transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}
                   onClick={() => onMediaSelect(media.id)}
-                  className="relative flex-none w-[140px] md:w-[160px] lg:w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-all duration-300 hover:scale-105 hover:z-10 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A]"
+                  whileHover={isCinemaMode ? { scale: 1.05, zIndex: 10 } : {}}
+                  className="relative flex-none w-[140px] md:w-[160px] lg:w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-shadow duration-300 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A] transform-gpu"
                 >
                   <img
                     src={imgUrl}
@@ -286,10 +304,11 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                       />
                     </div>
                   )}
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+            </AnimatePresence>
+          </motion.div>
         </>
       )}
 

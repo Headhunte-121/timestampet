@@ -3,6 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import { LayoutDashboard, Tv, Film, Search, Inbox, Clock, Settings } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
+import { useAppStore } from "./store/useAppStore";
 import Dashboard from "./components/Dashboard";
 import Library from "./components/Library";
 import SearchTMDB from "./components/SearchTMDB";
@@ -24,6 +26,11 @@ function App() {
 
   // Refresh UI hook
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { isCinemaMode, initialized, initializeSettings } = useAppStore();
+
+  useEffect(() => {
+    initializeSettings();
+  }, [initializeSettings]);
 
   useEffect(() => {
     const unlisten = listen("vlc-closed", () => {
@@ -33,6 +40,10 @@ function App() {
       unlisten.then(fn => fn());
     };
   }, []);
+
+  if (!initialized) {
+    return null; // or a simple spinner
+  }
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -49,9 +60,10 @@ function App() {
   };
 
   return (
+    <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
     <div className="h-screen overflow-hidden flex bg-cinema-black text-white selection:bg-brand-orange/30">
       {/* Glassy Sidebar */}
-      <aside className="flex-none w-64 flex flex-col bg-surface-gray/80 backdrop-blur-xl border-r border-white/5 z-50 transform-gpu will-change-transform motion-reduce:bg-surface-gray motion-reduce:backdrop-blur-none">
+      <aside className={cn("flex-none w-64 flex flex-col bg-surface-gray/80 border-r border-white/5 z-50 transform-gpu will-change-transform motion-reduce:bg-surface-gray motion-reduce:backdrop-blur-none", isCinemaMode && "backdrop-blur-xl")}>
         <div className="p-6">
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
             <span className="text-[#FF6B00]">▶</span> WatchMark
@@ -114,27 +126,46 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {selectedMediaId ? (
-            <MediaDetails
-              mediaId={selectedMediaId}
-              onBack={() => setSelectedMediaId(null)}
-              refreshTrigger={refreshTrigger}
-            />
-          ) : (
-            <div className="h-full w-full animate-in fade-in duration-300">
-              {currentView === "dashboard" && <Dashboard onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-              {currentView === "tv" && <Library type="TV" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-              {currentView === "movies" && <Library type="Movie" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-              {currentView === "search" && <SearchTMDB onMediaSelect={setSelectedMediaId} />}
-              {currentView === "inbox" && <InboxView onMatch={() => setRefreshTrigger(prev => prev + 1)} />}
-              {currentView === "history" && <History />}
-              {currentView === "settings" && <SettingsView />}
-            </div>
-          )}
+        <div className="flex-1 overflow-y-auto relative">
+          <AnimatePresence mode="wait">
+            {selectedMediaId ? (
+              <motion.div
+                key="details"
+                initial={isCinemaMode ? { opacity: 0, scale: 0.98 } : { opacity: 1 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={isCinemaMode ? { opacity: 0, scale: 0.98 } : { opacity: 0 }}
+                transition={isCinemaMode ? { duration: 0.2 } : { duration: 0 }}
+                className="h-full w-full"
+              >
+                <MediaDetails
+                  mediaId={selectedMediaId}
+                  onBack={() => setSelectedMediaId(null)}
+                  refreshTrigger={refreshTrigger}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key={currentView}
+                initial={isCinemaMode ? { opacity: 0, y: 10 } : { opacity: 1 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={isCinemaMode ? { opacity: 0, y: -10 } : { opacity: 0 }}
+                transition={isCinemaMode ? { duration: 0.2 } : { duration: 0 }}
+                className="h-full w-full"
+              >
+                {currentView === "dashboard" && <Dashboard onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "tv" && <Library type="TV" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "movies" && <Library type="Movie" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "search" && <SearchTMDB onMediaSelect={setSelectedMediaId} />}
+                {currentView === "inbox" && <InboxView onMatch={() => setRefreshTrigger(prev => prev + 1)} />}
+                {currentView === "history" && <History />}
+                {currentView === "settings" && <SettingsView />}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>
+    </MotionConfig>
   );
 }
 

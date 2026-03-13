@@ -71,6 +71,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::save_settings,
+            commands::delete_media_cmd,
             commands::get_media_details_db,
             commands::add_to_tracker,
             commands::get_dashboard_data,

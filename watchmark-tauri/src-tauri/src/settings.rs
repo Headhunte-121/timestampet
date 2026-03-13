@@ -10,6 +10,7 @@ pub fn load_settings() -> Settings {
         window_geometry: "1200x800".to_string(),
         window_position: "+100+100".to_string(),
         tmdb_api_key: String::new(),
+        cinema_mode: true,
     };
 
     let settings_file = get_app_data_dir().join("settings.json");

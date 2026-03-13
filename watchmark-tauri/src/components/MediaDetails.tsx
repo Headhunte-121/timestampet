@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2 } from "lucide-react";
@@ -6,6 +6,7 @@ import { Play, ArrowLeft, Star, Trash2 } from "lucide-react";
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const [data, setData] = useState<any>(null);
   const [activeSeason, setActiveSeason] = useState<number>(1);
+  const isAnimatingRef = useRef(false);
 
   useEffect(() => {
     invoke("get_media_details_db", { mediaId })
@@ -100,7 +101,26 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <button className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full backdrop-blur-md transition-all hover:scale-105">
               Mark All Watched
             </button>
-            <button className="p-4 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-500 rounded-full transition-colors ml-auto border border-transparent hover:border-red-500/50">
+            <button
+              onClick={async () => {
+                if (isAnimatingRef.current) return;
+                const confirmDelete = window.confirm("Are you sure you want to remove this show? This action cannot be undone.");
+                if (confirmDelete) {
+                  isAnimatingRef.current = true;
+                  try {
+                    // Block UI until backend completes safely
+                    await invoke("delete_media_cmd", { mediaId });
+                    // Once database cleanup is confirmed, transition safely back
+                    onBack();
+                  } catch (e) {
+                    console.error("Failed to delete media:", e);
+                    alert("Failed to delete media.");
+                    isAnimatingRef.current = false;
+                  }
+                }
+              }}
+              className="p-4 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-500 rounded-full transition-colors ml-auto border border-transparent hover:border-red-500/50"
+            >
               <Trash2 className="w-5 h-5" />
             </button>
           </div>

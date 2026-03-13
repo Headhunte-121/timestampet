@@ -87,4 +87,5 @@ pub struct Settings {
     pub window_geometry: String,
     pub window_position: String,
     pub tmdb_api_key: String,
+    pub cinema_mode: bool,
 }

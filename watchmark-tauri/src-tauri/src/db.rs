@@ -128,3 +128,60 @@ pub fn init_db() -> Result<()> {
 
     Ok(())
 }
+
+pub fn delete_media(media_id: i32) -> Result<()> {
+    let conn = get_db_connection()?;
+
+    // Begin transaction for safety
+    let tx = conn.unchecked_transaction()?;
+
+    // Fetch poster and backdrop paths before deleting
+    let mut paths = Vec::new();
+    {
+        let mut stmt = tx.prepare("SELECT poster_path, backdrop_path FROM Media WHERE id = ?")?;
+        let mut rows = stmt.query([media_id])?;
+        if let Some(row) = rows.next()? {
+            let poster: Option<String> = row.get(0)?;
+            let backdrop: Option<String> = row.get(1)?;
+            paths.push(poster);
+            paths.push(backdrop);
+        }
+    }
+
+    // Delete History entries linked to the episodes of this media
+    tx.execute(
+        "DELETE FROM History WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id = ?)",
+        [media_id],
+    )?;
+
+    // Delete Local_Files entries linked to the episodes
+    tx.execute(
+        "DELETE FROM Local_Files WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id = ?)",
+        [media_id],
+    )?;
+
+    // Delete Episodes
+    tx.execute("DELETE FROM Episodes WHERE media_id = ?", [media_id])?;
+
+    // Delete Media
+    tx.execute("DELETE FROM Media WHERE id = ?", [media_id])?;
+
+    tx.commit()?;
+
+    // Cleanup cached image files from app data dir
+    let cache_dir = get_app_data_dir().join("cache");
+    if cache_dir.exists() {
+        for path_opt in paths {
+            if let Some(path_str) = path_opt {
+                // Ensure the path is just the filename if it's stored as an absolute URL or starts with a slash
+                let filename = path_str.trim_start_matches('/');
+                let full_path = cache_dir.join(filename);
+                if full_path.exists() {
+                    let _ = std::fs::remove_file(full_path);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}

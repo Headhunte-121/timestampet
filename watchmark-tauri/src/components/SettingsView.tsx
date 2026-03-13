@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useAppStore } from "../store/useAppStore";
 
 export default function SettingsView() {
   const [settings, setSettings] = useState<any>({
     vlc_path: "",
     tmdb_api_key: "",
     window_geometry: "1200x800",
-    window_position: "+100+100"
+    window_position: "+100+100",
+    cinema_mode: true
   });
+
+  const { isCinemaMode, setCinemaMode } = useAppStore();
 
   useEffect(() => {
     invoke("get_settings")
@@ -51,6 +55,22 @@ export default function SettingsView() {
               Browse
             </button>
           </div>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-3 cursor-pointer text-sm font-bold text-gray-300">
+            <input
+              type="checkbox"
+              checked={isCinemaMode}
+              onChange={(e) => {
+                const newMode = e.target.checked;
+                setCinemaMode(newMode);
+                setSettings({ ...settings, cinema_mode: newMode });
+              }}
+              className="accent-[#FF6B00] w-5 h-5 rounded focus:ring-[#FF6B00]"
+            />
+            Cinema Mode (High Quality Animations & Effects)
+          </label>
         </div>
 
         <button
