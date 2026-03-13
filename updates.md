@@ -70,7 +70,7 @@ Update 7: Inbox & Tracker Stability Fixes
 - Tauri Backend Synchronicity: Rearchitected `commands.rs` to execute `add_to_tracker` and the new `assign_unmatched_to_tracker` strictly on the synchronous thread instead of deferring to background `thread::spawn` blocks, ensuring the UI correctly waits for actual DB commits before proceeding.
 - Dev Watcher Hot-Reload Fix: Configured Tauri's dev server (`.taurignore`) to ignore the `WatchMark/` application data directory, preventing infinite restart loops when runtime configurations or databases are updated.
 - Browser Safe-Guards: Wrapped Tauri IPC `.invoke()` calls with protective exception handlers in the React frontend that quietly suppress specific 'reading invoke' TypeErrors, ensuring testability in standard browser environments without intrusive alert boxes.
-Update 8: Framer Motion Engine 1.5 Integration
+Update 8: Framer Motion Engine 1.5 Integration [Todo 1.5]
 - Global Cinema Mode: Implemented a global toggle via Zustand (`useAppStore.ts`) that correctly pulls the default from OS reduced motion preferences and syncs with `settings.json` on the Rust backend.
 - Navigation Fluidity: Wrapped the main view router in `<AnimatePresence mode="wait">` to provide smooth cross-fades when navigating the sidebar.
 - Layout Animations: Utilized `<AnimatePresence mode="popLayout">` and `layout="position"` in `Library.tsx` grids and `Dashboard.tsx` carousels so items dynamically fill space when sorted or removed without snapping layout logic.
@@ -78,7 +78,7 @@ Update 8: Framer Motion Engine 1.5 Integration
 - Animation Lockout: Implemented an `isAnimatingRef` in `MediaDetails.tsx` for destructive 'Remove Show' events. It optimistically triggers the exit animation immediately and then fires the actual backend SQL cleanup cleanly without locking the UI.
 - Backend Sync: Built out the full cascading `delete_media_cmd` functionality in Rust, securely dropping all relational tracking rows from `History`, `Local_Files`, `Episodes` and wiping `cache` files from local storage on deletion.
 
-Update 9 [2026-03-13] - Performance Update: Implemented memory optimization layer (IntersectionObserver, SQLite Mutex, Release Strip).
+Update 9 [Todo 1.6] - Performance Update: Implemented memory optimization layer (IntersectionObserver, SQLite Mutex, Release Strip).
 
 Update 10: UI Polish - Desktop-Native Experience
 - Custom Modals/Dialogs: Replaced native browser `window.alert`, `window.prompt`, and `window.confirm` with a custom lightweight React + Tailwind `Modal` component featuring dark backgrounds, rounded corners, and Framer Motion scale-up animations.
@@ -87,7 +87,7 @@ Update 10: UI Polish - Desktop-Native Experience
 - Window Title Fixes: Updated `tauri.conf.json` and `index.html` to set the application window title to `WatchMark`, permanently removing "localhost:1420" and "watchmark-tauri" to create a cohesive native application feel.
 - Replaced manual directory typing prompt with Native Tauri Dialog plugin (`@tauri-apps/plugin-dialog`) for a real OS File Picker in Inbox and Settings.
 
-Update 11: Windows Native Optimization & System Integration
+Update 11: Windows Native Optimization & System Integration [Todo 1.7]
 - Ensured path separators (\ vs /) are handled dynamically using Windows native logic with `std::path::PathBuf` and the `\\?\` prefix for long paths.
 - Created `pathUtils.ts` in React to normalize paths strictly to Windows `\` format visually.
 - Implemented a robust Windows System Tray (`tauri-plugin-shell`, `tauri-plugin-notification`, `tray-icon`) with a Context Menu featuring Quick Actions: Scan Directory, Resume Last Show, Check for Updates, and Quit. Double-clicking the tray immediately restores and focuses the app.
