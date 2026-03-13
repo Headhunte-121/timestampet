@@ -13,18 +13,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   initialized: false,
   setCinemaMode: async (mode: boolean) => {
     set({ isCinemaMode: mode });
-    // Update backend settings
-    try {
-      const currentSettings: any = await invoke('get_settings');
-      await invoke('save_settings', {
-        settings: {
-          ...currentSettings,
-          cinema_mode: mode
-        }
-      });
-    } catch (e) {
-      console.error("Failed to save cinema mode preference:", e);
-    }
+    // Note: We intentionally do not auto-save to the backend here.
+    // The SettingsView component handles batching and saving via the user's explicit action.
   },
   initializeSettings: async () => {
     if (get().initialized) return;
