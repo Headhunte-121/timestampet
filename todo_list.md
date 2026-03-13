@@ -548,13 +548,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test fallback default values if 'type' (Movie/TV) is explicitly omitted.
 - [x] Verify NULL handling for synopsis to prevent query failures.
 
-**5.3 Episodes table schema (ID, media ID, season, episode num, title, runtime).** (Incomplete)
+**5.3 Episodes table schema (ID, media ID, season, episode num, title, runtime).** (Complete)
 
-- [ ] Ensure a composite UNIQUE constraint exists for (media ID, season, episode num).
-- [ ] Handle edge cases where runtime data arrives as a string instead of an integer.
-- [ ] Verify season and episode numbers cannot be negative integers.
-- [ ] Test inserting 'Specials' as season 0 without breaking numeric sorting.
-- [ ] Ensure cascading deletes work correctly when the parent Media row is removed.
+- [x] Ensure a composite UNIQUE constraint exists for (media ID, season, episode num).
+- [x] Handle edge cases where runtime data arrives as a string instead of an integer.
+- [x] Verify season and episode numbers cannot be negative integers.
+- [x] Test inserting 'Specials' as season 0 without breaking numeric sorting.
+- [x] Ensure cascading deletes work correctly when the parent Media row is removed.
 
 **5.4 Local_Files relational table (1-to-1 linking of episodes to hard drive paths).** (Incomplete)
 
@@ -636,13 +636,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test UI mapping that groups History rows by matching session_ids.
 - [ ] Ensure manually backdated rows completely ignore/bypass this column.
 
-**5.14 Multi-table cascading deletes (Deleting Media safely wipes Episodes, Files, and History).** (Incomplete)
+**5.14 Multi-table cascading deletes (Deleting Media safely wipes Episodes, Files, and History).** (Complete)
 
-- [ ] Verify `PRAGMA foreign_keys = ON;` is fired immediately on database connect.
-- [ ] Test explicitly deleting a Media show and querying History to ensure orphans do not exist.
-- [ ] Handle edge cases where deleting millions of rows locks the DB for several seconds.
-- [ ] Ensure Local_Files rows are wiped but the actual physical file on disk remains untouched.
-- [ ] Verify error handling if a constraint violation accidentally occurs.
+- [x] Verify `PRAGMA foreign_keys = ON;` is fired immediately on database connect.
+- [x] Test explicitly deleting a Media show and querying History to ensure orphans do not exist.
+- [x] Handle edge cases where deleting millions of rows locks the DB for several seconds.
+- [x] Ensure Local_Files rows are wiped but the actual physical file on disk remains untouched.
+- [x] Verify error handling if a constraint violation accidentally occurs.
 
 ## 🎨 Part 6: Global UI, Styling & Motion (Cinema-Grade) (Incomplete)
 

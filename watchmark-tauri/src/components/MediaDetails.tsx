@@ -161,7 +161,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                   s === activeSeason ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/20' : 'bg-white/5 hover:bg-white/10 text-gray-300'
                 }`}
               >
-                Season {s}
+                {s === 0 ? "Specials" : `Season ${s}`}
               </button>
             ))}
           </div>

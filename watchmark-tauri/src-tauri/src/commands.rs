@@ -83,7 +83,7 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 let mut s_stmt = conn.prepare(
                     "SELECT DISTINCT season_num FROM Episodes WHERE media_id=? ORDER BY season_num",
                 )?;
-                let s_rows = s_stmt.query_map(params![media_id], |row| row.get::<_, i32>(0));
+                let s_rows = s_stmt.query_map(params![media_id], |row| row.get::<_, u32>(0));
                 if let Ok(s_rows_iter) = s_rows {
                     for s in s_rows_iter.flatten() {
                         seasons.push(s);
@@ -100,7 +100,7 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 FROM Episodes e
                 LEFT JOIN Local_Files l ON e.id = l.episode_id
                 WHERE e.media_id=?
-                ORDER BY e.season_num, e.ep_num
+                ORDER BY e.season_num ASC, e.ep_num ASC
             ",
             )?;
 
@@ -109,8 +109,8 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 Ok(json!({
                     "id": row.get::<_, i32>(0)?,
                     "media_id": row.get::<_, i32>(1)?,
-                    "season_num": row.get::<_, i32>(2)?,
-                    "ep_num": row.get::<_, i32>(3)?,
+                    "season_num": row.get::<_, u32>(2)?,
+                    "ep_num": row.get::<_, u32>(3)?,
                     "title": row.get::<_, Option<String>>(4)?.unwrap_or_default(),
                     "runtime": row.get::<_, i32>(5)?,
                     "still_path": row.get::<_, Option<String>>(6)?.unwrap_or_default(),
@@ -172,8 +172,8 @@ pub async fn add_to_tracker(
                 if let Some(seasons) = details["seasons"].as_array() {
                     for season in seasons {
                         if let Some(s_num) = season["season_number"].as_i64() {
-                            if s_num > 0 {
-                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num) {
+                            if s_num >= 0 {
+                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num as u32) {
                                     all_eps.extend(eps);
                                 }
                             }
@@ -265,8 +265,8 @@ pub async fn add_to_tracker(
                                     overview=excluded.overview, air_date=excluded.air_date",
                                 params![
                                     media_id,
-                                    ep["season_num"].as_i64().unwrap_or(1) as i32,
-                                    ep["ep_num"].as_i64().unwrap_or(1) as i32,
+                                    ep["season_num"].as_i64().unwrap_or(1) as u32,
+                                    ep["ep_num"].as_i64().unwrap_or(1) as u32,
                                     ep["title"].as_str().unwrap_or("Unknown Title"),
                                     ep["runtime"].as_i64().unwrap_or(0) as i32,
                                     ep["still_path"].as_str().unwrap_or(""),
@@ -355,8 +355,8 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
                     hero_ep = Some(json!({
                         "id": ep_row.get::<_, i32>(0).unwrap_or(0),
                         "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
-                        "season_num": ep_row.get::<_, i32>(2).unwrap_or(0),
-                        "ep_num": ep_row.get::<_, i32>(3).unwrap_or(0),
+                        "season_num": ep_row.get::<_, u32>(2).unwrap_or(0),
+                        "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
                         "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
                         "runtime": ep_row.get::<_, i32>(5).unwrap_or(0),
                         "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
@@ -413,8 +413,8 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
                         cw_eps.push(json!({
                             "id": ep_row.get::<_, i32>(0).unwrap_or(0),
                             "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
-                            "season_num": ep_row.get::<_, i32>(2).unwrap_or(0),
-                            "ep_num": ep_row.get::<_, i32>(3).unwrap_or(0),
+                            "season_num": ep_row.get::<_, u32>(2).unwrap_or(0),
+                            "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
                             "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
                             "runtime": ep_row.get::<_, i32>(5).unwrap_or(0),
                             "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
@@ -778,8 +778,8 @@ pub async fn assign_unmatched_to_tracker(
                 if let Some(seasons) = details["seasons"].as_array() {
                     for season in seasons {
                         if let Some(s_num) = season["season_number"].as_i64() {
-                            if s_num > 0 {
-                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num) {
+                            if s_num >= 0 {
+                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num as u32) {
                                     all_eps.extend(eps);
                                 }
                             }
@@ -871,8 +871,8 @@ pub async fn assign_unmatched_to_tracker(
                                     overview=excluded.overview, air_date=excluded.air_date",
                                 params![
                                     media_id,
-                                    ep["season_num"].as_i64().unwrap_or(1) as i32,
-                                    ep["ep_num"].as_i64().unwrap_or(1) as i32,
+                                    ep["season_num"].as_i64().unwrap_or(1) as u32,
+                                    ep["ep_num"].as_i64().unwrap_or(1) as u32,
                                     ep["title"].as_str().unwrap_or("Unknown Title"),
                                     ep["runtime"].as_i64().unwrap_or(0) as i32,
                                     ep["still_path"].as_str().unwrap_or(""),
