@@ -1,0 +1,49 @@
+# WatchMark Pro: Missing Features Master To-Do List
+
+This document cross-references the current Tauri React codebase against the Master Blueprint to identify all missing features, UI enhancements, and structural gaps required to achieve the "Pro" cinematic media tracker standard.
+
+---
+
+## 1. Global UI & Experience
+- [ ] **Turbo-Scroll Engine**: Implement a global scroll multiplier (4x-5x) for high-performance navigation across all lists and grids (Dashboard, Library, History).
+- [ ] **Toast Notifications**: Build a non-intrusive, bottom-right slide-in alert system for background tasks (e.g., "Scan Complete", "Sync Successful", "Show Matched").
+- [ ] **Global Quick Search**: Implement the top-bar search functionality. It currently exists visually as a pill in `App.tsx`, but it needs to instantly filter the local library as the user types.
+
+## 2. Dashboard (Home)
+- [ ] **"Up Next" Smart Queue Logic**: Ensure the horizontal scroll row exclusively shows the *exact next unwatched episode* for every actively watched show.
+- [ ] **Cloud Fallback Icons**: Implement logic where if a tracked episode's local file is missing, the Play button transforms into a disabled ☁️ or ❌ icon instead of just throwing an alert or graying out.
+
+## 3. Media Discovery & Inbox (Triage)
+- [ ] **1-Click Bulk Matching**: In `InboxView.tsx`, clicking a grouped unmatched folder (e.g., "Silo (2023)") needs to open a search dialog querying TMDB, allowing the user to assign all files in that group to the selected TMDB show with one click.
+- [ ] **Advanced/Manual Match Override**: Add a toggle in the Inbox for manually overriding matches, allowing the assignment of a specific file to a specific Season/Episode manually.
+
+## 4. Library Organization
+- [ ] **Smart Filter Execution**: Implement the logic for the "Hide Completed" toggle in `Library.tsx` so it dynamically filters out shows where every available episode is marked as completed (currently toggles state but needs backend/frontend filtering hook).
+
+## 5. Media Details View (Deep Dive)
+- [ ] **Dual-Rating System**: Next to the official TMDB Score (⭐ 8.5/10), add a 5-star interactive, clickable rating system for the user's personal score.
+- [ ] **Air-Date Integration Contexts**:
+    - **Show-level**: Display "Aired: YYYY – YYYY" (or "— Present" if ongoing) directly below the media synopsis.
+    - **Season-level**: Display "Aired: Month YYYY – Month YYYY" for specific seasons.
+    - **Episode-level**: Display the exact Air Date (e.g., "Oct 12, 2011") next to the runtime on individual episode rows.
+- [ ] **Destructive "Remove Show"**: Implement the Trash icon functionality to completely untrack a show, performing a cascading delete of the database entries and cached images (without touching the user's actual video files).
+- [ ] **Seamless "Refresh Data"**: Add a sync button that queries TMDB for new seasons/episodes and updates the page instantly in the background without reloading the UI.
+
+## 6. Smart Tracking (VLC Integration)
+- [ ] **Auto-Completion & Micro-Log Session Tracking**: Ensure the Rust backend properly increments the watch count and logs it to History as 'Completed' if VLC is closed after watching 90%+ of the runtime. Ensure pause/resume micro-timestamps are logged to the database.
+
+## 7. The "Diary" (Watch History)
+- [ ] **Binge-Block Accordions**: Refactor `History.tsx` to group clusters of episodes finished in short bursts (sessions) into single expandable "Session Cards" (e.g., 🔥 BINGE: 4 Episodes) instead of a flat list.
+    - *Expansion Details*: Clicking a Binge-Block must reveal individual episode rows, including pause/resume timestamps and "My Date" vs. "Air Date" comparisons.
+- [ ] **Date Grouping Headers**: Implement clear vertical headers in the timeline ("Today," "Yesterday," "March 2026") that collapse as you scroll into the past.
+- [ ] **Legacy Grouping**: For shows watched years ago (is_legacy=1), show simplified Year/Month headers with non-expandable cards to save space.
+
+## 8. Legacy Scaling & Binge-Tracking (Backdating)
+- [ ] **Season-Level Triage (Backdating Picker)**: Inside `MediaDetails.tsx`, the "Mark All Watched" (or "Mark Season Watched") button must open a popup with 3 options:
+    - **Today**: Logs all episodes to right now.
+    - **Archive (No History)**: Marks them completed but skips the History table entirely (perfect for importing a massive 1,000-show backlog).
+    - **Backdate (Year/Month)**: User picks a past date (e.g., "May 2015"). The app spreads the episodes naturally across that month using the Natural Timeline Engine to create a static "Binge-Block" in the History tab.
+
+## 9. Performance & Stability
+- [ ] **Lazy Rendering / Pagination**: Ensure images and episode rows in `History.tsx` and `Library.tsx` are rendered in chunks (e.g., 20 at a time) to ensure the UI stays responsive with thousands of entries.
+- [ ] **Asynchronous Image Loading**: Verify that posters and backdrops fetch and render in background threads so the UI never hangs while scrolling.
