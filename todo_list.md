@@ -1337,127 +1337,126 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Ensure the creation specifically logs precisely to the background debugging file entirely.
 
 
-
 ## ⌨️ Part 17: Advanced Navigation & Shortcuts (UX Polish)
 - Ctrl+K / Cmd+K Global Shortcut: Instantly focuses the Top Search Bar from anywhere.
     - [ ] Make sure pressing Ctrl+K or Cmd+K instantly places the typing cursor into the main search box.
     - [ ] Stop the internet browser from doing its own normal search shortcut when these keys are pressed.
-    - [ ] Check that this shortcut works perfectly no matter what screen or popup the user is currently looking at.
-    - [ ] Let the user simply start typing right away without needing to use their mouse.
-    - [ ] Ignore the shortcut politely if the user is already typing inside another completely different text box.
+    - [ ] Check that this shortcut works no matter what screen or popup the user is looking at.
+    - [ ] Let the user start typing right away without needing to use their mouse.
+    - [ ] Ignore the shortcut politely if the user is already typing inside another different text box.
 - Esc Key Binding: Closes open modals, clears search inputs, or unfocuses elements.
     - [ ] Close any open popup window immediately if the user taps the Escape key.
-    - [ ] Clear any typed words out of the search bar entirely if no popup is currently open.
-    - [ ] Deselect whatever button or link the user is currently focused on if the search bar is already empty.
-    - [ ] Prevent the app from doing all three things at exactly the same time.
-    - [ ] Leave the screen looking exactly as it was before the user accidentally clicked something.
+    - [ ] Clear any typed words out of the search bar if no popup is open.
+    - [ ] Deselect whatever button or link the user is focused on if the search bar is empty.
+    - [ ] Prevent the app from doing all three things at the same time.
+    - [ ] Leave the screen looking as it was before the user accidentally clicked something.
 - Arrow Key Grid Navigation: Allow users to use keyboard arrows to jump between posters in the Library.
     - [ ] Move the visual highlight smoothly from one movie poster to the next when tapping the Left or Right arrow keys.
-    - [ ] Jump up or down to the exact poster in the row above or below when using the Up or Down keys.
-    - [ ] Scroll the page automatically so the newly highlighted poster is always completely visible on the screen.
+    - [ ] Jump up or down to the poster in the row above or below when using the Up or Down keys.
+    - [ ] Scroll the page automatically so the newly highlighted poster is always visible on the screen.
     - [ ] Wrap the highlight cleanly back to the start of the next row when moving past the edge of the screen.
     - [ ] Stop the arrow keys from accidentally scrolling the whole page if the user hasn't selected a poster yet.
 - Spacebar Playback: Pressing Space while a media card is focused instantly launches it in VLC.
     - [ ] Start playing the video instantly if the user hits the Spacebar while highlighting a movie poster.
-    - [ ] Play exactly the same episode that the normal orange 'Play' button would launch.
+    - [ ] Play the same episode that the normal orange 'Play' button would launch.
     - [ ] Stop the page from accidentally jumping downward when Space is pressed.
     - [ ] Do absolutely nothing if the highlighted show is missing its video file.
-    - [ ] Ignore the Spacebar completely if the user is currently typing a word into the search box.
+    - [ ] Ignore the Spacebar if the user is typing a word into the search box.
 - Shift+Click Multi-Select: Select multiple files at once in the Inbox for bulk ignoring/assigning.
-    - [ ] Remember exactly which item the user clicked first when managing new files.
-    - [ ] Highlight every single item perfectly between the first click and a new Shift+Click.
+    - [ ] Remember which item the user clicked first when managing new files.
+    - [ ] Highlight every single item between the first click and a new Shift+Click.
     - [ ] Change the background color slightly on all selected rows so they stand out clearly.
-    - [ ] Cancel the mass-selection entirely if the user clicks somewhere else without holding the Shift key.
-    - [ ] Keep this feature completely disabled outside of the specific file management screen.
+    - [ ] Cancel the mass-selection if the user clicks somewhere else without holding the Shift key.
+    - [ ] Keep this feature disabled outside of the specific file management screen.
 - Mouse Back/Forward Support: Utilize side mouse buttons to navigate back and forth between Library and Details views.
     - [ ] Let users click the extra buttons on the side of their mouse to jump back to the previous screen.
     - [ ] Move between the main movie library and specific show details smoothly using these physical buttons.
-    - [ ] Remember exactly how far down the page the user had scrolled when they go backwards.
+    - [ ] Remember how far down the page the user had scrolled when they go backwards.
     - [ ] Fade the previous screen back in gently instead of snapping jarringly.
-    - [ ] Prevent errors entirely if the user clicks 'Back' immediately after opening the app for the first time.
+    - [ ] Prevent errors if the user clicks 'Back' immediately after opening the app for the first time.
 - Breadcrumb Trails: E.g., Library > TV Shows > Breaking Bad > Season 2 visible at the top of the detail view.
-    - [ ] Show a neat, simple text trail clearly indicating exactly where the user is inside the app.
+    - [ ] Show a neat, simple text trail clearly indicating where the user is inside the app.
     - [ ] Separate each section cleanly with a subtle little arrow so it reads easily.
     - [ ] Allow the user to click any older section of the trail to jump right back to it instantly.
     - [ ] Shorten incredibly long show names neatly so they don't push the trail off the edge of the screen.
-    - [ ] Color the older steps slightly darker to help the current page stand out perfectly.
+    - [ ] Color the older steps slightly darker to help the current page stand out.
 - Custom Context Menus: Right-clicking a poster opens a sleek, custom dark-mode menu (Play Next, Mark Watched, Edit, Remove).
     - [ ] Block the standard, clunky computer menu from appearing when right-clicking a movie poster.
-    - [ ] Show a beautiful, dark-themed menu specifically right next to where the mouse clicked.
+    - [ ] Show a beautiful, dark-themed menu right next to where the mouse clicked.
     - [ ] Close this menu instantly if the user simply clicks anywhere else on the page.
     - [ ] Provide clear, easy buttons to instantly play the show, mark it watched, or remove it.
-    - [ ] Keep the menu completely visible on screen even if the user clicks right at the very bottom edge.
+    - [ ] Keep the menu visible on screen even if the user clicks right at the very bottom edge.
 - Sticky Section Headers: As you scroll down the Library or History, the headers ("Recently Added", "Today") stick to the top of the screen until pushed up by the next header.
-    - [ ] Pin the date label specifically to the top edge of the screen while the user scrolls through that section.
+    - [ ] Pin the date label to the top edge of the screen while the user scrolls through that section.
     - [ ] Give the label a solid background so the scrolling movies don't make the text hard to read.
     - [ ] Make sure the label stays clearly underneath the main search bar so they don't overlap awkwardly.
-    - [ ] Push the old label up and out of the way smoothly the exact moment the next date section arrives.
+    - [ ] Push the old label up and out of the way smoothly the moment the next date section arrives.
     - [ ] Un-pin the label instantly when the user decides to scroll back up.
 - Double-Click Play: Double-clicking a show poster bypasses the details page and instantly plays the next unwatched episode.
-    - [ ] Notice perfectly if a user clicks a movie poster twice rapidly instead of just once.
-    - [ ] Skip opening the show's page entirely and figure out exactly which episode they need to watch next.
+    - [ ] Notice if a user clicks a movie poster twice rapidly instead of just once.
+    - [ ] Skip opening the show's page and figure out which episode they need to watch next.
     - [ ] Launch the video player right away with that specific episode.
     - [ ] Show a small spinning icon instantly so the user knows the video is about to start.
-    - [ ] Ignore the double-click completely if the user has already watched every single episode of that show.
+    - [ ] Ignore the double-click if the user has already watched every single episode of that show.
 - Alt+Click Catch-Up: Alt+Clicking an episode checkmark automatically marks that episode and all previous episodes in the season as watched.
-    - [ ] Check exactly which episode number the user is currently holding the Alt key on.
-    - [ ] Mark that specific episode, and every single episode before it, completely finished all at once.
+    - [ ] Check which episode number the user is holding the Alt key on.
+    - [ ] Mark that specific episode, and every single episode before it, finished all at once.
     - [ ] Save this progress quietly in the background so the app doesn't freeze or slow down.
     - [ ] Fill in all the visual checkmarks instantly on the screen so the user sees it worked.
-    - [ ] Display a brief warning if the user accidentally tries to mark 50 episodes at the exact same time.
+    - [ ] Display a brief warning if the user accidentally tries to mark 50 episodes at the same time.
 - Global Command Palette: Press Cmd+P to open a quick-action menu (e.g., type ">Scan" to trigger a directory scan).
-    - [ ] Open a handy central menu strictly when the user presses Cmd+P or Ctrl+P.
+    - [ ] Open a handy central menu when the user presses Cmd+P or Ctrl+P.
     - [ ] Show a list of quick actions that filters down instantly as the user types letters.
     - [ ] Start the chosen action immediately when the user presses Enter.
-    - [ ] Close the menu completely the exact second the action begins.
+    - [ ] Close the menu the exact second the action begins.
     - [ ] Keep the most popular or frequently used actions right at the very top of the list.
 - Touchpad Swipe Gestures: Swipe left/right on a laptop trackpad to go back/forward in the app history.
     - [ ] Recognize when a user makes a strong, intentional swipe on their laptop touchpad.
-    - [ ] Change pages exactly like a normal web browser does when swiping back or forward.
+    - [ ] Change pages like a normal web browser does when swiping back or forward.
     - [ ] Show a gentle fading arrow on the edge of the screen to confirm the swipe was noticed.
-    - [ ] Ignore horizontal swipes entirely if the user is just trying to scroll through a row of movie posters.
-    - [ ] Let users turn off this swipe feature entirely in the settings if they don't like it.
+    - [ ] Ignore horizontal swipes if the user is just trying to scroll through a row of movie posters.
+    - [ ] Let users turn off this swipe feature in the settings if they don't like it.
 - Floating Action Button (FAB): A subtle "Jump to Top" arrow appears when scrolling deep into the Library.
     - [ ] Notice quietly when the user has scrolled significantly far down a very long list of movies.
     - [ ] Show a small, rounded button neatly in the bottom corner of the screen.
     - [ ] Fade the button in smoothly instead of having it appear suddenly.
-    - [ ] Scroll the page perfectly back up to the very top the moment the user clicks the button.
-    - [ ] Keep the button completely hidden if the page is short enough to see everything at once.
+    - [ ] Scroll the page back up to the very top the moment the user clicks the button.
+    - [ ] Keep the button hidden if the page is short enough to see everything at once.
 - Shortcut Cheat Sheet: Press ? anywhere to open a modal displaying all keyboard shortcuts.
-    - [ ] Open a helpful popup listing every keyboard trick strictly when the user presses the '?' key.
+    - [ ] Open a helpful popup listing every keyboard trick when the user presses the '?' key.
     - [ ] Organize the list neatly so it is easy to read at a quick glance.
     - [ ] Keep the popup closed if the user is just trying to type a question mark into the search bar.
     - [ ] Add a simple 'Close' button to hide the list when they are done.
-    - [ ] Pause any video that is currently playing the second this cheat sheet appears.
+    - [ ] Pause any video that is playing the second this cheat sheet appears.
 - Scroll Memory: Pressing "Back" from a show details page restores your exact scroll position in the Library grid.
-    - [ ] Remember perfectly how far down the user had scrolled before they clicked on a movie.
-    - [ ] Jump right back to that exact spot smoothly when they hit the 'Back' button.
+    - [ ] Remember how far down the user had scrolled before they clicked on a movie.
+    - [ ] Jump right back to that spot smoothly when they hit the 'Back' button.
     - [ ] Stop the page from awkwardly jumping to the top while the movie posters are loading.
-    - [ ] Forget the scroll spot completely if they click the home button to start a fresh search.
+    - [ ] Forget the scroll spot if they click the home button to start a fresh search.
     - [ ] Remember separate scroll spots for the TV library and the Movie library simultaneously.
 - Focus Trapping: When a modal is open, pressing Tab cycles only through modal buttons, preventing the background UI from being highlighted.
-    - [ ] Keep the keyboard focus strictly inside a popup window when one is open.
+    - [ ] Keep the keyboard focus inside a popup window when one is open.
     - [ ] Loop the focus from the last button in the popup straight back to the first button automatically.
     - [ ] Stop the user from accidentally highlighting buttons on the dark screen behind the popup.
-    - [ ] Make sure this works perfectly backwards too, if the user holds Shift while pressing Tab.
-    - [ ] Give the focus exactly back to the main search bar once the popup is finally closed.
+    - [ ] Make sure this works backwards too, if the user holds Shift while pressing Tab.
+    - [ ] Give the focus back to the main search bar once the popup is finally closed.
 - Auto-Focus Search: Clicking the "Search TMDB" sidebar tab instantly focuses the input cursor.
     - [ ] Place the typing cursor directly into the big search box the second the user opens the search page.
     - [ ] Show the blinking line immediately so the user knows they can type without clicking first.
     - [ ] Keep the cursor there patiently even if the rest of the page takes a second to load.
-    - [ ] Stop stealing the cursor completely if the user clicks the search page while already trying to do something else.
+    - [ ] Stop stealing the cursor if the user clicks the search page while already trying to do something else.
     - [ ] Make sure clicking the clear button puts the cursor right back into the box again.
 - Inline Clear Button: A tiny x icon appears inside the search bar when typing, allowing 1-click clearing.
     - [ ] Show a tiny 'X' mark neatly at the far right edge of the search box.
-    - [ ] Keep the 'X' completely hidden until the user actually types at least one letter.
-    - [ ] Wipe the entire search box completely clean the instant the 'X' is clicked.
+    - [ ] Keep the 'X' hidden until the user actually types at least one letter.
+    - [ ] Wipe the entire search box clean the instant the 'X' is clicked.
     - [ ] Put the typing cursor right back into the clean box automatically so they can try again.
     - [ ] Give the 'X' a very slight highlight when hovered so it feels like a real button.
 - Native Window Dragging: The entire empty space of the top navigation bar acts as a -webkit-app-region: drag zone to move the desktop window.
     - [ ] Let the user click and hold any empty space at the top of the app to move the whole window.
-    - [ ] Stop the window from moving entirely if they click specifically on a button or the search box instead.
-    - [ ] Keep the window moving smoothly exactly following the mouse across the screen.
-    - [ ] Turn off dragging entirely if the window is already maximized to fill the whole screen.
+    - [ ] Stop the window from moving if they click on a button or the search box instead.
+    - [ ] Keep the window moving smoothly following the mouse across the screen.
+    - [ ] Turn off dragging if the window is already maximized to fill the whole screen.
     - [ ] Let the user double-click the empty space to quickly maximize or shrink the window.
 
 ## 🎥 Part 18: Cinematic UI & Animation Details
@@ -1466,121 +1465,121 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Mix this color very faintly with the dark background of the app to give each show a unique mood.
     - [ ] Fade this subtle color in very smoothly when opening a new show page.
     - [ ] Go back to the standard dark background immediately if the poster is totally black and white.
-    - [ ] Save this color completely in the background so the app doesn't have to figure it out again next time.
+    - [ ] Save this color in the background so the app doesn't have to figure it out again next time.
 - Hero Parallax Scrolling: As you scroll down the Dashboard, the Hero Backdrop scrolls at 50% speed, creating 3D depth.
     - [ ] Make the giant top image slide down slightly slower than the rest of the page when scrolling.
     - [ ] Ensure this creates a beautiful, subtle 3D window effect without feeling dizzying.
-    - [ ] Stop the image cleanly before it scrolls too far and shows an ugly empty gap.
-    - [ ] Turn this effect off entirely on phones or older computers to keep the app running fast.
-    - [ ] Keep the dark shadow over the image completely still so the title text stays easy to read.
+    - [ ] Stop the image cleanly before it scrolls too far and shows an empty gap.
+    - [ ] Turn this effect off on phones or older computers to keep the app running fast.
+    - [ ] Keep the dark shadow over the image still so the title text stays easy to read.
 - Cinematic Film Grain: A very faint, CSS-based animated film grain overlays the background for texture.
     - [ ] Place a nearly invisible layer of static noise over the entire background of the app.
     - [ ] Keep it incredibly faint so it adds a subtle movie-theater feel without making the screen look dirty.
     - [ ] Make the static move slightly so it feels like real, classic film texture.
-    - [ ] Turn the moving static off completely if the user has requested fewer animations on their computer.
+    - [ ] Turn the moving static off if the user has requested fewer animations on their computer.
     - [ ] Ensure this static never accidentally blocks a user from clicking a button underneath it.
 - Active Show Shimmer: The poster of a show you are currently watching has a very subtle, slow-pulsing glowing border.
-    - [ ] Find exactly which shows the user is currently in the middle of watching.
-    - [ ] Draw a very thin, glowing orange line precisely around the edge of those specific posters.
+    - [ ] Find which shows the user is currently in the middle of watching.
+    - [ ] Draw a very thin, glowing orange line around the edge of those specific posters.
     - [ ] Make the glow pulse very slowly and smoothly so it isn't distracting.
-    - [ ] Turn the glow off entirely the exact moment the user finishes the last episode.
+    - [ ] Turn the glow off the exact moment the user finishes the last episode.
     - [ ] Keep the effect subtle enough that a whole row of active shows doesn't look like a neon sign.
-- Aspect-Ratio Skeleton Loaders: Loading placeholders perfectly match the 2:3 ratio of posters and 16:9 ratio of episodes.
-    - [ ] Make sure the gray loading boxes are exactly the same shape as the movie posters will be.
-    - [ ] Make the episode loading boxes perfectly widescreen so they don't look awkwardly tall.
+- Aspect-Ratio Skeleton Loaders: Loading placeholders match the 2:3 ratio of posters and 16:9 ratio of episodes.
+    - [ ] Make sure the gray loading boxes are the same shape as the movie posters will be.
+    - [ ] Make the episode loading boxes widescreen so they don't look awkwardly tall.
     - [ ] Shrink or grow these boxes smoothly to fit any screen size just like real images would.
-    - [ ] Round the corners of the loading boxes perfectly so they match the final polished look.
-    - [ ] Put a tiny, faint play button shape exactly in the middle of the episode loading boxes.
+    - [ ] Round the corners of the loading boxes so they match the final polished look.
+    - [ ] Put a tiny, faint play button shape in the middle of the episode loading boxes.
 - Shimmering Skeletons: Loading boxes use a smooth, left-to-right CSS gradient animation.
-    - [ ] Add a shiny, moving highlight completely across all the gray loading boxes.
+    - [ ] Add a shiny, moving highlight across all the gray loading boxes.
     - [ ] Make the highlight sweep smoothly from left to right like light reflecting off glass.
-    - [ ] Keep all the boxes shimmering exactly together at the exact same time.
+    - [ ] Keep all the boxes shimmering together at the exact same time.
     - [ ] Make the highlight loop endlessly without any jarring jumps or stutters.
     - [ ] Keep the shiny effect neatly inside the rounded corners of the loading boxes.
 - Staggered Grid Intro: When loading the Library, posters fade-in-up one by one in a rapid wave sequence, rather than flashing on screen simultaneously.
     - [ ] Bring the movie posters onto the screen one after another in a quick, flowing wave.
     - [ ] Make them fade in gently while sliding up slightly into place.
     - [ ] Show this beautiful wave only once when the page loads, not every single time the user clicks a button.
-    - [ ] Stop the wave completely on posters that are way down out of sight to save computer power.
+    - [ ] Stop the wave on posters that are way down out of sight to save computer power.
     - [ ] Show the posters instantly without the wave if a user is just typing a fast search.
 - Custom Themed Tooltips: Native OS tooltips are replaced by instant, styled #1F222A glassy popups.
     - [ ] Remove the ugly, standard white hover-text boxes that computers normally show.
-    - [ ] Replace them exactly with beautiful, dark, slightly see-through popup boxes.
-    - [ ] Make sure these boxes always stay completely on the screen and never get cut off at the edges.
-    - [ ] Wait just a tiny fraction of a second before showing them so they don't flash annoyingly when moving the mouse fast.
-    - [ ] Add a tiny, sharp pointer completely connecting the box directly to the button the user is hovering over.
-- Hero Text Shadowing: Ensures pure white text is perfectly readable even if the movie backdrop is a bright daytime scene.
-    - [ ] Add a very tight, dark shadow exactly behind the big show title at the top of the page.
+    - [ ] Replace them with beautiful, dark, slightly see-through popup boxes.
+    - [ ] Make sure these boxes always stay on the screen and never get cut off at the edges.
+    - [ ] Wait just a tiny fraction of a second before showing them so they don't flash annoyingly.
+    - [ ] Add a tiny, sharp pointer connecting the box directly to the button the user is hovering over.
+- Hero Text Shadowing: Ensures pure white text is readable even if the movie backdrop is a bright daytime scene.
+    - [ ] Add a very tight, dark shadow behind the big show title at the top of the page.
     - [ ] Keep the shadow incredibly clean so the letters don't look blurry or messy.
-    - [ ] Put a much softer, larger dark cloud completely behind all the text to dim the bright image behind it.
-    - [ ] Blend this perfectly with the dark bottom edge so the transition looks completely natural.
-    - [ ] Test the text specifically against a completely pure white image to guarantee it can always be read perfectly.
+    - [ ] Put a much softer, larger dark cloud behind all the text to dim the bright image behind it.
+    - [ ] Blend this with the dark bottom edge so the transition looks natural.
+    - [ ] Test the text against a pure white image to guarantee it can always be read.
 - Search Match Highlighting: When using Quick Search, the matching letters in the title are highlighted in orange.
-    - [ ] Find exactly the specific letters the user typed directly inside the movie title.
-    - [ ] Change strictly those matching letters to a bright orange color so they stand out perfectly.
-    - [ ] Keep the original capital or lowercase letters exactly the same, even if the user typed them differently.
-    - [ ] Handle it perfectly if the user types a word that shows up twice in the very same title.
-    - [ ] Make the orange letters slightly bolder entirely to catch the user's eye instantly.
+    - [ ] Find the specific letters the user typed directly inside the movie title.
+    - [ ] Change those matching letters to a bright orange color so they stand out.
+    - [ ] Keep the original capital or lowercase letters the same, even if the user typed them differently.
+    - [ ] Handle it gracefully if the user types a word that shows up twice in the very same title.
+    - [ ] Make the orange letters slightly bolder to catch the user's eye instantly.
 - Hero Crossfade Transitions: Changing the featured Hero show performs a smooth 1-second image crossfade.
-    - [ ] Load the new background image completely silently before showing it.
-    - [ ] Fade the old image away completely smoothly over one full second.
-    - [ ] Stop the app from slowing down perfectly if the user clicks through five shows extremely fast.
-    - [ ] Fade the title text out and swap it to the new title exactly in the middle of the transition.
+    - [ ] Load the new background image silently before showing it.
+    - [ ] Fade the old image away smoothly over one full second.
+    - [ ] Stop the app from slowing down if the user clicks through five shows extremely fast.
+    - [ ] Fade the title text out and swap it to the new title in the middle of the transition.
     - [ ] Handle it beautifully if the user clicks back to the main menu without any background image at all.
 - "Ken Burns" Hero Effect: The Dashboard backdrop slowly scales up (1.00 to 1.05) over 30 seconds for subtle life.
     - [ ] Make the giant background image grow incredibly slowly over a long period of time.
-    - [ ] Have it slowly zoom in and then perfectly zoom back out in an endless, gentle loop.
-    - [ ] Keep the very center of the image exactly in the middle so it doesn't drift off to the side.
-    - [ ] Ensure the movement is completely perfectly smooth without any tiny visual jitters or steps.
-    - [ ] Pause the growing entirely the second the user scrolls away so the computer doesn't waste energy.
+    - [ ] Have it slowly zoom in and then zoom back out in an endless, gentle loop.
+    - [ ] Keep the very center of the image in the middle so it doesn't drift off to the side.
+    - [ ] Ensure the movement is smooth without any tiny visual jitters or steps.
+    - [ ] Pause the growing the second the user scrolls away so the computer doesn't waste energy.
 - Glowing Progress Tails: The active end of the orange progress bar features a subtle blur/glow drop-shadow.
-    - [ ] Add a bright, glowing orange dot exactly at the very tip of the progress bar.
-    - [ ] Let the glow spill slightly forward completely into the empty part of the bar like a real light.
-    - [ ] Keep the color of the glow perfectly matching the vibrant orange of the filled bar.
-    - [ ] Turn the glow off entirely if the bar is completely full and turns green.
-    - [ ] Hide the glowing dot completely if the user hasn't started the episode yet.
-- Truncation Fade: Long titles use a mask-image: linear-gradient to fade out softly on the right edge instead of hard ... cuts.
+    - [ ] Add a bright, glowing orange dot at the very tip of the progress bar.
+    - [ ] Let the glow spill slightly forward into the empty part of the bar like a real light.
+    - [ ] Keep the color of the glow matching the vibrant orange of the filled bar.
+    - [ ] Turn the glow off if the bar is full and turns green.
+    - [ ] Hide the glowing dot if the user hasn't started the episode yet.
+- Truncation Fade: Long titles use a mask-image: linear-gradient to fade out softly on the right edge instead of hard... cuts.
     - [ ] Fade the very end of incredibly long titles out smoothly into the background.
-    - [ ] Stop the text completely from wrapping awkwardly onto a second line.
-    - [ ] Hide the standard, ugly three dots (...) perfectly when this smooth fade is used.
-    - [ ] Only use this smooth fade entirely on titles that are actually too long to fit.
-    - [ ] Keep short titles looking exactly normal without any fading at all.
+    - [ ] Stop the text from wrapping awkwardly onto a second line.
+    - [ ] Hide the standard, ugly three dots (...) when this smooth fade is used.
+    - [ ] Only use this smooth fade on titles that are actually too long to fit.
+    - [ ] Keep short titles looking normal without any fading at all.
 - Golden Completion Badge: Shows with 100% completion get a special gold laurel-wreath icon instead of the standard checkmark.
-    - [ ] Check perfectly if a user has watched every single available episode of a show.
-    - [ ] Swap the normal green checkmark completely for a beautiful, detailed gold wreath icon.
-    - [ ] Make the gold color incredibly vibrant and slightly shiny so it feels like a real reward.
-    - [ ] Place the wreath exactly in the top corner of the movie poster where it is easy to see.
+    - [ ] Check if a user has watched every single available episode of a show.
+    - [ ] Swap the normal green checkmark for a beautiful, detailed gold wreath icon.
+    - [ ] Make the gold color vibrant and slightly shiny so it feels like a real reward.
+    - [ ] Place the wreath in the top corner of the movie poster where it is easy to see.
     - [ ] Remove the gold wreath instantly if the user decides to mark an episode as unwatched later.
 - Dynamic Border-Radii: Posters have an 8px radius, but when hovered/scaled, the radius adjusts slightly to maintain optical perfection.
-    - [ ] Change the roundness of the poster corners very slightly exactly when the poster grows on hover.
-    - [ ] Keep the corners looking perfectly smooth entirely without becoming awkwardly sharp during the animation.
-    - [ ] Time the corner change flawlessly to match the exact speed of the poster growing.
-    - [ ] Keep the dark shadow behind the poster completely perfectly matched to the new corner shape.
-    - [ ] Return the corners to their exact normal shape instantly when the user moves the mouse away.
+    - [ ] Change the roundness of the poster corners very slightly when the poster grows on hover.
+    - [ ] Keep the corners looking smooth without becoming awkwardly sharp during the animation.
+    - [ ] Time the corner change flawlessly to match the speed of the poster growing.
+    - [ ] Keep the dark shadow behind the poster matched to the new corner shape.
+    - [ ] Return the corners to their normal shape instantly when the user moves the mouse away.
 - Glass Reflection Animation: Hovering a card triggers a fast, 45-degree white light reflection sweep across the surface.
-    - [ ] Create a shiny, see-through streak of white light completely across the movie poster.
-    - [ ] Hide the light entirely off to the side before the user hovers over the poster.
-    - [ ] Sweep the light rapidly exactly from the top corner to the bottom corner when the mouse touches it.
-    - [ ] Keep the light strictly inside the exact edges of the poster so it doesn't spill onto the background.
-    - [ ] Only show the light sweep exactly once per hover so it doesn't loop forever and become annoying.
-- Variable Opacity Stars: Unfilled stars in the rating widget are explicitly 20% opacity white, not just gray.
-    - [ ] Make the empty rating stars exactly a very faint, see-through white color instead of dull gray.
-    - [ ] Turn them perfectly solid and bright immediately when the user hovers over them.
-    - [ ] Keep the filled, orange stars entirely completely solid so they stand out.
-    - [ ] Ensure the empty, faint stars are still perfectly easy to see against a bright background image.
-    - [ ] Color the stars instantly exactly when clicked without waiting for a server to respond.
+    - [ ] Create a shiny, see-through streak of white light across the movie poster.
+    - [ ] Hide the light off to the side before the user hovers over the poster.
+    - [ ] Sweep the light rapidly from the top corner to the bottom corner when the mouse touches it.
+    - [ ] Keep the light inside the edges of the poster so it doesn't spill onto the background.
+    - [ ] Only show the light sweep once per hover so it doesn't loop forever and become annoying.
+- Variable Opacity Stars: Unfilled stars in the rating widget are 20% opacity white, not just gray.
+    - [ ] Make the empty rating stars a very faint, see-through white color instead of dull gray.
+    - [ ] Turn them solid and bright immediately when the user hovers over them.
+    - [ ] Keep the filled, orange stars solid so they stand out.
+    - [ ] Ensure the empty, faint stars are still easy to see against a bright background image.
+    - [ ] Color the stars instantly when clicked without waiting for a server to respond.
 - Star "Pop" Animation: Clicking a star triggers a micro-scaling "bounce" effect.
-    - [ ] Make the star jump perfectly slightly larger for a tiny fraction of a second when clicked.
-    - [ ] Snap the star back completely down to normal size quickly to feel like a real, tactile button.
-    - [ ] Make all the stars before the clicked one entirely jump exactly at the same time.
-    - [ ] Keep the jump incredibly short so it feels completely snappy and responsive.
-    - [ ] Ignore the jump effect entirely if the user is merely sliding their mouse over the stars.
+    - [ ] Make the star jump slightly larger for a tiny fraction of a second when clicked.
+    - [ ] Snap the star back down to normal size quickly to feel like a real, tactile button.
+    - [ ] Make all the stars before the clicked one jump at the same time.
+    - [ ] Keep the jump incredibly short so it feels snappy and responsive.
+    - [ ] Ignore the jump effect if the user is merely sliding their mouse over the stars.
 - Smooth Accordion Heights: Expanding a Binge-Block animates the height dynamically rather than instantly snapping the layout down.
-    - [ ] Make the history section perfectly slide open smoothly to reveal the episodes hidden inside.
-    - [ ] Let the area grow completely exactly as tall as it needs to be to fit the new content.
-    - [ ] Give the sliding motion a very slight, natural bounce entirely so it feels completely organic.
-    - [ ] Stop the text inside from looking awkwardly squished perfectly while the section is opening.
-    - [ ] Slide the section perfectly back shut entirely smoothly when the user clicks to close it.
+    - [ ] Make the history section slide open smoothly to reveal the episodes hidden inside.
+    - [ ] Let the area grow as tall as it needs to be to fit the new content.
+    - [ ] Give the sliding motion a very slight, natural bounce so it feels organic.
+    - [ ] Stop the text inside from looking awkwardly squished while the section is opening.
+    - [ ] Slide the section back shut smoothly when the user clicks to close it.
 
 ## 📡 Part 19: VLC Engine & Playback Polish
 - Auto-Fullscreen Flag: Option in Settings to append --fullscreen to the VLC launch command.
@@ -1590,9 +1589,9 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Allow the user to press the Escape key once the video is playing to return to a standard window without breaking the connection.
     - [ ] Prevent any conflict if the user happens to have standard fullscreen preferences already set up inside their own video player.
 - Launch Muted Flag: Option to launch VLC silently (--volume=0).
-    - [ ] Include a straightforward checkbox in the preferences to start all new media completely muted by default.
+    - [ ] Include a straightforward checkbox in the preferences to start all new media muted by default.
     - [ ] Open the video player with zero volume immediately when this setting is turned on.
-    - [ ] Ensure this feature only affects the video player itself, leaving the main computer volume completely untouched.
+    - [ ] Ensure this feature only affects the video player itself, leaving the main computer volume untouched.
     - [ ] Display a helpful visual hint on the dashboard letting the user know the audio is intentionally silenced.
     - [ ] Permit the user to freely turn the volume back up manually at any point while watching.
 - Preferred Audio Track: Save an integer preference (e.g., Track 2 for Japanese audio) and pass to VLC.
@@ -1600,7 +1599,7 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Remember this choice automatically for the specific TV show so they don't have to select it every episode.
     - [ ] Start the video player smoothly with the chosen audio track already active.
     - [ ] Fall back quietly to the default audio track if the requested one is missing from the file.
-    - [ ] Add a small tooltip explaining that track numbers are based entirely on how the video file was created.
+    - [ ] Add a small tooltip explaining that track numbers are based on how the video file was created.
 - Preferred Subtitle Track: Save and pass subtitle track preference to VLC (--sub-track).
     - [ ] Give users the ability to lock in a specific subtitle track number to match their language preference.
     - [ ] Launch the media player with the correct subtitles displaying instantly on screen.
@@ -1608,9 +1607,9 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Handle situations gracefully where a video has no subtitles at all, ensuring playback still starts normally.
     - [ ] Recognize and load standalone subtitle files automatically if they are placed next to the video file.
 - "Memory Jogger" Rewind: Auto-resume rewinds 5 seconds from the exact last_position to refresh the user's memory of the scene.
-    - [ ] Calculate the starting position exactly 5 seconds prior to where the user previously paused the video.
+    - [ ] Calculate the starting position 5 seconds prior to where the user previously paused the video.
     - [ ] Start the video at the very beginning (0 seconds) if they paused less than 5 seconds into the clip.
-    - [ ] Skip this rewind entirely if the user is launching a brand new, never-before-seen episode.
+    - [ ] Skip this rewind if the user is launching a brand new, never-before-seen episode.
     - [ ] Provide a simple slider in the settings to let users change this rewind length from 0 to 15 seconds.
     - [ ] Update the progress bar visually on the dashboard so it correctly reflects the slightly rewound starting point.
 - VLC Instance Management: Detect if VLC is already running and cleanly enqueue/replace media without spawning multiple windows.
@@ -1622,12 +1621,12 @@ This document represents the complete functional blueprint and state of the Watc
 - Zombie Process Recovery: If WatchMark crashes and restarts while VLC is open, it automatically reconnects to the running VLC HTTP heartbeat.
     - [ ] Look for an orphaned video player window immediately when the tracking app is opened.
     - [ ] Re-establish the connection to the video player quietly without interrupting the movie that is currently playing.
-    - [ ] Update the app's dashboard instantly to show exactly what is currently playing and how much time is left.
+    - [ ] Update the app's dashboard instantly to show what is currently playing and how much time is left.
     - [ ] Continue tracking the progress seamlessly as if the tracking app had never closed.
     - [ ] Ignore any video players that the user opened manually themselves, focusing only on ones the app controls.
 - Reset Progress Action: A specific UI button to clear last_position to 0 without marking as unwatched.
     - [ ] Place a small, clear 'Reset' icon right beside the progress bar on the show's detail page.
-    - [ ] Clear out the saved pause time completely without deleting the history of when they watched it.
+    - [ ] Clear out the saved pause time without deleting the history of when they watched it.
     - [ ] Update the page immediately to show that the episode is back to 0% progress.
     - [ ] Ask for a quick confirmation or require a double-click so the user doesn't accidentally wipe their progress.
     - [ ] Keep the show comfortably in the 'Continue Watching' row if they still have other episodes left to finish.
@@ -1646,20 +1645,20 @@ This document represents the complete functional blueprint and state of the Watc
 - OS Media Art Injection: Pass local cached poster path to VLC (--meta-art) for Windows/Mac media control overlays.
     - [ ] Find the exact location of the downloaded poster image on the user's computer.
     - [ ] Send this image path to the video player when the episode starts.
-    - [ ] Skip this feature entirely without causing an error if the poster image hasn't finished downloading yet.
+    - [ ] Skip this feature without causing an error if the poster image hasn't finished downloading yet.
     - [ ] Check that the image displays correctly on the computer's lock screen when the user pauses the video and walks away.
-    - [ ] Handle folder names with spaces or special characters perfectly so the image always loads.
-- VLC Crash Catching: If the VLC .exe exits with a crash code, WatchMark displays a specific error toast.
+    - [ ] Handle folder names with spaces or special characters safely so the image always loads.
+- VLC Crash Catching: If the VLC.exe exits with a crash code, WatchMark displays a specific error toast.
     - [ ] Watch the video player closely in the background to see if it closes normally or if it unexpectedly crashes.
     - [ ] Show a helpful, bright red warning notification on the screen if a crash is detected.
     - [ ] Stop the app from saving corrupted pause times if the player crashed while the user was skipping forward.
     - [ ] Provide a small button on the notification to let advanced users view what went wrong.
-    - [ ] Ensure the main tracking app remains completely stable and usable even if the video player fails entirely.
+    - [ ] Ensure the main tracking app remains stable and usable even if the video player fails.
 - "Test VLC Connection" Button: A button in Settings to verify the path and HTTP port are accessible.
     - [ ] Add a prominent 'Test Connection' button right below where the user types in their video player folder path.
     - [ ] Open a hidden version of the player briefly just to make sure the app can talk to it successfully.
     - [ ] Close the hidden player instantly once the test is finished.
-    - [ ] Show a cheerful green 'Success' badge if everything is working perfectly.
+    - [ ] Show a cheerful green 'Success' badge if everything is working.
     - [ ] Display clear troubleshooting advice if the test fails or times out.
 - Configurable Heartbeat: Slider in settings to change polling from 5s to 1s (high precision) or 10s (low CPU).
     - [ ] Provide an easy-to-use slider letting users choose how often the app checks the video progress.
@@ -1668,22 +1667,22 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Add simple text labels explaining that faster checking uses slightly more battery power.
     - [ ] Set the default value to 5 seconds to provide a great balance for most users right out of the box.
 - Minimization Auto-Pause: Optional setting: When WatchMark is minimized, send an HTTP command to pause VLC.
-    - [ ] Detect exactly when the user minimizes the main tracking app window.
+    - [ ] Detect when the user minimizes the main tracking app window.
     - [ ] Send a quick command to pause the video player the second the app drops out of view.
     - [ ] Automatically un-pause the movie the moment the user brings the tracking app back onto their screen.
     - [ ] Make this feature optional so users with two monitors can keep watching while using other apps.
-    - [ ] Ignore the pause command completely if the video is already paused to prevent accidentally un-pausing it.
+    - [ ] Ignore the pause command if the video is already paused to prevent accidentally un-pausing it.
 - "Skip Intro" Manual Offset: Set a global offset per-show (e.g., "Always start this anime at 01:30").
     - [ ] Create a small text box on the show's page where the user can type in a specific amount of seconds to skip.
-    - [ ] Start every new, unwatched episode of that show exactly at that requested timestamp automatically.
+    - [ ] Start every new, unwatched episode of that show at that requested timestamp automatically.
     - [ ] Keep standard pause-and-resume behavior fully intact if the user has already watched past the intro.
     - [ ] Show a brief 'Skipped Intro' message on the screen when the video starts so the user knows it worked.
     - [ ] Allow the user to easily delete the number to return the show back to normal playback.
 - Live Playback HUD: A tiny "Now Playing" widget in WatchMark's sidebar updating live while VLC is open.
     - [ ] Dedicate a small space at the bottom of the navigation menu specifically for a live status card.
     - [ ] Show the title of the current episode and a tiny progress bar that fills up while they watch.
-    - [ ] Slide the widget onto the screen smoothly the exact moment the video player opens.
-    - [ ] Hide the widget completely when the movie is over so the screen stays clean and uncluttered.
+    - [ ] Slide the widget onto the screen smoothly the moment the video player opens.
+    - [ ] Hide the widget when the movie is over so the screen stays clean and uncluttered.
     - [ ] Ensure clicking the widget takes the user straight to that show's detail page.
 - Remote "Stop" Button: A button inside WatchMark that kills the VLC process without switching windows.
     - [ ] Add a clear, red 'Stop' icon directly onto the live 'Now Playing' sidebar widget.
@@ -1700,7 +1699,7 @@ This document represents the complete functional blueprint and state of the Watc
 - Portable VLC Support: Resolves relative paths (./VLC/vlc.exe) for users running off USB drives.
     - [ ] Notice if the user types a folder path that looks like it belongs on a portable USB drive.
     - [ ] Combine that portable path intelligently with wherever the tracking app is currently located.
-    - [ ] Check to make sure the video player actually exists in that exact folder before trying to open it.
+    - [ ] Check to make sure the video player actually exists in that folder before trying to open it.
     - [ ] Save the path specifically in its portable format so the app still works if the USB drive gets a different letter next time.
     - [ ] Give the user a friendly heads-up if they accidentally type the folder name wrong.
 
@@ -1709,363 +1708,479 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Download specifically the primary five actors assigned to the movie or television show.
     - [ ] Display their real names prominently right below the main description paragraph.
     - [ ] Handle situations calmly where the database only knows about two or three actors for older or obscure media.
-    - [ ] Ignore massive lists of hundreds of background extras completely to keep the page clean and readable.
+    - [ ] Ignore massive lists of hundreds of background extras to keep the page clean and readable.
     - [ ] Update the actor list seamlessly if the user clicks the refresh button to grab newer information.
 - Actor Profile UI: Display actors in a small horizontal row of circular profile pictures.
-    - [ ] Show tiny, perfectly round portrait photos for each of the top billed actors.
-    - [ ] Provide a neat, dark placeholder silhouette explicitly if the actor doesn't have a photo available.
+    - [ ] Show tiny, round portrait photos for each of the top billed actors.
+    - [ ] Provide a neat, dark placeholder silhouette if the actor doesn't have a photo available.
     - [ ] Put the actor's real name and the name of the character they play in small text directly under their photo.
-    - [ ] Make sure the row of pictures fits perfectly on the screen without forcing the user to scroll sideways.
+    - [ ] Make sure the row of pictures fits on the screen without forcing the user to scroll sideways.
     - [ ] Give each photo a very slight, beautiful glow when the user hovers their mouse over it.
 - Network/Studio Logos: Fetch and display transparent white logos for HBO, Netflix, Apple TV+, etc.
-    - [ ] Look up exactly which company originally created or aired the television show.
+    - [ ] Look up which company originally created or aired the television show.
     - [ ] Find a clean, high-quality version of their logo that has no solid background color behind it.
-    - [ ] Display the logo neatly in pure white so it perfectly matches the dark cinematic theme of the app.
-    - [ ] Shrink incredibly wide logos down appropriately so they don't dominate the entire top of the screen.
-    - [ ] Skip showing a logo completely if the database doesn't have a clean, high-quality version available.
+    - [ ] Display the logo neatly in pure white so it matches the dark cinematic theme of the app.
+    - [ ] Shrink incredibly wide logos down appropriately so they don't dominate the top of the screen.
+    - [ ] Skip showing a logo if the database doesn't have a clean, high-quality version available.
 - Content Rating Badges: Display official maturity ratings (TV-MA, R, PG-13) in visually distinct pill borders.
     - [ ] Place a crisp, easy-to-read rating box right next to the show's release year and length.
-    - [ ] Draw a sharp white outline exactly around the letters to mimic standard television rating symbols.
+    - [ ] Draw a sharp white outline around the letters to mimic standard television rating symbols.
     - [ ] Show absolutely nothing if the show or movie has never been officially rated by a board.
     - [ ] Choose the correct country's rating system automatically based on the user's computer settings.
-    - [ ] Keep the badge incredibly small but bold so it provides information quickly without being distracting.
+    - [ ] Keep the badge small but bold so it provides information quickly without being distracting.
 - Creator/Director Tags: "Created by Vince Gilligan" text block under the synopsis.
-    - [ ] Identify exactly who directed the movie or created the television series.
-    - [ ] Write their name clearly in a slightly lighter, silver color specifically beneath the main story summary.
+    - [ ] Identify who directed the movie or created the television series.
+    - [ ] Write their name clearly in a slightly lighter, silver color beneath the main story summary.
     - [ ] Add the correct title prefix, like 'Directed by' for movies or 'Created by' for shows.
     - [ ] Combine names neatly with an ampersand if two or more people share the exact same role.
-    - [ ] Hide this line entirely if the original creator information is completely missing from the database.
+    - [ ] Hide this line if the original creator information is missing from the database.
 - Trailer Integration: A "Trailer" button that fetches the TMDB YouTube key and opens a sleek iframe modal.
     - [ ] Add a prominent, beautiful button that says 'Watch Trailer' right next to the main 'Play' button.
-    - [ ] Open a dark, perfectly centered popup window immediately when the user clicks the button.
+    - [ ] Open a dark, centered popup window immediately when the user clicks the button.
     - [ ] Play the official YouTube trailer automatically inside the popup without sending the user to a different website.
-    - [ ] Give the user an easy, obvious way to close the trailer and return exactly to what they were doing.
-    - [ ] Hide the trailer button completely if no video link can be found for the show.
+    - [ ] Give the user an easy, obvious way to close the trailer and return to what they were doing.
+    - [ ] Hide the trailer button if no video link can be found for the show.
 - Next Episode Countdown: For currently airing shows, displays: "Next Episode Airs in: 3 days, 4 hours."
-    - [ ] Check exactly when the very next brand new episode is scheduled to appear on television.
+    - [ ] Check when the very next brand new episode is scheduled to appear on television.
     - [ ] Calculate the exact amount of time left between right now and that specific future date.
-    - [ ] Show a highly visible, live countdown clock right near the top of the show's page.
+    - [ ] Show a highly visible, live countdown clock near the top of the show's page.
     - [ ] Update the words intelligently so it says 'Airs Today' if the episode comes out in less than 24 hours.
-    - [ ] Remove the countdown entirely once the episode officially airs or if the show is permanently finished.
+    - [ ] Remove the countdown once the episode officially airs or if the show is permanently finished.
 - Poster Toggle: A switch to view the unique "Season Poster" instead of the primary "Show Poster" when browsing season tabs.
     - [ ] Let users flip a simple switch to see the unique artwork created just for that specific season.
     - [ ] Swap the giant main poster on the left side of the screen instantly when they change seasons.
-    - [ ] Fade smoothly between the two completely different images so it feels polished and high-end.
+    - [ ] Fade smoothly between the two different images so it feels polished and high-end.
     - [ ] Stick to the main show poster automatically if the specific season doesn't have its own unique artwork.
     - [ ] Remember their choice specifically so they don't have to flip the switch every single time.
 - Guest Star Data: Dropdown arrow on episodes to see notable guest stars.
-    - [ ] Add a very small, subtle arrow icon specifically onto individual episode rows.
-    - [ ] Slide the row open gently when clicked to reveal a neat list of special guest actors for that specific episode.
-    - [ ] Show exactly the actor's real name and the name of their temporary character.
-    - [ ] Hide the drop-down arrow entirely if the episode features absolutely no special guests.
-    - [ ] Close the list smoothly if the user clicks the arrow a second time or opens a completely different episode.
+    - [ ] Add a very small, subtle arrow icon onto individual episode rows.
+    - [ ] Slide the row open gently when clicked to reveal a neat list of special guest actors for that episode.
+    - [ ] Show the actor's real name and the name of their temporary character.
+    - [ ] Hide the drop-down arrow if the episode features absolutely no special guests.
+    - [ ] Close the list smoothly if the user clicks the arrow a second time or opens a different episode.
 - Season-Level Synopsis: Display the unique text overview for a specific season above the episode list.
-    - [ ] Find the special paragraph that summarizes exactly what happens during this specific season of the show.
-    - [ ] Display this text cleanly exactly above the first episode in the list.
-    - [ ] Provide a 'Read More' button if the summary is incredibly long so it doesn't push the episodes completely off the screen.
-    - [ ] Skip showing anything entirely if the database only has a summary for the whole show and not this exact season.
+    - [ ] Find the special paragraph that summarizes what happens during this specific season of the show.
+    - [ ] Display this text cleanly above the first episode in the list.
+    - [ ] Provide a 'Read More' button if the summary is incredibly long so it doesn't push the episodes off the screen.
+    - [ ] Skip showing anything if the database only has a summary for the whole show and not this exact season.
     - [ ] Update the text instantly the exact moment the user clicks a different season tab.
 - Interactive Genre Tags: Clicking a genre pill (e.g., "Sci-Fi") instantly routes to the Library pre-filtered for that genre.
     - [ ] Turn the tiny genre labels, like 'Action' or 'Comedy', into fully clickable buttons.
     - [ ] Jump the user straight back to their main movie library the exact second they click one.
-    - [ ] Filter the entire library automatically so they only see other movies that completely share that same genre.
-    - [ ] Show a clear, friendly message completely confirming exactly which genre they are currently looking at.
+    - [ ] Filter the entire library automatically so they only see other movies that share that same genre.
+    - [ ] Show a clear, friendly message confirming which genre they are currently looking at.
     - [ ] Let them easily cancel the filter with one click to see their entire collection again.
 - Similar/Recommended Row: At the very bottom of the details page, show 5 dynamic posters of "If you liked this..."
-    - [ ] Ask the database precisely which other shows or movies are remarkably similar to the one they are looking at.
-    - [ ] Show a beautiful horizontal row of exactly five movie posters at the very bottom of the page.
-    - [ ] Check perfectly to see if the user already has any of these recommended shows in their own library.
-    - [ ] Put a tiny, helpful green checkmark explicitly on the posters of the shows they already own.
+    - [ ] Ask the database which other shows or movies are remarkably similar to the one they are looking at.
+    - [ ] Show a beautiful horizontal row of five movie posters at the very bottom of the page.
+    - [ ] Check to see if the user already has any of these recommended shows in their own library.
+    - [ ] Put a tiny, helpful green checkmark on the posters of the shows they already own.
     - [ ] Let them click any of the posters to instantly open the details page for that new recommendation.
 - Micro-Refresh: Option to right-click and "Refresh Data" for a single episode rather than the whole show.
     - [ ] Give the user an option to update the information specifically for just one single episode.
     - [ ] Add this choice neatly to the beautiful custom right-click menu on the episode row.
     - [ ] Update the title, description, and thumbnail picture instantly without reloading the rest of the page.
     - [ ] Show a tiny spinning circle on just that one row so the user knows it is thinking.
-    - [ ] Handle it perfectly if the database still doesn't have any new information to provide.
+    - [ ] Handle it gracefully if the database still doesn't have any new information to provide.
 - Precise Runtime Formatting: Format 135 minutes as 2h 15m instead of just 135m.
-    - [ ] Take the total number of minutes a movie lasts and explicitly break it down into exact hours and minutes.
+    - [ ] Take the total number of minutes a movie lasts and break it down into exact hours and minutes.
     - [ ] Write the new time beautifully, like '2h 15m', so it is instantly easier for a human to read.
-    - [ ] Drop the hour completely if the video is extremely short, like a 22-minute television episode.
-    - [ ] Drop the minutes completely if the movie happens to be exactly two hours long.
-    - [ ] Show 'Unknown' entirely if the file length is completely missing or broken.
+    - [ ] Drop the hour if the video is extremely short, like a 22-minute television episode.
+    - [ ] Drop the minutes if the movie happens to be two hours long.
+    - [ ] Show 'Unknown' if the file length is missing or broken.
 - Local File Size UI: Extract and display file size (e.g., 1.2 GB) from the OS.
-    - [ ] Ask the user's computer exactly how much hard drive space the video file is taking up.
+    - [ ] Ask the user's computer how much hard drive space the video file is taking up.
     - [ ] Round the number beautifully so it reads like '1.2 GB' instead of a massive string of random numbers.
     - [ ] Place this information neatly in a small, dim font right next to the file path on the screen.
     - [ ] Update the number immediately if the user replaces the old file with a much larger, higher-quality version.
-    - [ ] Show 'File Missing' clearly if the app completely fails to find the video on the hard drive.
+    - [ ] Show 'File Missing' clearly if the app fails to find the video on the hard drive.
 - Resolution Tagging: Extract and display 1080p or 4K from the local filename string.
     - [ ] Look specifically at the name of the video file to see if it mentions how high-quality the video is.
-    - [ ] Look exactly for common keywords like '1080p', '720p', or '4K' right in the file name.
-    - [ ] Create a tiny, bright badge next to the episode title perfectly displaying this video quality.
-    - [ ] Ensure the badge looks entirely distinct from standard maturity ratings or genre tags.
-    - [ ] Hide the badge completely if the file name gives absolutely no hints about the video quality.
+    - [ ] Look for common keywords like '1080p', '720p', or '4K' right in the file name.
+    - [ ] Create a tiny, bright badge next to the episode title displaying this video quality.
+    - [ ] Ensure the badge looks distinct from standard maturity ratings or genre tags.
+    - [ ] Hide the badge if the file name gives absolutely no hints about the video quality.
 - Audio Codec Tagging: Extract AAC or 5.1 from the local filename string.
-    - [ ] Read the specific file name again to see if it mentions anything completely related to the sound quality.
+    - [ ] Read the specific file name again to see if it mentions anything related to the sound quality.
     - [ ] Find very specific audio keywords like '5.1', '7.1', or 'AAC' neatly hidden in the text.
     - [ ] Add a second tiny badge right next to the video quality badge to show off the audio format.
     - [ ] Make sure this little badge doesn't push the episode title awkwardly off the edge of the screen.
-    - [ ] Don't show anything at all if the file name is completely silent on audio details.
+    - [ ] Don't show anything at all if the file name is silent on audio details.
 - "Copy Path" Quick Action: Right-click an episode to copy the raw C:\... path to clipboard.
-    - [ ] Add a brand new 'Copy File Path' button exactly to the beautiful custom right-click menu.
+    - [ ] Add a brand new 'Copy File Path' button to the beautiful custom right-click menu.
     - [ ] Save the exact, complete folder path of the video directly to the user's invisible computer clipboard when clicked.
-    - [ ] Show a quick, tiny popup message explicitly confirming 'Copied to Clipboard!' so they know it worked.
-    - [ ] Ensure the path perfectly includes the exact drive letter and every single subfolder.
-    - [ ] Disable the button entirely if the file is currently marked as missing or completely deleted.
+    - [ ] Show a quick, tiny popup message confirming 'Copied to Clipboard!' so they know it worked.
+    - [ ] Ensure the path includes the exact drive letter and every single subfolder.
+    - [ ] Disable the button if the file is currently marked as missing or deleted.
 - "Show in Explorer" Action: Right-click to open native OS file manager with the file highlighted.
     - [ ] Add a handy 'Open Folder' button right next to the copy button in the right-click menu.
-    - [ ] Open the user's actual computer file browser exactly to the folder where the video is hiding.
+    - [ ] Open the user's actual computer file browser to the folder where the video is hiding.
     - [ ] Highlight the exact video file automatically so the user doesn't have to search for it among hundreds of other files.
     - [ ] Make sure this works flawlessly on both Windows computers and Mac computers.
-    - [ ] Show a polite error completely explaining the issue if the folder has been renamed or moved entirely.
+    - [ ] Show a polite error explaining the issue if the folder has been renamed or moved.
 - Metadata Warning Icon: A tiny yellow ! if an episode exists but TMDB returned absolutely zero data for it.
-    - [ ] Notice perfectly if an episode has a video file ready to play but zero information from the internet database.
-    - [ ] Place a very small, bright yellow warning triangle exactly next to the episode title.
-    - [ ] Show a small text box completely explaining 'Information Missing' when the user hovers over the triangle.
+    - [ ] Notice if an episode has a video file ready to play but zero information from the internet database.
+    - [ ] Place a very small, bright yellow warning triangle next to the episode title.
+    - [ ] Show a small text box explaining 'Information Missing' when the user hovers over the triangle.
     - [ ] Remove the warning triangle instantly if the user successfully uses the refresh button to find the missing details.
-    - [ ] Keep the play button entirely functional so the user can still watch their show even without a summary.
+    - [ ] Keep the play button functional so the user can still watch their show even without a summary.
 
 ## 📚 Part 21: Advanced Library Organization
 - Compact List Toggle: A button to switch the Poster Grid into a dense, text-heavy data table view.
-    - [ ] Add a clean icon button exactly in the top right corner to flip the entire library layout perfectly.
-    - [ ] Hide the giant movie posters completely and switch entirely to a neat, organized list of text rows.
-    - [ ] Show important details like release year, rating, and watch progress directly next to each title.
-    - [ ] Keep the list incredibly easy to read by adding slightly alternating background colors to every other row.
-    - [ ] Remember the user's layout choice automatically so they don't have to click the button every time they open the app.
+    - [ ] Add an icon button in the top right corner to flip the library layout.
+    - [ ] Hide the movie posters and switch to an organized list of text rows.
+    - [ ] Show important details like release year, rating, and watch progress next to each title.
+    - [ ] Keep the list easy to read by adding alternating background colors to every other row.
+    - [ ] Remember the user's layout choice so they don't have to click the button every time.
 - Adjustable Poster Sizing: A slider in the top bar to scale the grid (Small, Medium, Large posters).
-    - [ ] Place a simple, subtle sliding bar right next to the layout button specifically to control picture size.
-    - [ ] Shrink or grow all the movie posters flawlessly in real time exactly as the user drags the slider.
-    - [ ] Rearrange the posters automatically to fit the new sizes perfectly onto the screen without breaking the grid.
-    - [ ] Set strict limits perfectly so the posters never become impossibly tiny or overwhelmingly huge.
-    - [ ] Save this exact size preference silently so it stays perfectly consistent the next time they log in.
+    - [ ] Place a subtle sliding bar next to the layout button to control picture size.
+    - [ ] Shrink or grow all movie posters in real time as the user drags the slider.
+    - [ ] Rearrange the posters automatically to fit the new sizes onto the screen.
+    - [ ] Set strict limits so the posters never become impossibly tiny or huge.
+    - [ ] Save this size preference silently so it stays consistent the next time they log in.
 - Genre Filtering Dropdown: Multi-select checkboxes to filter library by "Action AND Comedy".
-    - [ ] Build a beautiful dropdown menu entirely filled with every single movie and television genre.
-    - [ ] Let users check multiple boxes exactly at the same time to mix and match their search perfectly.
-    - [ ] Filter the movie posters instantly the exact second a new box is checked or unchecked.
-    - [ ] Show a polite, friendly message completely if the chosen combination results in exactly zero movies.
-    - [ ] Add a quick 'Clear' button specifically inside the menu to instantly uncheck every single box.
-- Status Filtering: Filter library strictly by "Ended" or "Returning Series".
-    - [ ] Add a simple filter option exactly letting users look only at television shows that are completely finished.
-    - [ ] Provide another option specifically for shows that are actively still airing new episodes.
-    - [ ] Hide movies entirely from the screen whenever these television-specific filters are turned on.
-    - [ ] Combine this filter perfectly with other choices, like finding a 'Finished' show that is also a 'Comedy'.
-    - [ ] Handle situations gracefully completely where a show's status is totally unknown.
+    - [ ] Build a dropdown menu filled with every movie and television genre.
+    - [ ] Let users check multiple boxes at the same time to mix and match their search.
+    - [ ] Filter the movie posters instantly the second a new box is checked or unchecked.
+    - [ ] Show a polite, friendly message if the chosen combination results in zero movies.
+    - [ ] Add a quick 'Clear' button inside the menu to instantly uncheck every box.
+- Status Filtering: Filter library by "Ended" or "Returning Series".
+    - [ ] Add a simple filter option letting users look only at television shows that are finished.
+    - [ ] Provide another option for shows that are actively still airing new episodes.
+    - [ ] Hide movies from the screen whenever these television-specific filters are turned on.
+    - [ ] Combine this filter seamlessly with other choices, like finding a 'Finished' show that is also a 'Comedy'.
+    - [ ] Handle situations gracefully where a show's status is unknown.
 - Missing Files Filter: View tracked shows where local files have been deleted/moved.
-    - [ ] Create a specific filter button entirely dedicated to finding broken or missing video files.
-    - [ ] Show only the movie posters specifically for episodes that the app can no longer find on the computer.
+    - [ ] Create a specific filter button dedicated to finding broken or missing video files.
+    - [ ] Show only the movie posters for episodes that the app can no longer find on the computer.
     - [ ] Make it incredibly easy for the user to select these broken shows and remove them or fix them.
-    - [ ] Hide the standard 'Play' buttons completely on these posters to prevent annoying errors.
-    - [ ] Empty this filter list instantly the exact second the user successfully plugs their external hard drive back in.
+    - [ ] Hide the standard 'Play' buttons on these posters to prevent annoying errors.
+    - [ ] Empty this filter list instantly the second the user plugs their external hard drive back in.
 - Favorites Filter: 1-click quick filter to only show 5-star rated media.
-    - [ ] Place a shiny star icon button prominently right next to the main search bar.
+    - [ ] Place a shiny star icon button prominently next to the main search bar.
     - [ ] Click the button to instantly hide absolutely everything that doesn't have a perfect five-star rating.
-    - [ ] Keep the user's specific sorting choices exactly exactly the same while the filter is active.
-    - [ ] Turn the star button brightly orange exactly while the filter is turned on so it is obvious.
-    - [ ] Let the user click the bright star a second time to instantly return exactly to their normal library.
+    - [ ] Keep the user's sorting choices the same while the filter is active.
+    - [ ] Turn the star button brightly orange while the filter is turned on so it is obvious.
+    - [ ] Let the user click the bright star a second time to instantly return to their normal library.
 - Decade Filter: Group shows by 80s, 90s, 2000s, 2010s, 2020s.
-    - [ ] Add a fun, simple dropdown specifically letting users jump back in time to their favorite movie eras.
-    - [ ] Find the exact release year for every movie and perfectly sort them into these ten-year buckets.
-    - [ ] Show only the posters that fit perfectly completely into the specifically chosen decade.
-    - [ ] Make sure television shows are sorted exactly based entirely on the year their very first episode aired.
-    - [ ] Handle incredibly old classic movies perfectly without breaking the layout or the math.
+    - [ ] Add a fun, simple dropdown letting users jump back in time to their favorite movie eras.
+    - [ ] Find the release year for every movie and sort them into these ten-year buckets.
+    - [ ] Show only the posters that fit into the chosen decade.
+    - [ ] Make sure television shows are sorted based on the year their very first episode aired.
+    - [ ] Handle incredibly old classic movies without breaking the layout or the math.
 - "Pick a Show for Me" Button: A dice icon that randomly selects an unwatched/in-progress show.
-    - [ ] Put a neat little dice icon perfectly at the very top of the main screen specifically for indecisive viewers.
-    - [ ] Pick one completely random movie or television show entirely from their personal collection when clicked.
-    - [ ] Ignore shows entirely that the user has already finished completely to keep the choice fresh.
-    - [ ] Open the detailed page specifically for the chosen show instantly so they can start watching.
-    - [ ] Ensure the app genuinely picks randomly exactly every single time instead of getting stuck on one show.
+    - [ ] Put a neat little dice icon at the very top of the main screen for indecisive viewers.
+    - [ ] Pick one random movie or television show from their personal collection when clicked.
+    - [ ] Ignore shows that the user has already finished to keep the choice fresh.
+    - [ ] Open the detailed page for the chosen show instantly so they can start watching.
+    - [ ] Ensure the app genuinely picks randomly every time instead of getting stuck on one show.
 - "Play Random Episode": A specific button for Sitcoms to launch a random completed episode (e.g., The Office).
-    - [ ] Add a special 'Shuffle' button specifically to the details page of television shows.
-    - [ ] Pick exactly one random episode entirely from the list of episodes the user has already watched.
-    - [ ] Launch the video player instantly with that specific episode exactly the second the button is clicked.
-    - [ ] Skip over any episodes completely that are missing their video file so the user doesn't hit an error.
-    - [ ] Hide this button entirely on movies, since shuffling a single movie doesn't make any sense.
+    - [ ] Add a special 'Shuffle' button to the details page of television shows.
+    - [ ] Pick one random episode from the list of episodes the user has already watched.
+    - [ ] Launch the video player instantly with that specific episode the second the button is clicked.
+    - [ ] Skip over any episodes that are missing their video file so the user doesn't hit an error.
+    - [ ] Hide this button on movies, since shuffling a single movie doesn't make sense.
 - A-Z Index Dividers: When sorted alphabetically, visual horizontal dividers separate the 'A's from the 'B's.
-    - [ ] Draw a beautiful, clean line completely across the screen precisely where the starting letters change.
-    - [ ] Place a giant, elegant letter perfectly on the left side of the line, like a bold 'A' or 'B'.
-    - [ ] Make sure these dividers appear strictly only when the user is sorting their library by name.
-    - [ ] Group numbers or special characters perfectly together entirely under one single '#' divider at the very top.
-    - [ ] Keep the posters directly underneath the dividers perfectly aligned exactly in their normal grid shape.
+    - [ ] Draw a beautiful, clean line across the screen where the starting letters change.
+    - [ ] Place a giant, elegant letter on the left side of the line, like a bold 'A' or 'B'.
+    - [ ] Make sure these dividers appear only when the user is sorting their library by name.
+    - [ ] Group numbers or special characters together under one single '#' divider at the very top.
+    - [ ] Keep the posters directly underneath the dividers aligned in their normal grid shape.
 - Year Index Dividers: When sorted by Release Date, dividers separate 2024 from 2023.
-    - [ ] Draw the same beautiful dividing lines explicitly when the user sorts their movies from newest to oldest.
-    - [ ] Put the exact four-digit year prominently right on the dividing line so it is perfectly easy to read.
-    - [ ] Hide these dividers completely if the user switches to a different sorting method like highest rated.
-    - [ ] Handle movies entirely that are missing release years by grouping them neatly under an 'Unknown' divider at the bottom.
-    - [ ] Stop the dividers from appearing explicitly if the user has filtered the list down to only a handful of posters.
+    - [ ] Draw the same beautiful dividing lines when the user sorts their movies from newest to oldest.
+    - [ ] Put the four-digit year prominently right on the dividing line so it is easy to read.
+    - [ ] Hide these dividers if the user switches to a different sorting method like highest rated.
+    - [ ] Handle movies that are missing release years by grouping them neatly under an 'Unknown' divider at the bottom.
+    - [ ] Stop the dividers from appearing if the user has filtered the list down to only a handful of posters.
 - Persistent View State: The app remembers if you sorted Movies by Rating and TV by Added, saving it to LocalStorage.
-    - [ ] Save the user's exact sorting choice entirely completely in the background every single time they change it.
-    - [ ] Remember perfectly the settings specifically for the Television library totally separate from the Movie library.
-    - [ ] Load these exact settings silently and perfectly the very next time the user opens the application.
-    - [ ] Apply the exact same memory specifically to whether the user prefers the grid view or the compact list view.
+    - [ ] Save the user's sorting choice in the background every time they change it.
+    - [ ] Remember the settings for the Television library separate from the Movie library.
+    - [ ] Load these settings silently the very next time the user opens the application.
+    - [ ] Apply the same memory to whether the user prefers the grid view or the compact list view.
     - [ ] Make sure this invisible memory feature never accidentally slows down or breaks the app's loading speed.
 - "Clear All Filters" Pill: A floating action button that appears when any complex filters are active.
-    - [ ] Watch carefully precisely to see if the user has turned on more than one tricky filter at the exact same time.
-    - [ ] Pop a beautiful, bright button exactly onto the top of the screen perfectly offering to clear everything.
-    - [ ] Wipe every single filter completely away instantly when the user clicks the button.
-    - [ ] Return the movie library flawlessly exactly back to its completely normal, unfiltered state.
-    - [ ] Hide the bright button instantly exactly the second the library goes back to normal.
+    - [ ] Watch carefully to see if the user has turned on more than one tricky filter at the exact same time.
+    - [ ] Pop a beautiful, bright button onto the top of the screen offering to clear everything.
+    - [ ] Wipe every single filter away instantly when the user clicks the button.
+    - [ ] Return the movie library flawlessly back to its normal, unfiltered state.
+    - [ ] Hide the bright button instantly the second the library goes back to normal.
 - Results Counter: Subtle text stating "Showing 42 of 150 items".
-    - [ ] Place exactly a very tiny, dim line of text completely at the top corner of the movie library.
-    - [ ] Update the numbers instantly perfectly every single time a new filter is clicked or a search is typed.
-    - [ ] Count perfectly precisely exactly how many total movies exist compared to entirely what is currently visible.
-    - [ ] Keep the text completely silent and invisible perfectly if the user is simply looking at their entire collection.
-    - [ ] Make sure the numbers never accidentally overlap perfectly exactly over any important buttons or posters.
-- Intersection Observer Rendering: Posters entirely off-screen are replaced by empty divs to conserve DOM memory.
-    - [ ] Watch perfectly silently to see exactly which movie posters completely disappear off the top or bottom of the screen.
-    - [ ] Remove the heavy picture completely exactly from the computer's memory to keep the app running fast.
-    - [ ] Leave a totally invisible, perfectly sized empty box directly in its place so the scrolling doesn't jump or break.
-    - [ ] Put the picture perfectly right back into the exact box instantly completely before the user scrolls back to it.
-    - [ ] Make sure exactly the user never accidentally sees the blank boxes explicitly while scrolling normally.
+    - [ ] Place a very tiny, dim line of text at the top corner of the movie library.
+    - [ ] Update the numbers instantly every time a new filter is clicked or a search is typed.
+    - [ ] Count precisely how many total movies exist compared to what is currently visible.
+    - [ ] Keep the text silent and invisible if the user is simply looking at their entire collection.
+    - [ ] Make sure the numbers never accidentally overlap over any important buttons or posters.
+- Intersection Observer Rendering: Posters off-screen are replaced by empty divs to conserve DOM memory.
+    - [ ] Watch silently to see which movie posters disappear off the top or bottom of the screen.
+    - [ ] Remove the heavy picture from the computer's memory to keep the app running fast.
+    - [ ] Leave a totally invisible, sized empty box in its place so the scrolling doesn't jump or break.
+    - [ ] Put the picture right back into the box instantly before the user scrolls back to it.
+    - [ ] Make sure the user never accidentally sees the blank boxes while scrolling normally.
 - Image Retry Logic: If a local cached image is corrupted, automatically attempt to re-download it from TMDB.
-    - [ ] Notice completely instantly if a movie poster picture file is totally broken or won't load properly.
-    - [ ] Try quietly completely in the background entirely to download a fresh copy of the picture from the internet.
-    - [ ] Replace the broken picture instantly explicitly on the screen the exact second the new one finishes downloading.
-    - [ ] Stop trying completely permanently if the internet is down entirely so the app doesn't freeze or crash.
-    - [ ] Show perfectly the neat, beautiful gray placeholder box completely while the app is silently fixing the picture.
+    - [ ] Notice instantly if a movie poster picture file is totally broken or won't load properly.
+    - [ ] Try quietly in the background to download a fresh copy of the picture from the internet.
+    - [ ] Replace the broken picture instantly on the screen the exact second the new one finishes downloading.
+    - [ ] Stop trying permanently if the internet is down so the app doesn't freeze or crash.
+    - [ ] Show the neat, beautiful gray placeholder box while the app is silently fixing the picture.
 - Type Iconography: In "All Search Results", overlay a tiny Movie clapperboard or TV icon to distinguish media types.
-    - [ ] Look perfectly closely explicitly at mixed search results exactly to see what kind of media they are.
-    - [ ] Place a tiny, incredibly cute television icon precisely in the corner of all the television shows.
-    - [ ] Place a tiny movie clapperboard icon exactly in the corner of all the standard feature films.
-    - [ ] Keep these icons completely perfectly small so they don't cover up the actual title of the movie.
-    - [ ] Hide the icons entirely perfectly if the user is already specifically browsing just their TV or Movie libraries.
+    - [ ] Look closely at mixed search results to see what kind of media they are.
+    - [ ] Place a tiny, incredibly cute television icon in the corner of all the television shows.
+    - [ ] Place a tiny movie clapperboard icon in the corner of all the standard feature films.
+    - [ ] Keep these icons small so they don't cover up the actual title of the movie.
+    - [ ] Hide the icons if the user is already specifically browsing just their TV or Movie libraries.
 - "Unwatched Only" Filter: Distinct from "Hide Completed"—this specifically hides anything you've started.
-    - [ ] Add a brand new checkbox completely separate exactly from the standard 'Hide Completed' button.
-    - [ ] Hide every single movie or show perfectly explicitly that the user has even watched five minutes of.
-    - [ ] Leave only the perfectly totally fresh, absolutely untouched movies directly on the screen.
-    - [ ] Help the user easily completely find exactly something brand new specifically they haven't started yet.
-    - [ ] Keep this filter perfectly completely compatible exactly with all the other genre or sorting tools.
+    - [ ] Add a brand new checkbox separate from the standard 'Hide Completed' button.
+    - [ ] Hide every single movie or show that the user has even watched five minutes of.
+    - [ ] Leave only the totally fresh, absolutely untouched movies on the screen.
+    - [ ] Help the user easily find something brand new they haven't started yet.
+    - [ ] Keep this filter compatible with all the other genre or sorting tools.
 - Library Multi-Select State: Allow users to Ctrl+Click multiple posters to Bulk Remove.
-    - [ ] Let users completely hold down the Ctrl or Cmd key entirely and click exactly on several different movie posters.
-    - [ ] Highlight completely exactly every single poster perfectly they click perfectly so it is obvious they are selected.
-    - [ ] Pop completely exactly a new menu perfectly at the top of the screen entirely offering a massive 'Delete All' button.
-    - [ ] Remove completely perfectly every single chosen movie exactly the instant the big button is completely pressed.
-    - [ ] Un-highlight completely perfectly everything entirely the exact second the user clicks completely anywhere else on the page.
+    - [ ] Let users hold down the Ctrl or Cmd key and click on several different movie posters.
+    - [ ] Highlight every single poster they click so it is obvious they are selected.
+    - [ ] Pop a new menu at the top of the screen offering a massive 'Delete All' button.
+    - [ ] Remove every single chosen movie the instant the big button is pressed.
+    - [ ] Un-highlight everything the exact second the user clicks anywhere else on the page.
 - "Pin to Top" Feature: Right-click a show to pin it, ensuring it stays at the top of the grid regardless of sort order.
-    - [ ] Add a completely neat 'Pin to Top' completely button perfectly directly inside the custom right-click menu.
-    - [ ] Move that specific movie poster perfectly entirely explicitly to the absolute very first spot in the entire library.
-    - [ ] Keep it locked completely perfectly explicitly in that number one spot totally even if the user changes how the list is sorted.
-    - [ ] Add completely perfectly explicitly a tiny little thumbtack icon perfectly completely to the corner of the poster so it is obvious.
-    - [ ] Un-pin perfectly explicitly completely the poster perfectly the second the user explicitly entirely clicks the button again.
+    - [ ] Add a neat 'Pin to Top' button directly inside the custom right-click menu.
+    - [ ] Move that specific movie poster to the absolute very first spot in the entire library.
+    - [ ] Keep it locked in that number one spot even if the user changes how the list is sorted.
+    - [ ] Add a tiny little thumbtack icon to the corner of the poster so it is obvious.
+    - [ ] Un-pin the poster the second the user clicks the button again.
 
 ## 🕵️ Part 22: Scanner & Parsing Intelligence
 - Multi-Root Directories: Support adding multiple target folders (e.g., D:\TV Shows and E:\Anime).
-    - [ ] Create a neat, organized list in the settings specifically showing every single folder the app currently watches.
-    - [ ] Add a prominent button letting users easily pick an entirely new folder from any hard drive on their computer.
-    - [ ] Let users quickly and safely remove a folder from the list entirely without permanently deleting any of their history.
-    - [ ] Scan perfectly through all the listed folders simultaneously without mixing up the movies inside them.
-    - [ ] Show a polite warning completely if a user accidentally tries to add the exact same folder twice.
-- .watchmarkignore Support: Place this file in a folder to tell the scanner to skip it entirely.
-    - [ ] Teach the app to quietly look specifically for a tiny, hidden file named exactly `.watchmarkignore` inside any folder.
+    - [ ] Create a neat, organized list in the settings showing every single folder the app currently watches.
+    - [ ] Add a prominent button letting users easily pick a new folder from any hard drive on their computer.
+    - [ ] Let users quickly and safely remove a folder from the list without permanently deleting any of their history.
+    - [ ] Scan flawlessly through all the listed folders simultaneously without mixing up the movies inside them.
+    - [ ] Show a polite warning if a user accidentally tries to add the exact same folder twice.
+-.watchmarkignore Support: Place this file in a folder to tell the scanner to skip it.
+    - [ ] Teach the app to quietly look for a tiny, hidden file named `.watchmarkignore` inside any folder.
     - [ ] Skip the entire folder and absolutely everything inside it instantly if that special file is found.
-    - [ ] Ignore completely any sub-folders perfectly hiding inside the ignored folder.
-    - [ ] Help users easily hide personal home videos or private collections explicitly without moving them off the hard drive.
-    - [ ] Keep the app completely fast and silent while it skips over these ignored sections.
+    - [ ] Ignore any sub-folders hiding inside the ignored folder.
+    - [ ] Help users easily hide personal home videos or private collections without moving them off the hard drive.
+    - [ ] Keep the app fast and silent while it skips over these ignored sections.
 - Sample File Exclusion: Automatically ignore video files under 50MB (bypasses trailers/samples).
-    - [ ] Check exactly how large every single video file is completely before trying to identify it.
-    - [ ] Skip entirely over tiny files that are just short preview clips or downloading errors.
-    - [ ] Put a simple slider directly in the settings so the user can change exactly what 'tiny' means to them.
-    - [ ] Keep the main movie library completely clean explicitly by keeping these junk files out.
-    - [ ] Process the large, actual movie files perfectly normally even if they sit right next to a tiny preview file.
+    - [ ] Check how large every single video file is before trying to identify it.
+    - [ ] Skip over tiny files that are just short preview clips or downloading errors.
+    - [ ] Put a simple slider directly in the settings so the user can change what 'tiny' means to them.
+    - [ ] Keep the main movie library clean by keeping these junk files out.
+    - [ ] Process the large, actual movie files normally even if they sit right next to a tiny preview file.
 - Absolute Number Parsing: Regex logic to understand Anime formatting (e.g., Naruto 105.mkv -> Season 1, Ep 105).
-    - [ ] Teach the app completely to recognize specifically when a video file just has one giant number, like '105'.
-    - [ ] Map these massive numbers perfectly back specifically to 'Season 1' so the television library doesn't break.
-    - [ ] Stop the app entirely from accidentally thinking the number '105' means 'Season 1, Episode 5'.
-    - [ ] Identify the show title exactly correctly even when it sits right next to these strange numbering formats.
-    - [ ] Match the episode perfectly exactly with the correct internet summary information even if the numbering is weird.
+    - [ ] Teach the app to recognize when a video file just has one giant number, like '105'.
+    - [ ] Map these massive numbers back to 'Season 1' so the television library doesn't break.
+    - [ ] Stop the app from accidentally thinking the number '105' means 'Season 1, Episode 5'.
+    - [ ] Identify the show title correctly even when it sits right next to these strange numbering formats.
+    - [ ] Match the episode with the correct internet summary information even if the numbering is weird.
 - Date-Based Parsing: Regex for daily shows (e.g., Late Show 2024-03-10.mkv).
-    - [ ] Recognize perfectly exactly when a file name uses a full calendar date completely instead of normal season numbers.
-    - [ ] Pull the exact year, month, and day entirely out of the file name cleanly.
-    - [ ] Search the internet database perfectly using that exact date to find the specific daily talk show episode.
-    - [ ] Keep the show title completely separate exactly from the date so the app knows exactly what to search for.
-    - [ ] Organize these daily episodes perfectly inside the app exactly in the correct calendar order.
+    - [ ] Recognize when a file name uses a full calendar date instead of normal season numbers.
+    - [ ] Pull the exact year, month, and day out of the file name cleanly.
+    - [ ] Search the internet database using that exact date to find the specific daily talk show episode.
+    - [ ] Keep the show title separate from the date so the app knows what to search for.
+    - [ ] Organize these daily episodes inside the app in the correct calendar order.
 - Boot-Up Auto-Scan: Optional setting to run a silent background scan every time WatchMark opens.
-    - [ ] Add a simple checkbox specifically in the settings offering to look for new movies the exact second the app starts.
-    - [ ] Run the search completely silently in the background so the user can start using the app instantly.
-    - [ ] Show a tiny, subtle spinning icon completely out of the way so the user knows the app is thinking.
-    - [ ] Pop a completely polite notification exactly when the invisible search finishes, explicitly if it found new things.
-    - [ ] Let users turn this off completely entirely if they prefer explicitly to control exactly when the app searches their computer.
+    - [ ] Add a simple checkbox in the settings offering to look for new movies the second the app starts.
+    - [ ] Run the search silently in the background so the user can start using the app instantly.
+    - [ ] Show a tiny, subtle spinning icon out of the way so the user knows the app is thinking.
+    - [ ] Pop a polite notification when the invisible search finishes, if it found new things.
+    - [ ] Let users turn this off if they prefer to control when the app searches their computer.
 - File System Watcher (Rust notify): Hooks into OS events to instantly recognize when a file is dragged into your watched folder without manual scanning.
-    - [ ] Listen perfectly quietly directly to the user's computer to hear exactly when a brand new file is created.
-    - [ ] Add the brand new movie completely instantly to the app the exact second it finishes downloading or copying.
-    - [ ] Prevent the app completely entirely from trying to read the file before it is completely finished copying over.
-    - [ ] Notice perfectly exactly if the user decides to suddenly delete a movie or move it to a different folder.
-    - [ ] Keep the main library perfectly up-to-date instantly without the user ever explicitly needing to click a refresh button.
-- Detailed Scan Log Modal: Shows exactly what Regex matched what string and what TMDB ID was assigned.
-    - [ ] Create a special, completely detailed history page showing exactly what the app did during its last search.
-    - [ ] List perfectly every single file it found and completely explain exactly how it guessed the title.
-    - [ ] Show entirely specifically which internet movie ID it decided to attach perfectly to the file.
-    - [ ] Highlight completely exactly which files the app completely failed to understand entirely so the user can fix them.
-    - [ ] Keep this detailed screen completely hidden explicitly inside the settings completely so it doesn't confuse normal users.
+    - [ ] Listen quietly to the user's computer to hear when a brand new file is created.
+    - [ ] Add the brand new movie instantly to the app the second it finishes downloading or copying.
+    - [ ] Prevent the app from trying to read the file before it is finished copying over.
+    - [ ] Notice if the user decides to suddenly delete a movie or move it to a different folder.
+    - [ ] Keep the main library up-to-date instantly without the user ever needing to click a refresh button.
+- Detailed Scan Log Modal: Shows what Regex matched what string and what TMDB ID was assigned.
+    - [ ] Create a special, detailed history page showing what the app did during its last search.
+    - [ ] List every single file it found and explain how it guessed the title.
+    - [ ] Show specifically which internet movie ID it decided to attach to the file.
+    - [ ] Highlight which files the app failed to understand so the user can fix them.
+    - [ ] Keep this detailed screen hidden inside the settings so it doesn't confuse normal users.
 - "Dry Run" Scan: Simulates a scan and shows you what it would match without writing to the database.
-    - [ ] Build a completely safe, practice search button exactly that explicitly doesn't save anything permanently.
-    - [ ] Show the user exactly a completely detailed list perfectly predicting what the app would do.
-    - [ ] Let the user explicitly check perfectly to see if their complicated folder names will confuse the app.
-    - [ ] Keep the actual, permanent movie library completely perfectly untouched explicitly during this practice test.
-    - [ ] Give the user perfectly entirely a big, obvious button exactly to make the changes permanent if they like the results.
+    - [ ] Build a safe, practice search button that doesn't save anything permanently.
+    - [ ] Show the user a detailed list predicting what the app would do.
+    - [ ] Let the user check to see if their complicated folder names will confuse the app.
+    - [ ] Keep the actual, permanent movie library untouched during this practice test.
+    - [ ] Give the user a big, obvious button to make the changes permanent if they like the results.
 - Duplicate Resolution: If S01E01 is found twice, UI allows user to pick between the 1080p and 720p version.
-    - [ ] Notice perfectly explicitly if the exact same episode is hiding completely twice inside the user's folders.
-    - [ ] Pause the automatic process entirely and pop perfectly exactly a helpful little message asking the user for help.
-    - [ ] Show the user perfectly explicitly both file names so they can clearly see the difference in quality.
-    - [ ] Let the user explicitly click perfectly exactly which version they want to keep completely permanently in their library.
-    - [ ] Remember perfectly their choice completely so the app doesn't bother them exactly about those specific files again.
-- Incomplete Download Skipping: Ignores .part, .crdownload, and .!qB files instantly.
-    - [ ] Ignore completely perfectly any file that has an ending explicitly matching common downloading programs.
-    - [ ] Skip over them completely silently exactly so the user's library doesn't fill up with broken, unplayable junk.
-    - [ ] Notice perfectly entirely exactly the second the downloading program finishes explicitly and renames the file normally.
-    - [ ] Add the finally completed file exactly perfectly to the library completely instantly once it is ready.
-    - [ ] Prevent the app completely entirely from crashing explicitly if it tries perfectly to read a half-finished file.
+    - [ ] Notice if the exact same episode is hiding twice inside the user's folders.
+    - [ ] Pause the automatic process and pop a helpful little message asking the user for help.
+    - [ ] Show the user both file names so they can clearly see the difference in quality.
+    - [ ] Let the user click which version they want to keep permanently in their library.
+    - [ ] Remember their choice so the app doesn't bother them about those specific files again.
+- Incomplete Download Skipping: Ignores.part,.crdownload, and.!qB files instantly.
+    - [ ] Ignore any file that has an ending matching common downloading programs.
+    - [ ] Skip over them silently so the user's library doesn't fill up with broken, unplayable junk.
+    - [ ] Notice the second the downloading program finishes and renames the file normally.
+    - [ ] Add the finally completed file to the library instantly once it is ready.
+    - [ ] Prevent the app from crashing if it tries to read a half-finished file.
 - Auto-Cleanup: If a show is removed from Tracker, optionally prompt "Delete empty parent folders?".
-    - [ ] Notice completely perfectly exactly when the user explicitly removes an entire show perfectly from the app.
-    - [ ] Check perfectly exactly if the folder that used completely to hold that show is now totally, perfectly empty.
-    - [ ] Pop a polite, completely entirely optional message perfectly asking if the user wants to delete the empty folder too.
-    - [ ] Leave the folder perfectly entirely alone explicitly if the user clicks 'No' completely.
-    - [ ] Keep the user's computer completely perfectly clean entirely without them explicitly having to do it themselves.
+    - [ ] Notice when the user removes an entire show from the app.
+    - [ ] Check if the folder that used to hold that show is now totally, empty.
+    - [ ] Pop a polite, optional message asking if the user wants to delete the empty folder too.
+    - [ ] Leave the folder alone if the user clicks 'No'.
+    - [ ] Keep the user's computer clean without them having to do it themselves.
 - Split-Movie Merging: Detects Movie-CD1.avi and Movie-CD2.avi and handles them logically.
-    - [ ] Recognize perfectly completely when a single long movie explicitly is broken perfectly into two separate video files.
-    - [ ] Group both parts completely entirely under one single, beautiful poster perfectly in the main library.
-    - [ ] Start playing explicitly the second part completely automatically exactly the second the first part finishes.
-    - [ ] Remember perfectly exactly where the user paused explicitly even if the pause happens precisely exactly across the split.
-    - [ ] Keep the library perfectly clean explicitly by completely hiding the confusing duplicate files from the main screen.
-- Archive Detection: Flags .rar or .zip files containing video and notifies the user to extract them.
-    - [ ] Notice perfectly explicitly when a massive video file is completely hidden exactly inside a compressed folder.
-    - [ ] Pop a helpful, completely perfectly friendly warning explicitly exactly letting the user know they need to unzip it.
-    - [ ] Prevent the app completely entirely from trying to explicitly force the video player perfectly to play a zipped file.
-    - [ ] Stop completely explicitly bothering the user perfectly about the zip file once they successfully extract the video.
-    - [ ] Keep the app completely fast explicitly by exactly not trying completely to scan entirely inside every single zip file on the computer.
+    - [ ] Recognize when a single long movie is broken into two separate video files.
+    - [ ] Group both parts under one single, beautiful poster in the main library.
+    - [ ] Start playing the second part automatically the second the first part finishes.
+    - [ ] Remember where the user paused even if the pause happens across the split.
+    - [ ] Keep the library clean by hiding the confusing duplicate files from the main screen.
+- Archive Detection: Flags.rar or.zip files containing video and notifies the user to extract them.
+    - [ ] Notice when a massive video file is hidden inside a compressed folder.
+    - [ ] Pop a helpful warning letting the user know they need to unzip it.
+    - [ ] Prevent the app from trying to force the video player to play a zipped file.
+    - [ ] Stop bothering the user about the zip file once they successfully extract the video.
+    - [ ] Keep the app fast by not trying to scan inside every single zip file on the computer.
 - Fallback Folder Parsing: If a file is named 1.mkv, the parser crawls up to read the parent directory name Breaking Bad.
-    - [ ] Notice perfectly explicitly when a video file name is completely entirely too short perfectly to be a real title.
-    - [ ] Look perfectly exactly at the name of the folder completely holding the file explicitly to find the real show name.
-    - [ ] Combine the folder name completely exactly with the file number perfectly to figure out explicitly what the episode is.
-    - [ ] Add the episode completely perfectly to the library explicitly exactly as if the file name had been perfectly normal.
-    - [ ] Handle situations perfectly entirely explicitly where the folder name is also completely useless or confusing.
+    - [ ] Notice when a video file name is too short to be a real title.
+    - [ ] Look at the name of the folder holding the file to find the real show name.
+    - [ ] Combine the folder name with the file number to figure out what the episode is.
+    - [ ] Add the episode to the library as if the file name had been normal.
+    - [ ] Handle situations where the folder name is also useless or confusing.
 - Inbox Sort by Date: Sort unmatched files by the OS "Date Modified" attribute.
-    - [ ] Give the user completely explicitly a perfectly simple button exactly to sort their confusing files by age.
-    - [ ] Put the completely absolutely newest, most recently downloaded files explicitly perfectly at the top of the list.
-    - [ ] Help the user perfectly explicitly completely figure out what a file is exactly by remembering perfectly exactly when they downloaded it.
-    - [ ] Refresh the completely perfectly exactly explicit list instantly completely when the button is clicked.
-    - [ ] Keep the list perfectly explicitly completely organized exactly even if the user has thousands of confusing files.
+    - [ ] Give the user a simple button to sort their confusing files by age.
+    - [ ] Put the absolutely newest, most recently downloaded files at the top of the list.
+    - [ ] Help the user figure out what a file is by remembering when they downloaded it.
+    - [ ] Refresh the list instantly when the button is clicked.
+    - [ ] Keep the list organized even if the user has thousands of confusing files.
 - Inbox Sort by Size: Sort unmatched files by byte size.
-    - [ ] Add a completely entirely perfectly explicit button exactly to sort the confusing files completely explicitly by how massive they are.
-    - [ ] Group massive, completely gigantic 4K movies perfectly explicitly together entirely at one end of the list.
-    - [ ] Group tiny, perfectly explicit little preview clips completely exactly completely at the other end.
-    - [ ] Help the user completely perfectly identify explicitly exactly what a file is entirely by looking completely explicitly at its size.
-    - [ ] Keep the sorting completely perfectly fast exactly even if the user explicitly has a massive hard drive.
+    - [ ] Add a button to sort the confusing files by how massive they are.
+    - [ ] Group massive 4K movies together at one end of the list.
+    - [ ] Group tiny preview clips at the other end.
+    - [ ] Help the user identify what a file is by looking at its size.
+    - [ ] Keep the sorting fast even if the user has a massive hard drive.
 - Inbox Fuzzy Matching: Groups strings with minor typos together (e.g., "The Wrie" and "The Wire").
-    - [ ] Notice completely perfectly explicitly when two file names are almost perfectly exactly identical completely.
-    - [ ] Group them entirely explicitly perfectly completely together exactly in the confusing files list even if one has a small typo.
-    - [ ] Help the user completely explicitly perfectly fix entirely exactly both files at the exact same time.
-    - [ ] Stop completely perfectly explicitly exactly grouping files completely together if they are actually totally different shows.
-    - [ ] Make the confusing files list completely perfectly explicitly much smaller exactly and easier entirely to manage.
+    - [ ] Notice when two file names are almost identical.
+    - [ ] Group them together in the confusing files list even if one has a small typo.
+    - [ ] Help the user fix both files at the exact same time.
+    - [ ] Stop grouping files together if they are actually totally different shows.
+    - [ ] Make the confusing files list much smaller and easier to manage.
 - Inbox Inline Editing: Allow the user to manually edit the extracted string in the UI before hitting "Search TMDB".
-    - [ ] Let the user perfectly completely entirely explicitly click right on the guessed title exactly in the confusing files list.
-    - [ ] Turn the text completely perfectly exactly into a totally normal typing box entirely so they can fix spelling mistakes.
-    - [ ] Search the internet completely perfectly explicitly exactly the second they finish typing the completely fixed name.
-    - [ ] Save completely perfectly entirely explicitly the user completely entirely from exactly opening a massive separate popup window.
-    - [ ] Keep the typing box completely perfectly exactly explicit completely simple entirely and easy to use.
+    - [ ] Let the user click right on the guessed title in the confusing files list.
+    - [ ] Turn the text into a totally normal typing box so they can fix spelling mistakes.
+    - [ ] Search the internet the second they finish typing the fixed name.
+    - [ ] Save the user from opening a massive separate popup window.
+    - [ ] Keep the typing box explicit simple and easy to use.
 - Inbox Type Override: A quick toggle to force TMDB to search for a "Movie" if the parser incorrectly guessed "TV".
-    - [ ] Add a tiny, completely perfect explicitly exactly simple button completely next to the confusing file explicitly.
-    - [ ] Let the user completely exactly perfectly flip entirely between explicitly 'Television' perfectly and entirely 'Movie'.
-    - [ ] Search the internet completely explicitly exactly perfectly again instantly entirely using the completely brand new category.
-    - [ ] Help the user completely entirely perfectly explicitly fix mistakes exactly when a completely perfectly movie happens exactly to have a number in its name.
-    - [ ] Keep the button completely perfectly entirely explicit exactly out of the way completely entirely unless the user needs it.
+    - [ ] Add a tiny, perfect simple button next to the confusing file.
+    - [ ] Let the user flip between 'Television' and 'Movie'.
+    - [ ] Search the internet again instantly using the brand new category.
+    - [ ] Help the user fix mistakes when a movie happens to have a number in its name.
+    - [ ] Keep the button explicit out of the way unless the user needs it.
+
+## 📊 Part 23: Dashboard Insights & Statistics
+- "Finish the Season" Prompt: If 1 episode is left in a season, the Hero text changes to highlight it.
+    - [ ] Calculate precisely how many unwatched episodes remain in the active season for the featured show.
+    - [ ] Change the standard subtitle text to a bold, encouraging message when only one episode is left.
+    - [ ] Highlight this special text in a distinct color to grab the user's attention.
+    - [ ] Revert immediately to standard text formatting if the user watches the final episode or starts a different show.
+    - [ ] Make sure this prompt ignores special episodes or trailers that aren't part of the main story.
+- "New Season Premiered" Alert: If an archived show is updated on TMDB with a new season, a temporary alert card appears on the Dashboard.
+    - [ ] Notice quietly in the background if a television series the user finished suddenly receives brand new episodes.
+    - [ ] Display a prominent, exciting notification card right at the top of the main screen.
+    - [ ] Show the title of the series and how many new episodes are now available to watch.
+    - [ ] Let the user dismiss this alert permanently with a single click if they aren't interested.
+    - [ ] Automatically remove the card the second the user actually starts watching one of the new episodes.
+- Recently Finished Row: A dynamic row showing the posters of the last 5 shows you hit 100% on.
+    - [ ] Track when a user watches the absolute final episode of an entire series.
+    - [ ] Build a sleek, horizontal carousel right on the main screen displaying these completed accomplishments.
+    - [ ] Limit the list to only the five most recent shows to keep the screen from getting cluttered.
+    - [ ] Hide this row if the user has never finished a television show.
+    - [ ] Make sure adding a new season to a finished show drops it off this list until they finish it again.
+- "On This Day" Memory: Shows a card highlighting what you binged 1, 2, or 5 years ago today.
+    - [ ] Look back through the user's personal viewing history to find what they watched on this exact calendar date in previous years.
+    - [ ] Create a fun, nostalgic memory card displaying the movie poster and how many years ago it was watched.
+    - [ ] Skip this feature if the user hasn't been using the app long enough to have any yearly memories.
+    - [ ] Prioritize massive binge sessions or highly-rated movies if multiple things were watched on that specific day.
+    - [ ] Let the user click the memory card to jump straight to that show's detail page.
+- Time Saved Statistic: Math calculation showing hours saved if you consistently used the "Skip Intro" manual offset.
+    - [ ] Add up all the seconds the user has automatically skipped across every single show they watch.
+    - [ ] Convert that massive number of seconds into an easy-to-read format, like '12 Hours Saved'.
+    - [ ] Display this fun statistic proudly in the main insights grid on the dashboard.
+    - [ ] Keep the number hidden until the user has actually saved at least one full hour of time.
+    - [ ] Update the math accurately in real time every time an episode finishes playing.
+- Time-Aware Greetings: Dashboard top text reads "Good morning" or "Late night binge?" based on local OS clock.
+    - [ ] Read the current time directly from the user's computer clock.
+    - [ ] Change the main welcome text dynamically depending on whether it is morning, afternoon, evening, or past midnight.
+    - [ ] Make the late-night greeting playful to acknowledge that the user is staying up late watching movies.
+    - [ ] Ensure the greeting updates seamlessly if the user leaves the app open across different times of the day.
+    - [ ] Keep the font elegant and subtle so it doesn't distract from the giant movie posters.
+- Dynamic Queue Hiding: If you have 0 shows in progress, the "Up Next" row collapses rather than showing empty space.
+    - [ ] Notice immediately if the user has absolutely nothing currently paused or halfway finished.
+    - [ ] Remove the entire 'Continue Watching' row from the screen so it doesn't waste space.
+    - [ ] Slide all the other dashboard sections up smoothly to fill in the empty gap.
+    - [ ] Bring the row back instantly the second the user starts a brand new movie.
+    - [ ] Avoid showing ugly 'Nothing to watch' text boxes in this specific row.
+- Interactive Stat Widgets: Clicking the "Shows Completed" widget automatically navigates to the Library with the 'Completed' filter applied.
+    - [ ] Turn the big, numbered statistic boxes on the dashboard into clickable buttons.
+    - [ ] Jump the user straight to their movie collection when they click one of the numbers.
+    - [ ] Automatically turn on the correct filters so the list matches the statistic they clicked.
+    - [ ] Add a very slight visual highlight when the mouse hovers over the boxes so they feel interactive.
+    - [ ] Make sure the 'Back' button works properly to return them to the dashboard after clicking.
+- Hero Progress Color Shift: The progress bar turns solid Green when over 90%, distinguishing it from Orange (in-progress).
+    - [ ] Watch the progress bar percentage closely while the user is watching an episode.
+    - [ ] Change the color of the bar instantly from orange to bright green the second they pass the 90 percent mark.
+    - [ ] Make this color shift extremely smooth so it looks like a natural transition.
+    - [ ] Keep the bar green permanently for that specific episode to indicate it is considered finished.
+    - [ ] Ensure this color logic matches the math used for the app's history tracking.
+- Hover-Timestamp Reveal: Hovering the Hero progress bar reveals the exact string: 45:12 / 50:00.
+    - [ ] Hide the exact minute and second numbers normally to keep the screen looking clean and cinematic.
+    - [ ] Pop up a tiny, dark tooltip showing the precise time remaining only when the user places their mouse over the bar.
+    - [ ] Format the numbers cleanly like a standard digital clock so they are incredibly easy to read at a glance.
+    - [ ] Make the tooltip follow the mouse left and right along the progress bar.
+    - [ ] Hide the numbers instantly again when the mouse moves away.
+- "Dismiss from Queue" Action: An X button on Continue Watching cards to hide a show you got bored of but don't want to delete.
+    - [ ] Add a small, faint 'X' icon to the corner of the shows listed in the 'Continue Watching' row.
+    - [ ] Let the user click it to instantly remove that specific show from their active list.
+    - [ ] Ensure the show remains safely in their library and history, but stops bothering them on the main screen.
+    - [ ] Ask for a quick confirmation so they don't accidentally hide a show they actually wanted to watch.
+    - [ ] Provide an easy way inside the show's detail page to put it back into the queue if they change their mind.
+- "Dropped" Database Status: A 4th status for shows you quit, preventing them from showing up in queues.
+    - [ ] Create a brand new category specifically for television series the user has decided to stop watching forever.
+    - [ ] Stop these abandoned shows from appearing in any 'Up Next' or 'Continue Watching' lists.
+    - [ ] Add a specific 'Mark as Dropped' button to the show's detail page.
+    - [ ] Color-code this status differently, perhaps with a subtle gray badge, so it is obvious the show was abandoned.
+    - [ ] Keep the show's previous history totally intact so the user still has a record of what they did watch.
+- Live Playback Pulse: The card of the episode currently playing in VLC glows rhythmically on the Dashboard.
+    - [ ] Notice which episode is actively playing in the external video player right now.
+    - [ ] Add a very slow, gentle breathing animation to that specific episode's card on the dashboard.
+    - [ ] Use the primary accent color for the glow so it looks intentional and stylish.
+    - [ ] Stop the pulsing animation instantly the second the user hits pause or closes the video player.
+    - [ ] Ensure this animation is smooth and subtle enough not to distract the user if they are looking at other things.
+- Total Local Storage Stat: Calculates the GB/TB size of all tracked media files combined.
+    - [ ] Add up the exact file size of every single movie and television episode the app is currently watching.
+    - [ ] Convert this massive number neatly into Gigabytes or Terabytes so it is easy to understand.
+    - [ ] Display this impressive number proudly in the main statistics grid on the dashboard.
+    - [ ] Update the math silently in the background whenever the user adds or deletes a video file.
+    - [ ] Handle missing files properly by not including them in the final total weight.
+- Most Watched Genre Widget: Analyzes DB and shows a pie chart or text of your top genre.
+    - [ ] Look through every movie and show the user has ever finished to figure out their favorite type of story.
+    - [ ] Display the winning category, like 'Sci-Fi' or 'Comedy', prominently in a small dashboard box.
+    - [ ] Include a tiny, colorful visual chart showing how their other favorite genres stack up.
+    - [ ] Update this favorite category automatically as their viewing habits change over the years.
+    - [ ] Hide this box if the user hasn't watched enough things to establish a real pattern.
+- Average Watch Time Widget: Calculates average daily media consumption in minutes.
+    - [ ] Figure out how many minutes of video the user watches on a typical day.
+    - [ ] Display this daily average cleanly on the dashboard alongside the other fun statistics.
+    - [ ] Format the number beautifully, like '1h 45m per day', instead of a confusing raw number of seconds.
+    - [ ] Ensure the math only looks at actual time spent watching, ignoring time where a video was just paused in the background.
+    - [ ] Don't let days where the user watched absolutely nothing ruin the math unfairly.
+- Modular Dashboard Layout: Settings toggle to re-order dashboard rows (e.g., move Stats above Recently Added).
+    - [ ] Give the user a simple list in the settings menu showing every row on their main dashboard.
+    - [ ] Let them click and drag these rows up and down to change what order they appear in.
+    - [ ] Apply the new layout instantly the second they return to the main screen.
+    - [ ] Remember this custom order permanently so their dashboard always looks how they like it.
+    - [ ] Ensure the giant Hero banner is locked at the very top and cannot be accidentally moved down.
+- "Upcoming Airing" Row: A row for tracked shows that have episodes airing in the next 7 days.
+    - [ ] Check the calendar to see if any television shows the user watches have brand new episodes coming out this week.
+    - [ ] Build a special, temporary row on the dashboard exclusively for these upcoming premieres.
+    - [ ] Show the movie poster and which day of the week the episode will be available.
+    - [ ] Hide this row if nothing the user watches is scheduled to air in the next seven days.
+    - [ ] Remove an episode from this row automatically the exact second the air date actually passes.
+- Collapsible Dashboard Sections: Chevron icons to minimize rows you don't care about.
+    - [ ] Add a tiny, subtle arrow icon to the title text of every single row on the dashboard.
+    - [ ] Let the user click the arrow to hide all the movie posters inside that specific row instantly.
+    - [ ] Slide the rest of the page up smoothly to fill in the space where the posters used to be.
+    - [ ] Remember which rows are hidden permanently so they stay closed the next time the app opens.
+    - [ ] Flip the arrow upside down so it is obvious the user can click it again to bring the posters back.
