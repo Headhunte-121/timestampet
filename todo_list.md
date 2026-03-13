@@ -588,13 +588,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test filtering by explicit year ranges using SQL `BETWEEN`.
 - [x] Ensure dates in the future correctly flag the UI as 'Unaired'.
 
-**5.8 air_date column for episode 'time capsule' comparisons.** (Incomplete)
+**5.8 air_date column for episode 'time capsule' comparisons.** (Complete)
 
-- [ ] Verify math operations (e.g., difference between watch date and air date) work accurately.
-- [ ] Handle edge cases where air date exists but time is unknown (assume midnight).
-- [ ] Ensure backdating logic can leverage this column for historical reconstruction.
-- [ ] Test updating this column gracefully without overwriting local manual changes.
-- [ ] Verify leap year air dates do not cause day-offset bugs.
+-[x] Verify math operations (e.g., difference between watch date and air date) work accurately.
+-[x] Handle edge cases where air date exists but time is unknown (assume midnight).
+-[x] Ensure backdating logic can leverage this column for historical reconstruction.
+-[x] Test updating this column gracefully without overwriting local manual changes.
+-[x] Verify leap year air dates do not cause day-offset bugs.
 
 **5.9 is_legacy boolean flag for handling archived/backdated history.** (Incomplete)
 

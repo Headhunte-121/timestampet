@@ -4,7 +4,124 @@ use crate::models::{HistoryEntry, Media, Settings, UnmatchedFile};
 use rusqlite::params;
 use serde_json::{json, Value};
 use std::sync::{Arc, RwLock};
+use chrono::{Local, TimeZone, NaiveDate, Datelike};
+
+fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value> {
+    if air_date_str.is_empty() {
+        return None;
+    }
+
+    let air_date = match NaiveDate::parse_from_str(air_date_str, "%Y-%m-%d") {
+        Ok(d) => d,
+        Err(_) => return None,
+    };
+
+    let air_time = air_date.and_hms_opt(0, 0, 0)?;
+
+    let watch_time_local = match Local.timestamp_opt(watch_ts, 0).single() {
+        Some(dt) => dt.naive_local(),
+        None => return None,
+    };
+
+    let is_early = watch_time_local < air_time;
+    let (start, end) = if is_early {
+        (watch_time_local, air_time)
+    } else {
+        (air_time, watch_time_local)
+    };
+
+    let mut years = end.year() - start.year();
+    let mut months = end.month() as i32 - start.month() as i32;
+    let mut days = end.day() as i32 - start.day() as i32;
+
+    if end.time() < start.time() {
+        days -= 1;
+    }
+
+    if days < 0 {
+        months -= 1;
+        let prev_month = if end.month() == 1 { 12 } else { end.month() - 1 };
+        let prev_month_year = if end.month() == 1 { end.year() - 1 } else { end.year() };
+        let next_month = if prev_month == 12 { 1 } else { prev_month + 1 };
+        let next_year = if prev_month == 12 { prev_month_year + 1 } else { prev_month_year };
+        let d1 = NaiveDate::from_ymd_opt(prev_month_year, prev_month, 1).unwrap();
+        let d2 = NaiveDate::from_ymd_opt(next_year, next_month, 1).unwrap();
+        days += (d2 - d1).num_days() as i32;
+    }
+
+    if months < 0 {
+        years -= 1;
+        months += 12;
+    }
+
+    let total_days = (end.date() - start.date()).num_days();
+
+    Some(serde_json::json!({
+        "is_early": is_early,
+        "years": years,
+        "months": months,
+        "days": days,
+        "total_days": total_days
+    }))
+}
 use tokio::sync::mpsc;
+
+#[cfg(test)]
+mod tests_feature_5_8 {
+    use super::*;
+    use chrono::{TimeZone, Local, NaiveDate};
+
+    #[test]
+    fn test_time_capsule_decade_delay() {
+        // Air date 1960-01-01
+        // Watched 2024-01-01
+        let air_date = "1960-01-01";
+        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2024, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap()).single().unwrap().timestamp();
+
+        let gap = calculate_gap(air_date, watch_ts).unwrap();
+        assert_eq!(gap["years"], 64);
+        assert_eq!(gap["is_early"], false);
+    }
+
+    #[test]
+    fn test_time_capsule_same_day() {
+        // Watched on Release Day
+        let air_date = "2024-01-01";
+        // Let's say we watched it at 2 PM local time on that day
+        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2024, 1, 1).unwrap().and_hms_opt(14, 0, 0).unwrap()).single().unwrap().timestamp();
+
+        let gap = calculate_gap(air_date, watch_ts).unwrap();
+        assert_eq!(gap["total_days"], 0);
+        assert_eq!(gap["is_early"], false);
+    }
+
+    #[test]
+    fn test_time_capsule_early_watch() {
+        // Time Traveler Test / Leak
+        let air_date = "2025-01-01";
+        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2024, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap()).single().unwrap().timestamp();
+
+        let gap = calculate_gap(air_date, watch_ts).unwrap();
+        assert_eq!(gap["is_early"], true);
+    }
+
+    #[test]
+    fn test_time_capsule_leap_year() {
+        // Aired Feb 29, 2024. Watched Feb 28, 2025. Exactly 1 non-leap year (365 days).
+        let air_date = "2024-02-29";
+        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2025, 2, 28).unwrap().and_hms_opt(0, 0, 0).unwrap()).single().unwrap().timestamp();
+
+        let gap = calculate_gap(air_date, watch_ts).unwrap();
+        assert_eq!(gap["total_days"], 365);
+    }
+
+    #[test]
+    fn test_time_capsule_null_date() {
+        // NULL air date
+        let gap = calculate_gap("", 1234567890);
+        assert!(gap.is_none());
+    }
+}
 
 pub struct AppState {
     pub settings: Arc<RwLock<Settings>>,
@@ -933,6 +1050,9 @@ pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<
                 let session_id: Option<String> = row.get(2)?;
                 let ts: i64 = row.get(1)?;
                 let runtime: i32 = row.get(14)?;
+                let air_date: String = row.get::<_, Option<String>>(13)?.unwrap_or_default();
+                let time_capsule = calculate_gap(&air_date, ts);
+
                 history.push(json!({
                     "hist_id": row.get::<_, i32>(0)?,
                     "timestamp": ts,
@@ -947,7 +1067,8 @@ pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<
                     "ep_num": row.get::<_, u32>(10)?,
                     "ep_title": row.get::<_, Option<String>>(11)?.unwrap_or_default(),
                     "still_path": row.get::<_, Option<String>>(12)?.unwrap_or_default(),
-                    "air_date": row.get::<_, Option<String>>(13)?.unwrap_or_default(),
+                    "air_date": air_date,
+                    "time_capsule": time_capsule,
                     "runtime": runtime,
                     "media_id": row.get::<_, i32>(15)?,
                     "show_title": row.get::<_, Option<String>>(16)?.unwrap_or_default(),
