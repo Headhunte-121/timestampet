@@ -1703,3 +1703,125 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Check to make sure the video player actually exists in that exact folder before trying to open it.
     - [ ] Save the path specifically in its portable format so the app still works if the USB drive gets a different letter next time.
     - [ ] Give the user a friendly heads-up if they accidentally type the folder name wrong.
+
+## 🎭 Part 20: Deep Metadata & Rich Details
+- Cast & Crew Fetching: Pull the top 5 billed actors from TMDB.
+    - [ ] Download specifically the primary five actors assigned to the movie or television show.
+    - [ ] Display their real names prominently right below the main description paragraph.
+    - [ ] Handle situations calmly where the database only knows about two or three actors for older or obscure media.
+    - [ ] Ignore massive lists of hundreds of background extras completely to keep the page clean and readable.
+    - [ ] Update the actor list seamlessly if the user clicks the refresh button to grab newer information.
+- Actor Profile UI: Display actors in a small horizontal row of circular profile pictures.
+    - [ ] Show tiny, perfectly round portrait photos for each of the top billed actors.
+    - [ ] Provide a neat, dark placeholder silhouette explicitly if the actor doesn't have a photo available.
+    - [ ] Put the actor's real name and the name of the character they play in small text directly under their photo.
+    - [ ] Make sure the row of pictures fits perfectly on the screen without forcing the user to scroll sideways.
+    - [ ] Give each photo a very slight, beautiful glow when the user hovers their mouse over it.
+- Network/Studio Logos: Fetch and display transparent white logos for HBO, Netflix, Apple TV+, etc.
+    - [ ] Look up exactly which company originally created or aired the television show.
+    - [ ] Find a clean, high-quality version of their logo that has no solid background color behind it.
+    - [ ] Display the logo neatly in pure white so it perfectly matches the dark cinematic theme of the app.
+    - [ ] Shrink incredibly wide logos down appropriately so they don't dominate the entire top of the screen.
+    - [ ] Skip showing a logo completely if the database doesn't have a clean, high-quality version available.
+- Content Rating Badges: Display official maturity ratings (TV-MA, R, PG-13) in visually distinct pill borders.
+    - [ ] Place a crisp, easy-to-read rating box right next to the show's release year and length.
+    - [ ] Draw a sharp white outline exactly around the letters to mimic standard television rating symbols.
+    - [ ] Show absolutely nothing if the show or movie has never been officially rated by a board.
+    - [ ] Choose the correct country's rating system automatically based on the user's computer settings.
+    - [ ] Keep the badge incredibly small but bold so it provides information quickly without being distracting.
+- Creator/Director Tags: "Created by Vince Gilligan" text block under the synopsis.
+    - [ ] Identify exactly who directed the movie or created the television series.
+    - [ ] Write their name clearly in a slightly lighter, silver color specifically beneath the main story summary.
+    - [ ] Add the correct title prefix, like 'Directed by' for movies or 'Created by' for shows.
+    - [ ] Combine names neatly with an ampersand if two or more people share the exact same role.
+    - [ ] Hide this line entirely if the original creator information is completely missing from the database.
+- Trailer Integration: A "Trailer" button that fetches the TMDB YouTube key and opens a sleek iframe modal.
+    - [ ] Add a prominent, beautiful button that says 'Watch Trailer' right next to the main 'Play' button.
+    - [ ] Open a dark, perfectly centered popup window immediately when the user clicks the button.
+    - [ ] Play the official YouTube trailer automatically inside the popup without sending the user to a different website.
+    - [ ] Give the user an easy, obvious way to close the trailer and return exactly to what they were doing.
+    - [ ] Hide the trailer button completely if no video link can be found for the show.
+- Next Episode Countdown: For currently airing shows, displays: "Next Episode Airs in: 3 days, 4 hours."
+    - [ ] Check exactly when the very next brand new episode is scheduled to appear on television.
+    - [ ] Calculate the exact amount of time left between right now and that specific future date.
+    - [ ] Show a highly visible, live countdown clock right near the top of the show's page.
+    - [ ] Update the words intelligently so it says 'Airs Today' if the episode comes out in less than 24 hours.
+    - [ ] Remove the countdown entirely once the episode officially airs or if the show is permanently finished.
+- Poster Toggle: A switch to view the unique "Season Poster" instead of the primary "Show Poster" when browsing season tabs.
+    - [ ] Let users flip a simple switch to see the unique artwork created just for that specific season.
+    - [ ] Swap the giant main poster on the left side of the screen instantly when they change seasons.
+    - [ ] Fade smoothly between the two completely different images so it feels polished and high-end.
+    - [ ] Stick to the main show poster automatically if the specific season doesn't have its own unique artwork.
+    - [ ] Remember their choice specifically so they don't have to flip the switch every single time.
+- Guest Star Data: Dropdown arrow on episodes to see notable guest stars.
+    - [ ] Add a very small, subtle arrow icon specifically onto individual episode rows.
+    - [ ] Slide the row open gently when clicked to reveal a neat list of special guest actors for that specific episode.
+    - [ ] Show exactly the actor's real name and the name of their temporary character.
+    - [ ] Hide the drop-down arrow entirely if the episode features absolutely no special guests.
+    - [ ] Close the list smoothly if the user clicks the arrow a second time or opens a completely different episode.
+- Season-Level Synopsis: Display the unique text overview for a specific season above the episode list.
+    - [ ] Find the special paragraph that summarizes exactly what happens during this specific season of the show.
+    - [ ] Display this text cleanly exactly above the first episode in the list.
+    - [ ] Provide a 'Read More' button if the summary is incredibly long so it doesn't push the episodes completely off the screen.
+    - [ ] Skip showing anything entirely if the database only has a summary for the whole show and not this exact season.
+    - [ ] Update the text instantly the exact moment the user clicks a different season tab.
+- Interactive Genre Tags: Clicking a genre pill (e.g., "Sci-Fi") instantly routes to the Library pre-filtered for that genre.
+    - [ ] Turn the tiny genre labels, like 'Action' or 'Comedy', into fully clickable buttons.
+    - [ ] Jump the user straight back to their main movie library the exact second they click one.
+    - [ ] Filter the entire library automatically so they only see other movies that completely share that same genre.
+    - [ ] Show a clear, friendly message completely confirming exactly which genre they are currently looking at.
+    - [ ] Let them easily cancel the filter with one click to see their entire collection again.
+- Similar/Recommended Row: At the very bottom of the details page, show 5 dynamic posters of "If you liked this..."
+    - [ ] Ask the database precisely which other shows or movies are remarkably similar to the one they are looking at.
+    - [ ] Show a beautiful horizontal row of exactly five movie posters at the very bottom of the page.
+    - [ ] Check perfectly to see if the user already has any of these recommended shows in their own library.
+    - [ ] Put a tiny, helpful green checkmark explicitly on the posters of the shows they already own.
+    - [ ] Let them click any of the posters to instantly open the details page for that new recommendation.
+- Micro-Refresh: Option to right-click and "Refresh Data" for a single episode rather than the whole show.
+    - [ ] Give the user an option to update the information specifically for just one single episode.
+    - [ ] Add this choice neatly to the beautiful custom right-click menu on the episode row.
+    - [ ] Update the title, description, and thumbnail picture instantly without reloading the rest of the page.
+    - [ ] Show a tiny spinning circle on just that one row so the user knows it is thinking.
+    - [ ] Handle it perfectly if the database still doesn't have any new information to provide.
+- Precise Runtime Formatting: Format 135 minutes as 2h 15m instead of just 135m.
+    - [ ] Take the total number of minutes a movie lasts and explicitly break it down into exact hours and minutes.
+    - [ ] Write the new time beautifully, like '2h 15m', so it is instantly easier for a human to read.
+    - [ ] Drop the hour completely if the video is extremely short, like a 22-minute television episode.
+    - [ ] Drop the minutes completely if the movie happens to be exactly two hours long.
+    - [ ] Show 'Unknown' entirely if the file length is completely missing or broken.
+- Local File Size UI: Extract and display file size (e.g., 1.2 GB) from the OS.
+    - [ ] Ask the user's computer exactly how much hard drive space the video file is taking up.
+    - [ ] Round the number beautifully so it reads like '1.2 GB' instead of a massive string of random numbers.
+    - [ ] Place this information neatly in a small, dim font right next to the file path on the screen.
+    - [ ] Update the number immediately if the user replaces the old file with a much larger, higher-quality version.
+    - [ ] Show 'File Missing' clearly if the app completely fails to find the video on the hard drive.
+- Resolution Tagging: Extract and display 1080p or 4K from the local filename string.
+    - [ ] Look specifically at the name of the video file to see if it mentions how high-quality the video is.
+    - [ ] Look exactly for common keywords like '1080p', '720p', or '4K' right in the file name.
+    - [ ] Create a tiny, bright badge next to the episode title perfectly displaying this video quality.
+    - [ ] Ensure the badge looks entirely distinct from standard maturity ratings or genre tags.
+    - [ ] Hide the badge completely if the file name gives absolutely no hints about the video quality.
+- Audio Codec Tagging: Extract AAC or 5.1 from the local filename string.
+    - [ ] Read the specific file name again to see if it mentions anything completely related to the sound quality.
+    - [ ] Find very specific audio keywords like '5.1', '7.1', or 'AAC' neatly hidden in the text.
+    - [ ] Add a second tiny badge right next to the video quality badge to show off the audio format.
+    - [ ] Make sure this little badge doesn't push the episode title awkwardly off the edge of the screen.
+    - [ ] Don't show anything at all if the file name is completely silent on audio details.
+- "Copy Path" Quick Action: Right-click an episode to copy the raw C:\... path to clipboard.
+    - [ ] Add a brand new 'Copy File Path' button exactly to the beautiful custom right-click menu.
+    - [ ] Save the exact, complete folder path of the video directly to the user's invisible computer clipboard when clicked.
+    - [ ] Show a quick, tiny popup message explicitly confirming 'Copied to Clipboard!' so they know it worked.
+    - [ ] Ensure the path perfectly includes the exact drive letter and every single subfolder.
+    - [ ] Disable the button entirely if the file is currently marked as missing or completely deleted.
+- "Show in Explorer" Action: Right-click to open native OS file manager with the file highlighted.
+    - [ ] Add a handy 'Open Folder' button right next to the copy button in the right-click menu.
+    - [ ] Open the user's actual computer file browser exactly to the folder where the video is hiding.
+    - [ ] Highlight the exact video file automatically so the user doesn't have to search for it among hundreds of other files.
+    - [ ] Make sure this works flawlessly on both Windows computers and Mac computers.
+    - [ ] Show a polite error completely explaining the issue if the folder has been renamed or moved entirely.
+- Metadata Warning Icon: A tiny yellow ! if an episode exists but TMDB returned absolutely zero data for it.
+    - [ ] Notice perfectly if an episode has a video file ready to play but zero information from the internet database.
+    - [ ] Place a very small, bright yellow warning triangle exactly next to the episode title.
+    - [ ] Show a small text box completely explaining 'Information Missing' when the user hovers over the triangle.
+    - [ ] Remove the warning triangle instantly if the user successfully uses the refresh button to find the missing details.
+    - [ ] Keep the play button entirely functional so the user can still watch their show even without a summary.
