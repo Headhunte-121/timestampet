@@ -25,6 +25,7 @@ panic = "abort"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+native-dialog = "0.7.0"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
