@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
-import { Play, ArrowLeft, Star, Trash2 } from "lucide-react";
+import { Play, ArrowLeft, Star, Trash2, CloudOff } from "lucide-react";
 import { useUiStore } from "../store/uiStore";
 import { toast } from "sonner";
 
@@ -11,6 +11,13 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const [activeSeason, setActiveSeason] = useState<number>(1);
   const [showFullSynopsis, setShowFullSynopsis] = useState<boolean>(false);
   const isAnimatingRef = useRef(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, epId: number } | null>(null);
+
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
 
   useEffect(() => {
     invoke("get_media_details_db", { mediaId })
@@ -169,7 +176,16 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
 
         <div className="grid gap-4 max-w-5xl">
           {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => (
-             <div key={ep.id} className="flex items-center bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group">
+             <div
+               key={ep.id}
+               className="flex items-center bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group relative"
+               onContextMenu={(e) => {
+                 e.preventDefault();
+                 if (ep.file_path) {
+                   setContextMenu({ x: e.pageX, y: e.pageY, epId: ep.id });
+                 }
+               }}
+             >
                <div className="w-40 aspect-video bg-black/40 rounded-lg overflow-hidden shrink-0 relative mr-6">
                  {ep.still_path ? (
                     <img
@@ -184,8 +200,47 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                  )}
                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (ep.file_path) {
+                          try {
+                              const validation: any = await invoke("validate_and_hash_file", { episodeId: ep.id, filePath: ep.file_path });
+                              if (validation.status === "missing" || validation.status === "corrupted") {
+                                  toast.error(`File is ${validation.status}.`, {
+                                      action: {
+                                          label: "Locate",
+                                          onClick: async () => {
+                                              try {
+                                                  const { open } = await import('@tauri-apps/plugin-dialog');
+                                                  const selected = await open({
+                                                      multiple: false,
+                                                      title: "Locate File",
+                                                  });
+                                                  if (selected && typeof selected === 'string') {
+                                                      await invoke("update_local_file", { episodeId: ep.id, newPath: selected });
+                                                      toast.success("File linked successfully!");
+                                                      // Refresh data
+                                                      invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+                                                      // Play new file
+                                                      invoke("play_episode_cmd", {
+                                                          episodeId: ep.id,
+                                                          filePath: selected,
+                                                          lastPosition: ep.last_position,
+                                                      });
+                                                  }
+                                              } catch (err) {
+                                                  toast.error("Failed to locate file.");
+                                              }
+                                          }
+                                      },
+                                      duration: 5000,
+                                  });
+                                  return;
+                              }
+                          } catch (e) {
+                              toast.error(`Validation error: ${e}`);
+                              return;
+                          }
+
                           invoke("play_episode_cmd", {
                             episodeId: ep.id,
                             filePath: ep.file_path,
@@ -195,8 +250,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                           toast.error("Missing File Path. Scan directory to match file.");
                         }
                       }}
-                      className="w-12 h-12 rounded-full bg-[#FF6B00] flex items-center justify-center text-white scale-75 hover:scale-100 transition-transform shadow-lg shadow-orange-500/30">
-                       <Play className="w-5 h-5 ml-1" fill="currentColor" />
+                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white scale-75 hover:scale-100 transition-transform shadow-lg ${ep.file_path ? 'bg-[#FF6B00] shadow-orange-500/30' : 'bg-gray-600 shadow-gray-500/30'}`}>
+                       {ep.file_path ? <Play className="w-5 h-5 ml-1" fill="currentColor" /> : <CloudOff className="w-5 h-5" />}
                     </button>
                  </div>
                  {ep.status === "Watching" && ep.runtime > 0 && (
@@ -230,6 +285,29 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           )}
         </div>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-[#2A2D35] border border-white/10 shadow-2xl rounded-lg py-2 z-50 min-w-[160px]"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-white/10 text-red-400 text-sm flex items-center gap-2"
+            onClick={async () => {
+              try {
+                await invoke("remove_local_link", { episodeId: contextMenu.epId });
+                toast.success("Local link removed.");
+                invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+              } catch (e) {
+                toast.error(`Failed to remove link: ${e}`);
+              }
+            }}
+          >
+            <CloudOff className="w-4 h-4" /> Unlink Local File
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

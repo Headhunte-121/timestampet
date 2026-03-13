@@ -196,6 +196,8 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             episode_id INTEGER UNIQUE,
             file_path TEXT UNIQUE,
+            file_size INTEGER DEFAULT 0,
+            file_hash TEXT,
             FOREIGN KEY (episode_id) REFERENCES Episodes (id) ON DELETE CASCADE
         )",
         (),
@@ -288,6 +290,23 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         tx.commit()?;
     }
 
+    if user_version < 4 {
+        let tx = conn.transaction()?;
+        let v4_migrations = vec![
+            "ALTER TABLE Local_Files ADD COLUMN file_size INTEGER DEFAULT 0",
+            "ALTER TABLE Local_Files ADD COLUMN file_hash TEXT",
+        ];
+        for query in v4_migrations {
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(crate::error::AppError::DbError(e));
+                }
+            }
+        }
+        tx.execute("PRAGMA user_version = 4", ())?;
+        tx.commit()?;
+    }
+
     Ok(())
 }
 
@@ -323,14 +342,12 @@ pub fn delete_media(media_id: i32) -> Result<()> {
     // Cleanup cached image files from app data dir
     let cache_dir = get_app_data_dir().join("cache");
     if cache_dir.exists() {
-        for path_opt in paths {
-            if let Some(path_str) = path_opt {
-                // Ensure the path is just the filename if it's stored as an absolute URL or starts with a slash
-                let filename = path_str.trim_start_matches('/');
-                let full_path = cache_dir.join(filename);
-                if full_path.exists() {
-                    let _ = std::fs::remove_file(full_path);
-                }
+        for path_str in paths.into_iter().flatten() {
+            // Ensure the path is just the filename if it's stored as an absolute URL or starts with a slash
+            let filename = path_str.trim_start_matches('/');
+            let full_path = cache_dir.join(filename);
+            if full_path.exists() {
+                let _ = std::fs::remove_file(full_path);
             }
         }
     }

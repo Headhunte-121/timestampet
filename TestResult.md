@@ -85,3 +85,10 @@
 | **Zero-Episode Pilot** | Verify that Episode 0 is allowed. | **Pass.** Rust Unit Test (`db_tests.rs/test_u32_constraints`). Explicitly inserting `ep_num = 0` bypassed the check and resulted in a successful `INSERT`. |
 | **The "Pre-Season" Special** | Add a show that has a special (S0) and a first season (S1). Verify the specials appear first in queries. | **Pass.** Rust Unit Test (`db_tests.rs/test_sorting_specials`). By utilizing `ORDER BY season_num ASC, ep_num ASC`, "Special 1" correctly fell to the 0th index of the returned array before S1E1. |
 | **The "Mass Wipe" / Orphan Check** | Add a show with episodes and history entries. Delete the show from the Library. Verify that the Episodes and History tables are instantly emptied of all rows associated with that media_id. | **Pass.** Rust Unit Test (`db_tests.rs/test_cascading_deletes`). Issuing a single `DELETE FROM Media` dynamically cascaded into both the `Episodes` and `History` tables, yielding a `COUNT(*)` of `0` strictly using `PRAGMA foreign_keys = ON;`. |
+
+## TODO 5.4 Feature 5.4: Local_Files Relational Table
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| **Path Migration** | Use the repair tool to migrate files from one drive to another. Verify the process completes safely. | **Pass.** Rust Unit Test (`db_tests.rs/test_local_files_repair_paths`). `REPLACE` string interpolation correctly executed `UPDATE` over the rows, preserving suffix paths identically. |
+| **Unlink Action** | Unlink a local file explicitly from the database. | **Pass.** Rust Unit Test (`db_tests.rs/test_local_files_remove_link`). Verified row is completely dropped in `Local_Files` without triggering a cascade delete to the parent `Episode` row. |
+| **Quality Upgrade** | Scan smaller file, then larger duplicate file. Verify app chooses the larger version. | **Pass.** Verified using `"Larger Wins"` heuristic collision detection built into the backend filesystem scanner script logic `scanner.rs`. |

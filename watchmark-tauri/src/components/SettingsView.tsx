@@ -14,7 +14,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type SettingsTab = "General" | "Playback" | "Scanner" | "System" | "Advanced";
+type SettingsTab = "General" | "Playback" | "Scanner" | "System" | "Database" | "Advanced";
 
 interface SettingsViewProps {
     setIsDirty: (isDirty: boolean) => void;
@@ -153,7 +153,25 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     }
   };
 
-  const tabs: SettingsTab[] = ["General", "Playback", "Scanner", "System", "Advanced"];
+  const tabs: SettingsTab[] = ["General", "Playback", "Scanner", "System", "Database", "Advanced"];
+
+  const [oldRootPath, setOldRootPath] = useState("");
+  const [newRootPath, setNewRootPath] = useState("");
+
+  const handleRepairPaths = async () => {
+    if (!oldRootPath || !newRootPath) {
+        toast.error("Both Old Root and New Root must be provided.");
+        return;
+    }
+    try {
+        const affected: number = await invoke("repair_paths", { oldRoot: oldRootPath, newRoot: newRootPath });
+        toast.success(`Path repair complete. Updated ${affected} entries.`);
+        setOldRootPath("");
+        setNewRootPath("");
+    } catch (e: any) {
+        toast.error(`Error repairing paths: ${e}`);
+    }
+  };
 
   return (
     <div className="p-12 pb-32 h-full relative">
@@ -414,6 +432,39 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                 className="px-6 py-3 border border-[#EF4444] text-[#EF4444] hover:bg-[#EF4444] hover:text-white font-bold rounded-xl transition-colors"
                             >
                                 Factory Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === "Database" && (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Repair Paths</h3>
+                            <p className="text-xs text-gray-500 mt-1">If a drive letter shifts (e.g., D:\ becomes E:\), you can quickly migrate paths here.</p>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                            <input
+                                type="text"
+                                value={oldRootPath}
+                                onChange={e => setOldRootPath(e.target.value)}
+                                className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
+                                placeholder="Old Root (e.g., D:\)"
+                            />
+                            <input
+                                type="text"
+                                value={newRootPath}
+                                onChange={e => setNewRootPath(e.target.value)}
+                                className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
+                                placeholder="New Root (e.g., E:\)"
+                            />
+                            <button
+                                onClick={handleRepairPaths}
+                                className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] font-bold rounded-xl transition-colors text-white mt-2 w-max"
+                            >
+                                Repair Paths
                             </button>
                         </div>
                     </div>

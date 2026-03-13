@@ -198,4 +198,88 @@ mod tests {
         );
         assert!(result_zero.is_ok(), "Inserting ep_num = 0 should succeed");
     }
+
+    #[test]
+    fn test_local_files_repair_paths() {
+        let conn = setup_test_db();
+        // create local files table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS Local_Files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER UNIQUE,
+                file_path TEXT UNIQUE,
+                file_size INTEGER DEFAULT 0,
+                file_hash TEXT,
+                FOREIGN KEY (episode_id) REFERENCES Episodes (id) ON DELETE CASCADE
+            )",
+            (),
+        ).unwrap();
+
+        conn.execute(
+            "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\") VALUES (1, 1, 1, 'Pilot')",
+            (),
+        ).unwrap();
+        let ep_id = conn.last_insert_rowid();
+
+        conn.execute(
+            "INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?)",
+            rusqlite::params![ep_id, "D:\\Movies\\Show\\S01E01.mkv"],
+        ).unwrap();
+
+        // Repair Path D:\ -> E:\
+        let affected = conn.execute(
+            "UPDATE Local_Files SET file_path = REPLACE(file_path, ?, ?) WHERE file_path LIKE ?",
+            rusqlite::params!["D:\\", "E:\\", format!("{}%", "D:\\")],
+        ).unwrap();
+
+        assert_eq!(affected, 1);
+
+        let new_path: String = conn.query_row(
+            "SELECT file_path FROM Local_Files WHERE episode_id = ?",
+            [ep_id],
+            |r| r.get(0),
+        ).unwrap();
+
+        assert_eq!(new_path, "E:\\Movies\\Show\\S01E01.mkv");
+    }
+
+    #[test]
+    fn test_local_files_remove_link() {
+        let conn = setup_test_db();
+        conn.execute("PRAGMA foreign_keys = ON", ()).unwrap();
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS Local_Files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER UNIQUE,
+                file_path TEXT UNIQUE,
+                file_size INTEGER DEFAULT 0,
+                file_hash TEXT,
+                FOREIGN KEY (episode_id) REFERENCES Episodes (id) ON DELETE CASCADE
+            )",
+            (),
+        ).unwrap();
+
+        conn.execute(
+            "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\") VALUES (1, 1, 1, 'Pilot')",
+            (),
+        ).unwrap();
+        let ep_id = conn.last_insert_rowid();
+
+        conn.execute(
+            "INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?)",
+            rusqlite::params![ep_id, "C:\\Test.mkv"],
+        ).unwrap();
+
+        // Remove link
+        conn.execute("DELETE FROM Local_Files WHERE episode_id = ?", [ep_id]).unwrap();
+
+        // Ensure file link is gone
+        let count: i32 = conn.query_row("SELECT COUNT(*) FROM Local_Files WHERE episode_id = ?", [ep_id], |r| r.get(0)).unwrap();
+        assert_eq!(count, 0);
+
+        // Ensure Episode still exists
+        let ep_count: i32 = conn.query_row("SELECT COUNT(*) FROM Episodes WHERE id = ?", [ep_id], |r| r.get(0)).unwrap();
+        assert_eq!(ep_count, 1, "Episode should NOT be deleted when Local_Files link is removed");
+    }
 }

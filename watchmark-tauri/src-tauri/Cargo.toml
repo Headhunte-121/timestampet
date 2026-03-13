@@ -50,3 +50,4 @@ tauri-plugin-log = "2.8.0"
 dunce = "1.0.5"
 keyring = { version = "3.6.3", features = ["windows-native", "linux-native", "apple-native"] }
 base64 = "0.22.1"
+twox-hash = "2.1.2"

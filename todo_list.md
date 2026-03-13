@@ -556,13 +556,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test inserting 'Specials' as season 0 without breaking numeric sorting.
 - [x] Ensure cascading deletes work correctly when the parent Media row is removed.
 
-**5.4 Local_Files relational table (1-to-1 linking of episodes to hard drive paths).** (Incomplete)
+**5.4 Local_Files relational table (1-to-1 linking of episodes to hard drive paths).** (Complete)
 
-- [ ] Verify path columns support extreme length strings (Windows maximums).
-- [ ] Handle edge cases where multiple files point to the exact same episode ID.
-- [ ] Ensure paths are updated gracefully if a user manually renames a drive letter.
-- [ ] Test deleting a path explicitly from this table without deleting the Episode data.
-- [ ] Verify file size or hash metadata fields are available for future collision checks.
+- [x] Verify path columns support extreme length strings (Windows maximums).
+- [x] Handle edge cases where multiple files point to the exact same episode ID.
+- [x] Ensure paths are updated gracefully if a user manually renames a drive letter.
+- [x] Test deleting a path explicitly from this table without deleting the Episode data.
+- [x] Verify file size or hash metadata fields are available for future collision checks.
 
 **5.5 History relational table (Tracking timestamp, episode ID).** (Incomplete)
 
