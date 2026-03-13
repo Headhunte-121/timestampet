@@ -32,3 +32,4 @@ uuid = { version = "1.22.0", features = ["v4"] }
 chrono = "0.4.44"
 http = "1.4.0"
 percent-encoding = "2.3.2"
+thiserror = "2.0.18"
