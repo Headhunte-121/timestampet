@@ -772,26 +772,80 @@ pub async fn get_library_data(
 }
 
 #[tauri::command]
-pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
+pub fn clear_unmatched_files() -> Result<(), AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;
-        let mut stmt = conn.prepare("SELECT file_path, filename, parsed_series, parsed_season, parsed_episode, group_key FROM Unmatched_Files")?;
+        // Soft Truncation
+        conn.execute("DELETE FROM Unmatched_Files", params![])?;
+        Ok(())
+    })
+}
 
-        let rows = stmt.query_map([], |row| {
-            Ok(UnmatchedFile {
-                file_path: row.get(0)?,
-                filename: row.get(1)?,
-                parsed_series: row.get(2)?,
-                parsed_season: row.get(3)?,
-                parsed_episode: row.get(4)?,
-                group_key: row.get(5)?,
-            })
-        })?;
-
+#[tauri::command]
+pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
+    handle_panic(|| {
+        let mut conn = get_db_connection()?;
         let mut files = Vec::new();
-        for r in rows.flatten() {
-            files.push(r);
+
+        // Lightweight exists check
+        let mut paths_to_delete = Vec::new();
+        {
+            let mut stmt = conn.prepare("SELECT file_path, filename, parsed_series, parsed_season, parsed_episode, group_key FROM Unmatched_Files")?;
+            let rows = stmt.query_map([], |row| {
+                Ok(UnmatchedFile {
+                    file_path: row.get(0)?,
+                    filename: row.get(1)?,
+                    parsed_series: row.get(2)?,
+                    parsed_season: row.get(3)?,
+                    parsed_episode: row.get(4)?,
+                    group_key: row.get(5)?,
+                })
+            })?;
+
+            for r in rows.flatten() {
+                let p = std::path::Path::new(&r.file_path);
+
+                // If it doesn't exist, check root guard to avoid mass deletion on disconnected drive
+                if !p.exists() {
+                    let mut should_delete = true;
+
+                    // A robust cross-platform way to check drive disconnections is to walk up the path.
+                    // If the file is missing, but its parent directory exists, it was deleted.
+                    // If the entire parent tree doesn't exist up to the root, the drive is likely unmounted.
+                    let mut current_ancestor = p.parent();
+                    let mut found_existing_ancestor = false;
+                    while let Some(ancestor) = current_ancestor {
+                        if ancestor.exists() {
+                            found_existing_ancestor = true;
+                            break;
+                        }
+                        current_ancestor = ancestor.parent();
+                    }
+
+                    if !found_existing_ancestor {
+                        // The entire tree is gone (including the root mount point).
+                        // Likely a disconnected drive. Don't prune.
+                        should_delete = false;
+                    }
+
+                    if should_delete {
+                        paths_to_delete.push(r.file_path.clone());
+                        continue; // skip adding to returned files
+                    }
+                }
+                files.push(r);
+            }
         }
+
+        // Auto-prune missing files
+        if !paths_to_delete.is_empty() {
+            let tx = conn.transaction()?;
+            for p in paths_to_delete {
+                let _ = tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![p]);
+            }
+            tx.commit()?;
+        }
+
         Ok(files)
     })
 }

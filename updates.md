@@ -169,3 +169,11 @@ Update 20: Feature 5.5 History Relational Table
 - Implemented `get_media_history_count(media_id)` directly fetching the sub-query mapped sum, integrating directly with `remove_show` logic.
 - Rewrote Rust fetch_history logic to automatically format and return arrays clustered by `session_id` and 6-hour timestamp boundaries as "Binge-Blocks".
 - Implemented `mark_season_watched` to explicitly handle "Archive Mode" (ignoring History logs while filling the Episode count metrics).
+
+## TODO 5.6 Unmatched_Files Staging Table
+- Handled edge cases where "Generic" filenames (e.g. `01.mkv`) are successfully processed by walking up to the parent directory and stripping out numeric noise.
+- Handled parsing extremely dirty anime titles by aggressively stripping trailing `[1080p][CRC]` bracket blocks.
+- Solved missing files prune-logic by creating a cross-platform directory tree walker. If the file is missing but its parent directory exists, it's purged. If the root drive is disconnected, it's gracefully kept.
+- Re-architected the Rust `scanner.rs` to batch `INSERT` statements into chunks of 500, resolving extreme slow-downs when scanning 10,000 unrecognized anime files.
+- Improved auto-migration logic: if a file in the Unmatched pool is matched manually or via automatic heuristics, it is atomically removed from the Inbox.
+- Added a "Clear Inbox" soft-truncation button in the UI executing `DELETE FROM Unmatched_Files`.
