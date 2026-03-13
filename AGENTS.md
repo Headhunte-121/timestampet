@@ -6,7 +6,7 @@ Whenever you finish implementing a specific task (referred to dynamically as `[T
 
 ### 1. Write and Execute Real Test Cases
 * Carefully review the user's prompt for any "Edge Cases" or "Test Cases".
-* You must **write actual, executable test files or test functions** (e.g., `#[cfg(test)]` unit tests in Rust, or Jest/Vitest tests in React) for EVERY edge case provided.
+* You must **write actual, executable test files or test functions** (e.g., `#[cfg(test)]` unit tests in Rust, or Jest/Vitest tests in React) for EVERY edge case provided they should have nameing convensuion such that its easy to know which update they are from.
 * Do NOT just manually simulate or assume "pass/fail". You must run the tests you wrote and ensure they successfully pass before finalizing the code.
 
 ### 2. Update the Master To-Do List
