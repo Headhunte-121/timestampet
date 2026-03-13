@@ -108,13 +108,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test behavior if a user manually deletes the data folder while the app is running.
 - [x] Ensure proper fallback logic if migrating from an older schema.
 
-**1.14 Persistent JSON settings storage (Window size, position, API keys).** (Incomplete)
+**1.14 Persistent JSON settings storage (Window size, position, API keys).** (Complete)
 
-- [ ] Handle corrupted JSON files by cleanly resetting to defaults instead of crashing.
-- [ ] Ensure API keys are stored securely or at least obscured from plain sight.
-- [ ] Test saving settings concurrently from multiple UI tabs.
-- [ ] Verify that deleting the config JSON dynamically generates a new one on next boot.
-- [ ] Handle edge cases where integer sizes/positions are saved as floats and break parsing.
+- [x] Handle corrupted JSON files by cleanly resetting to defaults instead of crashing.
+- [x] Ensure API keys are stored securely or at least obscured from plain sight.
+- [x] Test saving settings concurrently from multiple UI tabs.
+- [x] Verify that deleting the config JSON dynamically generates a new one on next boot.
+- [x] Handle edge cases where integer sizes/positions are saved as floats and break parsing.
 
 **1.15 Automatic window geometry and position restoration on launch.** (Incomplete)
 

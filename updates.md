@@ -109,3 +109,12 @@ Update 13: Local App Data Directory Stability [Todo 1.13]
 - Implemented a pre-flight Canary Check in `main.rs`. If the directory lacks write access, Tauri does not boot and instead spawns a fatal native OS dialog via `native-dialog` crate.
 - Added JIT (Just-In-Time) directory recreation in `db::ensure_directories()`. This runs immediately before any SQLite `Connection::open()` or external HTTP `reqwest` download logic, preventing crashes if users manually delete `/cache` folders during application runtime.
 - Re-architected SQLite migration initialization with a rigid 3-Tier `PRAGMA user_version` engine. Ensures the base schema (V1), metadata columns (V2), and session history columns (V3) are transaction-safe, atomic, and will correctly rollback rather than throw 'column already exists' panics.
+
+Update 14: Persistent Settings Storage & Auto-Repair [Todo 1.14]
+- Refactored `Settings` schema to use strict `i32` integer types for window dimensions and positions instead of legacy string parsing, avoiding type-conversion rounding errors.
+- Implemented robust `serde_json` defensive deserialization that handles missing keys, applies sanity bounds (e.g. width > 0), and auto-corrects floats saved by external editors.
+- Engineered an Auto-Repair fallback loop in Rust that catches JSON syntax/corruption errors on boot, immediately generates a clean default configuration, and writes it back to disk to prevent fatal crashes.
+- Secured the TMDB API Key storage using the `keyring` crate to persist sensitive data natively in the Windows Credential Manager. Fallback to Base64 obfuscation if the system credential service is unavailable.
+- Introduced a debounce mechanism (500ms delay via `tokio::sync::mpsc`) in the backend to batch multiple rapid `save_settings` calls into a single atomic disk write, protecting against concurrent UI tab race conditions.
+- Enhanced Boot Verification logic to explicitly re-read the `settings.json` file immediately after creation. If the OS denies write access (e.g. read-only AppData directory), the app throws a fatal, human-readable native dialog before Tauri initializes.
+- Updated the React Settings UI to bind directly to the new `width` and `height` integer fields.

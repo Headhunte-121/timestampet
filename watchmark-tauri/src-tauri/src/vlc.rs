@@ -163,7 +163,7 @@ pub async fn play_episode_cmd(
     file_path: String,
     last_position: i32,
 ) -> Result<(), AppError> {
-    let settings = crate::settings::load_settings();
+    let settings = crate::settings::load_settings().unwrap_or_default();
     if settings.vlc_path.is_empty() {
         return Err(AppError::Custom(
             "VLC path not configured in Settings".to_string(),
