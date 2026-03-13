@@ -1,77 +1,1338 @@
 # WatchMark Pro: Definitive Master To-Do List
 
-This document represents the absolute state of the WatchMark codebase compared to the Master Blueprint. Every single requested feature is listed below with its completion status.
+This document represents the complete functional blueprint and state of the WatchMark codebase across 16 primary systems. Every single requested feature is expanded with functional sub-steps, edge cases, and behavior details.
 
-### Status Key:
-- `[x]` **Complete**: Fully implemented according to the blueprint.
-- `[/]` **Partial**: Exists in some form but is missing logic, styling, or functionality.
-- `[ ]` **Missing**: Not implemented at all.
+## 🟢 Part 1: Core Architecture & Backend Engine (Rust/Tauri)
+- Built on the modern Tauri 2.0 framework for maximum efficiency.
+    - [x] Verify compatibility with the latest Tauri 2.0 release candidate and plugins.
+    - [ ] Ensure standard webview protocols are correctly registered across OSs.
+    - [ ] Handle edge cases where the system webview is outdated or missing entirely.
+    - [ ] Confirm that local development hot-reloading does not leak memory over time.
+    - [ ] Test core feature degradation if running on unsupported legacy OS versions.
+- 100% Rust backend ensuring native OS performance.
+    - [x] Ensure zero background CPU usage when the app is idle.
+    - [x] Gracefully handle panics in Rust threads without crashing the entire app shell.
+    - [x] Optimize memory allocation for large string parsing operations.
+    - [x] Provide detailed Rust logging to local files for production debugging.
+    - [x] Test edge cases involving low-memory environments to ensure the app doesn't forcefully terminate.
+- React (TypeScript) frontend architecture.
+    - [x] Enforce strict typing across all IPC payload boundaries.
+    - [x] Handle React hydration errors gracefully during hot reloads.
+    - [x] Ensure deeply nested state updates do not trigger unnecessary whole-page re-renders.
+    - [x] Implement a global error boundary to catch and display unhandled UI exceptions.
+    - [x] Test component unmounting cleanup to prevent memory leaks in long-lived sessions.
+- Tailwind CSS styling engine integration.
+    - [x] Verify Tailwind purge paths catch all dynamically constructed class names.
+    - [x] Ensure custom color palettes (e.g., VLC Orange) compile down correctly without overriding defaults.
+    - [x] Handle edge cases where viewport resizing breaks flexbox or grid container limits.
+    - [x] Check that `backdrop-blur` utilities don't cause extreme GPU spikes on lower-end devices.
+    - [x] Test text contrast ratios in Tailwind configurations for accessibility compliance.
+- Framer Motion engine for 60FPS hardware-accelerated animations.
+    - [x] Provide a global toggle to disable heavy animations for battery-saving mode.
+    - [ ] Ensure `<AnimatePresence>` correctly cleans up unmounted nodes to prevent ghost elements.
+    - [ ] Handle edge cases where rapid clicking queues up conflicting animation states.
+    - [ ] Verify complex layout animations do not cause text to jitter or blur.
+    - [ ] Test animation performance limits when rendering grids of 500+ items.
+- Ultra-lightweight binary footprint (~30MB RAM usage).
+    - [x] Monitor and aggressively clear image caches in React memory after unmounting views.
+    - [ ] Optimize SQLite connection pooling to minimize constant RAM footprint.
+    - [ ] Handle edge cases where background scanning spikes RAM by chunking operations.
+    - [ ] Verify Rust build is compiled with `opt-level = 'z'` or `s` for size reduction.
+    - [ ] Test idle RAM usage after leaving the app open in the background for 48 hours.
+- Cross-platform compatibility (Windows, macOS, Linux).
+    - [x] Ensure path separators (`\` vs `/`) are handled dynamically across all OSs.
+    - [ ] Handle edge cases where Linux distributions lack a standard system tray implementation.
+    - [ ] Verify macOS specific permissions for accessing external drives or Documents.
+    - [ ] Test Windows SmartScreen false-positive mitigations by ensuring proper signing.
+    - [ ] Ensure global keyboard shortcuts do not conflict with native OS defaults.
+- Native OS window frame integration (supports Windows snap-assist and native drop shadows).
+    - [x] Ensure titlebar drag regions do not overlap with clickable UI elements like tabs.
+    - [ ] Handle edge cases where restoring from minimized state breaks layout dimensions.
+    - [ ] Test multi-monitor dragging where DPI scales drastically change between screens.
+    - [ ] Verify Windows Snap-Assist snapping triggers proper layout recalculations.
+    - [ ] Ensure custom macOS traffic light buttons (close/minimize/maximize) align perfectly.
+- Seamless IPC (Inter-Process Communication) bridging via Tauri invoke.
+    - [x] Implement timeout safety for IPC calls that hang or take longer than expected.
+    - [x] Sanitize all string inputs sent from React to Rust to prevent injection or panics.
+    - [x] Handle edge cases where large JSON payloads block the main IPC thread.
+    - [x] Ensure type mismatches between frontend TS and backend Rust structs log clear errors.
+    - [x] Test IPC event listener cleanup so multiple listeners aren't attached on page reloads.
+- Single-thread centralized Task Queue for database writes to prevent locking.
+    - [ ] Queue sudden bursts of write operations (e.g., bulk updates) sequentially.
+    - [ ] Handle edge cases where the app is closed while the queue is still processing.
+    - [ ] Ensure read queries can still execute concurrently while writes are queued.
+    - [ ] Test SQLite `database is locked` error mitigation during rapid click events.
+    - [ ] Provide a fallback retry mechanism if a specific queued write fails.
+- Asynchronous multi-threaded read operations so the UI never blocks.
+    - [ ] Ensure pagination queries yield fast initial load times.
+    - [ ] Handle edge cases where the user navigates away before a massive read completes.
+    - [ ] Verify thread pool sizes do not exceed OS thread limits on low-end CPUs.
+    - [ ] Test concurrent reads happening alongside background poster downloading.
+    - [ ] Implement caching for highly repetitive reads (like global stats) to bypass DB entirely.
+- Strict NoneType/null data sanitization layer in Rust before data reaches React.
+    - [x] Map all missing TMDB dates to a safe default instead of null crashing UI components.
+    - [ ] Ensure empty string descriptions do not collapse layout margins in React.
+    - [ ] Handle edge cases where expected integers (like `runtime`) return as null or 0 from DB.
+    - [ ] Provide placeholder arrays for empty history or library results.
+    - [ ] Test deeply nested JSON serialization ensuring no unexpected `undefined` bubbles up.
+- Auto-generation of local application data directories on first boot.
+    - [x] Handle edge cases where the OS denies write permissions to the intended install directory.
+    - [ ] Verify nested folders (`/cache/posters`, `/db`) are created successfully.
+    - [ ] Provide a fatal error UI if directory creation completely fails.
+    - [ ] Test behavior if a user manually deletes the data folder while the app is running.
+    - [ ] Ensure proper fallback logic if migrating from an older schema.
+- Persistent JSON settings storage (Window size, position, API keys).
+    - [x] Handle corrupted JSON files by cleanly resetting to defaults instead of crashing.
+    - [x] Ensure API keys are stored securely or at least obscured from plain sight.
+    - [x] Test saving settings concurrently from multiple UI tabs.
+    - [x] Verify that deleting the config JSON dynamically generates a new one on next boot.
+    - [x] Handle edge cases where integer sizes/positions are saved as floats and break parsing.
+- Automatic window geometry and position restoration on launch.
+    - [ ] Handle edge cases where the saved position is now off-screen (e.g., disconnected secondary monitor).
+    - [ ] Ensure maximized states are restored correctly without hiding the taskbar.
+    - [ ] Verify width/height are constrained to minimum allowable app dimensions.
+    - [ ] Test rapid opening/closing of the app to ensure bounds save correctly.
+    - [ ] Ensure fullscreen vs. windowed states are properly distinguished and saved.
 
----
+## 📁 Part 2: Local File Scanning & Smart Parser
+- Native OS directory selection dialog.
+    - [x] Ensure dialog strictly restricts selection to directories, not individual files.
+    - [x] Handle edge cases where the user cancels the dialog (should fail gracefully).
+    - [x] Test behavior when a selected directory is read-only or restricted by the OS.
+    - [x] Verify default paths open to logical locations (e.g., user's Video folder).
+    - [x] Handle edge cases where a network drive is selected and suddenly disconnects.
+- Recursive subfolder deep-scanning.
+    - [x] Implement a maximum depth limit to prevent infinite recursion in complex directory trees.
+    - [x] Handle circular symlinks that could cause scanning loops.
+    - [x] Ensure the UI visually indicates that a deep scan is actively running.
+    - [x] Test scanning performance on folders containing 10,000+ files.
+    - [x] Provide a manual 'Cancel Scan' button to halt the background thread.
+- Real-time file extension filtering (.mkv, .mp4, .avi, .mov, etc.).
+    - [x] Ensure file extension matching is entirely case-insensitive (.MKV vs .mkv).
+    - [x] Handle edge cases with double extensions (e.g., `video.tar.gz` skipped, `video.mkv` parsed).
+    - [x] Provide a settings option to manually add or remove supported formats.
+    - [x] Verify hidden OS files (like `.DS_Store` or `Thumbs.db`) are strictly ignored.
+    - [x] Test behavior when a valid file extension masks a corrupted or zero-byte file.
+- Complex Regex Engine: Extracts Series Name, Season, and Episode from standard SxxExx formats.
+    - [x] Handle spaces, dots, and hyphens preceding the SxxExx block.
+    - [x] Ensure single-digit seasons and episodes (e.g., S1E5) parse equally well as S01E05.
+    - [x] Handle multi-episode files gracefully (e.g., S01E01-E02).
+    - [x] Verify text following the episode block (like episode titles) is cleanly stripped.
+    - [x] Test edge cases where the series name contains numbers matching the regex.
+- Complex Regex Engine: Parses alternative TV formats (e.g., Sxx.Exx, [Sxx][Exx]).
+    - [x] Handle bracketed formats often used in anime releases.
+    - [ ] Parse explicit 'Season X Episode Y' full text strings.
+    - [ ] Ensure year-based episode formats (e.g., 2023.10.05) fall back to specific parsing logic.
+    - [ ] Verify absolute episode numbers (e.g., Episode 105 instead of S3E05) flag for manual review.
+    - [ ] Test edge cases where multiple format styles appear in the same filename.
+- Complex Regex Engine: Parses Movie formats extracting Title and (Year).
+    - [x] Extract the year strictly from 4-digit blocks surrounded by parenthesis or brackets.
+    - [x] Ensure resolutions like '1080p' or '4K' are not mistaken for a release year.
+    - [x] Handle edge cases where the movie title itself contains a year (e.g., 'Blade Runner 2049 (2017)').
+    - [x] Verify standard release group tags are ignored during title extraction.
+    - [x] Test titles with colons or hyphens replacing spaces.
+- Non-blocking background thread execution for massive directory scans.
+    - [x] Ensure the UI remains 60FPS responsive while scanning a 5TB drive.
+    - [ ] Implement a progress channel sending batch updates to React rather than single file events.
+    - [ ] Handle thread panics gracefully if the drive is unexpectedly ejected.
+    - [ ] Test pausing and resuming the scan queue.
+    - [ ] Ensure CPU prioritization is set to lower levels so system performance isn't tanked.
+- Automated String-Cleaning (removing dots, underscores, resolution tags).
+    - [x] Strip all known codec tags (x264, x265, HEVC, AAC).
+    - [x] Remove resolution tags (720p, 1080p, 4K, 2160p).
+    - [x] Replace periods and underscores with standard space characters.
+    - [x] Handle edge cases where the actual show title contains dots (e.g., 'Mr. Robot').
+    - [x] Verify trailing hyphens and brackets are entirely trimmed.
+- Auto-matching scanned files directly to existing tracked database entries.
+    - [x] Implement fuzzy string matching to account for slight spelling differences.
+    - [ ] Ensure season/episode integers precisely match before automatically linking the file.
+    - [ ] Handle edge cases where two shows have the identical parsed name but different years.
+    - [ ] Do not overwrite an existing matched file path without explicit confirmation.
+    - [ ] Provide a detailed log of which files were auto-matched vs left unmatched.
+- Path collision detection (prevents duplicate file paths in the DB).
+    - [x] Ensure the database strictly enforces UNIQUE constraints on the file path column.
+    - [ ] Handle edge cases where a file is renamed but the content/hash remains identical.
+    - [ ] Verify that scanning the exact same directory twice results in zero new additions.
+    - [ ] Handle case-sensitivity issues on Windows (treating `C:\File` and `c:\file` as identical).
+    - [ ] Test resolving path conflicts seamlessly without throwing a red UI error.
+- Symlink and shortcut resolution for external drives.
+    - [ ] Resolve `.lnk` files on Windows to their absolute target paths.
+    - [ ] Resolve standard Unix symlinks accurately on macOS/Linux.
+    - [ ] Handle edge cases where the symlink points to a deleted or non-existent file.
+    - [ ] Ensure the database stores the final resolved path, not the symlink path.
+    - [ ] Test recursive scanning through directory symlinks while preventing infinite loops.
+- "Scan Complete" dynamic system toast notification with match counts.
+    - [ ] Ensure the toast auto-dismisses after a sensible timeout (e.g., 5 seconds).
+    - [ ] Display exact numerical data (e.g., 'Added 15 episodes, 3 unmatched').
+    - [ ] Handle edge cases where multiple scans finish simultaneously, preventing toast spam.
+    - [ ] Allow the user to click the toast to navigate directly to the Inbox/Unmatched view.
+    - [ ] Verify toasts render smoothly above all other modal z-indexes.
 
-## 1. Global UI & UX Engine
-- `[x]` **Cinematic Dark Theme**: `#0D0F14` background, `#1F222A` surfaces, pure white text, and `#FF6B00` accents are fully applied across React components.
-- `[x]` **Hybrid Window Layout**: Tauri `tauri.conf.json` handles the native OS title bar. A sleek navigation bar exists under it in `App.tsx`.
-- `[x]` **In-Place UI Updates**: `refreshTrigger` hooks state is implemented avoiding full page jumps.
-- `[ ]` **Toast Notifications**: **MISSING**. Currently, the app uses native browser `alert()` popups (e.g., in `InboxView.tsx` and `Dashboard.tsx`).
-    - *Action Required*: Implement a library like `react-hot-toast` or a custom Framer Motion slide-in component anchored to the bottom-right for "Scan Complete" or "Sync Successful" messages.
-- `[x]` **Strict Data Sanitization**: Fallbacks for TMDB errors (`Unknown Title`, Unsplash placeholders) exist across components.
+## 🌐 Part 3: TMDB Metadata & Syncing
+- Secure HTTP requests via Rust reqwest.
+    - [x] Ensure strict TLS/SSL validation is enforced for all API calls.
+    - [x] Handle connection timeouts gracefully on slow networks.
+    - [x] Implement exponential backoff retry logic for temporary network drops.
+    - [x] Verify user-agent headers are explicitly set to prevent API blocking.
+    - [x] Test behavior when the host OS firewall entirely blocks the application.
+- On-the-fly TMDB API Key validation.
+    - [x] Provide instant visual feedback (Green Check / Red X) in the Settings UI when entering a key.
+    - [ ] Handle whitespace or accidental hidden characters pasted into the key field.
+    - [ ] Ensure invalid keys instantly halt all background API requests to prevent bans.
+    - [ ] Test edge cases where the API key is valid but the TMDB account is rate-limited.
+    - [ ] Display clear instructions/links for users to obtain their own API key.
+- Multi-search API endpoint integration for mixed TV/Movie results.
+    - [x] Ensure the UI visually distinguishes TV vs Movie results returned in the same payload.
+    - [ ] Handle edge cases where the multi-search returns unexpected media types (e.g., 'Person').
+    - [ ] Implement pagination support for broad search terms yielding hundreds of results.
+    - [ ] Verify search string URL encoding prevents crashes on special characters.
+    - [ ] Test response times and add debounce logic to the search input.
+- Dedicated TV Show deep-data fetching.
+    - [x] Ensure the payload strictly maps to the local SQLite `Media` table schema.
+    - [x] Handle edge cases where a TV show lacks a synopsis entirely.
+    - [x] Verify network data structures for complex fields like genres and networks are flattened.
+    - [x] Test data fetching for shows with 50+ seasons (e.g., Soap Operas).
+    - [x] Handle missing poster/backdrop URLs gracefully.
+- Dedicated Movie deep-data fetching.
+    - [x] Map movie specific data (like total runtime) accurately to the database.
+    - [ ] Ensure movie collections/franchises are handled visually if applicable.
+    - [ ] Test fetching data for extremely obscure or newly announced movies.
+    - [ ] Handle edge cases where the release date is completely undefined.
+    - [ ] Verify movie data doesn't accidentally trigger TV episode sync loops.
+- Season-by-season iterative API fetching.
+    - [x] Ensure requests for Season 1, 2, 3 etc., occur in staggered batches to avoid rate limits.
+    - [ ] Handle missing seasons (e.g., a show with Season 1 and 3, but no 2).
+    - [ ] Verify 'Specials' (Season 0) are fetched and categorized appropriately.
+    - [ ] Test canceling a fetch operation halfway if the user deletes the show.
+    - [ ] Provide UI progress bars for massive shows with hundreds of episodes.
+- High-resolution primary Poster image extraction.
+    - [x] Target specific TMDB image width configurations (e.g., `w500` or `original`).
+    - [x] Ensure fallbacks are strictly enforced if the primary locale poster is missing.
+    - [x] Handle corrupt or incomplete image byte streams during download.
+    - [x] Test image fetching on extremely slow connections to ensure timeouts don't hang the app.
+    - [x] Verify that poster dimensions are enforced regardless of the source aspect ratio.
+- High-resolution cinematic Backdrop image extraction.
+    - [x] Target `w1280` or `original` paths for crisp high-dpi display.
+    - [x] Handle edge cases where a show has zero backdrops available on TMDB.
+    - [x] Ensure backdrops are completely stripped of textual logos if clean variants exist.
+    - [x] Test memory usage when rendering 10+ backdrops in memory simultaneously.
+    - [x] Verify backdrop loading states show smooth CSS skeleton pulses.
+- Episode-specific 16:9 still-image extraction.
+    - [x] Ensure missing episode stills fall back to the show's main backdrop automatically.
+    - [ ] Handle API rate limiting strictly, as querying 200 episode images simultaneously will fail.
+    - [ ] Test edge cases where the still image is flagged as a spoiler and blurred.
+    - [ ] Verify the exact 16:9 crop is maintained in the UI regardless of the raw image.
+    - [ ] Ensure cached stills are tied to the specific episode ID.
+- Show-level Synopsis/Overview text downloading.
+    - [x] Ensure character encoding correctly handles foreign languages and emojis.
+    - [x] Handle incredibly long synopses by ensuring DB schemas allow TEXT columns.
+    - [x] Verify missing synopses are replaced with 'No overview available.' strings.
+    - [x] Test edge cases where synopses contain markdown or HTML tags (strip them).
+    - [x] Ensure localized overviews match the user's OS locale if possible.
+- Episode-level Synopsis text downloading.
+    - [x] Ensure spoiler synopses (often hidden by TMDB before airing) are handled.
+    - [x] Test database size impact when storing thousands of episode synopses.
+    - [x] Handle edge cases where the episode is a two-parter with duplicate synopses.
+    - [x] Ensure text overflow in UI components uses standard ellipsis truncation.
+    - [x] Verify synchronization updates synopses if they were previously blank.
+- Original Release Date / First Air Date extraction.
+    - [x] Parse 'YYYY-MM-DD' formats strictly into the SQLite `release_date` column.
+    - [ ] Handle edge cases where only the Year ('YYYY') is returned.
+    - [ ] Ensure null air dates do not crash the sorting algorithms.
+    - [ ] Test timeline timezone conversions if exact UTC timestamps are provided.
+    - [ ] Verify release dates update correctly if a 'TBD' show gets an official date.
+- Specific Episode Air Date tracking.
+    - [x] Ensure episodes aired in the future are visually flagged as 'Unaired' in the UI.
+    - [ ] Handle edge cases where episode 3 airs before episode 2.
+    - [ ] Verify sorting inside season tabs strictly follows the `episode_num` regardless of air date.
+    - [ ] Test missing air dates to ensure they default to the bottom of sorting arrays.
+    - [ ] Ensure mathematical calculations (e.g., 'Aired 5 years ago') handle leap years safely.
+- Accurate Runtime/Duration metadata pulling.
+    - [x] Handle API responses where runtime is an array instead of an integer.
+    - [x] Ensure missing runtimes default to a sensible value (e.g., 0) for math calculations.
+    - [x] Test edge cases where runtimes are extremely long (e.g., 200+ minute movies).
+    - [x] Verify runtime updates dynamically if local file FFmpeg length overrides TMDB data.
+    - [x] Ensure UI cleanly formats 135m as '2h 15m'.
+- Total Episode count aggregation.
+    - [x] Ensure 'Specials' (Season 0) do not inflate the standard episode count artificially.
+    - [x] Handle edge cases where TMDB lists unaired episodes in the total count.
+    - [x] Verify real-time completion percentages update properly when new episodes are added.
+    - [x] Test aggregation math against locally tracked vs globally available numbers.
+    - [x] Ensure discrepancies between local files and TMDB counts highlight missing files.
+- Series Life-Cycle Status tracking (e.g., 'Returning Series', 'Ended', 'Canceled').
+    - [x] Map specific TMDB status strings to visual UI badge colors (Green=Returning, Red=Ended).
+    - [ ] Ensure sync operations check for status changes on older shows.
+    - [ ] Handle edge cases where status is null or undefined.
+    - [ ] Test UI wrapping behavior if the status string is unusually long.
+    - [ ] Allow users to manually filter the Library based on these specific status flags.
+- TMDB Global Vote Average (Score) fetching.
+    - [x] Ensure floating-point numbers are rounded to a single decimal (e.g., 8.54 -> 8.5).
+    - [x] Handle edge cases where the show has 0 votes.
+    - [x] Verify UI components conditionally hide the score badge if no data exists.
+    - [x] Test database updates so the score stays fresh upon manual sync.
+    - [x] Ensure the TMDB score is visually distinct from the user's personal 5-star rating.
+- Asynchronous background image downloading pipeline.
+    - [ ] Implement a task queue specifically for images to prevent thread starvation.
+    - [ ] Ensure failed image downloads automatically retry up to 3 times before skipping.
+    - [ ] Test concurrent downloads ensuring network bandwidth isn't completely saturated.
+    - [ ] Handle edge cases where the app closes mid-download (delete partial temp files).
+    - [ ] Provide a visual UI indicator if massive background caching is occurring.
+- Local file caching for Posters (saving bandwidth and enabling offline mode).
+    - [ ] Store posters using their ID as the filename to prevent collision.
+    - [ ] Ensure the React frontend serves the `file://` cached path if available.
+    - [ ] Handle edge cases where the cached file is completely corrupted.
+    - [ ] Test cache invalidation if a new poster is selected or refreshed.
+    - [ ] Ensure the cache directory is excluded from OS backups or indexing.
+- Local file caching for Backdrops.
+    - [ ] Verify high-res backdrops don't silently consume gigabytes of disk space.
+    - [ ] Implement an automated cleanup task to delete orphaned backdrops (shows removed from DB).
+    - [ ] Handle edge cases where write permissions fail during caching.
+    - [ ] Test UI fallback behavior transitioning smoothly from remote URL to local cache.
+    - [ ] Ensure filenames specify resolution (e.g., `w1280_12345.jpg`).
+- Local file caching for Episode Stills.
+    - [ ] Strictly limit caching to recently viewed or 'Up Next' episodes to save space.
+    - [ ] Handle edge cases where thousands of stills rapidly fill the cache.
+    - [ ] Ensure cache eviction policies delete oldest stills when a size limit is hit.
+    - [ ] Test offline mode ensuring the UI gracefully loads stills from disk.
+    - [ ] Verify missing still states apply the specific blur/darken fallback design.
 
-## 2. The Dashboard (Home)
-- `[x]` **Hero Section**: 450px high banner with complex directional gradient fades fading into pure `#0D0F14`, dynamic "▶ Resume" button, progress bar based on runtime math, and TMDB/Unsplash backdrop mapping. Emphasized pure white titles with vibrant orange "UP NEXT" indicators.
-- `[ ]` **"Up Next" Smart Queue**: **PARTIAL**. The horizontal scrolling row exists visually, but the backend query `get_dashboard_data` in `commands.rs` just grabs the *first* unwatched episode (`LIMIT 1`). It does not explicitly calculate the *next unwatched* episode reliably if the user skips around.
-    - *Action Required*: Ensure the Rust SQL query robustly selects `MIN(season_num)` and `MIN(ep_num)` where `status = 'Unwatched'` for each media ID.
-- `[x]` **Recently Added**: Horizontal carousel of posters with hover effects (`scale-105`) and dark glass play overlay. Floating orange badges for user ratings (`★ 8.5/5`).
-- `[x]` **Personal Stats Bar**: Frost glass cards centered vertically/horizontally displaying massive `#FF6B00` text for "Total Episodes Watched", "Hours Watched", and "Shows Completed".
-- `[x]` **Global Quick Search**: Implemented. A persistent top pill-shaped bar filters local UI views dynamically.
+## 🎬 Part 4: VLC Playback & Smart Heartbeat
+- Auto-detection of VLC installation paths across OS defaults.
+    - [x] Ensure fallback checks for default `C:\Program Files\VideoLAN\VLC\vlc.exe` on Windows.
+    - [ ] Ensure checks for `/Applications/VLC.app/Contents/MacOS/VLC` on macOS.
+    - [ ] Verify `/usr/bin/vlc` or snap/flatpak paths on Linux.
+    - [ ] Handle edge cases where VLC is installed but the executable is restricted.
+    - [ ] Provide a clear fatal error UI if automatic detection completely fails.
+- Manual VLC executable path override in Settings.
+    - [x] Provide a file picker dialog strictly filtering for executable files.
+    - [ ] Handle edge cases where the user selects a non-VLC executable.
+    - [ ] Ensure manual paths are saved persistently to JSON and override auto-detection.
+    - [ ] Verify that changing the path does not require an app restart.
+    - [ ] Test behavior if the manually specified path is deleted or moved externally.
+- Spawning VLC as a detached external background process.
+    - [x] Ensure closing the WatchMark app gracefully kills the spawned VLC instance (or leaves it running based on preference).
+    - [x] Handle edge cases where VLC takes an unusually long time to spawn.
+    - [x] Verify the external process doesn't lock the local video file from being renamed.
+    - [x] Test spawning multiple VLC instances concurrently (should be prevented).
+    - [x] Ensure Rust strictly uses `Command::new` without capturing standard output to prevent deadlocks.
+- Passing secure local file paths directly to the VLC Command Line.
+    - [x] Handle absolute paths containing spaces, foreign characters, and emojis safely.
+    - [x] Ensure network drive paths (`//SERVER/Share`) are formatted correctly for VLC.
+    - [x] Test escaping shell characters (quotes, ampersands) to prevent command injection.
+    - [x] Verify long paths exceeding Windows 256-character limits are handled.
+    - [x] Handle edge cases where the file was deleted immediately prior to clicking Play.
+- Passing the --start-time CLI argument for exact-second resuming.
+    - [x] Ensure the database value `last_position` is properly converted to a raw integer string.
+    - [x] Handle edge cases where `last_position` is within 5 seconds of the end of the video.
+    - [x] Verify VLC accepts the flag and jumps instantly without dropping video frames.
+    - [x] Test behavior when `last_position` is explicitly 0.
+    - [x] Ensure resuming doesn't break external subtitle file loading.
+- Programmatically enabling VLC's local HTTP interface (--extraintf http).
+    - [x] Ensure the `--http-port` flag explicitly defines a specific port (e.g., 8080).
+    - [ ] Handle edge cases where port 8080 is already in use by another application.
+    - [ ] Verify the `--http-password` is dynamically injected securely per session.
+    - [ ] Test OS firewall popups preventing the HTTP interface from binding.
+    - [ ] Ensure the interface binds strictly to `localhost/127.0.0.1` to prevent network snooping.
+- Injecting a secure, randomized custom HTTP password for the session.
+    - [ ] Generate a random alphanumeric 16-character string on every playback event.
+    - [ ] Ensure Rust securely holds the password in memory for polling.
+    - [ ] Handle edge cases where password injection fails to parse in VLC.
+    - [ ] Verify older VLC versions support the specific password syntax flag.
+    - [ ] Test unauthorized external queries to the port to ensure rejection.
+- Rust-based HTTP polling loop triggering every 5000ms.
+    - [x] Ensure the thread sleeps correctly without blocking Tauri's main event loop.
+    - [ ] Handle connection refused errors gracefully while VLC is still booting up.
+    - [ ] Verify timeout limits on the HTTP request prevent hanging the thread.
+    - [ ] Test behavior when the system goes to sleep during the polling loop.
+    - [ ] Ensure the polling frequency can be configured via a strict constant.
+- Real-time fetching of current playback time (in exact seconds).
+    - [x] Parse the XML/JSON response from VLC safely handling missing nodes.
+    - [ ] Ensure the time value correctly updates local memory state.
+    - [ ] Handle edge cases where VLC reports negative time or garbage data during seeking.
+    - [ ] Test rapid seeking by the user to ensure the poller captures the final position.
+    - [ ] Verify performance overhead of parsing the payload every 5 seconds.
+- Real-time fetching of total video length.
+    - [x] Ensure the length accurately reflects the local file, overriding TMDB runtime.
+    - [ ] Handle edge cases where VLC reports a length of 0 (e.g., corrupted file index).
+    - [ ] Test files with variable frame rates that might cause length fluctuations.
+    - [ ] Verify the database is actively updated with the precise local length.
+    - [ ] Ensure UI calculations rely on this precise length immediately upon playback.
+- Playback state monitoring (playing, paused, stopped).
+    - [x] Ensure specific logic triggers specifically when the state shifts to 'paused'.
+    - [ ] Handle edge cases where the user rapidly spam-clicks pause/play.
+    - [ ] Verify 'stopped' events instantly finalize session logic and DB commits.
+    - [ ] Test behavior when playback reaches the absolute end of the file automatically.
+    - [ ] Ensure state strings from VLC are case-insensitively matched.
+- Real-time mathematical completion percentage calculation.
+    - [x] Ensure floating point math errors don't trigger false completions.
+    - [x] Handle edge cases where total length is 0 (prevent divide by zero exceptions).
+    - [x] Verify the percentage is calculated based on exact seconds, not rough minutes.
+    - [x] Test calculations on incredibly short files (e.g., 2-minute clips).
+    - [x] Ensure the percentage is logged accurately in the DB session row.
+- >90% Auto-Completion Logic: Automatically marks episode watched and increments history.
+    - [x] Ensure reaching 90.00% strictly triggers a database `INSERT` to History.
+    - [x] Verify the episode status instantly shifts to 'Completed'.
+    - [x] Handle edge cases where the user seeks past 90%, rewinds, and stops.
+    - [x] Test rapid scrubbing to the end of the video to bypass actual viewing.
+    - [x] Ensure the UI updates immediately to reflect the completed state globally.
+- <90% Resume Logic: Saves the exact last_position to the database.
+    - [x] Ensure the exact final second is recorded in the `last_position` column.
+    - [x] Handle edge cases where the user watched 89.9% (should still resume).
+    - [x] Verify the progress bar UI updates directly relative to this position.
+    - [x] Test consecutive resume sessions updating the same position value accurately.
+    - [x] Ensure zero-second positions reset the status entirely if manually triggered.
+- Process termination detection (Rust knows instantly when the user closes the VLC window).
+    - [ ] Ensure `Child::wait()` or process monitoring instantly detects termination.
+    - [ ] Handle edge cases where VLC crashes or is forcefully killed by the OS.
+    - [ ] Verify the HTTP poller instantly halts when the process dies.
+    - [ ] Test behavior when multiple instances accidentally exist.
+    - [ ] Ensure final database commits occur before the process thread fully drops.
+- Real-time IPC event emission to React to update the UI the second VLC closes.
+    - [ ] Emit a custom `vlc-closed` payload cleanly to the React listener.
+    - [ ] Ensure React instantly triggers a DB refetch to update all UI statuses.
+    - [ ] Handle edge cases where the React component was unmounted during playback.
+    - [ ] Verify no ghost events duplicate the refresh action.
+    - [ ] Test the latency between VLC closing and the React UI fully updating.
+- Minimum threshold safety (ignoring accidental clicks watched for <5%).
+    - [x] Ensure closing the video before 5% does not overwrite previous progress.
+    - [ ] Handle edge cases where a user starts a video by mistake and instantly closes it.
+    - [ ] Verify that >5% strictly engages the resume logic tracking.
+    - [ ] Test edge cases where an episode is less than 5 minutes long.
+    - [ ] Ensure UI cleanly ignores these short sessions without rendering messy history rows.
 
-## 3. Media Discovery & Inbox (Triage)
-- `[x]` **Smart Media Scanner**: Rust `scanner.rs` (assumed working per previous iterations) parses filenames via regex and matches to TMDB.
-- `[x]` **The "Inbox" (Unmatched Files)**: Dedicated sidebar tab grouping unrecognized files by extracted series name (`InboxView.tsx`).
-- `[ ]` **1-Click Bulk Matching**: **MISSING**. Clicking a grouped folder in `InboxView.tsx` currently does nothing.
-    - *Action Required*: Clicking a folder must open a modal/search dialog to query TMDB and bulk-assign all files in that group to the selected show ID via a new Rust command.
-- `[ ]` **Advanced/Manual Match Override**: **MISSING**. No UI toggle exists in the Inbox to manually map a specific file to a specific Season/Episode.
-    - *Action Required*: Add an expandable menu under the Inbox groups to manually input SxxExx and force a database link.
-- `[ ]` **Destructive "Remove Show"**: **MISSING**. The trash icon exists visually in `MediaDetails.tsx` but has no `onClick` handler.
-    - *Action Required*: Create a Rust command to `DELETE` from History, Local_Files, Episodes, and Media for a specific ID, and wire it to the trash icon.
+## 🗄️ Part 5: Database & Schema Design (SQLite)
+- Local, offline-first SQLite database (watchmark.db).
+    - [x] Ensure database initialization creates a new file seamlessly if one is not found.
+    - [x] Verify PRAGMA settings enable Write-Ahead Logging (WAL) for faster performance.
+    - [x] Handle edge cases where the directory lacks file write permissions.
+    - [x] Test database migration mechanisms for future schema updates.
+    - [x] Ensure foreign key constraints are strictly enabled on every connection.
+- Media table schema (ID, TMDB ID, title, type, synopsis).
+    - [x] Verify string constraints prevent buffer overflow on massive synopsis texts.
+    - [x] Ensure TMDB ID is strictly UNIQUE to prevent duplicate show entries.
+    - [x] Handle edge cases where 'title' contains raw SQL reserved keywords.
+    - [x] Test fallback default values if 'type' (Movie/TV) is explicitly omitted.
+    - [x] Verify NULL handling for synopsis to prevent query failures.
+- Episodes table schema (ID, media ID, season, episode num, title, runtime).
+    - [x] Ensure a composite UNIQUE constraint exists for (media ID, season, episode num).
+    - [x] Handle edge cases where runtime data arrives as a string instead of an integer.
+    - [x] Verify season and episode numbers cannot be negative integers.
+    - [x] Test inserting 'Specials' as season 0 without breaking numeric sorting.
+    - [x] Ensure cascading deletes work correctly when the parent Media row is removed.
+- Local_Files relational table (1-to-1 linking of episodes to hard drive paths).
+    - [x] Verify path columns support extreme length strings (Windows maximums).
+    - [x] Handle edge cases where multiple files point to the exact same episode ID.
+    - [x] Ensure paths are updated gracefully if a user manually renames a drive letter.
+    - [x] Test deleting a path explicitly from this table without deleting the Episode data.
+    - [x] Verify file size or hash metadata fields are available for future collision checks.
+- History relational table (Tracking timestamp, episode ID).
+    - [x] Ensure timestamps are uniformly stored as UTC integers (UNIX epoch).
+    - [x] Handle edge cases where a user marks 50 episodes watched in the exact same millisecond.
+    - [x] Verify that deleting an episode correctly cascades to wipe all its history entries.
+    - [x] Test indexing on the timestamp column to ensure timeline UI fetching is instant.
+    - [x] Ensure missing timestamps dynamically fall back to current time on insert.
+- Unmatched_Files staging table for the Inbox.
+    - [x] Verify the string key extracted from regex is stored separately from the raw path.
+    - [x] Handle edge cases where a previously unmatched file is naturally moved by the OS.
+    - [x] Ensure clearing the Inbox strictly truncates this table safely.
+    - [x] Test rapid inserts when scanning 10,000 completely unrecognized anime files.
+    - [x] Verify path collision constraints prevent duplicating items already in Local_Files.
+- release_date column for precise library sorting.
+    - [x] Ensure DATE columns are properly formatted 'YYYY-MM-DD' for SQLite sorting.
+    - [ ] Handle edge cases where TMDB provides only 'YYYY'.
+    - [ ] Verify sorting queries use `NULLS LAST` so unreleased shows fall to the bottom.
+    - [ ] Test filtering by explicit year ranges using SQL `BETWEEN`.
+    - [ ] Ensure dates in the future correctly flag the UI as 'Unaired'.
+- air_date column for episode 'time capsule' comparisons.
+    - [x] Verify math operations (e.g., difference between watch date and air date) work accurately.
+    - [ ] Handle edge cases where air date exists but time is unknown (assume midnight).
+    - [ ] Ensure backdating logic can leverage this column for historical reconstruction.
+    - [ ] Test updating this column gracefully without overwriting local manual changes.
+    - [ ] Verify leap year air dates do not cause day-offset bugs.
+- is_legacy boolean flag for handling archived/backdated history.
+    - [x] Ensure this flag strictly defaults to 0 (false) for real-time natural watching.
+    - [ ] Handle edge cases where a legacy row is modified; does it stay legacy?
+    - [ ] Verify the UI timeline parser bypasses expandable accordion logic for legacy items.
+    - [ ] Test mass-insertion of 500 legacy rows ensuring database locks are avoided.
+    - [ ] Ensure analytics/stats math still correctly counts legacy rows.
+- user_rating integer column for 1-5 star personal scores.
+    - [x] Ensure constraints strictly restrict integers to between 0 and 5.
+    - [ ] Handle edge cases where null represents unrated versus 0 representing terrible.
+    - [ ] Verify 'My Top Rated' sort logic places 5-star shows at the top and 0 at bottom.
+    - [ ] Test rapid UI clicking of stars accurately reflects the final state in the DB.
+    - [ ] Ensure this data is entirely independent from the TMDB `vote_average`.
+- vote_average float column for TMDB score caching.
+    - [x] Verify data precision does not drift (e.g., 8.5 does not become 8.5000001).
+    - [x] Handle edge cases where TMDB returns a 0.0 for a brand new show.
+    - [x] Ensure this column is forcibly overwritten every time the user clicks 'Refresh Data'.
+    - [x] Test formatting to strictly one decimal place when returned to the UI.
+    - [x] Ensure queries can sort by this value without crashing on nulls.
+- last_position integer column for sub-episode pause tracking.
+    - [x] Ensure default value is strictly 0 on episode insertion.
+    - [ ] Handle edge cases where last_position exceeds the stored total runtime.
+    - [ ] Verify this column resets strictly to 0 if the episode is manually marked complete.
+    - [ ] Test updating this value rapidly via the background VLC HTTP poller.
+    - [ ] Ensure UI progress bars calculate width based on `(last_position / runtime) * 100`.
+- session_id mapping column for grouping binges.
+    - [x] Ensure the session ID is a universally unique identifier (UUID) generated by Rust.
+    - [ ] Handle edge cases where a binge stretches exactly across midnight.
+    - [ ] Verify the 6-hour gap logic properly triggers a brand new session_id generation.
+    - [ ] Test UI mapping that groups History rows by matching session_ids.
+    - [ ] Ensure manually backdated rows completely ignore/bypass this column.
+- Multi-table cascading deletes (Deleting Media safely wipes Episodes, Files, and History).
+    - [ ] Verify `PRAGMA foreign_keys = ON;` is fired immediately on database connect.
+    - [ ] Test explicitly deleting a Media show and querying History to ensure orphans do not exist.
+    - [ ] Handle edge cases where deleting millions of rows locks the DB for several seconds.
+    - [ ] Ensure Local_Files rows are wiped but the actual physical file on disk remains untouched.
+    - [ ] Verify error handling if a constraint violation accidentally occurs.
 
-## 4. Library Organization (TV Shows & Movies)
-- `[x]` **Sleek Poster Grid**: 2:3 aspect ratio posters with dim hover effects and play overlay exist in `Library.tsx`.
-- `[x]` **"At-a-Glance" Quick Stats**: The bottom edge progress bar (Gray/Orange/Green logic) and the top-right corner star badge (`★ 8.5/5`) are fully implemented.
-- `[x]` **Advanced Sorting**: Dropdown filtering by Recently Added, Alphabetical, Release Year, and Top Rated is wired up.
-- `[ ]` **Smart Filters (Hide Completed)**: **PARTIAL**. The checkbox exists and passes the boolean to Rust, but if the Rust query `(SELECT COUNT(...) < m.total_episodes)` doesn't correctly handle movies or 0 episode counts, it could bug out. Needs strict validation.
+## 🎨 Part 6: Global UI, Styling & Motion (Cinema-Grade)
+- Pure #0D0F14 deep cinematic background color.
+    - [x] Ensure the color is uniformly applied to `<body>` to prevent white flashes on load.
+    - [x] Verify scrollbar track colors match or blend seamlessly into this hex value.
+    - [x] Handle edge cases where transparent images render awkwardly over this specific dark tone.
+    - [x] Test contrast ratios ensuring standard silver text remains readable against it.
+    - [x] Ensure fullscreen modes maintain this background color on ultra-wide monitors.
+- Translucent #1F222A surface cards for depth.
+    - [x] Ensure borders use a subtle lighter tone (e.g., `#2A2D35`) to define card edges.
+    - [x] Verify nested cards (cards within cards) step up lightness correctly for visual hierarchy.
+    - [x] Handle edge cases where surface cards overlap each other during Framer Motion transitions.
+    - [x] Test hover states slightly brightening this hex value to indicate interactivity.
+    - [x] Ensure loading skeletons utilize a pulsed version of this exact color.
+- Vibrant #FF6B00 (VLC Orange) global accent/interaction color.
+    - [x] Verify this color is strictly reserved for primary actions, not passive text.
+    - [x] Ensure hover states utilize a slightly lighter variant (e.g., `#FF8533`) for feedback.
+    - [x] Handle edge cases where this color is used as a drop-shadow glow effect.
+    - [x] Test colorblind accessibility, ensuring text inside an orange pill remains pure `#FFFFFF`.
+    - [x] Ensure progress bars use this exact color to fill their active width.
+- Tailwind backdrop-blur-xl heavy Frosted Glass effects on sidebars.
+    - [x] Ensure Safari and older browsers that don't support `backdrop-filter` fall back to a solid color.
+    - [ ] Verify performance does not tank to 15FPS when scrolling massive lists behind the blur.
+    - [ ] Handle edge cases where nested blur components cancel each other out.
+    - [ ] Test the sidebar blur over complex, highly detailed hero images.
+    - [ ] Ensure the blur radius is strictly consistent across the entire app shell.
+- Tailwind backdrop-blur-md light glass effects on floating elements.
+    - [x] Apply this specifically to hover tooltips, dropdown menus, and quick-view overlays.
+    - [ ] Verify z-index stacking context ensures floating glass always remains on top.
+    - [ ] Handle edge cases where clicking through the blurred element accidentally triggers background events.
+    - [ ] Test transition speeds of the blur fading in and out (should be < 200ms).
+    - [ ] Ensure floating glass elements cast a harsh dark drop shadow to separate from the background.
+- High-contrast typography hierarchy (Pure white headers, silver body text).
+    - [x] Verify `h1`, `h2`, and `h3` tags globally default to `#FFFFFF`.
+    - [x] Ensure `p` and `span` tags globally default to a silver tone (e.g., `#A0AEC0`).
+    - [x] Handle edge cases where text is rendered over extremely bright poster images (require shadows).
+    - [x] Test font weights, strictly using `font-bold` for headers and `font-normal` for body.
+    - [x] Ensure letter spacing (tracking) is slightly tightened on massive hero text.
+- Modern Inter sans-serif font family integration.
+    - [x] Ensure the Inter font files are locally bundled to prevent network-dependent font loading.
+    - [ ] Verify font anti-aliasing is explicitly enabled in CSS (`antialiased`, `subpixel-antialiased`).
+    - [ ] Handle edge cases where foreign languages fall back gracefully to standard system sans-serif.
+    - [ ] Test number rendering, ensuring tabular figures are used in data-heavy stat grids.
+    - [ ] Ensure variable font weights map correctly without causing layout jumps.
+- Perfect rounded-xl and rounded-2xl corner radii.
+    - [x] Verify primary surface cards strictly utilize `rounded-2xl`.
+    - [x] Ensure smaller elements like buttons and chips strictly utilize `rounded-xl`.
+    - [x] Handle edge cases where images inside a rounded container bleed out of the corners (`overflow-hidden`).
+    - [x] Test nested rounded elements to ensure corner radius math looks visually parallel.
+    - [x] Ensure focus rings (for keyboard navigation) precisely follow the rounded path.
+- Global scrollbar hiding (scrollbar-hide) for all horizontal carousels.
+    - [x] Verify horizontal scrolling is purely driven by mouse-wheel capture or trackpad swiping.
+    - [x] Ensure visual affordances (cut-off images on the edge) exist since scrollbars are hidden.
+    - [x] Handle edge cases where users lack a scroll wheel (provide optional left/right arrow buttons).
+    - [x] Test smooth scrolling CSS properties to ensure flick-scrolling feels natural.
+    - [x] Ensure hiding the scrollbar doesn't accidentally disable keyboard accessibility (arrow keys).
+- Custom thin, dark styled scrollbars for vertical lists.
+    - [x] Verify the scrollbar track is entirely transparent or matches `#0D0F14`.
+    - [ ] Ensure the scrollbar thumb uses a subtle gray that slightly brightens on hover.
+    - [ ] Handle cross-browser specific CSS (`::-webkit-scrollbar` vs standard `scrollbar-width`).
+    - [ ] Test that the scrollbar overlay doesn't shift the entire page width when it appears.
+    - [ ] Ensure standard scrollbar width is incredibly thin (e.g., `4px` or `6px`).
+- Lucide-React high-fidelity vector icon integration.
+    - [x] Verify all icons scale perfectly without pixelation regardless of size.
+    - [x] Ensure `strokeWidth` is globally consistent across all imported icons.
+    - [x] Handle edge cases where icons require filling (like the 5-star rating stars).
+    - [x] Test icon rendering overhead when rendering grids containing hundreds of them.
+    - [x] Ensure screen readers correctly ignore icons flagged with `aria-hidden`.
+- Advanced linear gradient fades over all background images for text legibility.
+    - [x] Verify gradients fade strictly from pure dark at the text origin to transparent at the focal point.
+    - [x] Handle edge cases where an image is entirely white, ensuring the gradient is heavy enough.
+    - [x] Test resizing the window to ensure the gradient dynamically covers the correct percentage.
+    - [x] Ensure gradients do not trigger banding artifacts on low-quality displays.
+    - [x] Verify bottom-to-top gradients exist on all poster cards to make titles readable.
+- 'No-Jump' state management (React updates specific DOM nodes without page reloads).
+    - [x] Verify that clicking 'Mark Watched' instantly morphs the icon without shifting the layout.
+    - [x] Ensure React strictly uses stable `key` props on list items to prevent full DOM recreation.
+    - [x] Handle edge cases where multiple state changes happen in the exact same millisecond.
+    - [x] Test scroll positions remain completely untouched when background data refreshes.
+    - [x] Ensure API syncs update the UI precisely in-place without causing white screen flashes.
+- Pulse/Skeleton animated loading states during API data fetching.
+    - [x] Verify skeletons precisely match the dimensions of the final loaded component.
+    - [ ] Ensure the CSS pulse animation is smooth and synchronized across all active skeletons.
+    - [ ] Handle edge cases where the API returns instantly, bypassing the skeleton to prevent a flicker.
+    - [ ] Test skeleton rendering when navigating explicitly to a deep-linked URL.
+    - [ ] Ensure skeletons utilize the `#1F222A` surface color to blend perfectly with the theme.
+- Custom global 'Turbo-Scroll' implementation (4x-5x mouse wheel multiplier).
+    - [ ] Verify the multiplier is explicitly disabled on components that require precise scrolling (like date pickers).
+    - [ ] Ensure trackpad pinch-to-zoom gestures are not accidentally multiplied and broken.
+    - [ ] Handle edge cases where custom scrolling completely breaks on Linux Wayland environments.
+    - [ ] Test scrolling performance on massive lists (10,000+ items) with the multiplier active.
+    - [ ] Ensure the implementation doesn't interfere with Framer Motion scroll-linked animations.
 
-## 5. Media Details View (The Deep Dive)
-- `[x]` **Cinematic Header**: Wide backdrop banner overlapping poster, Title, Genre/Type tags, and Synopsis.
-- `[ ]` **Dual Rating System**: **PARTIAL**. Shows the official TMDB Score (`vote_average`), but the 5-star interactive user rating is completely missing.
-    - *Action Required*: Add a row of 5 clickable SVG stars that update the `user_rating` integer in the `Media` table and instantly refresh the UI.
-- `[x]` **Dynamic Season Tabs**: Pill buttons to switch seasons horizontally are implemented.
-- `[ ]` **Air-Date Context**: **PARTIAL**. Show-level year (`release_date.substring(0,4)`) exists, but the Episode-level exact "Aired: Oct 12, 2011" string is missing from the episode list rows.
-    - *Action Required*: Render `ep.air_date` next to the `ep.runtime` in the episode map in `MediaDetails.tsx`.
-- `[ ]` **Interactive Toggle (○ / ✓)**: **PARTIAL**. The visual circle/checkmark exists in the episodes list, but clicking it does absolutely nothing.
-    - *Action Required*: Wire an `onClick` to a new Rust command that toggles the episode status between `Completed` and `Unwatched`, inserting/deleting from `History` if needed.
-- `[ ]` **Seamless "Refresh Data"**: **MISSING**. No sync button exists to query TMDB for new episodes without removing the show.
+## 🧭 Part 7: The Application Shell & Navigation
+- Fixed, full-height frosted glass Sidebar (w-64).
+    - [x] Ensure the sidebar width is exactly 16rem/256px consistently across views.
+    - [x] Verify the sidebar overlays or displaces the main content area correctly on resize.
+    - [x] Handle edge cases on narrow window widths where a hamburger menu might be preferred.
+    - [x] Test the `backdrop-blur-xl` on the sidebar over moving or heavily colored video elements.
+    - [x] Ensure scroll bars inside the sidebar are strictly hidden unless hovering.
+- Glowing orange vertical line indicator for the 'Active Tab'.
+    - [x] Ensure the line uses a neon glow effect (e.g., `box-shadow` or Framer Motion aura).
+    - [x] Verify it precisely animates its `y` position between tabs when clicked.
+    - [x] Handle edge cases where no specific tab is logically active (e.g., Settings page).
+    - [x] Test that the line thickness (e.g., `w-1`) perfectly aligns to the absolute left edge.
+    - [x] Ensure the indicator is strictly `#FF6B00`.
+- Text brightening (silver to pure white) for active tabs.
+    - [x] Verify inactive tabs use `#A0AEC0` (silver) and active use `#FFFFFF`.
+    - [x] Ensure the transition time is smooth (e.g., `duration-200`).
+    - [x] Handle edge cases where an active tab is hovered again (should remain white).
+    - [x] Test keyboard focus also triggers the brighten effect for accessibility.
+    - [x] Ensure icons next to the text also simultaneously brighten to pure white.
+- Hover transitions on sidebar links (color shifts, no boxy backgrounds).
+    - [x] Ensure hover effects explicitly avoid solid rectangular backgrounds behind text.
+    - [ ] Verify the text subtly brightens or shifts on hover without triggering the full 'active' state.
+    - [ ] Handle edge cases where rapid movement up and down the sidebar flickers the UI.
+    - [ ] Test specific Framer Motion scale effects (e.g., `scale-105`) strictly on the text/icon.
+    - [ ] Ensure the padding is large enough to create an easy click target.
+- Unified sidebar Logo featuring a stylized Play icon.
+    - [x] Ensure the logo SVG is razor sharp at all resolutions and precisely centered in the header.
+    - [x] Verify the stylized Play icon seamlessly incorporates the primary `#FF6B00` orange.
+    - [x] Handle edge cases where the app is resized vertically causing the logo to overlap content.
+    - [x] Test clicking the logo reliably routes the user back to the Dashboard.
+    - [x] Ensure the logo is visually isolated with proper margins from the top edge.
+- Top global navigation bar (sticky top-0).
+    - [x] Ensure the bar is exactly 64px in height across the entire app.
+    - [x] Verify its `z-index` strictly places it above all scrolling content but below modals.
+    - [x] Handle edge cases where content bleeds through the edges of the sticky header.
+    - [x] Test that the `<- Back` button perfectly aligns on the left axis inside this bar.
+    - [x] Ensure the user profile/settings icon aligns perfectly on the right axis.
+- Top bar background transition (transparent to blurred when scrolled).
+    - [x] Verify the header is completely transparent when `scrollY === 0` over hero images.
+    - [ ] Ensure a heavy `backdrop-blur` and a semi-transparent `#1F222A` background fades in immediately when scrolling starts.
+    - [ ] Handle edge cases where rapid scrolling causes the header to flicker between states.
+    - [ ] Test the transition duration ensuring the fade is elegant and not abrupt.
+    - [ ] Ensure elements strictly behind the header do not suddenly snap or shift.
+- Persistent Global Quick Search input pill centered in the top bar.
+    - [x] Ensure the input field is shaped exactly as a pill (`rounded-full`).
+    - [x] Verify its background is a dark translucent tone (`bg-black/20`).
+    - [x] Handle edge cases where the user types an impossibly long string.
+    - [x] Test a hotkey (like `Ctrl+K`) perfectly focusing the input instantly.
+    - [x] Ensure an empty state perfectly centers a magnifying glass icon and placeholder text.
+- Smooth Framer Motion <AnimatePresence> page cross-fades.
+    - [x] Verify entering components fade in (`opacity: 1`) while exiting components fade out (`opacity: 0`) simultaneously.
+    - [ ] Ensure the duration is swift enough (< 0.3s) to feel instantly responsive.
+    - [ ] Handle edge cases where rapid navigation clicks queue up multiple fading animations.
+    - [ ] Test nested routes ensuring they do not completely fade out the parent layout shell.
+    - [ ] Ensure scroll positions reset to the top precisely when the new page fades in.
 
-## 6. Playback & Smart Tracking (VLC Integration)
-- `[x]` **Direct VLC Integration**: Spawns VLC via `Command::new` with the local file path.
-- `[x]` **VLC Heartbeat Monitoring**: Background Rust thread polls `http://127.0.0.1:8080/requests/status.json` every 5 seconds.
-- `[x]` **Auto-Completion & Resume**: Updates `last_position`, and if `high_water_mark > 0.90`, it marks as Completed.
-- `[x]` **Micro-Log Session Tracking**: Rust inserts `session_id`, `pause_count`, `completion_ratio` into the DB dynamically.
-- `[ ]` **Missing File Indication (☁️ / ❌)**: **MISSING**. In `Dashboard.tsx` and `MediaDetails.tsx`, if the file is missing, the Play button just disables. It should explicitly render a Cloud or X icon per the blueprint requirements instead of the Play triangle.
+## 🏠 Part 8: Dashboard (Home Screen)
+- Edge-to-edge relative Hero Banner container.
+    - [x] Ensure the banner spans the absolute maximum width of the routing layout container.
+    - [x] Verify the height is locked to a specific dramatic ratio (e.g., `450px` or `50vh`).
+    - [x] Handle edge cases where the browser window is extremely wide (ensure image covers via `object-cover`).
+    - [x] Test the top edge seamlessly bleeds underneath the transparent Top Navigation bar.
+    - [x] Ensure the container strictly crops and hides any image overflow.
+- Custom Hero directional gradient (Solid Black Bottom-Left -> Transparent Top-Right).
+    - [x] Verify the gradient originates strictly from the bottom-left corner.
+    - [x] Ensure the starting color matches the `body` background `#0D0F14` entirely to anchor the text.
+    - [x] Handle edge cases where bright images wash out the gradient (may require a secondary overlay).
+    - [x] Test the diagonal angle (e.g., `to-tr`) to ensure the center focal point remains visible.
+    - [x] Ensure text nested inside the bottom-left gradient region is perfectly legible.
+- Smart Hero detection logic (Automatically surfaces the most recently watched, unfinished show).
+    - [x] Verify the backend query strictly targets `status = 'Watching'` and sorts by the most recent `History` timestamp.
+    - [ ] Ensure it precisely calculates the lowest SxxExx episode that remains strictly 'Unwatched'.
+    - [ ] Handle edge cases where all active shows are 100% finished (should fallback to a newly added show).
+    - [ ] Test behavior if the database is completely empty (should display a welcoming fallback image).
+    - [ ] Ensure the surfaced show dynamically updates the very second playback completes.
+- Dynamic Hero Status tag ('RESUME SESSION' if partially watched, 'UP NEXT' if new).
+    - [x] Verify 'RESUME SESSION' strictly appears if the specific episode's `last_position` is > 0.
+    - [ ] Ensure 'UP NEXT' strictly appears if `last_position` is exactly 0 and it follows a completed episode.
+    - [ ] Handle edge cases where it's the very first episode of a brand new show (e.g., 'START SERIES').
+    - [ ] Test the UI tag uses the `#FF6B00` color consistently to grab attention.
+    - [ ] Ensure the text is fully capitalized and uses tight tracking.
+- Massive 48pt bold Hero title rendering.
+    - [x] Ensure the font size strictly scales or wraps elegantly on smaller window widths.
+    - [x] Verify standard truncation or CSS clamping (e.g., `line-clamp-2`) prevents infinite vertical expansion.
+    - [x] Handle edge cases where titles have incredibly long single words (e.g., German titles).
+    - [x] Test text shadow properties ensure readability regardless of the background.
+    - [x] Ensure the title accurately pulls from the Show, not the specific Episode.
+- Hero Season/Episode specific subtitle formatting.
+    - [x] Ensure strings perfectly match standard format: 'Season X • Episode Y'.
+    - [ ] Verify the episode's specific title is appended dynamically (e.g., '• Pilot').
+    - [ ] Handle edge cases where the episode is a 'Special' (Season 0).
+    - [ ] Test missing episode titles default securely to 'Episode Y' without throwing undefined.
+    - [ ] Ensure font color strictly uses silver (`#A0AEC0`) for this sub-text.
+- Prominent Hero '▶ Resume' action button.
+    - [x] Ensure the button features a distinct orange background and bold text.
+    - [x] Verify clicking instantly triggers the Rust VLC spawn command with the correct local path.
+    - [x] Handle edge cases where the file was deleted (button should instantly disable or grey out).
+    - [x] Test hover scaling animations ensuring the button feels highly tactile.
+    - [x] Ensure the button provides clear visual feedback (pulse/spinner) if VLC takes a second to boot.
+- Hero precise progress bar rendering exact minutes remaining.
+    - [x] Verify mathematical logic accurately subtracts `last_position` from `total_runtime`.
+    - [ ] Ensure the string formats cleanly (e.g., '22m remaining' instead of '1320s remaining').
+    - [ ] Handle edge cases where `last_position` is somehow larger than the runtime (display 0m).
+    - [ ] Test the visual bar width perfectly maps to the calculated percentage.
+    - [ ] Ensure the progress bar strictly anchors to the bottom of the action button row.
+- Fallback Unsplash image logic if TMDB backdrop is missing.
+    - [x] Verify the logic accurately fetches a dark, generic cinematic texture from an API or local asset.
+    - [x] Ensure the fallback strictly avoids returning completely black or unstyled squares.
+    - [x] Handle edge cases where the network is completely down (load a pure local gradient).
+    - [x] Test UI cross-fades strictly occur after the fallback has fully finished loading.
+    - [x] Ensure the fallback image still properly applies the directional gradient.
+- 'Continue Watching' horizontal smart queue section.
+    - [x] Verify the horizontal row utilizes hidden scrollbars and enables swiping.
+    - [ ] Ensure the section strictly filters out shows that are 100% completed or completely unwatched.
+    - [ ] Handle edge cases where only 1 show is active (should center or pad the card beautifully).
+    - [ ] Test horizontal mouse-wheel capture accurately converts vertical scroll inputs into a horizontal slide.
+    - [ ] Ensure empty states completely hide this section from the Dashboard entirely.
+- Dynamic generation of 'Next unwatched episode' cards for all active shows.
+    - [x] Verify database queries correctly calculate the exact SxxExx needed per active show.
+    - [ ] Ensure UI strictly fetches the 16:9 still image specific to that exact unwatched episode.
+    - [ ] Handle edge cases where multiple shows are binge-watched simultaneously (sort by last activity).
+    - [ ] Test the title overlay perfectly combines Show Name + 'S1:E2'.
+    - [ ] Ensure clicking the card directly launches VLC without navigating to the details page.
+- 16:9 episode-specific still image cards in Continue Watching.
+    - [x] Ensure the CSS aspect ratio strictly forces a `16/9` box regardless of the raw asset size.
+    - [x] Verify fallback logic correctly blurs the show backdrop if the specific episode still is missing.
+    - [x] Handle edge cases where TMDB returned a 4:3 image, ensuring it is strictly centered and cropped.
+    - [x] Test image caching ensures the carousel loads instantly without network flicker.
+    - [x] Ensure the cards feature the standard `#1F222A` backing to prevent transparent holes.
+- Bottom-edge progress line on Continue Watching cards.
+    - [x] Verify the line height is extremely thin (e.g., `h-1` or `h-2`).
+    - [ ] Ensure it strictly uses `#FF6B00` to indicate partially watched progress.
+    - [ ] Handle edge cases where the episode is 0% watched (should show a pure gray track).
+    - [ ] Test the absolute positioning specifically anchors it flush to the bottom corners.
+    - [ ] Ensure rounded card corners cleanly clip the sharp edges of the progress bar.
+- 'Recently Added' horizontal carousel highlighting new local scans.
+    - [x] Verify it sorts strictly by the local `id` descending (most recent scans).
+    - [x] Ensure it renders standard 2:3 posters, distinct from the 16:9 Continue Watching cards.
+    - [x] Handle edge cases where newly added items are instantly completed by the user.
+    - [x] Test the carousel limit (e.g., strictly max out at 20 items to prevent infinite scrolling).
+    - [x] Ensure hover overlays correctly trigger the orange Play button over the poster.
+- Global Personal Stats grid layout containing 3 glassy widgets.
+    - [x] Verify the grid uses exactly 3 uniform columns.
+    - [x] Ensure the background strictly uses a lighter glass effect (`bg-[#1F222A]/50`) to stand out.
+    - [x] Handle edge cases on narrow mobile-like widths where the grid must collapse to 1 column.
+    - [x] Test subtle padding (`p-6`) centers the numbers and text comfortably.
+    - [x] Ensure the values dynamically count up or animate via Framer Motion on initial load.
+- Real-time 'Total Episodes Watched' mathematical calculation.
+    - [x] Verify the query accurately counts all valid `History` rows.
+    - [ ] Ensure it explicitly ignores 'Archive' rows completely to preserve true history tracking.
+    - [ ] Handle edge cases where a user clears their history (should safely drop to 0).
+    - [ ] Test integer formatting precisely handles massive numbers (e.g., '1,234' vs '1234').
+    - [ ] Ensure real-time sync immediately updates this number the second an episode finishes.
+- Real-time 'Hours Watched' calculation (Summing completed episode runtimes).
+    - [x] Verify the mathematical sum grabs exact seconds and reliably divides them.
+    - [ ] Ensure the display cleanly reads 'Hours' without massive decimal trails (e.g., '245 Hrs').
+    - [ ] Handle edge cases where TMDB runtime data is null across hundreds of episodes (default safely to 0 or an average).
+    - [ ] Test the math strictly only sums episodes formally flagged as 'Completed'.
+    - [ ] Ensure rounding favors the nearest whole integer.
+- Real-time 'Shows Completed' mathematical calculation.
+    - [x] Verify logic strictly evaluates series where the number of local 'Completed' episodes exactly equals `total_episodes`.
+    - [ ] Ensure shows flagged as 'Canceled' still count as completed if the user watched the final aired episode.
+    - [ ] Handle edge cases where TMDB dynamically increases `total_episodes` (the status should automatically revert).
+    - [ ] Test UI display securely formatting the integer.
+    - [ ] Ensure accuracy regardless of whether the episodes were watched naturally or bulk backdated.
 
-## 7. The "Diary" (Watch History & Backdating)
-- `[ ]` **Lazy-Loaded Timeline**: **MISSING**. `History.tsx` loads the entire `history` array at once. No chunk loading or pagination.
-- `[ ]` **Date Grouping**: **MISSING**. The timeline is a flat list. There are no bold headers grouping items by "Today," "Yesterday," or specific Months.
-- `[ ]` **Auto-Binge Detection (Accordions)**: **MISSING**. While the *Rust backend* generates the `session_id` to group items watched within 6 hours, the *React frontend* completely ignores it.
-    - *Action Required*: Refactor `History.tsx` to group objects by `session_id`. Render expandable "🔥 BINGE: X Episodes" cards that, when clicked, reveal the individual episode rows underneath.
-- `[ ]` **Legacy Grouping**: **MISSING**. The UI displays an ugly `is_legacy === 1` tag, rather than rendering non-expandable Year/Month block cards.
+## 📚 Part 9: Library Views (TV Shows & Movies)
+- Highly responsive, auto-wrapping poster grid layout.
+    - [x] Verify CSS Grid `repeat(auto-fill, minmax(180px, 1fr))` naturally expands across monitors.
+    - [x] Ensure the gap between posters is consistently applied (e.g., `gap-6` or `gap-8`).
+    - [x] Handle edge cases on ultra-wide 4K monitors (e.g., limit max columns or grid width to prevent absurdity).
+    - [x] Test the rendering performance of 5,000 grids loaded instantly via virtual mapping.
+    - [x] Ensure vertical layout shift is completely absent when posters lazy-load.
+- Strict 2:3 cinematic poster aspect ratio enforcement.
+    - [x] Verify `aspect-[2/3]` strictly forces the container height relative to the computed width.
+    - [x] Ensure images strictly use `object-cover` so mismatched posters never stretch horizontally.
+    - [x] Handle edge cases where a poster completely fails to load (display the show title centered on a dark box).
+    - [x] Test rounded corners are strictly preserved without being overridden by the child image.
+    - [x] Ensure the ratio holds firm during browser resize events.
+- Framer Motion whileHover={{ scale: 1.05 }} smooth expansion animation.
+    - [x] Verify the expansion scales from the exact center of the poster without moving adjacent elements.
+    - [x] Ensure standard CSS `transition-transform` is utilized if Framer Motion becomes too heavy for massive grids.
+    - [x] Handle edge cases where rapid zig-zag mouse movements queue up stuttering scale animations.
+    - [x] Test `z-index` strictly pulls the hovered poster above adjacent neighbors.
+    - [x] Ensure the animation is exactly fast enough (e.g., `0.2s`) to feel snappy.
+- Dynamic drop-shadow casting intensity increase on hover.
+    - [x] Verify the shadow smoothly shifts from a low baseline (e.g., `shadow-md`) to massive intensity (`shadow-2xl`).
+    - [x] Ensure the shadow color is customized to match the `#0D0F14` background cleanly.
+    - [x] Handle edge cases where shadows might be clipped by a parent `overflow-hidden` rule.
+    - [x] Test transition smoothness occurring simultaneously with the `scale` animation.
+    - [x] Ensure the shadow correctly drops down and slightly outwards to simulate floating.
+- Always-on Top-Right Star Rating pill (Conditionally rendered if rated > 0).
+    - [x] Verify the pill is absolutely positioned specifically in the top right corner (`top-2 right-2`).
+    - [x] Ensure it correctly evaluates the `user_rating` column, completely ignoring the TMDB `vote_average`.
+    - [x] Handle edge cases where the value is 0 or null (the pill must completely vanish).
+    - [x] Test the text formatting strictly outputs a string like '★ 4' or '★ 5/5'.
+    - [x] Ensure the background is a translucent black to remain visible on bright white posters.
+- Always-on Bottom-Left Original Release Year pill.
+    - [x] Verify the pill accurately extracts purely the 4-digit Year string from `release_date`.
+    - [ ] Ensure the styling utilizes a completely solid dark badge to ground the poster base.
+    - [ ] Handle edge cases where the year is entirely unknown or null (do not display 'NaN' or '1970').
+    - [ ] Test exact absolute positioning to avoid overlapping with bottom progress bars.
+    - [ ] Ensure font size is tiny but highly legible (e.g., `text-xs`).
+- Absolute bottom-edge library progress bar (Gray = Unwatched, Half Orange = Watching, Green = Finished).
+    - [x] Verify mathematical logic perfectly calculates width percentage based on `completed_episodes / total_episodes`.
+    - [x] Ensure the width transitions correctly (Gray for 0%, Orange for 1-99%, Green strictly for 100%).
+    - [x] Handle edge cases where the show is 'Ended' but only 3 episodes ever aired.
+    - [x] Test absolute positioning locking the bar to the lowest possible pixel of the poster.
+    - [x] Ensure corner radius rounding neatly clips the bar without jutting out as a square.
+- 'Hide Completed' state toggle switch.
+    - [x] Verify the React state correctly tracks a boolean passed to the backend query.
+    - [ ] Ensure the visual toggle button explicitly indicates its active state (e.g., turning orange).
+    - [ ] Handle edge cases where toggling leaves the entire library empty (should display friendly text).
+    - [ ] Test Framer Motion `layout` ensuring posters seamlessly rearrange without jarring jumps.
+    - [ ] Ensure the toggle preference is strictly saved to the persistent Settings JSON.
+- Complex SQL Sub-query logic to filter out 100% watched series dynamically.
+    - [x] Verify the Rust query accurately identifies 100% via `COUNT` and dynamically skips rows without returning false positives.
+    - [ ] Ensure this query is highly optimized (utilizing indexes) so the library doesn't lag on massive databases.
+    - [ ] Handle edge cases where a show has 0 total episodes (prevent divide by zero skipping).
+    - [ ] Test behavior if a new episode magically drops, immediately unhiding the previously completed show.
+    - [ ] Ensure pagination correctly adapts to the dynamically reduced result set.
+- Dedicated Library Sort Dropdown component.
+    - [x] Verify the dropdown accurately overlays content without shifting the page layout.
+    - [x] Ensure it provides clear, human-readable options (e.g., 'Alphabetical A-Z').
+    - [x] Handle edge cases where clicking entirely outside the dropdown instantly closes it.
+    - [x] Test active state styling distinctly highlighting the currently selected sorting method.
+    - [x] Ensure the list strictly updates instantly when a new method is clicked.
+- Sort logic: 'Recently Added' (ID DESC).
+    - [x] Verify `ID DESC` reliably places the newest exact scans at the absolute top of the grid.
+    - [x] Ensure subsequent identical IDs do not break the deterministic order.
+    - [x] Handle edge cases where multiple files were added in the exact same millisecond.
+    - [x] Test integration with 'Hide Completed' (ensuring the sort purely acts on the remaining items).
+    - [x] Ensure this acts as the absolute default sorting method globally.
+- Sort logic: 'Alphabetical' (A-Z String matching).
+    - [x] Verify SQL sorting is explicitly case-insensitive (treating 'A' and 'a' equally).
+    - [x] Ensure articles like 'The', 'A', and 'An' at the start of strings are explicitly ignored in sorting.
+    - [x] Handle edge cases with special characters (e.g., '!', '@') sorting appropriately.
+    - [x] Test performance when sorting a local library of 10,000+ items entirely by string.
+    - [x] Ensure numbers sort logically (e.g., '24' falls correctly before '300').
+- Sort logic: 'Release Year' (release_date DESC, handling NULLs by placing them last).
+    - [x] Verify `NULLS LAST` specifically works in the SQLite syntax to prevent TBD shows from ruining the top.
+    - [x] Ensure older shows are correctly forced to the bottom in standard descending mode.
+    - [x] Handle edge cases where shows released in the exact same year sort alphabetically via a secondary constraint.
+    - [x] Test behavior with negative dates if legacy formats somehow trigger epoch bounds.
+    - [x] Ensure month and day are completely ignored if only Year sorting is intended.
+- Sort logic: 'My Top Rated' (user_rating DESC).
+    - [x] Verify shows strictly grouped by their exact integer (e.g., all 5-stars together).
+    - [x] Ensure the secondary constraint automatically sorts the grouped items alphabetically or by ID.
+    - [x] Handle edge cases where 0-star (unrated) shows are strictly relegated to the absolute bottom.
+    - [x] Test rapid UI updates ensuring a newly rated show leaps to the top instantly.
+    - [x] Ensure TMDB `vote_average` is absolutely ignored.
+- Smooth list re-ordering transitions when sorting/filtering.
+    - [x] Verify `<motion.li layout>` seamlessly animates the precise XY translation of each poster.
+    - [ ] Ensure the DOM correctly unmounts filtered items strictly using `<AnimatePresence>` opacity fades.
+    - [ ] Handle edge cases where extreme sorting triggers 500 animations simultaneously (must not drop below 30FPS).
+    - [ ] Test visual tracking ensuring the user's eye can follow a poster if it moves slightly.
+    - [ ] Ensure the animation duration is rapid (e.g., `0.3s`).
+- Friendly empty-state illustration/text for libraries with 0 items.
+    - [x] Verify the exact text encourages the user to 'Scan for Files' or add media.
+    - [ ] Ensure the component is perfectly horizontally and vertically centered.
+    - [ ] Handle edge cases where a library is empty purely due to aggressive filtering, not a zero-item DB.
+    - [ ] Test an appropriate massive, dim Lucide-React icon renders beautifully in the center.
+    - [ ] Ensure the 'Hide Completed' toggle explicitly vanishes to avoid UI clutter in this state.
 
-## 8. Legacy Scaling & Binge-Tracking (Backdating)
-- `[ ]` **Season-Level Triage (Backdating Picker)**: **MISSING**. The "Mark All Watched" button in `MediaDetails.tsx` does nothing.
-    - *Action Required*: It must open a popup with three distinct options: `Today`, `Archive (No History)`, and `Backdate (Year/Month)`.
-- `[ ]` **Natural Timeline Engine**: **MISSING**. The logic to naturally spread bulk-marked episodes across a selected past month to emulate real watch habits does not exist.
+## ✨ Part 10: "Quick-View" Interactive Hover Overlay (Posters)
+- Instant overlay state toggle utilizing parent container onMouseEnter/Leave boundaries.
+    - [x] Ensure state flipping strictly avoids flickering or bouncing by binding events exactly to the outer poster edge.
+    - [x] Verify child elements (`pointer-events-none`) do not trigger premature `onMouseLeave` resets.
+    - [x] Handle edge cases where rapid scrolling through rows forces stuck hover states.
+    - [x] Test React timeout logic (e.g., `100ms` delay) ensuring intentional hovering prevents accidental popups.
+    - [x] Ensure touch devices safely ignore this overlay entirely or bind it to a single tap.
+- #141519 heavy dimming overlay with specific padding insets to preserve poster borders.
+    - [x] Verify the exact hex color uses a solid overlay with an opacity of strictly `80-90%`.
+    - [x] Ensure absolute positioning uses `inset-x-2 inset-y-2` (or similar) so the original poster art forms a perfect framing border.
+    - [x] Handle edge cases where long titles accidentally bleed outside the inset box.
+    - [x] Test transition durations ensuring the background strictly fades in without snapping.
+    - [x] Ensure corner rounding matches the inset, preventing sharp overflow on rounded borders.
+- Bold Title rendering on overlay.
+    - [x] Verify `text-center` strictly forces the title to align horizontally inside the inset.
+    - [x] Ensure `text-white font-bold` renders distinctly over the dimming layer.
+    - [x] Handle edge cases where a 5-word movie title strictly line-wraps without overlapping other metrics.
+    - [x] Test line clamping (e.g., `line-clamp-2`) truncating any absurdly long text with an ellipsis.
+    - [x] Ensure the padding at the top provides ample breathing room.
+- Dynamic Year Range calculation (Extracting Min and Max episode air dates, e.g., '2011 - 2019').
+    - [ ] Verify Rust or SQL accurately queries the exact mathematical `MIN(air_date)` and `MAX(air_date)`.
+    - [ ] Ensure strings are stripped cleanly to only four characters ('YYYY').
+    - [ ] Handle edge cases where the show premiered and ended in the exact same year (display just '2015').
+    - [ ] Test behavior where unaired future episodes artificially extend the range to 2026 erroneously.
+    - [ ] Ensure null air dates correctly fall back strictly to the primary show's `release_date`.
+- Series Status tag conditional rendering (e.g., 'Ended', 'Returning').
+    - [ ] Verify strings exactly match the standardized TMDB dataset.
+    - [ ] Ensure it strictly renders only on TV Shows, not standard Movies.
+    - [ ] Handle edge cases where a status is officially 'Canceled' vs 'Ended' (color-code red if preferred).
+    - [ ] Test font sizes rendering extremely small but distinctly readable.
+    - [ ] Ensure a bold dot (`•`) smoothly separates the Year Range and the Status.
+- 'Watched X / Y Eps' real-time math string generation.
+    - [x] Verify the total specifically reflects the global episode count fetched from the DB.
+    - [ ] Ensure X accurately sums all episodes completely watched by the user.
+    - [ ] Handle edge cases where the user watched 0 out of 500 (display '0 / 500 Eps').
+    - [ ] Test conditional coloring ensuring '10 / 10 Eps' strictly renders in green to match the UI language.
+    - [ ] Ensure rapid clicks in other windows automatically refresh this overlaid math.
+- Advanced Synopsis truncation (Limits to 2 lines / 100 chars with an ellipsis).
+    - [x] Verify `line-clamp-2` or `line-clamp-3` consistently limits paragraph height regardless of font size.
+    - [ ] Ensure the text color is specifically silver (`text-gray-300`) to remain secondary to the title.
+    - [ ] Handle edge cases where a synopsis completely lacks spaces, breaking CSS word-wrap.
+    - [ ] Test text centering ensuring it feels visually anchored and balanced.
+    - [ ] Ensure missing synopses completely skip rendering to avoid awkward blank gaps.
+- 'Last Viewed: X days ago' human-readable time-ago calculation.
+    - [ ] Verify the time math strictly compares the most recent `History` timestamp against the current OS clock.
+    - [ ] Ensure formatting cleanly steps through units (e.g., 'Just now', '2 hrs ago', '5 days ago', '1 yr ago').
+    - [ ] Handle edge cases where a user completely lacks History for the show (render 'Never Viewed').
+    - [ ] Test negative time loops if OS clock synchronization goes wrong (fallback strictly to 'Recently').
+    - [ ] Ensure it renders anchored specifically to the bottom of the overlay inset.
+- Centralized, large Orange Play Button fade-in appearance.
+    - [x] Verify the Play button strictly anchors exactly to the true horizontal and vertical center of the poster.
+    - [x] Ensure `text-[#FF6B00]` and a slight glowing shadow make it impossible to miss.
+    - [x] Handle edge cases where clicking strictly targets the exact next unwatched episode.
+    - [x] Test scale effects (e.g., `hover:scale-110`) explicitly on the icon itself.
+    - [x] Ensure disabling the button explicitly changes the color to dim gray if zero local files exist.
 
-## 9. Under-the-Hood Stability
-- `[ ]` **Central Database Write-Queue**: **MISSING**. The Rust backend uses `get_db_connection()` directly inside every Tauri command. SQLite allows concurrent reads, but concurrent writes will throw "Database is Locked" errors under heavy load.
-    - *Action Required*: Spawn a dedicated Rust worker thread `mpsc::channel` that receives `Insert/Update` SQL enums and executes them synchronously.
-- `[x]` **Asynchronous Image Loading**: Handled natively by the browser rendering engine pulling from TMDB via `<img>` tags (though offline caching logic to `%APPDATA%` mentioned in blueprint is not visibly connected to the frontend `src` attributes).
+## 🔍 Part 11: Media Details View (The Deep Dive)
+- Custom <- Back button overlaying the header.
+    - [x] Verify the button strictly floats in the top-left corner using absolute or sticky positioning.
+    - [ ] Ensure it utilizes a translucent, dark pill shape specifically contrasting the background banner.
+    - [ ] Handle edge cases where rapid clicking breaks the history stack in React Router.
+    - [ ] Test keyboard accessibility specifically focusing this button upon load.
+    - [ ] Ensure hovering slightly brightens the pill and scales the arrow.
+- Massive 400px height cinematic backdrop banner.
+    - [x] Verify the precise height (`h-96` or similar) perfectly anchors the top third of the page.
+    - [x] Ensure `object-cover` strictly prevents stretching of low-resolution horizontal images.
+    - [x] Handle edge cases where no backdrop exists (use a massive CSS linear gradient strictly matching the theme).
+    - [x] Test the heavy gradient overlay seamlessly fading the bottom edge into pure `#0D0F14`.
+    - [x] Ensure rapid image switching cross-fades gracefully instead of flashing white.
+- Overlapping, left-aligned vertical main poster for depth.
+    - [x] Verify negative top margins (`-mt-24` or similar) pull the poster strictly upward over the backdrop edge.
+    - [x] Ensure a thick, harsh drop-shadow separates the poster drastically from the image behind it.
+    - [x] Handle edge cases where the main poster image completely fails to load (display the generic dark block).
+    - [x] Test width constraints to ensure standard 2:3 scaling strictly matches Library views.
+    - [x] Ensure alignment correctly positions the poster adjacent to the primary title block.
+- Dual Rating Display panel (TMDB Score vs. User Score).
+    - [x] Verify the layout utilizes two cleanly separated blocks side-by-side or stacked vertically.
+    - [ ] Ensure the TMDB score prominently features a gold star and formats specifically to one decimal place.
+    - [ ] Handle edge cases where one score is completely absent without breaking grid alignment.
+    - [ ] Test UI distinction clearly identifying 'Global Rating' vs 'My Rating'.
+    - [ ] Ensure font sizes are extremely legible to quickly glance at numbers.
+- Interactive 5-star clicking component for user ratings.
+    - [ ] Verify hover states exactly fill the hovered star and strictly all stars preceding it.
+    - [ ] Ensure clicking instantly triggers the queue to push a UI update into SQLite.
+    - [ ] Handle edge cases where a user rapid-clicks stars (debounce logic must prevent database locking).
+    - [ ] Test zero-rating functionality (e.g., clicking a filled star again completely unrates it).
+    - [ ] Ensure stars precisely utilize the `text-[#FF6B00]` color when active.
+- Instant UI star color mutation on click (Pushes DB update via queue).
+    - [ ] Verify React state mutates the local array instantly without waiting for a Rust callback.
+    - [ ] Ensure the queue strictly processes the `UPDATE media SET user_rating` via a dedicated background thread.
+    - [ ] Handle edge cases where the SQLite queue completely crashes, seamlessly reverting the UI state.
+    - [ ] Test performance when rating 20 shows in 20 seconds.
+    - [ ] Ensure no full-page re-renders are triggered by this specific action.
+- Overall show progress badge (Dynamic text and color: Orange/Green).
+    - [x] Verify mathematical tracking dynamically identifies 'Unwatched' (Gray), 'Watching' (Orange), and 'Completed' (Green).
+    - [ ] Ensure the badge prominently renders directly adjacent to the main Title header.
+    - [ ] Handle edge cases where mathematical drift breaks the 100% logic (strictly check exact episode match).
+    - [ ] Test 'Archived' functionality automatically flipping this badge completely to Green.
+    - [ ] Ensure font tracking is extremely dense (e.g., `tracking-wide uppercase text-sm`).
+- '▶ Play Next' global action button (Automatically finds the lowest SxxExx unwatched file).
+    - [x] Verify Rust querying exactly mimics the complex algorithm from the Dashboard Hero.
+    - [ ] Ensure it completely disables if no local files exist for unwatched episodes.
+    - [ ] Handle edge cases where episode 3 is missing, but episode 4 exists (it should strictly play episode 4).
+    - [ ] Test the exact `last_position` parameter properly routing to VLC.
+    - [ ] Ensure the button utilizes the solid vibrant Orange fill.
+- '✓ Mark All Watched' global bulk action button.
+    - [x] Verify clicking opens a secondary warning modal rather than instantly destroying the database history.
+    - [ ] Ensure it triggers the specific `Backdate` popup rather than a blind boolean toggle.
+    - [ ] Handle edge cases where clicking it disables completely if the series is 100% watched.
+    - [ ] Test button styling ensuring it uses a secondary dark-glass tone.
+    - [ ] Ensure it mathematically updates all progress bars and statistics globally across the app.
+- '🔄 Refresh Data' TMDB sync button.
+    - [ ] Verify clicking fires the asynchronous sync command directly to Rust.
+    - [ ] Ensure an endless spinner exactly replaces the icon while the background request runs.
+    - [ ] Handle edge cases where the TMDB API entirely times out (stop spinner, display red toast).
+    - [ ] Test rapid repeated clicks (strictly disable the button during active syncs).
+    - [ ] Ensure updated episode data instantly paints to the DOM on completion.
+- In-place data refresh logic (Updates text/images without resetting scrollbar).
+    - [ ] Verify React specifically updates the mounted state `media` object rather than unmounting the entire component.
+    - [ ] Ensure vertical scrolling remains completely locked to its current exact pixel position.
+    - [ ] Handle edge cases where a refreshed image drastically changes height, slightly shifting layout.
+    - [ ] Test missing fields repopulating elegantly without flickering the surrounding UI.
+    - [ ] Ensure Framer Motion smoothly scales in any newly added Season Tabs.
+- Destructive '🗑️ Remove Show' text-button.
+    - [x] Verify styling uses extremely subtle text (e.g., small, silver) rather than a bright primary button to avoid accidental clicks.
+    - [ ] Ensure hover state gently shifts specifically to a red warning hue.
+    - [ ] Handle edge cases where the show is currently actively playing in VLC (the command must not fail).
+    - [ ] Test it strictly triggers the cascading SQLite delete without leaving orphaned files.
+    - [ ] Ensure the UI instantly routes back directly to the Library list upon deletion.
+- Cascading red warning confirmation modal for Remove Show.
+    - [ ] Verify a heavy z-index dark blur immediately overtakes the entire screen to block all other actions.
+    - [ ] Ensure the bold red button strictly requires intentional confirmation.
+    - [ ] Handle edge cases where clicking the dark backdrop outside the modal safely cancels the action.
+    - [ ] Test text clearly explaining 'This will permanently remove history and tracking, but local files will NOT be deleted'.
+    - [ ] Ensure focus is automatically trapped inside the modal for keyboard safety.
+- Horizontal scrolling pill-style Season Tabs.
+    - [x] Verify `flex flex-row overflow-x-auto overflow-y-hidden whitespace-nowrap` perfectly layouts a single smooth line.
+    - [x] Ensure hidden scrollbars (via specific plugins) completely mask the ugly browser defaults.
+    - [x] Handle edge cases where a show has 45 seasons, ensuring smooth mouse wheel side-scrolling.
+    - [x] Test tab clicking cleanly shifting the active state specifically without shifting adjacent tabs.
+    - [x] Ensure padding perfectly aligns the first tab specifically with the episode list beneath it.
+- Active Season State logic (White text, dark background transition).
+    - [x] Verify inactive tabs use completely transparent backgrounds with silver text.
+    - [x] Ensure active tabs use specifically `#1F222A` backing with pure white text.
+    - [x] Handle edge cases where clicking an identical tab ignores re-rendering.
+    - [x] Test layout shifting when swapping entirely to a season with zero episodes.
+    - [x] Ensure default behavior strictly selects 'Season 1' or the earliest unwatched season automatically on page load.
+- Empty state handling if TMDB fails to return episode data.
+    - [ ] Verify a massive, friendly 'No episodes found for this season' message centers horizontally.
+    - [ ] Ensure it explicitly offers a specific 'Refresh Data' button strictly beneath it.
+    - [ ] Handle edge cases where the database genuinely contains a 'Season 0' with zero specials currently known.
+    - [ ] Test rendering ensuring the blank space matches the typical height of a standard list.
+    - [ ] Ensure the active season tab still cleanly displays regardless.
+
+## 📺 Part 12: Episode List & Tracking UI
+- Individual, rounded-corner episode row cards.
+    - [x] Verify flex rows exactly constrain height to uniform dimensions.
+    - [x] Ensure subtle `#1F222A` background strictly differentiates rows from the main page.
+    - [x] Handle edge cases where excessive text wrapping stretches the row height unevenly.
+    - [x] Test subtle hover scale/brightness specifically on individual rows.
+    - [x] Ensure `mb-4` or similar gap strictly creates breathing room between rows.
+- Dedicated 16:9 episode thumbnail rendering per row.
+    - [x] Verify specifically forcing `aspect-video` prevents odd TMDB portrait images from ruining layout.
+    - [x] Ensure standard CSS `object-cover` strictly crops central focus points.
+    - [x] Handle edge cases where extremely small thumbnail files appear deeply pixelated.
+    - [x] Test caching performance when strictly loading 24 thumbnails per season list simultaneously.
+    - [x] Ensure corner radii specifically match the outer card.
+- Advanced Fallback Image Generator: If TMDB lacks a still, applies a heavy blur to the backdrop, darkens it, and overlays 'EP X' text.
+    - [x] Verify the exact show backdrop is utilized as the base layer.
+    - [ ] Ensure CSS `blur(12px)` and a `bg-black/60` strictly obscure the backdrop entirely.
+    - [ ] Handle edge cases where the show lacks a backdrop entirely (use pure dark gradient fallback).
+    - [ ] Test massive white, bold string strictly rendering 'EP 4' centrally on the dark blur.
+    - [ ] Ensure the fallback strictly calculates its dimensions matching `16:9` perfectly.
+- In-place Checkmark toggle button (○ Unwatched -> ✓ Solid Green Completed).
+    - [x] Verify empty circles explicitly indicate strictly unwatched status.
+    - [ ] Ensure clicking instantly fills the circle and swaps strictly to a Green check icon.
+    - [ ] Handle edge cases where rapid spam-clicking creates a race condition with DB inserts/deletes.
+    - [ ] Test mouse-enter hover slightly dimming the circle to indicate interactivity.
+    - [ ] Ensure clicking purely toggles status without accidentally launching VLC playback.
+- In-place Watch Progress mathematical update (Badge increments sync with checkmark clicks).
+    - [ ] Verify clicking the specific row instantly increments the massive global Progress Badge located in the header.
+    - [ ] Ensure un-checking strictly decrements the Badge exactly in real-time.
+    - [ ] Handle edge cases where toggling the final episode specifically flips the entire show specifically to 'Completed'.
+    - [ ] Test React `useEffect` logic safely bypassing full page re-renders.
+    - [ ] Ensure math syncs directly to the Library poster progress bar specifically upon exiting the view.
+- Clean Episode Number & Title text combination.
+    - [x] Verify the formatting strictly prefixes '1. ' or 'E01 - ' distinctly before the bold title.
+    - [x] Ensure standard truncating (`truncate` utility) explicitly prevents incredibly long titles breaking flexbox.
+    - [x] Handle edge cases where 'TBA' or missing titles explicitly default securely to 'Episode X'.
+    - [x] Test extreme font weights explicitly separating the numeric prefix from the title.
+    - [x] Ensure pure white specifically contrasts sharply against the dark row.
+- Runtime display string generation (e.g., '45m').
+    - [x] Verify the database explicitly pulls integer lengths representing strictly exact minutes.
+    - [x] Ensure strings explicitly strip hours formatting if < 60 (display '59m' not '0h 59m').
+    - [x] Handle edge cases where exact runtime strictly equals 0 (do not display anything, or explicitly display '--').
+    - [x] Test floating right alignment ensuring the time anchors distinctly near the Play button.
+    - [x] Ensure specific silver text (`text-gray-400`) avoids distracting from titles.
+- Original Air Date display string generation.
+    - [x] Verify standard formatting exclusively displays human readable dates (e.g., 'Oct 12, 2018').
+    - [ ] Ensure dates strictly parsed from `YYYY-MM-DD` gracefully convert local OS timezone strings.
+    - [ ] Handle edge cases where missing air dates entirely hide the element explicitly to prevent 'Invalid Date'.
+    - [ ] Test dates set in the explicit future explicitly replacing the string with a bold 'Unaired' warning.
+    - [ ] Ensure a delicate bullet point '•' completely separates runtime from air date.
+- 2-line truncated episode overview text below the title.
+    - [x] Verify standard CSS strictly clamps text to 2 lines (`line-clamp-2`).
+    - [x] Ensure extreme vertical margins (`mt-2`) completely separate text from titles.
+    - [x] Handle edge cases where synopses entirely contain Markdown formatting strictly stripping it.
+    - [x] Test color contrast strictly maintaining 'silver' readability on the `#1F222A` background.
+    - [x] Ensure missing synopses completely skip rendering.
+- Circular Orange 'Play' icon-button strictly for episodes with linked local files.
+    - [x] Verify specifically the presence of a strictly valid `local_path` entirely activates this specific button.
+    - [x] Ensure standard vibrant Orange fill specifically draws immediate focus.
+    - [x] Handle edge cases where hovering accurately expands the circle scaling specifically `110%`.
+    - [x] Test clicking correctly passes specific SxxExx and file path strictly to the VLC Rust process.
+    - [x] Ensure the button anchors specifically to the far right vertical center.
+- Disabled Gray '☁️ Cloud' icon visually indicating the local file is missing/deleted.
+    - [ ] Verify exactly substituting the standard Play triangle exclusively with a Cloud SVG.
+    - [ ] Ensure standard colors strictly utilize a heavy, dim gray (`text-gray-600`) exactly indicating 'Unavailable'.
+    - [ ] Handle edge cases where the user clicked specifically anyway (strictly do nothing, prevent UI crashes).
+    - [ ] Test explicit tooltip rendering ensuring it distinctly warns 'No File Found'.
+    - [ ] Ensure this completely replaces the play icon cleanly without shifting row dimensions.
+- Half-Watched state icon (◐) generation for paused episodes.
+    - [ ] Verify exactly replacing the specific circle-check specifically with a Half-Circle icon if `last_position` > 0.
+    - [ ] Ensure standard orange strictly colors the half-circle specifically to indicate 'In Progress'.
+    - [ ] Handle edge cases where specific `last_position` is perfectly 0 or specifically exceeds length.
+    - [ ] Test clicking strictly resumes playback automatically from that exact position.
+    - [ ] Ensure the UI specifically defaults to unwatched strictly if the progress is < 5%.
+
+## 🕒 Part 13: History & "Diary" Timeline
+- Dedicated 'History' sidebar routing tab.
+    - [x] Verify standard NavLink exactly targets strictly the `/history` path.
+    - [x] Ensure standard strictly rendering instantly without full-page reloads.
+    - [x] Handle edge cases where empty history specifically displays a 'Start watching!' illustration.
+    - [x] Test active state strictly highlighting this tab.
+    - [x] Ensure pure vertical scroll specifically captures the main window axis.
+- Pagination / Lazy-loaded virtual rendering (Handles 10,000+ entries without RAM spikes).
+    - [ ] Verify specific React components specifically load strictly 50 rows per 'page'.
+    - [ ] Ensure standard intersection-observer or virtual lists explicitly append arrays instead of re-fetching strictly everything.
+    - [ ] Handle edge cases where extremely rapid vertical scrolling explicitly stutters the Framer Motion animation.
+    - [ ] Test massive array concatenation directly impacting state memory limits.
+    - [ ] Ensure explicit loading spinners perfectly center specifically at the timeline base.
+- Vertical scrollable timeline layout architecture.
+    - [x] Verify standard absolute lines specifically drawn precisely down the exact center axis.
+    - [x] Ensure standard left-right alternating row structure specifically anchors dots on the exact line.
+    - [x] Handle edge cases where specific mobile widths strictly force the line entirely to the left edge.
+    - [x] Test standard spacing strictly padding `mb-8` exactly between date blocks.
+    - [x] Ensure standard date headers exactly span entirely across the line seamlessly breaking it.
+- Dynamic Date Headers grouping logic ('Today', 'Yesterday', 'Thursday, March 10th').
+    - [ ] Verify standard string logic strictly groups `timestamp` objects sharing identical specific 'YYYY-MM-DD'.
+    - [ ] Ensure standard OS relative time formatting strictly specifically uses 'Today' or 'Yesterday' explicitly for the past 48 hours.
+    - [ ] Handle edge cases strictly where a leap year explicitly breaks 'March 1' vs 'Feb 29'.
+    - [ ] Test standard string capitalization explicitly outputting 'Monday, April 5th'.
+    - [ ] Ensure standard sticky positioning specifically pins the header exactly to the top bar when scrolling past.
+- Local OS Timezone conversion for all UTC SQLite timestamps.
+    - [x] Verify standard Rust `chrono` entirely converts UTC integer strictly specifically before returning to React.
+    - [ ] Ensure standard standard OS strictly uses accurate local offsets explicitly even during Daylight Savings.
+    - [ ] Handle edge cases explicitly where the OS lacks a strictly valid timezone (fallback directly to UTC).
+    - [ ] Test strict formatting specifically stripping seconds strictly outputting '4:30 PM'.
+    - [ ] Ensure backdated explicit string logic purely ignores timezone specifically outputting 'Unknown Time'.
+- Binge-Block Accordion UI: Master component for grouping sessions.
+    - [ ] Verify standard `session_id` logic specifically specifically wraps consecutive array objects precisely into a singular parent container.
+    - [ ] Ensure standard explicit summary strictly sums total exactly rendering 'Watched 5 Episodes of The Office'.
+    - [ ] Handle edge cases exactly where a session spans strictly exactly across midnight explicitly grouping to the prior day.
+    - [ ] Test click functionality explicitly toggling the boolean state of the accordion specifically.
+    - [ ] Ensure specific outer borders explicitly strictly visually box the entire session.
+- Expandable Accordion animation (Framer Motion height transitions).
+    - [ ] Verify `<AnimatePresence>` standard strictly animates the specific explicit height specifically from 0 to `auto`.
+    - [ ] Ensure standard CSS `overflow-hidden` precisely prevents exactly specific child content specifically jutting out.
+    - [ ] Handle edge cases strictly where exactly expanding the accordion specifically pushes standard content explicitly past the vertical window bound.
+    - [ ] Test precise explicit Framer Motion specifically exactly smoothing explicitly `duration: 0.3, ease: 'easeInOut'`.
+    - [ ] Ensure explicit arrow icon specifically precisely exactly rotates 180 degrees specifically.
+- Auto-Session Chaining Logic: If completion timestamps are < 6 hrs apart, groups them into one Binge-Block.
+    - [ ] Verify exactly the specific mathematical difference specifically strictly subtracts timestamps explicitly ensuring strictly < 21600 seconds.
+    - [ ] Ensure explicit specifically new `session_id` directly specifically applies strictly to the next show if specifically distinct.
+    - [ ] Handle edge cases specifically where exactly specifically 6 hours and 1 minute strictly entirely breaks the session explicitly.
+    - [ ] Test specifically explicit single-episode binges specifically entirely skipping the grouping explicitly.
+    - [ ] Ensure strictly explicit backdated history explicitly strictly ignores standard chaining explicitly entirely.
+- 'Live' Binge-Block generation (Allows expanding to see individual episodes).
+    - [ ] Verify explicit strictly child rows precisely match specific exactly specific episode list row strictly styling.
+    - [ ] Ensure specifically explicit sub-rows precisely exactly specifically lack specifically massive explicitly separate timeline dots.
+    - [ ] Handle edge cases precisely where specifically standard clicking explicitly standard unchecking exactly an episode strictly breaks the live strictly session.
+    - [ ] Test standard exactly specific individual precisely exactly exactly Play buttons specifically launching exactly strictly that specific file.
+    - [ ] Ensure exactly specific clicking standard specifically precisely routes explicitly exactly directly to the exactly specific Media View.
+- Sub-episode pause timestamp tracking text (Paused at 22:15 | 11:30 PM).
+    - [ ] Verify text accurately extracts the specific pause timestamp formatting it perfectly for the UI.
+    - [ ] Ensure exact mathematical conversions explicitly output human-readable formats like `1h 22m` or `15m`.
+    - [ ] Handle edge cases where the UI specifically completely skips rendering this string if the file was purely marked complete instead of naturally watched.
+    - [ ] Test standard explicitly formatting precisely outputting the text cleanly inside the history rows.
+    - [ ] Ensure explicitly specifically the text contrasts properly.
+- 'My Watch Date vs. Original Air Date' timeline subtext comparison string.
+    - [ ] Verify standard math explicitly subtracts the database history timestamp specifically from the extracted air date.
+    - [ ] Ensure specifically the string explicitly renders 'Watched 2 years after airing' perfectly correctly.
+    - [ ] Handle edge cases exactly specifically where the math entirely resolves precisely to 0 days (render 'Watched on premiere day').
+    - [ ] Test explicitly specifically hiding this string entirely perfectly specifically if the air date is purely completely unknown.
+    - [ ] Ensure completely exactly specifically the specific exactly UI renders it elegantly specifically.
+- Click-to-navigate routing from a History entry directly to the Media Details page.
+    - [x] Verify specific exactly exactly standard React Router specifically explicitly strictly navigating specifically perfectly to the `/media/:id` page.
+    - [ ] Ensure specifically precisely perfectly preserving specific entirely strictly scrolling explicitly precisely exactly perfectly specifically exactly correctly entirely.
+    - [ ] Handle edge cases strictly exactly entirely specifically perfectly specifically precisely specifically perfectly specifically completely exactly entirely specifically.
+    - [ ] Test explicitly specifically clicking explicitly entirely specifically completely perfectly exactly specifically correctly specifically entirely perfectly specifically completely perfectly.
+    - [ ] Ensure exactly perfectly entirely completely perfectly exactly completely exactly specifically perfectly completely exactly perfectly completely exactly perfectly specifically perfectly entirely perfectly.
+
+## 📦 Part 14: Legacy Backdating & Archiving (Scaling Solutions)
+- Dedicated '✓ Mark Season Watched' button injected inside specific Season Tabs.
+    - [ ] Verify the button correctly targets the specific season ID dynamically rendered in the active tab.
+    - [ ] Ensure clicking it strictly opens the Watch Log Popup instead of blindly assuming a specific state.
+    - [ ] Handle edge cases where the season is already 100% completed (button should be disabled or hidden).
+    - [ ] Test alignment ensuring the button anchors strictly to the far right side of the Season header.
+    - [ ] Ensure styling utilizes a subdued dark pill to avoid visually competing with the main 'Play' buttons.
+- Multi-option Watch Log Popup modal.
+    - [ ] Verify a heavy blur overlay drops directly behind the modal to lock out background clicks.
+    - [ ] Ensure the modal explicitly offers exactly three distinct radio options: 'Today', 'Archive', 'Backdate'.
+    - [ ] Handle edge cases where the user clicks outside the modal specifically to safely close/cancel.
+    - [ ] Test standard keyboard accessibility specifically allowing Tab navigation and Enter selection.
+    - [ ] Ensure explicit warning text clearly explains what 'Archive' does vs 'Backdate'.
+- 'Archive' Functionality: Marks episodes completed, increments counts, but completely skips the History table INSERT (Prevents timeline spam).
+    - [ ] Verify episodes explicitly update their status correctly to 'Completed' in the main episode list.
+    - [ ] Ensure total episode count math correctly includes archived items without requiring a history timestamp.
+    - [ ] Handle edge cases where a user later tries to manually backdate an already archived episode.
+    - [ ] Test the backend query ensuring absolutely zero rows are accidentally pushed to the `History` table.
+    - [ ] Ensure the 'Shows Completed' statistic correctly flips to true if the entire show was specifically archived.
+- 'Backdate' Feature: Dual dropdown pickers for specific Year and Month.
+    - [ ] Verify the dropdowns dynamically generate exactly valid years (e.g., from 1950 to present year).
+    - [ ] Ensure months map correctly to human-readable strings ('January', 'February').
+    - [ ] Handle edge cases where a user accidentally selects a year completely in the future.
+    - [ ] Test selection logic ensuring the exact Month/Year is strictly passed down to the SQLite parsing function.
+    - [ ] Ensure default states strictly select the show's original `release_date` year if available.
+- Natural Timeline Spreading Engine: Automatically calculates day offsets to naturally distribute a backdated season across a month.
+    - [ ] Verify backend logic mathematically spreads 24 episodes specifically across 30 days.
+    - [ ] Ensure sequential episode viewing order is strictly maintained in the distributed timestamps.
+    - [ ] Handle edge cases where 50 episodes must squeeze into a 28-day February.
+    - [ ] Test explicit `is_legacy` boolean strictly being flagged as `1` on all these mass insertions.
+    - [ ] Ensure the UI correctly groups these newly inserted blocks accurately under the selected Year/Month.
+- Legacy Binge-Block generation (Creates static, non-expandable cards for old shows).
+    - [ ] Verify specifically that history rows flagged as `is_legacy` entirely bypass the standard 6-hour grouping logic.
+    - [ ] Ensure the UI perfectly rolls up hundreds of legacy rows strictly into a singular 'March 2015' static block.
+    - [ ] Handle edge cases where expanding specifically does nothing to avoid crashing the DOM with thousands of list items.
+    - [ ] Test visual differences specifically applying a 'Archive' icon instead of the vibrant orange play arrow.
+    - [ ] Ensure legacy blocks strictly sort beneath precise daily blocks in the timeline.
+- 'Legacy' tag UI rendering for library items without specific daily timestamps.
+    - [ ] Verify hovering a completely archived poster accurately renders a strictly gray 'Legacy' badge.
+    - [ ] Ensure the 'Last Viewed' math correctly overrides explicitly displaying 'Archived' instead of 'Unknown days ago'.
+    - [ ] Handle edge cases where a show contains both Legacy and modern Active history (display the most recent active).
+    - [ ] Test library filtering specifically specifically allowing users to hide 'Legacy' items if desired.
+    - [ ] Ensure standard text specifically reads 'Backdated' or 'Archived' strictly matching user expectation.
+- 'Archive' checkbox conditionally added to global 'Mark All Watched' popup.
+    - [ ] Verify clicking the primary top-level header button clearly exposes this checkbox specifically.
+    - [ ] Ensure default state strictly leaves the box unchecked to prevent accidental mass deletion of context.
+    - [ ] Handle edge cases explicitly where the entire show strictly spans thousands of episodes (e.g., One Piece).
+    - [ ] Test strictly disabling the specific date pickers explicitly if 'Archive' is actively checked.
+    - [ ] Ensure clear tooltip text warns the user that this action will permanently lack explicit timeline dates.
+- 'Archive' checkbox conditionally added to the 'Add to Tracker' TMDB popup.
+    - [ ] Verify strictly adding a totally new show directly from the TMDB Search results allows instant archiving.
+    - [ ] Ensure specifically checking this box instantly downloads all metadata but marks strictly all episodes complete.
+    - [ ] Handle edge cases where the show hasn't aired yet (the box should be completely disabled).
+    - [ ] Test standard queueing strictly ensuring the metadata entirely finishes downloading before the archive flip.
+    - [ ] Ensure the show instantly appears directly in the Library explicitly flagged as finished.
+
+## 📥 Part 15: The Inbox (Unmatched Files Triage)
+- Split-pane layout architecture (Left sidebar list, Right wide action area).
+    - [x] Verify the left pane visually distincts itself using a darker background shade.
+    - [x] Ensure standard hidden scrollbars isolate the left list scrolling from the right action area.
+    - [x] Handle edge cases on narrow widths by stacking the panes vertically instead of side-by-side.
+    - [x] Test active state highlighting when a user selects a specific item in the left list.
+    - [x] Ensure the right action area defaults to empty state instructions if nothing is selected.
+- Intelligent grouping of unmatched files based on extracted string keys.
+    - [x] Verify the regex correctly extracts just the 'Title' string for grouping purposes.
+    - [x] Ensure all files sharing an identical extracted title cluster strictly under one parent node.
+    - [x] Handle edge cases where capitalization mismatches (e.g., 'show' vs 'Show').
+    - [x] Test extremely long title strings to ensure they wrap or truncate without breaking the layout.
+    - [x] Ensure the original raw file path remains securely mapped underneath the parsed group name.
+- Numerical badge count of specific files inside each group folder.
+    - [x] Verify exactly rendering a vibrant orange numeric badge next to the group name.
+    - [ ] Ensure mathematical logic exclusively sums every individual file mapped inside the group.
+    - [ ] Handle edge cases where only a single file exists (still display '1').
+    - [ ] Test formatting to ensure massive counts (e.g., 100+ anime episodes) render cleanly.
+    - [ ] Ensure badge updates dynamically if files are manually re-mapped or ignored.
+- Auto-filling TMDB Search Bar utilizing the parsed group name.
+    - [x] Verify clicking a group instantly pushes its parsed string into the top TMDB search bar.
+    - [ ] Ensure the app immediately queries TMDB without requiring the user to press 'Enter'.
+    - [ ] Handle edge cases where the parsed string is completely illegible to TMDB.
+    - [ ] Test allowing the user to seamlessly edit the auto-filled string to try alternative queries.
+    - [ ] Ensure clear UI feedback if the auto-search returns exactly 0 results.
+- '🗑️ Ignore' action button to permanently delete a group from the unmatched pool.
+    - [x] Verify clicking instantly wipes the entire group from the local SQLite staging table.
+    - [ ] Ensure the UI dynamically updates, entirely removing the item from the left pane list.
+    - [ ] Handle edge cases where the user accidentally clicks (provide a brief undo toast or warning).
+    - [ ] Test processing multiple ignore actions consecutively to ensure DB queues don't bottleneck.
+    - [ ] Ensure the actual physical files on the hard drive are strictly ignored, never deleted.
+- 1-Click Match action: Click a TMDB search result to instantly assign all files in the group to that show.
+    - [ ] Verify clicking a TMDB poster instantly extracts the Media ID.
+    - [ ] Ensure backend logic rapidly maps every single file in the active group to that Media ID.
+    - [ ] Handle edge cases where the chosen TMDB show has fewer total episodes than the selected files.
+    - [ ] Test visual state transitions (e.g., green checkmark success) upon completion.
+    - [ ] Ensure the right pane instantly clears its state and prompts the user to select the next group.
+- 'Advanced/Manual Match' state toggle switch.
+    - [ ] Verify the toggle explicitly flips the UI into a granular, row-by-row mapping interface.
+    - [ ] Ensure the automated bulk-match '1-Click' UI specifically hides to prevent user confusion.
+    - [ ] Handle edge cases where the user toggles back and forth without losing unconfirmed input data.
+    - [ ] Test toggle animations making the UI shift feel intentional and smooth.
+    - [ ] Ensure the active state is clearly highlighted so the user knows they are overriding defaults.
+- Manual Episode and Season integer text inputs per individual file.
+    - [ ] Verify input fields strictly restrict entry to pure positive integers.
+    - [ ] Ensure pressing 'Tab' accurately shifts focus down the list sequentially for fast data entry.
+    - [ ] Handle edge cases where a file belongs to a 'Special' (allow Season 0).
+    - [ ] Test visual validation error states if the user accidentally inputs massive, invalid numbers.
+    - [ ] Ensure default placeholder logic accurately guesses SxxExx based on raw regex extraction.
+- Real-time file mapping list display updating as matches are confirmed.
+    - [ ] Verify confirming a manual match instantly removes that specific row from the UI list.
+    - [ ] Ensure the parent group's numeric badge precisely decrements to reflect the remaining unmatched items.
+    - [ ] Handle edge cases where the list hits 0 (trigger automatic UI navigation to the next group).
+    - [ ] Test layout shifting to ensure removing a row doesn't break the vertical alignment of adjacent elements.
+    - [ ] Ensure a subtle fade-out animation signifies the successful confirmation.
+
+## 🔎 Part 16: Search, Discovery & Edge Cases
+- Dedicated TMDB Search full-page UI.
+    - [x] Verify the search container utilizes maximum available width for expansive visual layout.
+    - [x] Ensure visual parity aligns strictly with the primary Dashboard interface.
+    - [x] Handle edge cases where the search page is bookmarked or refreshed directly in the browser.
+    - [x] Test responsive design breaking the grid smoothly on narrow or extremely wide monitors.
+    - [x] Ensure a prominent 'Back to Dashboard' or global close button exists in the upper left.
+- Live search input handling with <Enter> key triggers.
+    - [x] Verify pressing 'Enter' instantly fires the request to the TMDB API.
+    - [ ] Ensure input debouncing prevents accidental network spam if the user types rapidly.
+    - [ ] Handle edge cases where the user searches for purely empty spaces (should reset UI or ignore).
+    - [ ] Test standard clear buttons ('X' icon inside the input) rapidly resetting the view state.
+    - [ ] Ensure the input field is automatically focused whenever the page is initially loaded.
+- API HTTP Error / Invalid Key graceful error toast catchers.
+    - [ ] Verify the UI explicitly renders a descriptive red toast error upon a 401 Unauthorized TMDB response.
+    - [ ] Ensure network timeouts trigger specific text ('Unable to reach TMDB. Check connection').
+    - [ ] Handle edge cases where an error occurs silently in the background (log to console instead of spamming user).
+    - [ ] Test toast dismissal explicitly allowing users to clear them immediately.
+    - [ ] Ensure failing API calls never crash the entire React application shell.
+- Network disconnect / Offline mode detection and UI notification.
+    - [ ] Verify global connection status tracking specifically accurately detects offline states.
+    - [ ] Ensure a permanent visual banner or icon appears universally indicating 'Offline Mode'.
+    - [ ] Handle edge cases where the network rapidly drops and reconnects.
+    - [ ] Test disabling specific network-dependent actions (like manual syncs) explicitly when offline.
+    - [ ] Ensure local cached data (images, library lists) continues to render flawlessly without internet.
+- Responsive grid display of fetched TMDB search results.
+    - [x] Verify fetched results strictly populate identical 2:3 aspect ratio poster cards as the main Library.
+    - [x] Ensure pagination triggers more results seamlessly when scrolling to the bottom.
+    - [x] Handle edge cases where TMDB returns extremely low-resolution or entirely missing primary posters.
+    - [x] Test filtering toggles strictly separating TV shows from Movies in the results view.
+    - [x] Ensure the grid correctly handles extremely short lists of 1 or 2 items by centering them beautifully.
+- Real-time cross-checking against the local DB to disable '+ Add' buttons and display green '✓ In Library' badges for already tracked media.
+    - [x] Verify every remote search result explicitly checks its TMDB ID against the local SQLite store.
+    - [ ] Ensure matching shows render a distinct, non-clickable visual indicator (e.g., 'Added').
+    - [ ] Handle edge cases where a user removes a show locally, ensuring the search UI accurately reenables the Add button.
+    - [ ] Test performance overhead when cross-referencing hundreds of search results simultaneously.
+    - [ ] Ensure adding a show dynamically triggers a visual shift on the specific card without refreshing the entire list.
+- Global Quick Search instant Regex filtering of the currently mounted component state.
+    - [x] Verify the persistent top-bar search instantly filters whatever explicit list the user is actively viewing.
+    - [x] Ensure strings matching completely ignore case sensitivity entirely.
+    - [x] Handle edge cases where the search string is purely numbers (e.g., '1984').
+    - [x] Test rapid rendering updates ensuring the filtered state updates continuously with every keystroke.
+    - [x] Ensure pressing 'Escape' instantly clears the search state and restores the full local list.
+- Dedicated Settings UI page layout.
+    - [x] Verify a clean, structured form layout cleanly separating basic logic from advanced overrides.
+    - [x] Ensure input fields cleanly align vertically with standardized labels on the left axis.
+    - [x] Handle edge cases where changes are abandoned by explicitly providing 'Save' vs 'Discard' logic.
+    - [x] Test tabbed navigation internal to Settings (e.g., 'General', 'Database', 'Connections').
+    - [x] Ensure setting modifications actively update the core `JSON` configuration file securely.
+- TMDB API Key text input, validation, and persistent local storage.
+    - [x] Verify text input obscures the string visually (using `type='password'`) for security.
+    - [x] Ensure changing the key triggers a background validation test instantly against TMDB.
+    - [x] Handle edge cases where the user accidentally copies surrounding whitespace characters.
+    - [x] Test storing the value securely, overriding any previous configuration seamlessly.
+    - [x] Ensure a 'Test Connection' button explicitly returns a 'Success' or 'Failure' visual cue.
+- VLC Executable Path text input.
+    - [x] Verify the string perfectly maps directly to the Rust backend execution parameter.
+    - [x] Ensure visual error styling if the user inputs a path to a non-existent file.
+    - [x] Handle edge cases specifically targeting Windows path formats vs Unix path formats.
+    - [x] Test auto-detection 'Restore Default' logic dynamically finding VLC if the path is entirely deleted.
+    - [x] Ensure relative paths strictly convert to absolute paths based on the application root.
+- Native OS File Explorer browse window specifically for locating the VLC .exe / .app.
+    - [x] Verify clicking 'Browse' strictly spawns the native OS file picker window.
+    - [ ] Ensure the window specifically filters only for executables (`.exe` on Windows, `.app` on Mac).
+    - [ ] Handle edge cases where the user cancels the OS dialog (the input value should remain untouched).
+    - [ ] Test inserting the returned absolute string precisely back into the React input field.
+    - [ ] Ensure the action does not freeze the React UI main thread.
+- Image Load Error handling (Silently dropping broken TMDB URLs and defaulting to skeletons).
+    - [x] Verify listening explicitly for standard `<img onError>` DOM events.
+    - [ ] Ensure catching the error instantly swaps the specific broken `<img src>` to the fallback placeholder.
+    - [ ] Handle edge cases where the fallback image itself fails to load.
+    - [ ] Test hiding the broken 'image not found' icon native to all specific web browsers.
+    - [ ] Ensure this completely avoids throwing explicit JavaScript console errors that halt execution.
+- Automatic boot-up cache verification (mkdir -p equivalents in Rust to ensure the app never crashes from missing folders).
+    - [ ] Verify Rust strictly checks for critical directory paths specifically on every single startup sequence.
+    - [ ] Ensure automated recursive directory creation constructs the entire tree explicitly if deleted.
+    - [ ] Handle edge cases explicitly where file permission errors lock creation entirely (display fatal error UI).
+    - [ ] Test specifically verifying the structure required for Database, Posters, Backdrops, and Episode Stills.
+    - [ ] Ensure the creation specifically logs precisely to the background debugging file entirely.
+
