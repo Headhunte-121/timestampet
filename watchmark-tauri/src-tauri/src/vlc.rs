@@ -1,13 +1,12 @@
-use reqwest::blocking::Client;
+use reqwest::Client;
 use rusqlite::params;
 use serde_json::Value;
-use std::process::{Child, Command};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use tokio::process::{Child, Command};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 use crate::db::get_db_connection;
+use crate::error::AppError;
 
 #[derive(Clone, serde::Serialize)]
 struct RefreshPayload {
@@ -29,23 +28,23 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Option<C
     cmd.spawn().ok()
 }
 
-pub fn get_vlc_status() -> Option<Value> {
-    let client = Client::builder().timeout(Duration::from_secs(2)).build().ok()?;
+pub async fn get_vlc_status(client: &Client) -> Option<Value> {
     let res = client
         .get("http://127.0.0.1:8080/requests/status.json")
         .basic_auth("", Some("watchmark"))
         .send()
+        .await
         .ok()?;
 
     if res.status().is_success() {
-        if let Ok(json) = res.json::<Value>() {
+        if let Ok(json) = res.json::<Value>().await {
             return Some(json);
         }
     }
     None
 }
 
-pub fn vlc_heartbeat(
+pub async fn vlc_heartbeat(
     mut proc: Child,
     episode_id: i32,
     session_id: String,
@@ -56,47 +55,65 @@ pub fn vlc_heartbeat(
     let mut last_time_seconds: f64 = 0.0;
     let mut pause_count: i32 = 0;
     let mut was_paused: bool = false;
+    let mut consecutive_failures: i32 = 0;
 
-    let is_running = Arc::new(AtomicBool::new(true));
+    let mut interval = tokio::time::interval(Duration::from_secs(5));
+    // The first tick completes immediately, we skip it so we wait 5s first.
+    interval.tick().await;
 
-    while is_running.load(Ordering::SeqCst) {
-        if let Ok(Some(_)) = proc.try_wait() {
-            is_running.store(false, Ordering::SeqCst);
-            break;
-        }
+    let client = match Client::builder().timeout(Duration::from_secs(2)).build() {
+        Ok(c) => c,
+        Err(_) => return, // If we can't even build the client, abort heartbeat.
+    };
 
-        std::thread::sleep(Duration::from_secs(5));
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                if let Some(status) = get_vlc_status(&client).await {
+                    consecutive_failures = 0;
 
-        if let Some(status) = get_vlc_status() {
-            let length = status["length"].as_f64().unwrap_or(0.0);
-            let time = status["time"].as_f64().unwrap_or(0.0);
+                    let length = status["length"].as_f64().unwrap_or(0.0);
+                    let time = status["time"].as_f64().unwrap_or(0.0);
 
-            if length > 0.0 {
-                let pos = time / length;
-                if pos > high_water_mark {
-                    high_water_mark = pos;
+                    if length > 0.0 {
+                        let pos = time / length;
+                        if pos > high_water_mark {
+                            high_water_mark = pos;
+                        }
+
+                        let state = status["state"].as_str().unwrap_or("");
+                        let is_paused = state == "paused";
+
+                        if is_paused && !was_paused {
+                            pause_count += 1;
+                        }
+                        was_paused = is_paused;
+
+                        last_time_seconds = time;
+
+                        if let Ok(conn) = get_db_connection() {
+                            let _ = conn.execute(
+                                "UPDATE Episodes SET last_position=? WHERE id=?",
+                                params![last_time_seconds as i32, episode_id],
+                            );
+                            let _ = conn.execute(
+                                "UPDATE History SET completion_ratio=?, pause_count=? WHERE episode_id=? AND timestamp=? AND session_id=?",
+                                params![high_water_mark, pause_count, episode_id, start_dt_str, session_id],
+                            );
+                        }
+                    }
+                } else {
+                    consecutive_failures += 1;
+                    if consecutive_failures >= 3 {
+                        // Assume VLC has crashed or disconnected
+                        break;
+                    }
                 }
-
-                let state = status["state"].as_str().unwrap_or("");
-                let is_paused = state == "paused";
-
-                if is_paused && !was_paused {
-                    pause_count += 1;
-                }
-                was_paused = is_paused;
-
-                last_time_seconds = time;
-
-                if let Ok(conn) = get_db_connection() {
-                    let _ = conn.execute(
-                        "UPDATE Episodes SET last_position=? WHERE id=?",
-                        params![last_time_seconds as i32, episode_id],
-                    );
-                    let _ = conn.execute(
-                        "UPDATE History SET completion_ratio=?, pause_count=? WHERE episode_id=? AND timestamp=? AND session_id=?",
-                        params![high_water_mark, pause_count, episode_id, start_dt_str, session_id],
-                    );
-                }
+            }
+            status = proc.wait() => {
+                // VLC process has exited
+                let _ = status;
+                break;
             }
         }
     }
@@ -140,47 +157,47 @@ pub fn vlc_heartbeat(
 }
 
 #[tauri::command]
-pub fn play_episode_cmd(
+pub async fn play_episode_cmd(
     app_handle: AppHandle,
     episode_id: i32,
-    file_path: &str,
+    file_path: String,
     last_position: i32,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let settings = crate::settings::load_settings();
     if settings.vlc_path.is_empty() {
-        return Err("VLC path not configured in Settings".to_string());
+        return Err(AppError::Custom("VLC path not configured in Settings".to_string()));
     }
 
-    if !std::path::Path::new(file_path).exists() {
-        return Err("File does not exist".to_string());
+    if !std::path::Path::new(&file_path).exists() {
+        return Err(AppError::Custom("File does not exist".to_string()));
     }
 
     let start_sec = if last_position > 0 { last_position } else { 0 };
 
-    if let Some(proc) = play_in_vlc(&settings.vlc_path, file_path, start_sec) {
+    if let Some(proc) = play_in_vlc(&settings.vlc_path, &file_path, start_sec) {
         let mut session_id = uuid::Uuid::new_v4().to_string();
         let start_dt_str = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
-        if let Ok(conn) = get_db_connection() {
+        {
+            let conn = get_db_connection()?;
+
             // Auto-binge detection logic
             let mut media_id = 0;
-            if let Ok(mut stmt) = conn.prepare("SELECT media_id FROM Episodes WHERE id=?") {
-                if let Ok(mut rows) = stmt.query(params![episode_id]) {
-                    if let Ok(Some(row)) = rows.next() {
-                        media_id = row.get(0).unwrap_or(0);
-                    }
-                }
+            let mut stmt = conn.prepare("SELECT media_id FROM Episodes WHERE id=?")?;
+            let mut rows = stmt.query(params![episode_id])?;
+            if let Some(row) = rows.next()? {
+                media_id = row.get(0).unwrap_or(0);
             }
 
             if media_id > 0 {
                 let mut hist_stmt = conn.prepare(
                     "SELECT session_id, timestamp FROM History
-                     WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id=?) AND is_legacy=0
-                     ORDER BY timestamp DESC LIMIT 1"
-                ).unwrap();
+                        WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id=?) AND is_legacy=0
+                        ORDER BY timestamp DESC LIMIT 1"
+                )?;
 
-                let mut rows = hist_stmt.query(params![media_id]).unwrap();
-                if let Ok(Some(row)) = rows.next() {
+                let mut rows = hist_stmt.query(params![media_id])?;
+                if let Some(row) = rows.next()? {
                     let last_session_id: String = row.get(0).unwrap_or_default();
                     let last_timestamp: String = row.get(1).unwrap_or_default();
 
@@ -197,40 +214,39 @@ pub fn play_episode_cmd(
 
             let _ = conn.execute(
                 "INSERT INTO History (episode_id, timestamp, session_id, is_legacy, start_time, pause_count, completion_ratio)
-                 VALUES (?, ?, ?, 0, ?, 0, 0.0)",
+                    VALUES (?, ?, ?, 0, ?, 0, 0.0)",
                 params![episode_id, start_dt_str, session_id, start_dt_str],
-            );
+            )?;
 
             let mut status = "Unwatched".to_string();
-            if let Ok(mut stmt) = conn.prepare("SELECT status FROM Episodes WHERE id=?") {
-                 if let Ok(mut rows) = stmt.query(params![episode_id]) {
-                     if let Ok(Some(row)) = rows.next() {
-                         let current_status: String = row.get(0).unwrap_or_default();
-                         if current_status == "Unwatched" {
-                             status = "Watching".to_string();
-                         } else {
-                             status = current_status;
-                         }
-                     }
-                 }
+            let mut stmt = conn.prepare("SELECT status FROM Episodes WHERE id=?")?;
+            let mut rows = stmt.query(params![episode_id])?;
+            if let Some(row) = rows.next()? {
+                let current_status: String = row.get(0).unwrap_or_default();
+                if current_status == "Unwatched" {
+                    status = "Watching".to_string();
+                } else {
+                    status = current_status;
+                }
             }
-            if status == "Watching" {
-                let _ = conn.execute("UPDATE Episodes SET status='Watching' WHERE id=?", params![episode_id]);
-            }
-        }
 
-        std::thread::spawn(move || {
+            if status == "Watching" {
+                let _ = conn.execute("UPDATE Episodes SET status='Watching' WHERE id=?", params![episode_id])?;
+            }
+        } // `conn` dropped here
+
+        tokio::spawn(async move {
             vlc_heartbeat(
                 proc,
                 episode_id,
                 session_id,
                 start_dt_str,
                 app_handle,
-            );
+            ).await;
         });
 
         Ok(())
     } else {
-        Err("Failed to start VLC".to_string())
+        Err(AppError::Custom("Failed to start VLC".to_string()))
     }
 }
