@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
 import { Star } from "lucide-react";
 
-export default function Library({ type, onMediaSelect, refreshTrigger }: any) {
+export default function Library({ type, onMediaSelect, refreshTrigger, searchQuery = "" }: any) {
   const [data, setData] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("Recently Added");
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -16,8 +16,13 @@ export default function Library({ type, onMediaSelect, refreshTrigger }: any) {
 
   const sortOptions = ["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated"];
 
+  const filteredData = data.filter(item =>
+    !searchQuery ||
+    item.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="p-12 pb-24">
+    <div className="p-12 pb-24 pt-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <h1 className="text-4xl font-extrabold tracking-tight">
           {type === "TV" ? "TV Shows" : "Movies"}
@@ -47,7 +52,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger }: any) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-6">
-        {data.map((item, i) => (
+        {filteredData.map((item, i) => (
           <motion.div
             key={item.id}
             initial={{ opacity: 0, y: 20 }}
@@ -86,11 +91,11 @@ export default function Library({ type, onMediaSelect, refreshTrigger }: any) {
             </div>
 
             {/* Static badges */}
-            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-xs font-bold text-[#FF6B00] group-hover:opacity-0 transition-opacity">
+            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-bold text-[#FF6B00] shadow-md group-hover:opacity-0 transition-opacity flex items-center gap-1">
               ★ {item.user_rating > 0 ? `${item.user_rating}/5` : 'Unrated'}
             </div>
 
-            <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-[10px] font-bold text-gray-300 group-hover:opacity-0 transition-opacity uppercase tracking-wider">
+            <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] font-bold text-gray-300 shadow-md group-hover:opacity-0 transition-opacity uppercase tracking-wider">
               {item.status}
             </div>
 
@@ -105,7 +110,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger }: any) {
             )}
           </motion.div>
         ))}
-        {data.length === 0 && (
+        {filteredData.length === 0 && (
           <div className="col-span-full py-32 text-center text-gray-500 text-lg">
             No media found in this view.
           </div>

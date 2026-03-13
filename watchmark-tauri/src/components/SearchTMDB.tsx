@@ -22,7 +22,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
   };
 
   return (
-    <div className="p-12">
+    <div className="p-12 pt-24">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Discover Media</h1>
 
       <div className="flex gap-4 mb-12 max-w-2xl">

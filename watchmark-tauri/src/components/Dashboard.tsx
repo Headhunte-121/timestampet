@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
-import { Play } from "lucide-react";
+import { Play, Star } from "lucide-react";
 
 // Types matching the Rust backend structure
 interface Episode {
@@ -48,7 +48,7 @@ interface DashboardData {
 const PLACEHOLDER_BACKDROP = "https://images.unsplash.com/photo-1542293787-827fb705d15a?q=80&w=2560&auto=format&fit=crop";
 const PLACEHOLDER_POSTER = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop";
 
-export default function Dashboard({ onMediaSelect, refreshTrigger }: { onMediaSelect: (id: number) => void, refreshTrigger: number }) {
+export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery = "" }: { onMediaSelect: (id: number) => void, refreshTrigger: number, searchQuery?: string }) {
   const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
@@ -100,8 +100,19 @@ export default function Dashboard({ onMediaSelect, refreshTrigger }: { onMediaSe
     return Math.min(100, (lastPos / (runtimeMins * 60)) * 100);
   };
 
+  const filteredCW = data.cw_eps?.filter(ep =>
+    !searchQuery ||
+    ep.show_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ep.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const filteredRecent = data.recent_media?.filter(m =>
+    !searchQuery ||
+    m.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
   return (
-    <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 scrollbar-hide">
+    <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide">
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
         <div className="relative w-full h-[450px] rounded-2xl overflow-hidden group">
@@ -110,17 +121,17 @@ export default function Dashboard({ onMediaSelect, refreshTrigger }: { onMediaSe
             alt="Hero Backdrop"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0D0F14] via-[#0D0F14]/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0D0F14] via-[#0D0F14]/40 to-transparent" />
+          {/* Layered directional gradient: Bottom-left pure black fading up to top-right transparent */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] via-[#0D0F14]/80 to-transparent" />
 
           <div className="absolute bottom-8 left-8 w-full max-w-2xl z-10">
-            <h2 className="text-[#FF6B00] font-bold tracking-widest text-sm mb-2 uppercase">
+            <h2 className="text-[#FF6B00] font-bold tracking-widest text-xs mb-2 uppercase drop-shadow-md">
               {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume Session" : "Up Next"}
             </h2>
-            <h1 className="text-5xl font-black text-white mb-2 tracking-tight truncate">
+            <h1 className="text-5xl font-black text-white mb-2 tracking-tight truncate drop-shadow-lg">
               {data.hero_ep.show_title || "Unknown Show"}
             </h1>
-            <p className="text-lg text-gray-300 mb-6 truncate">
+            <p className="text-lg text-gray-400 mb-6 truncate drop-shadow-md font-medium">
               {data.hero_ep.media_type === "TV"
                 ? `S${String(data.hero_ep.season_num).padStart(2, '0')}E${String(data.hero_ep.ep_num).padStart(2, '0')} - ${data.hero_ep.title || 'Unknown Episode'}`
                 : data.hero_ep.title || "No Title"}
@@ -176,11 +187,11 @@ export default function Dashboard({ onMediaSelect, refreshTrigger }: { onMediaSe
       )}
 
       {/* B. Continue Watching (Horizontal Row) */}
-      {data.cw_eps?.length > 0 && (
+      {filteredCW.length > 0 && (
         <>
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Continue Watching</h2>
           <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x">
-            {data.cw_eps.map((ep) => {
+            {filteredCW.map((ep) => {
               const imagePath = ep.still_path || ep.backdrop_path;
               const imgUrl = imagePath ? `https://image.tmdb.org/t/p/w500${imagePath}` : PLACEHOLDER_BACKDROP;
               const progress = calculateProgress(ep.last_position, ep.runtime);
@@ -238,11 +249,11 @@ export default function Dashboard({ onMediaSelect, refreshTrigger }: { onMediaSe
       )}
 
       {/* C. Recently Added (Poster Grid Row) */}
-      {data.recent_media?.length > 0 && (
+      {filteredRecent.length > 0 && (
         <>
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Recently Added</h2>
           <div className="flex gap-6 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
-            {data.recent_media.map((media) => {
+            {filteredRecent.map((media) => {
               const imgUrl = media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : PLACEHOLDER_POSTER;
 
               return (
@@ -263,7 +274,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger }: { onMediaSe
                     </div>
                   </div>
 
-                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-yellow-500 shadow-md">
+                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-bold text-[#FF6B00] shadow-md flex items-center gap-1">
                     ★ {media.user_rating > 0 ? media.user_rating.toFixed(1) : 'Unrated'}
                   </div>
 
@@ -285,17 +296,19 @@ export default function Dashboard({ onMediaSelect, refreshTrigger }: { onMediaSe
       {/* D. Quick Stats */}
       <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Your Stats</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <div className="bg-[#1F222A]/80 backdrop-blur-xl rounded-xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Shows Tracked</h3>
-          <p className="text-4xl font-bold text-[#FF6B00] mt-2">{data.stats.shows_completed}</p>
+        <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-2">Shows Tracked</h3>
+          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md">{data.stats.shows_completed}</p>
         </div>
-        <div className="bg-[#1F222A]/80 backdrop-blur-xl rounded-xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Hours Watched</h3>
-          <p className="text-4xl font-bold text-[#FF6B00] mt-2">{data.stats.hrs_watched}</p>
+        <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-2">Hours Watched</h3>
+          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md">{data.stats.hrs_watched}</p>
         </div>
-        <div className="bg-[#1F222A]/80 backdrop-blur-xl rounded-xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Average Rating</h3>
-          <p className="text-4xl font-bold text-[#FF6B00] mt-2">★ {data.stats.avg_rating.toFixed(1)}</p>
+        <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-2">Average Rating</h3>
+          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md flex items-center justify-center gap-2">
+            <Star className="w-8 h-8 fill-current" /> {data.stats.avg_rating.toFixed(1)}
+          </p>
         </div>
       </div>
     </div>

@@ -128,7 +128,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
 
         <div className="grid gap-4 max-w-5xl">
           {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => (
-             <div key={ep.id} className="flex items-center bg-[#1F222A] p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group">
+             <div key={ep.id} className="flex items-center bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group">
                <div className="w-40 aspect-video bg-black/40 rounded-lg overflow-hidden shrink-0 relative mr-6">
                  {ep.still_path ? (
                     <img
