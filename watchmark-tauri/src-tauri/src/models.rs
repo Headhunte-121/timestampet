@@ -18,6 +18,31 @@ where
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum MediaType {
+    TV,
+    Movie,
+    Unknown,
+}
+
+impl MediaType {
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "TV" => MediaType::TV,
+            "Movie" => MediaType::Movie,
+            _ => MediaType::Unknown,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MediaType::TV => "TV",
+            MediaType::Movie => "Movie",
+            MediaType::Unknown => "Unknown",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Media {
     pub id: i32,

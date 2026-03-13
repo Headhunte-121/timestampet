@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
@@ -63,8 +63,8 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   }, [settings, setIsDirty]);
 
   useEffect(() => {
-      setSaveCallback(() => saveSettings);
-      return () => setSaveCallback(null);
+    setSaveCallback(saveSettings);
+    return () => setSaveCallback(null);
   }, [saveSettings, setSaveCallback]);
 
   useEffect(() => {

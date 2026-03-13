@@ -154,9 +154,9 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS Media (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tmdb_id TEXT UNIQUE,
-            type TEXT,
-            title TEXT,
+            tmdb_id TEXT,
+            \"type\" TEXT NOT NULL DEFAULT 'TV',
+            \"title\" TEXT,
             synopsis TEXT,
             poster_path TEXT,
             backdrop_path TEXT,
@@ -164,7 +164,8 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             status TEXT,
             vote_average REAL DEFAULT 0.0,
             user_rating INTEGER DEFAULT 0,
-            release_date TEXT
+            release_date TEXT,
+            UNIQUE(tmdb_id, \"type\")
         )",
         (),
     )?;
@@ -175,7 +176,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             media_id INTEGER,
             season_num INTEGER,
             ep_num INTEGER,
-            title TEXT,
+            \"title\" TEXT,
             runtime INTEGER,
             still_path TEXT,
             overview TEXT,

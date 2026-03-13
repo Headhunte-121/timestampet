@@ -133,3 +133,10 @@ Update 16: Database Initialization, Concurrency & Foreign Key Cascading [Todo 5.
 - AppData Canary Verification: Added `check_db_permissions` which tries to open the database file explicitly, or writes a temporary `.canary` file. If the OS denies write or the file is heavily locked, it triggers a custom `AppError::Fatal` resulting in a native Windows warning to the user, averting silent thread crashes.
 - Atomic Migrations: Patched the SQLite schema updater in `init_db`. Wrapped schema alterations inside safe atomic `transaction()?` structures handling `duplicate column name` exceptions logically rather than bypassing standard integrity.
 - Cascading Delete Hooks: Altered the base table `CREATE` commands for `Episodes`, `Local_Files`, and `History` to strictly implement `FOREIGN KEY (...) REFERENCES ... ON DELETE CASCADE`, shifting manual cleanup burden entirely onto native SQLite features while maintaining `PRAGMA foreign_keys = ON;`.
+
+Update 17: Feature 5.2 - Media Table Schema Hardening & Polish [Todo 5.2]
+- Enforced strict database constraints: `UNIQUE(tmdb_id, type)` correctly accommodates mixed Movie and TV entries.
+- Implemented robust `ON CONFLICT DO UPDATE` upsert logic to ensure user ratings, history, and status survive metadata refreshes safely.
+- Implemented a 10,000 character limit on synopsis text on the backend to prevent malicious API payloads from creating memory spikes.
+- Integrated robust React frontend fallbacks: A "View More/Less" toggle limits long synopses to 300 chars, and clean "No overview available" fallback logic prevents empty layouts.
+- Mapped explicit `"Unknown"` handling for the `MediaType` enum to guarantee database writes don't fail due to garbage API entries.
