@@ -2300,3 +2300,281 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Reward the user for their massive dedication to finishing a story.
     - [ ] Ensure the badge is visually distinct from the standard completion checkmarks.
     - [ ] Hide the badge if the user manually changes the dates and breaks the marathon.
+
+## ⚙️ Part 25: Settings, Safety & Edge Cases
+- Automated SQLite Backups: The Rust backend copies watchmark.db to watchmark.bak every 24 hours.
+    - [ ] Build a silent background task that runs once a day while the app is open.
+    - [ ] Create a safe copy of the main database file and store it in the same hidden folder.
+    - [ ] Keep only the three most recent backup files to save hard drive space.
+    - [ ] Perform this action quietly without interrupting the user or slowing down the app.
+    - [ ] Show a small text note in the settings menu detailing exactly when the last backup happened.
+- Manual DB Backup Action: A button opening a native OS dialog to save a copy of the database to Documents.
+    - [ ] Add a clear 'Export Backup' button to the advanced settings page.
+    - [ ] Open a standard folder selection window when the user clicks the button.
+    - [ ] Suggest a clear file name automatically, like 'WatchMark-Backup-2024.db'.
+    - [ ] Copy the database over to their chosen folder safely and instantly.
+    - [ ] Display a cheerful success message once the file finishes saving.
+- Manual DB Restore Action: Safely overwrite the active DB from a backup file with a restart prompt.
+    - [ ] Add an 'Import Backup' button right next to the export button.
+    - [ ] Let the user pick a backup file from their computer using a standard file window.
+    - [ ] Show a strong warning explaining that restoring a backup will erase their current progress.
+    - [ ] Close the app automatically and swap the database files quietly in the background.
+    - [ ] Restart the app fresh with all the restored data intact and ready to use.
+- VACUUM Optimizer: A "Clean Database" button that runs SQLite vacuum and analyze routines to shrink file size.
+    - [ ] Put a 'Clean Up Space' button inside the database settings section.
+    - [ ] Run a deep optimization process to delete hidden leftover data and shrink the file size.
+    - [ ] Show a spinning loading icon while the cleaning process runs so the user knows it is working.
+    - [ ] Lock the rest of the app briefly so nothing breaks while the files are being organized.
+    - [ ] Tell the user exactly how much hard drive space was saved when the process finishes.
+- Color Theme Customizer: Settings to swap the Accent Color (Orange -> Red, Neon Blue, Emerald Green).
+    - [ ] Build a row of colorful circles in the settings menu letting the user pick their favorite color.
+    - [ ] Change every single orange play button, progress bar, and active link to the new chosen color instantly.
+    - [ ] Remember this custom color choice permanently every time the app opens.
+    - [ ] Ensure all the new color options remain bright and easy to read against the dark background.
+    - [ ] Provide an easy 'Restore Default' button to go back to the classic vibrant orange.
+- Light Mode Toggle: Full color inversion logic for users who prefer bright interfaces.
+    - [ ] Add a simple switch letting users change the entire app from dark mode to light mode.
+    - [ ] Swap the dark background for a clean, bright white or light gray tone.
+    - [ ] Turn all the white text black so it remains easy to read.
+    - [ ] Keep the colorful movie posters and accent buttons exactly the same.
+    - [ ] Let the app automatically match the light or dark setting of the user's actual computer OS.
+- UI Zoom Scaling: A slider mapping CSS variables to scale the entire UI from 80% to 120%.
+    - [ ] Place a simple slider in the accessibility settings to change the size of the whole app.
+    - [ ] Make the text, buttons, and posters grow or shrink smoothly as the slider moves.
+    - [ ] Ensure the grid layout adapts intelligently so posters don't get pushed off the edge of the screen.
+    - [ ] Help users with large monitors or poor vision make the text comfortable to read.
+    - [ ] Keep the default size set to 100 percent for a standard, expected look.
+- Hardware Acceleration Toggle: Exposes Tauri's WebView GPU acceleration settings for low-end machines.
+    - [ ] Add a deep settings switch to turn off heavy graphical features if the app runs slowly.
+    - [ ] Require a quick app restart for this specific setting change to take effect.
+    - [ ] Warn the user that turning this off might make animations feel slightly less smooth.
+    - [ ] Default this setting to 'On' so modern computers get the best possible visual experience.
+    - [ ] Help old laptops run the app without overheating or freezing.
+- Minimize to Tray: Option to hide the app to the Windows System Tray / Mac Menu Bar instead of taskbar.
+    - [ ] Give the user an option to keep the app running hidden down by their computer clock.
+    - [ ] Remove the app from the main taskbar entirely when they click the minimize button.
+    - [ ] Let the user bring the app back instantly by clicking the tiny tray icon.
+    - [ ] Keep background tracking and downloading active even when the app is tucked away.
+    - [ ] Add a simple right-click menu to the tray icon with an option to close the app for good.
+- Start with OS: Rust hook to add the application to OS startup items automatically.
+    - [ ] Add a checkbox asking if the app should open automatically when the computer turns on.
+    - [ ] Tell the computer's operating system to add the app to its official startup list.
+    - [ ] Remove the app from the startup list instantly if the user unchecks the box later.
+    - [ ] Start the app quietly in the system tray so it doesn't bother the user with a giant window right away.
+    - [ ] Help users ensure their background tracking is always active without needing to remember to open the app.
+- Close = Minimize Toggle: Overrides the Window X button to hide to tray rather than killing the process.
+    - [ ] Provide an option to change what the main red 'X' close button does.
+    - [ ] Make the 'X' button hide the app in the system tray instead of shutting it down.
+    - [ ] Prevent users from accidentally stopping a download or breaking a watch session by closing the window.
+    - [ ] Make sure the 'Quit' button inside the actual menus still closes the app permanently.
+    - [ ] Show a one-time helpful hint explaining where the app went the first time they click the 'X'.
+- GitHub Release Updater: Built-in Tauri updater checking the repo for new versions.
+    - [ ] Ask the internet quietly in the background if a brand new version of the app is available.
+    - [ ] Show a friendly notification badge on the settings gear icon if an update is found.
+    - [ ] Tell the user exactly what new features are included in the new version.
+    - [ ] Provide a simple button to start downloading the update right there inside the app.
+    - [ ] Ensure the update process is safe and doesn't delete their history or settings.
+- Silent Auto-Update: Downloads updates in the background and prompts for a quick restart.
+    - [ ] Download the new version automatically without making the user click anything.
+    - [ ] Wait until the download is totally finished before showing any messages.
+    - [ ] Pop a gentle toast message asking the user to restart the app to apply the new features.
+    - [ ] Apply the new version instantly the next time they open the app naturally.
+    - [ ] Let users turn off silent updates if they prefer to manage versions manually.
+- Factory Reset Settings: Restores window sizes and preferences to default without touching the database.
+    - [ ] Add a safety button at the very bottom of the settings page to fix broken layouts.
+    - [ ] Wipe out custom colors, window sizes, and slider preferences instantly.
+    - [ ] Keep the actual movie history, lists, and library safe from being deleted.
+    - [ ] Return the app visually to exactly how it looked the very first day it was installed.
+    - [ ] Ask for a quick confirmation so the user doesn't reset things by accident.
+- Nuclear Wipe Action: Deletes database and all cache files (Requires typing the word DELETE to confirm).
+    - [ ] Create a massive, red danger zone button for users who want to start totally fresh.
+    - [ ] Open a very serious warning popup explaining that all history and tracking will be gone forever.
+    - [ ] Force the user to literally type the word 'DELETE' into a text box to prove they mean it.
+    - [ ] Wipe the database, all the downloaded posters, and all settings files clean off the hard drive.
+    - [ ] Restart the app immediately so it looks like a brand new installation.
+- Global Tooltips Toggle: A master switch to turn off all hover helper-text for expert users.
+    - [ ] Add a simple switch in the settings to disable every single helpful popup box.
+    - [ ] Stop the small descriptive text from appearing when hovering over buttons or icons.
+    - [ ] Keep the screen looking incredibly clean for users who already know what every button does.
+    - [ ] Leave critical warning messages or error popups active so the app remains safe to use.
+    - [ ] Turn the tooltips back on instantly if the user changes their mind.
+- Configurable Binge Threshold: Slider to change the Binge definition from 6 hours up to 12 hours.
+    - [ ] Give the user a slider to define how long a break they can take before a binge session ends.
+    - [ ] Let them stretch the timer up to 12 hours if they take long breaks between episodes.
+    - [ ] Group their history rows together intelligently based on this new custom timeline.
+    - [ ] Update the history page immediately to reflect the new groupings without deleting any data.
+    - [ ] Keep the default set to 6 hours for a standard, expected experience.
+- Configurable Completion Threshold: Slider to adjust auto-completion from 90% to 85% or 95%.
+    - [ ] Let the user decide exactly what percentage of a video counts as 'finished'.
+    - [ ] Provide a slider ranging from 80 percent up to 99 percent.
+    - [ ] Mark the episode with a green checkmark automatically when they pass this specific custom mark.
+    - [ ] Help users who watch shows with incredibly long end-credits scenes.
+    - [ ] Apply this new rule to all future watching sessions automatically.
+- Disable Auto-Complete: A master switch to turn off VLC auto-completion entirely for manual purists.
+    - [ ] Add a checkbox allowing users to stop the app from ever marking things finished on its own.
+    - [ ] Leave the episode marked as 'Watching' even if they reach the very last second of the video.
+    - [ ] Force the user to click the green checkmark button themselves when they are done.
+    - [ ] Continue to track and save their exact pause time accurately.
+    - [ ] Help users who want absolute, total manual control over their own history diary.
+- Rust Debug Log View: An in-app terminal window in Settings showing live Rust stdout and database query speeds.
+    - [ ] Build a small, dark text box hidden deep in the advanced settings page.
+    - [ ] Show a live stream of text explaining exactly what the background code is doing.
+    - [ ] Print out how many milliseconds it takes to search the database so users can check performance.
+    - [ ] Add a 'Copy Log' button so users can easily share errors with the developer for help.
+    - [ ] Keep this text box hidden from normal users so it doesn't look confusing or scary.
+- 0-Episode Handling: Graceful UI states for TMDB entries that exist but have no seasons/episodes added yet.
+    - [ ] Notice if a brand new show is added to the library but the internet database is empty.
+    - [ ] Show a friendly, beautiful message saying 'No episodes have been announced yet' on the show page.
+    - [ ] Hide the play buttons and progress bars since there is nothing to track or watch.
+    - [ ] Keep the 'Refresh Data' button highly visible so they can check for updates easily later.
+    - [ ] Ensure the app doesn't crash or show ugly errors when the episode list comes back empty.
+- Debounced Search Input: React useDebounce waits 300ms after typing stops before querying the DB to prevent lag.
+    - [ ] Watch the user as they type letters into any search box in the app.
+    - [ ] Wait a tiny fraction of a second after they stop typing before actually running the search.
+    - [ ] Prevent the app from freezing by not searching the massive database for every single letter.
+    - [ ] Ensure the search still feels incredibly fast and responsive to the user.
+    - [ ] Ignore this delay if the user hits the Enter key to search immediately.
+- Double-Click Prevention: Disables the "Play" button for 3 seconds after clicking to prevent spawning 5 VLCs.
+    - [ ] Notice the instant a user clicks a bright orange play button on any movie poster.
+    - [ ] Turn the button gray and make it unclickable for a few seconds.
+    - [ ] Stop the computer from accidentally opening five different video player windows at once.
+    - [ ] Return the button to normal automatically once the video player actually opens successfully.
+    - [ ] Keep the rest of the app functional so they can still scroll while the video loads.
+- Optimistic Destructive Updates: Clicking "Remove Show" instantly hides the card in React while Rust processes the cascading delete.
+    - [ ] Hide the movie poster from the library screen the exact millisecond the user clicks delete.
+    - [ ] Let the background code do the heavy work of actually erasing the files quietly.
+    - [ ] Make the app feel incredibly fast and snappy by not making the user wait for the hard drive.
+    - [ ] Put the poster back quietly if the background deletion process accidentally fails.
+    - [ ] Ensure the numbers on the dashboard update instantly to reflect the removed show.
+- Custom 404 Route: A stylized "Page Not Found" component for internal React Router errors.
+    - [ ] Catch the user if they somehow click a broken link or navigate to a weird page.
+    - [ ] Show a beautiful, dark-themed error screen instead of a broken, blank white page.
+    - [ ] Include a massive, friendly 'Take me back home' button in the center of the screen.
+    - [ ] Add a fun, movie-themed illustration or joke to make the error less annoying.
+    - [ ] Keep the top navigation bar visible so they can easily click their way out.
+- CSS Text-Select Disabling: user-select-none applied globally to UI, but enabled specifically for Synopsis text so users can copy descriptions.
+    - [ ] Stop the user from accidentally highlighting buttons, headers, and menus when clicking around.
+    - [ ] Keep the app feeling like a solid, native desktop program instead of a messy website.
+    - [ ] Leave the highlighting feature turned on for the main story descriptions and titles.
+    - [ ] Allow users to easily highlight and copy a show's summary to share with a friend.
+    - [ ] Ensure the text cursor only appears when hovering over areas they are actually allowed to copy.
+- Custom Window Drag Regions: Applying Tauri's data-tauri-drag-region exclusively to empty top-bar space so buttons remain clickable.
+    - [ ] Let the user click and drag the very top edge of the app to move the window around.
+    - [ ] Stop the dragging feature from covering up the search bar or the back button.
+    - [ ] Ensure clicks on the search bar always open the typing cursor instead of moving the window.
+    - [ ] Make the drag area wide enough that the user doesn't have to hunt for a safe spot to click.
+    - [ ] Disable dragging entirely when the app is maximized to fill the whole screen.
+- Accurate Maximize Icons: The top-right square icon changes to "restore down" overlapping squares when window is maximized.
+    - [ ] Watch the window size to see if it is currently taking up the entire computer monitor.
+    - [ ] Change the square icon in the top right corner to look like two smaller squares.
+    - [ ] Let the user know clicking it will shrink the window back down to a normal size.
+    - [ ] Change the icon back to a single square when the window is shrunk down again.
+    - [ ] Ensure the icons match the standard look and feel of the user's specific operating system.
+- Modal Hover Persistence: Ensures hover overlays on posters disappear instantly if a Settings modal is opened over them.
+    - [ ] Notice when a giant popup window, like the settings menu, opens over the main library.
+    - [ ] Force any dark hover boxes over the movie posters to vanish immediately.
+    - [ ] Keep the screen clean so the hover boxes don't bleed through the blurred popup background.
+    - [ ] Prevent the user from accidentally clicking hidden play buttons behind the popup window.
+    - [ ] Let the hover boxes work normally again the second the popup is closed.
+- Inbox Scanning Skeletons: Animated placeholder rows in the Inbox while the background Rust scanner is running.
+    - [ ] Show gray, shimmering placeholder rows in the file inbox when a massive folder scan starts.
+    - [ ] Let the user know the app is actively working on finding their confusing video files.
+    - [ ] Replace the placeholder rows with real file names one by one as the scan finishes them.
+    - [ ] Keep the rest of the inbox usable so the user can organize old files while the scan runs.
+    - [ ] Remove the placeholders cleanly if the scan finishes and finds absolutely nothing new.
+- Path Wrapping: Force CSS break-words on long file paths in the Inbox so they don't break the flex layout.
+    - [ ] Identify incredibly long file paths that try to stretch past the edge of the screen.
+    - [ ] Force the long text to break cleanly and wrap onto a second or third line.
+    - [ ] Keep the buttons and layout rigid so the long text doesn't ruin the shape of the inbox.
+    - [ ] Ensure the text breaks at logical points, like slashes, instead of chopping words in half.
+    - [ ] Keep the text small and dim so it remains readable without dominating the entire row.
+- Cross-View Scroll Reset: Navigating from "TV Shows" to "Movies" automatically resets the window scroll to the top.
+    - [ ] Notice when the user clicks a major section link in the left sidebar menu.
+    - [ ] Scroll the page instantly to the very top before showing the new list of posters.
+    - [ ] Prevent the user from arriving halfway down the page on a brand new screen.
+    - [ ] Keep this logic separate from the specific 'Back' button memory feature.
+    - [ ] Ensure the scroll jump happens smoothly during the page fade animation.
+- Search Clear Focus Retention: Clicking the X to clear a search keeps the blinking cursor in the input box.
+    - [ ] Notice when the user clicks the tiny clear button inside the main search bar.
+    - [ ] Wipe out the text but keep the blinking cursor locked inside the empty box.
+    - [ ] Let the user immediately start typing a brand new search without having to click the box again.
+    - [ ] Prevent the page from losing focus and forcing the user to use their mouse a second time.
+    - [ ] Ensure standard keyboard navigation still works correctly after the box is cleared.
+- / Global Hotkey: Pressing forward-slash instantly selects the quick search bar (Standard web UX).
+    - [ ] Listen for the forward-slash key on the keyboard no matter what page the user is on.
+    - [ ] Jump the typing cursor instantly into the top search bar when the key is pressed.
+    - [ ] Help power users navigate the app incredibly fast using standard internet shortcuts.
+    - [ ] Ignore the shortcut if the user is already typing inside a different text box.
+    - [ ] Prevent the forward-slash character from actually being typed into the search box.
+- Global Processing Cursor: Changes cursor to wait (hourglass) during heavy synchronous DB operations.
+    - [ ] Notice when the app asks the database to do a massive job, like importing thousands of files.
+    - [ ] Change the mouse pointer into a spinning circle or hourglass icon.
+    - [ ] Let the user know the app is thinking and hasn't frozen or crashed.
+    - [ ] Prevent the user from clicking important buttons while the database is locked.
+    - [ ] Return the mouse pointer to normal the exact millisecond the heavy job finishes.
+- Real-time File Deletion Catching: If a file is deleted via Windows Explorer while WatchMark is open, the app catches the OS FileNotFound error upon clicking Play and updates the icon to ☁️.
+    - [ ] Try to launch the video player when the user clicks the orange play button.
+    - [ ] Catch the error quietly if the computer says the file no longer exists.
+    - [ ] Swap the play button instantly to a gray cloud icon so the user knows the file is missing.
+    - [ ] Show a polite little message explaining the file was moved or deleted outside the app.
+    - [ ] Prevent the app from crashing or showing terrifying code errors to the user.
+- Layout Snap Prevention: Uses AnimatePresence mode="popLayout" to ensure when a Binge-Block expands, the elements below it slide smoothly instead of jumping.
+    - [ ] Tell the animation engine to handle layout changes smoothly when things appear or disappear.
+    - [ ] Make the history items below a binge block slide down naturally when it opens.
+    - [ ] Stop the items from instantly teleporting or snapping jarringly down the screen.
+    - [ ] Keep the visual tracking clean so the user's eye can follow the movement.
+    - [ ] Ensure the closing animation is just as smooth and pushes things back up naturally.
+- VLC Spawn Loading State: The Orange play button changes to an animated spinner for 0.5s while the VLC .exe boots up.
+    - [ ] Hide the play triangle icon the moment the user clicks the button.
+    - [ ] Show a tiny, spinning circle in its place to indicate the app is working.
+    - [ ] Keep the spinner visible just long enough to cover the time it takes the video player to open.
+    - [ ] Put the play triangle back once the video player confirms it is running.
+    - [ ] Make the button unclickable while it is spinning to prevent accidental double-launches.
+- Season Tab Overflow Handling: If a show has 30 seasons, the horizontal season-pill row becomes mouse-draggable.
+    - [ ] Notice if a show has too many seasons to fit neatly on one single line across the screen.
+    - [ ] Let the user click and drag the row of season buttons left and right with their mouse.
+    - [ ] Hide the ugly scrollbars that computers normally put on sideways lists.
+    - [ ] Ensure clicking a tab still changes the season instead of just dragging the row.
+    - [ ] Add a subtle shadow on the edge of the screen hinting that there are more seasons hiding over there.
+- Conditional Back-to-Top Button: Appears in the History tab only when scrollY > 2000px.
+    - [ ] Measure exactly how far down the page the user has scrolled on long library lists.
+    - [ ] Keep the helpful 'Jump to Top' button completely hidden at the start.
+    - [ ] Fade the button into the corner of the screen only when they scroll very deep into the list.
+    - [ ] Scroll the page back to the top beautifully and smoothly when the button is clicked.
+    - [ ] Fade the button back out once they reach the top of the page again.
+- TMDB API Key Verification Spinner: When saving settings, shows a loader while pinging TMDB to verify the key is actually valid.
+    - [ ] Show a spinning loading icon next to the save button when the user enters a new secret key.
+    - [ ] Send a quick, silent test message to the internet database to make sure the key works.
+    - [ ] Swap the spinner for a bright green checkmark if the database accepts the key.
+    - [ ] Swap the spinner for a red warning icon if the database rejects the key or is offline.
+    - [ ] Stop the user from trying to download movie posters if the key is proven to be broken.
+- Empty Season Handling: If a season exists in TMDB but has 0 episodes, the Season Tab is disabled/grayed out in the UI.
+    - [ ] Notice when the internet database lists a season that hasn't actually aired any episodes yet.
+    - [ ] Show the button for that season in the list, but color it a dim, inactive gray.
+    - [ ] Prevent the user from clicking the button since there is nothing inside it to see.
+    - [ ] Add a helpful tooltip explaining 'No episodes available' when they hover over it.
+    - [ ] Turn the button bright and clickable automatically the second a new episode is added.
+- Offline Placeholder Avatars: If actor headshots fail to load due to network drops, use a stylized SVGs matching the dark theme.
+    - [ ] Catch the error quietly if the app tries to download an actor's picture but the internet is broken.
+    - [ ] Swap the broken image box for a beautiful, dark silhouette icon.
+    - [ ] Keep the screen looking polished and professional instead of showing ugly 'image missing' errors.
+    - [ ] Match the silhouette style perfectly to the rest of the dark cinematic theme.
+    - [ ] Ensure the actor's name underneath remains clearly readable.
+- Watch Time Extrapolation: If a show has no runtime data on TMDB, app calculates average runtime from local video files to estimate "Hours Watched".
+    - [ ] Notice if the internet database completely forgets to list how long a television show's episodes are.
+    - [ ] Look at the actual video files on the user's hard drive to see how long they usually run.
+    - [ ] Create a smart guess, like '45 minutes', based on those real video files.
+    - [ ] Use this smart guess to keep the fun dashboard statistics accurate and unbroken.
+    - [ ] Update the guess automatically if the user downloads longer or shorter episodes later.
+- Dynamic "Missing API Key" State: Instead of throwing alerts, the entire "Search" tab shows a beautiful full-screen prompt explaining how to get a free API key with a direct link.
+    - [ ] Check to see if the user has forgotten to enter their secret database key in the settings.
+    - [ ] Replace the empty search page with a friendly, welcoming instruction screen.
+    - [ ] Explain simply why the key is needed to download movie posters and descriptions.
+    - [ ] Provide a giant, clickable link directly to the website where they can sign up for free.
+    - [ ] Remove this instruction screen instantly the second a valid key is saved in the settings.
+- Easter Egg / Konami Code: Typing a secret sequence triggers a playful CSS animation or unlocks a secret color theme for fun.
+    - [ ] Listen quietly for a very specific, secret pattern of keyboard presses.
+    - [ ] Make sure the sequence doesn't accidentally trigger while the user is typing a real search.
+    - [ ] Unlock a silly visual joke, like making the movie posters spin around, when the code is entered.
+    - [ ] Add a hidden 'Neon Pink' color theme to the settings menu as a permanent reward.
+    - [ ] Keep the easter egg totally harmless so it doesn't break any real app features or data.
