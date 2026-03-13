@@ -572,13 +572,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test indexing on the timestamp column to ensure timeline UI fetching is instant.
 - [x] Ensure missing timestamps dynamically fall back to current time on insert.
 
-**5.6 Unmatched_Files staging table for the Inbox.** (Incomplete)
+**5.6 Unmatched_Files staging table for the Inbox.** (Complete)
 
-- [ ] Verify the string key extracted from regex is stored separately from the raw path.
-- [ ] Handle edge cases where a previously unmatched file is naturally moved by the OS.
-- [ ] Ensure clearing the Inbox strictly truncates this table safely.
-- [ ] Test rapid inserts when scanning 10,000 completely unrecognized anime files.
-- [ ] Verify path collision constraints prevent duplicating items already in Local_Files.
+- [x] Verify the string key extracted from regex is stored separately from the raw path.
+- [x] Handle edge cases where a previously unmatched file is naturally moved by the OS.
+- [x] Ensure clearing the Inbox strictly truncates this table safely.
+- [x] Test rapid inserts when scanning 10,000 completely unrecognized anime files.
+- [x] Verify path collision constraints prevent duplicating items already in Local_Files.
 
 **5.7 release_date column for precise library sorting.** (Incomplete)
 

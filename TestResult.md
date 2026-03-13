@@ -100,3 +100,10 @@
 | **The "Mass Triage" Stress Test** | Mark 100 episodes simultaneously. Verify exact same timestamp and sorting order correctly inserts. | **Pass.** Rust Unit Test (`db_tests.rs/test_history_mass_triage_same_millisecond`). Inserted 100 rows within 1 millisecond. Query properly tied-broke items using `id DESC`, keeping rows strictly aligned. |
 | **Collision Deletion** | Manually delete one of the 50 identical-timestamp entries. | **Pass.** Rust Unit Test (`db_tests.rs/test_history_mass_triage_same_millisecond`). Deleting `id = 50` successfully reduced count to 99 leaving remaining rows fully preserved safely independent of the timestamp. |
 | **Missing Timestamp** | Insert row skipping the timestamp entirely. | **Pass.** Rust Unit Test (`db_tests.rs/test_history_missing_timestamp_fallback`). Omission reliably triggered standard SQLite generation using `strftime('%s', 'now')` dropping seamlessly alongside modern rust Unix definitions natively. |
+## TODO 5.6 Unmatched_Files Staging Table
+
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *String cleaning trailing & leading release tags* | *Rust Unit Test (`db_tests.rs`)* | *Pass* |
+| *Fallback to directory on generic 01.mkv naming* | *Rust Unit Test (`db_tests.rs`)* | *Pass* |
+| *Unmatched files DB collision uniqueness verification* | *Rust Unit Test (`db_tests.rs`)* | *Pass* |

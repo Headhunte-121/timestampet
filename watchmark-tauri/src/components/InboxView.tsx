@@ -116,13 +116,31 @@ export default function InboxView({ onMatch }: any) {
     <div className="p-12 pb-24 pt-24 h-full flex flex-col">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-extrabold tracking-tight">Inbox</h1>
-        <button
-          onClick={triggerScan}
-          className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors"
-        >
-          <FolderSearch className="w-5 h-5" />
-          Scan Directory
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={async () => {
+              if (confirm("Are you sure you want to clear the entire Inbox? This will not delete any files.")) {
+                try {
+                  await invoke("clear_unmatched_files");
+                  toast.success("Inbox cleared safely.");
+                  fetchUnmatched();
+                } catch (e: any) {
+                  toast.error("Error clearing inbox: " + e);
+                }
+              }
+            }}
+            className="flex items-center gap-2 px-6 py-3 bg-red-600/80 hover:bg-red-600 text-white font-bold rounded-lg transition-colors shadow-lg"
+          >
+            Clear Inbox
+          </button>
+          <button
+            onClick={triggerScan}
+            className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors"
+          >
+            <FolderSearch className="w-5 h-5" />
+            Scan Directory
+          </button>
+        </div>
       </div>
 
       <p className="text-gray-400 mb-8">You have {Object.keys(grouped).length} unrecognized series on your hard drive.</p>
