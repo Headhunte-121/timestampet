@@ -26,3 +26,8 @@ Whenever you finish implementing a specific task (referred to dynamically as `[T
 
 **Execution Trigger:** 
 Always perform these 3 steps automatically before finalizing a commit or marking a prompt as fully complete. Do not ask for permission to do this; it is mandatory for every update.
+
+### Verification Rules
+- For small logic changes, do NOT run a full `cargo build`.
+- Only run `cargo check` to verify types.
+- If testing is required, only run the specific test related to the change (e.g., `cargo test test_name`).
