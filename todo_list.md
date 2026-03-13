@@ -1722,13 +1722,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test rapid rendering updates ensuring the filtered state updates continuously with every keystroke.
 - [ ] Ensure pressing 'Escape' instantly clears the search state and restores the full local list.
 
-**16.8 Dedicated Settings UI page layout.** (Incomplete)
+**16.8 Dedicated Settings UI page layout.** (Complete)
 
-- [ ] Verify a clean, structured form layout cleanly separating basic logic from advanced overrides.
-- [ ] Ensure input fields cleanly align vertically with standardized labels on the left axis.
-- [ ] Handle edge cases where changes are abandoned by explicitly providing 'Save' vs 'Discard' logic.
-- [ ] Test tabbed navigation internal to Settings (e.g., 'General', 'Database', 'Connections').
-- [ ] Ensure setting modifications actively update the core `JSON` configuration file securely.
+- [x] Verify a clean, structured form layout cleanly separating basic logic from advanced overrides.
+- [x] Ensure input fields cleanly align vertically with standardized labels on the left axis.
+- [x] Handle edge cases where changes are abandoned by explicitly providing 'Save' vs 'Discard' logic.
+- [x] Test tabbed navigation internal to Settings (e.g., 'General', 'Database', 'Connections').
+- [x] Ensure setting modifications actively update the core `JSON` configuration file securely.
 
 **16.9 TMDB API Key text input, validation, and persistent local storage.** (Incomplete)
 

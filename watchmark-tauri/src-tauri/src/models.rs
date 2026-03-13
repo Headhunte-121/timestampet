@@ -112,12 +112,31 @@ pub struct Settings {
     pub y: i32,
     pub tmdb_api_key: String,
     pub cinema_mode: bool,
+
+    #[serde(default = "default_language")]
+    pub language: String,
+    #[serde(default = "default_auto_complete_threshold")]
+    pub auto_complete_threshold: i32,
+    #[serde(default = "default_binge_grouping_hours")]
+    pub binge_grouping_hours: i32,
+    #[serde(default = "default_auto_resume")]
+    pub auto_resume: bool,
+    #[serde(default = "default_auto_scan_on_boot")]
+    pub auto_scan_on_boot: bool,
+    #[serde(default = "default_logging_level")]
+    pub logging_level: String,
 }
 
 fn default_width() -> i32 { 1280 }
 fn default_height() -> i32 { 800 }
 fn default_x() -> i32 { 100 }
 fn default_y() -> i32 { 100 }
+fn default_language() -> String { "en-US".to_string() }
+fn default_auto_complete_threshold() -> i32 { 90 }
+fn default_binge_grouping_hours() -> i32 { 6 }
+fn default_auto_resume() -> bool { true }
+fn default_auto_scan_on_boot() -> bool { false }
+fn default_logging_level() -> String { "Info".to_string() }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -129,6 +148,12 @@ impl Default for Settings {
             y: default_y(),
             tmdb_api_key: String::new(),
             cinema_mode: true,
+            language: default_language(),
+            auto_complete_threshold: default_auto_complete_threshold(),
+            binge_grouping_hours: default_binge_grouping_hours(),
+            auto_resume: default_auto_resume(),
+            auto_scan_on_boot: default_auto_scan_on_boot(),
+            logging_level: default_logging_level(),
         }
     }
 }
