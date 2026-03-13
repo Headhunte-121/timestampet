@@ -24,7 +24,7 @@
   "app": {
     "windows": [
       {
-        "title": "watchmark-tauri",
+        "title": "WatchMark",
         "width": 800,
         "height": 600
       }

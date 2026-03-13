@@ -12,6 +12,8 @@ import History from "./components/History";
 import InboxView from "./components/InboxView";
 import SettingsView from "./components/SettingsView";
 import MediaDetails from "./components/MediaDetails";
+import { Toaster } from "sonner";
+import { Modal } from "./components/ui/Modal";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -112,6 +114,8 @@ function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
+        <Toaster theme="dark" position="bottom-right" richColors />
+        <Modal />
         {/* Global Search Bar */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4 pointer-events-none">
           <div className="relative pointer-events-auto">

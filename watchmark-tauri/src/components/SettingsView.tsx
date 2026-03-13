@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
+import { useUiStore } from "../store/uiStore";
+import { toast } from "sonner";
 
 export default function SettingsView() {
+  const { showPrompt } = useUiStore();
   const [settings, setSettings] = useState<any>({
     vlc_path: "",
     tmdb_api_key: "",
@@ -23,7 +26,7 @@ export default function SettingsView() {
     const unlisten = listen("scan-match-batch", (event: any) => {
       const batch = event.payload.files;
       if (batch && batch.length > 0) {
-        setScanStatus((prev) => `Scanned ${batch.length} files in latest batch...`);
+        setScanStatus(`Scanned ${batch.length} files in latest batch...`);
       }
     });
 
@@ -34,21 +37,21 @@ export default function SettingsView() {
 
   const saveSettings = () => {
     invoke("save_settings", { settings })
-      .then(() => alert("Settings saved successfully."))
-      .catch(e => alert("Error saving settings: " + e));
+      .then(() => toast.success("Settings saved successfully."))
+      .catch(e => toast.error("Error saving settings: " + e));
   };
 
-  const runScan = () => {
-    const dir = prompt("Enter directory to scan:", "C:\\");
+  const runScan = async () => {
+    const dir = await showPrompt("Run Scan", "Enter directory to scan:", "C:\\");
     if (dir) {
       setScanStatus("Scan started...");
       invoke("run_scan_directory", { directory: dir })
         .then((count) => {
-          alert(`Scan complete. Found ${count} unmatched files.`);
+          toast.success(`Scan complete. Found ${count} unmatched files.`);
           setScanStatus("");
         })
         .catch(e => {
-          alert("Error during scan: " + e);
+          toast.error("Error during scan: " + e);
           setScanStatus("");
         });
     }

@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FolderSearch, Search, X } from "lucide-react";
+import { useUiStore } from "../store/uiStore";
+import { toast } from "sonner";
 
 export default function InboxView({ onMatch }: any) {
+  const { showPrompt } = useUiStore();
   const [unmatched, setUnmatched] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,7 +53,7 @@ export default function InboxView({ onMatch }: any) {
       if (e?.toString().includes("reading 'invoke'")) {
         console.warn("Tauri invoke missing.");
       } else {
-        alert("Search failed: " + e);
+        toast.error("Search failed: " + e);
       }
     } finally {
       setIsSearching(false);
@@ -65,7 +68,7 @@ export default function InboxView({ onMatch }: any) {
         mediaType,
         groupKey: selectedGroup
       });
-      alert(`Successfully assigned files to tracker!`);
+      toast.success(`Successfully assigned files to tracker!`);
       setSelectedGroup(null);
       setIsModalOpen(false);
       fetchUnmatched();
@@ -74,7 +77,7 @@ export default function InboxView({ onMatch }: any) {
       if (e?.toString().includes("reading 'invoke'")) {
         console.warn("Tauri invoke missing.");
       } else {
-        alert("Error assigning show: " + e);
+        toast.error("Error assigning show: " + e);
       }
     }
   };
@@ -88,17 +91,17 @@ export default function InboxView({ onMatch }: any) {
 
   const triggerScan = async () => {
     // We would need the Rust File Dialog wrapper for this, using mocked path for demo or alert
-    const dir = prompt("Enter full path to directory to scan:");
+    const dir = await showPrompt("Scan Directory", "Enter full path to directory to scan:");
     if (dir) {
       try {
         const res = await invoke("run_scan_directory", { directory: dir });
-        alert(`Found ${res} new unmatched files.`);
+        toast.success(`Found ${res} new unmatched files.`);
         fetchUnmatched();
       } catch (e: any) {
         if (e?.toString().includes("reading 'invoke'")) {
           console.warn("Tauri invoke missing.");
         } else {
-          alert("Scan Error: " + e);
+          toast.error("Scan Error: " + e);
         }
       }
     }
