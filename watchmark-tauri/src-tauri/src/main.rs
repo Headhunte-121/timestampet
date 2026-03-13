@@ -312,6 +312,7 @@ fn main() {
             commands::perform_tmdb_search,
             commands::assign_unmatched_to_tracker,
             commands::get_media_history_count,
+            commands::backdate_season,
             vlc::play_episode_cmd,
         ])
         .run(tauri::generate_context!())
