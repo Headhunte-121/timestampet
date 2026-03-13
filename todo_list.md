@@ -2578,3 +2578,101 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Unlock a silly visual joke, like making the movie posters spin around, when the code is entered.
     - [ ] Add a hidden 'Neon Pink' color theme to the settings menu as a permanent reward.
     - [ ] Keep the easter egg totally harmless so it doesn't break any real app features or data.
+
+## 📥 Part 26: Automated Sourcing & Telegram Download Engine
+- Missing File Action Trigger: The disabled ☁️ (Cloud) icon on missing episodes is transformed into an interactive, glowing blue 📥 (Download) button.
+    - [ ] Change the gray cloud icon into a bright blue download symbol for any episode missing its video file.
+    - [ ] Make the new button glow slightly so the user knows they can click it to fix the missing file.
+    - [ ] Open a small confirmation menu when the button is clicked to make sure they want to start downloading.
+    - [ ] Provide a tooltip explaining that clicking the button will search the internet for the missing episode.
+    - [ ] Keep the button hidden if the user has disabled downloading features in their main settings.
+- "Fetch Entire Season" Bulk Action: A global button added to the Season UI tab that queues the automated search and download process for all missing episodes in that specific season.
+    - [ ] Place a massive 'Download Season' button right at the top of the season view page.
+    - [ ] Find every single episode in that specific season that currently lacks a local video file.
+    - [ ] Add all of those missing episodes to a download waiting list automatically with one click.
+    - [ ] Gray the button out if the user already has every single episode downloaded for that season.
+    - [ ] Show a polite warning if the season contains more than 50 missing episodes to prevent accidental mass downloads.
+- Automated Web-Scraping Engine: Rust backend silently issues HTTP requests to pre-configured indexing sites (e.g., ibox-tv) using the exact TMDB Title and Year to ensure precise search matches.
+    - [ ] Start a silent background search using the show's name and release year to find the correct files.
+    - [ ] Wait patiently for the internet search to finish without freezing the main app screen.
+    - [ ] Ignore search results that belong to different shows that just happen to share a similar name.
+    - [ ] Provide a clear error message on the screen if the specific indexing website is currently offline.
+    - [ ] Let the user continue browsing their library normally while this search happens invisibly.
+- Headless Result Parsing: The backend parses the HTML DOM of the search results, identifies the correct show page, and navigates to the details page without opening a visible browser window.
+    - [ ] Read the hidden website code to find the best match for the specific television show.
+    - [ ] Follow the hidden website links to reach the final download page without opening a real web browser.
+    - [ ] Stop the search safely if the website changes its layout and the app can no longer read it.
+    - [ ] Pick the highest quality version available if the website offers multiple different choices.
+    - [ ] Keep the user's computer clean by not leaving hidden browser windows running in the background.
+- Telegram Deep-Link Extraction: Scrapes the target page specifically looking for t.me/ join links or specific Telegram file IDs hidden in the "Download Now" buttons.
+    - [ ] Search the final webpage to find the specific hidden link needed to get the video file.
+    - [ ] Grab the unique file identification number out of the website button.
+    - [ ] Stop the process gently if the webpage promises a download but doesn't actually contain a valid link.
+    - [ ] Handle situations safely where the website requires solving a puzzle before showing the link.
+    - [ ] Secure the extracted link so it can be passed to the downloading engine safely.
+- Native MTProto Telegram Integration: WatchMark acts as a headless Telegram client (via API ID and Hash), bypassing the need to physically open the Telegram Desktop GUI.
+    - [ ] Connect the app straight to the chat servers without making the user open a separate chat program.
+    - [ ] Keep the connection totally invisible so it feels like a native feature of the movie app.
+    - [ ] Ensure the user's personal chat messages remain totally private and untouched.
+    - [ ] Handle network drops by pausing the connection and trying again when the internet returns.
+    - [ ] Close the connection safely the moment the app finishes pulling the requested files.
+- Automated Channel Joining: The backend securely passes the extracted t.me invite hash to the Telegram servers, automatically joining the required distribution channel on the user's behalf.
+    - [ ] Use the hidden link from the webpage to join the specific chat room where the files live.
+    - [ ] Wait for the server to confirm the user was successfully added to the room before searching.
+    - [ ] Show an error if the specific chat room was banned or deleted by the server administrators.
+    - [ ] Bypass any welcome messages or group rules without forcing the user to read them.
+    - [ ] Keep the app from joining the same room twice if the user downloads another episode later.
+- Smart Message Filtering: Once in the channel, the backend scans the message history, using your existing regex engine to identify only the specific .mkv or .mp4 files that match the missing SxxExx numbers.
+    - [ ] Look through the history of the chat room to find the exact video file needed.
+    - [ ] Use the show's season and episode number to skip over files that belong to different episodes.
+    - [ ] Ignore small files like pictures or text documents that might be mixed in with the videos.
+    - [ ] Handle situations where the file name is slightly misspelled but still obviously the correct episode.
+    - [ ] Stop searching once the correct file is found so the app doesn't waste time reading the whole room.
+- In-App Download Manager (UI): A new sliding drawer or modal in WatchMark displaying active background downloads, featuring real-time progress bars, MB/s speed metrics, and ETAs.
+    - [ ] Build a sleek menu that slides out from the side of the screen to show what is downloading.
+    - [ ] Show a moving progress bar for every single file currently being pulled from the internet.
+    - [ ] Display numbers telling the user exactly how fast the download is moving.
+    - [ ] Guess how many minutes are left until the download finishes and display it clearly.
+    - [ ] Provide a simple 'Cancel' button next to each file in case the user changes their mind.
+- Direct-to-Library Routing: Files are not dumped into the OS "Downloads" folder; they are streamed directly into the user's configured WatchMark media root directory (e.g., D:\TV Shows\[Show Name]\Season 1\).
+    - [ ] Create the correct show and season folders automatically on the user's hard drive if they don't exist.
+    - [ ] Save the downloading video file straight into those specific folders instead of a messy general pile.
+    - [ ] Name the new file cleanly using the standard season and episode numbering format.
+    - [ ] Avoid leaving broken, half-finished files sitting in the folders if the download is cancelled.
+    - [ ] Make sure the app has the right computer permissions to save files in that specific location.
+- Auto-Link & UI Refresh: The exact millisecond a download hits 100%, the backend updates the Local_Files database table and instantly transitions the UI icon from the blue downloading spinner to the solid orange ▶ Play button.
+    - [ ] Tell the database exactly where the new video file is located the second the download finishes.
+    - [ ] Change the blue download icon into a bright orange play button instantly on the screen.
+    - [ ] Let the user click play to start watching the video without needing to refresh the page.
+    - [ ] Update the dashboard statistics and continuing watching rows to include the brand new episode.
+    - [ ] Remove the finished item from the active download list so the menu stays clean.
+- Telegram Auth Setup (Settings): A secure panel in the Settings menu where users input their Telegram Phone Number and API credentials to authenticate the background downloader via a one-time SMS verification code.
+    - [ ] Create a special section in the settings menu dedicated to setting up the chat connection.
+    - [ ] Provide clear text boxes for the user to type in their phone number and secret credentials.
+    - [ ] Let the user type in the verification code they receive on their phone to prove who they are.
+    - [ ] Hide all the typed secret numbers behind stars or dots so people walking by can't see them.
+    - [ ] Show a friendly green checkmark when the connection is tested and proven to work.
+- Auto-Leave Channel (Cleanup): An optional setting to automatically leave the Telegram channel the moment the required files finish downloading, preventing the user's personal Telegram chat list from becoming cluttered with hundreds of file channels.
+    - [ ] Add a simple toggle switch in the settings asking if the app should clean up after itself.
+    - [ ] Remove the user from the chat room the second the video file finishes saving.
+    - [ ] Stop the user's personal phone app from filling up with hundreds of random movie groups.
+    - [ ] Leave the user in the room if they turn this setting off so they can easily find more files later.
+    - [ ] Wait until every single queued episode from that specific room is finished before leaving.
+- Multi-Threaded Downloading: Support for concurrent chunk-downloading from Telegram servers to maximize bandwidth utilization and speed up large season packs.
+    - [ ] Break massive video files into tiny pieces and download several pieces at the same time.
+    - [ ] Put the tiny pieces back together seamlessly on the hard drive so the video plays smoothly.
+    - [ ] Pull down multiple different episodes at the exact same time if the user queued an entire season.
+    - [ ] Ensure this complex downloading process doesn't cause the main app screen to stutter or freeze.
+    - [ ] Handle situations gracefully where one tiny piece fails to download by trying it again.
+- Download Failure Fallback: If the Telegram link is expired or the file is missing from the channel, the UI gracefully falls back, throwing a toast notification: "Source unavailable. Manual search required."
+    - [ ] Notice if the hidden link is old and the chat servers refuse to let the app inside the room.
+    - [ ] Show a polite popup notification letting the user know the file could not be found automatically.
+    - [ ] Change the spinning download icon back into the original gray cloud icon.
+    - [ ] Keep the app from crashing or locking up if it hits a dead end during the invisible search.
+    - [ ] Remove the broken item from the active download list so it doesn't get stuck there forever.
+- Bandwidth Throttling: A slider in Settings to cap the Telegram download speed so background fetching doesn't ruin the user's ping while gaming or browsing.
+    - [ ] Add a slider to the download settings letting the user set a strict speed limit.
+    - [ ] Force the invisible downloader to slow down so it never crosses that specific limit.
+    - [ ] Help users keep their home internet fast enough for gaming or video calls while movies download.
+    - [ ] Allow the user to uncap the limit entirely if they want their movies to finish as fast as possible.
+    - [ ] Update the estimated finish time in the download menu to reflect the slower speed limit.
