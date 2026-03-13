@@ -12,8 +12,6 @@ This document represents the absolute state of the WatchMark codebase compared t
 ## 1. Global UI & UX Engine
 - `[x]` **Cinematic Dark Theme**: `#0D0F14` background, `#1F222A` surfaces, pure white text, and `#FF6B00` accents are fully applied across React components.
 - `[x]` **Hybrid Window Layout**: Tauri `tauri.conf.json` handles the native OS title bar. A sleek navigation bar exists under it in `App.tsx`.
-- `[ ]` **Global "Turbo-Scroll"**: **MISSING**. There is no global multiplier applied to the mouse wheel delta (4x-5x speed) in the frontend wrapper.
-    - *Action Required*: Create a custom React hook or global event listener in `App.tsx` that hijacks the `wheel` event and multiplies the `deltaY` by 4 or 5 before applying it to the scroll container's `scrollTop`.
 - `[x]` **In-Place UI Updates**: `refreshTrigger` hooks state is implemented avoiding full page jumps.
 - `[ ]` **Toast Notifications**: **MISSING**. Currently, the app uses native browser `alert()` popups (e.g., in `InboxView.tsx` and `Dashboard.tsx`).
     - *Action Required*: Implement a library like `react-hot-toast` or a custom Framer Motion slide-in component anchored to the bottom-right for "Scan Complete" or "Sync Successful" messages.
