@@ -1288,13 +1288,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test it strictly triggers the cascading SQLite delete without leaving orphaned files.
 - [ ] Ensure the UI instantly routes back directly to the Library list upon deletion.
 
-**11.13 Cascading red warning confirmation modal for Remove Show.** (Complete)
+**11.13 Cascading red warning confirmation modal for Remove Show.** (Incomplete)
 
-- [x] Verify a heavy z-index dark blur immediately overtakes the entire screen to block all other actions.
-- [x] Ensure the bold red button strictly requires intentional confirmation.
-- [x] Handle edge cases where clicking the dark backdrop outside the modal safely cancels the action.
-- [x] Test text clearly explaining 'This will permanently remove history and tracking, but local files will NOT be deleted'.
-- [x] Ensure focus is automatically trapped inside the modal for keyboard safety.
+- [ ] Verify a heavy z-index dark blur immediately overtakes the entire screen to block all other actions.
+- [ ] Ensure the bold red button strictly requires intentional confirmation.
+- [ ] Handle edge cases where clicking the dark backdrop outside the modal safely cancels the action.
+- [ ] Test text clearly explaining 'This will permanently remove history and tracking, but local files will NOT be deleted'.
+- [ ] Ensure focus is automatically trapped inside the modal for keyboard safety.
 
 **11.14 Horizontal scrolling pill-style Season Tabs.** (Incomplete)
 
@@ -1534,13 +1534,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test standard keyboard accessibility specifically allowing Tab navigation and Enter selection.
 - [ ] Ensure explicit warning text clearly explains what 'Archive' does vs 'Backdate'.
 
-**14.3 'Archive' Functionality: Marks episodes completed, increments counts, but completely skips the History table INSERT (Prevents timeline spam).** (Complete)
+**14.3 'Archive' Functionality: Marks episodes completed, increments counts, but completely skips the History table INSERT (Prevents timeline spam).** (Incomplete)
 
-- [x] Verify episodes explicitly update their status correctly to 'Completed' in the main episode list.
-- [x] Ensure total episode count math correctly includes archived items without requiring a history timestamp.
-- [x] Handle edge cases where a user later tries to manually backdate an already archived episode.
-- [x] Test the backend query ensuring absolutely zero rows are accidentally pushed to the `History` table.
-- [x] Ensure the 'Shows Completed' statistic correctly flips to true if the entire show was specifically archived.
+- [ ] Verify episodes explicitly update their status correctly to 'Completed' in the main episode list.
+- [ ] Ensure total episode count math correctly includes archived items without requiring a history timestamp.
+- [ ] Handle edge cases where a user later tries to manually backdate an already archived episode.
+- [ ] Test the backend query ensuring absolutely zero rows are accidentally pushed to the `History` table.
+- [ ] Ensure the 'Shows Completed' statistic correctly flips to true if the entire show was specifically archived.
 
 **14.4 'Backdate' Feature: Dual dropdown pickers for specific Year and Month.** (Incomplete)
 
