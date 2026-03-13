@@ -1825,3 +1825,125 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Show a small text box completely explaining 'Information Missing' when the user hovers over the triangle.
     - [ ] Remove the warning triangle instantly if the user successfully uses the refresh button to find the missing details.
     - [ ] Keep the play button entirely functional so the user can still watch their show even without a summary.
+
+## 📚 Part 21: Advanced Library Organization
+- Compact List Toggle: A button to switch the Poster Grid into a dense, text-heavy data table view.
+    - [ ] Add a clean icon button exactly in the top right corner to flip the entire library layout perfectly.
+    - [ ] Hide the giant movie posters completely and switch entirely to a neat, organized list of text rows.
+    - [ ] Show important details like release year, rating, and watch progress directly next to each title.
+    - [ ] Keep the list incredibly easy to read by adding slightly alternating background colors to every other row.
+    - [ ] Remember the user's layout choice automatically so they don't have to click the button every time they open the app.
+- Adjustable Poster Sizing: A slider in the top bar to scale the grid (Small, Medium, Large posters).
+    - [ ] Place a simple, subtle sliding bar right next to the layout button specifically to control picture size.
+    - [ ] Shrink or grow all the movie posters flawlessly in real time exactly as the user drags the slider.
+    - [ ] Rearrange the posters automatically to fit the new sizes perfectly onto the screen without breaking the grid.
+    - [ ] Set strict limits perfectly so the posters never become impossibly tiny or overwhelmingly huge.
+    - [ ] Save this exact size preference silently so it stays perfectly consistent the next time they log in.
+- Genre Filtering Dropdown: Multi-select checkboxes to filter library by "Action AND Comedy".
+    - [ ] Build a beautiful dropdown menu entirely filled with every single movie and television genre.
+    - [ ] Let users check multiple boxes exactly at the same time to mix and match their search perfectly.
+    - [ ] Filter the movie posters instantly the exact second a new box is checked or unchecked.
+    - [ ] Show a polite, friendly message completely if the chosen combination results in exactly zero movies.
+    - [ ] Add a quick 'Clear' button specifically inside the menu to instantly uncheck every single box.
+- Status Filtering: Filter library strictly by "Ended" or "Returning Series".
+    - [ ] Add a simple filter option exactly letting users look only at television shows that are completely finished.
+    - [ ] Provide another option specifically for shows that are actively still airing new episodes.
+    - [ ] Hide movies entirely from the screen whenever these television-specific filters are turned on.
+    - [ ] Combine this filter perfectly with other choices, like finding a 'Finished' show that is also a 'Comedy'.
+    - [ ] Handle situations gracefully completely where a show's status is totally unknown.
+- Missing Files Filter: View tracked shows where local files have been deleted/moved.
+    - [ ] Create a specific filter button entirely dedicated to finding broken or missing video files.
+    - [ ] Show only the movie posters specifically for episodes that the app can no longer find on the computer.
+    - [ ] Make it incredibly easy for the user to select these broken shows and remove them or fix them.
+    - [ ] Hide the standard 'Play' buttons completely on these posters to prevent annoying errors.
+    - [ ] Empty this filter list instantly the exact second the user successfully plugs their external hard drive back in.
+- Favorites Filter: 1-click quick filter to only show 5-star rated media.
+    - [ ] Place a shiny star icon button prominently right next to the main search bar.
+    - [ ] Click the button to instantly hide absolutely everything that doesn't have a perfect five-star rating.
+    - [ ] Keep the user's specific sorting choices exactly exactly the same while the filter is active.
+    - [ ] Turn the star button brightly orange exactly while the filter is turned on so it is obvious.
+    - [ ] Let the user click the bright star a second time to instantly return exactly to their normal library.
+- Decade Filter: Group shows by 80s, 90s, 2000s, 2010s, 2020s.
+    - [ ] Add a fun, simple dropdown specifically letting users jump back in time to their favorite movie eras.
+    - [ ] Find the exact release year for every movie and perfectly sort them into these ten-year buckets.
+    - [ ] Show only the posters that fit perfectly completely into the specifically chosen decade.
+    - [ ] Make sure television shows are sorted exactly based entirely on the year their very first episode aired.
+    - [ ] Handle incredibly old classic movies perfectly without breaking the layout or the math.
+- "Pick a Show for Me" Button: A dice icon that randomly selects an unwatched/in-progress show.
+    - [ ] Put a neat little dice icon perfectly at the very top of the main screen specifically for indecisive viewers.
+    - [ ] Pick one completely random movie or television show entirely from their personal collection when clicked.
+    - [ ] Ignore shows entirely that the user has already finished completely to keep the choice fresh.
+    - [ ] Open the detailed page specifically for the chosen show instantly so they can start watching.
+    - [ ] Ensure the app genuinely picks randomly exactly every single time instead of getting stuck on one show.
+- "Play Random Episode": A specific button for Sitcoms to launch a random completed episode (e.g., The Office).
+    - [ ] Add a special 'Shuffle' button specifically to the details page of television shows.
+    - [ ] Pick exactly one random episode entirely from the list of episodes the user has already watched.
+    - [ ] Launch the video player instantly with that specific episode exactly the second the button is clicked.
+    - [ ] Skip over any episodes completely that are missing their video file so the user doesn't hit an error.
+    - [ ] Hide this button entirely on movies, since shuffling a single movie doesn't make any sense.
+- A-Z Index Dividers: When sorted alphabetically, visual horizontal dividers separate the 'A's from the 'B's.
+    - [ ] Draw a beautiful, clean line completely across the screen precisely where the starting letters change.
+    - [ ] Place a giant, elegant letter perfectly on the left side of the line, like a bold 'A' or 'B'.
+    - [ ] Make sure these dividers appear strictly only when the user is sorting their library by name.
+    - [ ] Group numbers or special characters perfectly together entirely under one single '#' divider at the very top.
+    - [ ] Keep the posters directly underneath the dividers perfectly aligned exactly in their normal grid shape.
+- Year Index Dividers: When sorted by Release Date, dividers separate 2024 from 2023.
+    - [ ] Draw the same beautiful dividing lines explicitly when the user sorts their movies from newest to oldest.
+    - [ ] Put the exact four-digit year prominently right on the dividing line so it is perfectly easy to read.
+    - [ ] Hide these dividers completely if the user switches to a different sorting method like highest rated.
+    - [ ] Handle movies entirely that are missing release years by grouping them neatly under an 'Unknown' divider at the bottom.
+    - [ ] Stop the dividers from appearing explicitly if the user has filtered the list down to only a handful of posters.
+- Persistent View State: The app remembers if you sorted Movies by Rating and TV by Added, saving it to LocalStorage.
+    - [ ] Save the user's exact sorting choice entirely completely in the background every single time they change it.
+    - [ ] Remember perfectly the settings specifically for the Television library totally separate from the Movie library.
+    - [ ] Load these exact settings silently and perfectly the very next time the user opens the application.
+    - [ ] Apply the exact same memory specifically to whether the user prefers the grid view or the compact list view.
+    - [ ] Make sure this invisible memory feature never accidentally slows down or breaks the app's loading speed.
+- "Clear All Filters" Pill: A floating action button that appears when any complex filters are active.
+    - [ ] Watch carefully precisely to see if the user has turned on more than one tricky filter at the exact same time.
+    - [ ] Pop a beautiful, bright button exactly onto the top of the screen perfectly offering to clear everything.
+    - [ ] Wipe every single filter completely away instantly when the user clicks the button.
+    - [ ] Return the movie library flawlessly exactly back to its completely normal, unfiltered state.
+    - [ ] Hide the bright button instantly exactly the second the library goes back to normal.
+- Results Counter: Subtle text stating "Showing 42 of 150 items".
+    - [ ] Place exactly a very tiny, dim line of text completely at the top corner of the movie library.
+    - [ ] Update the numbers instantly perfectly every single time a new filter is clicked or a search is typed.
+    - [ ] Count perfectly precisely exactly how many total movies exist compared to entirely what is currently visible.
+    - [ ] Keep the text completely silent and invisible perfectly if the user is simply looking at their entire collection.
+    - [ ] Make sure the numbers never accidentally overlap perfectly exactly over any important buttons or posters.
+- Intersection Observer Rendering: Posters entirely off-screen are replaced by empty divs to conserve DOM memory.
+    - [ ] Watch perfectly silently to see exactly which movie posters completely disappear off the top or bottom of the screen.
+    - [ ] Remove the heavy picture completely exactly from the computer's memory to keep the app running fast.
+    - [ ] Leave a totally invisible, perfectly sized empty box directly in its place so the scrolling doesn't jump or break.
+    - [ ] Put the picture perfectly right back into the exact box instantly completely before the user scrolls back to it.
+    - [ ] Make sure exactly the user never accidentally sees the blank boxes explicitly while scrolling normally.
+- Image Retry Logic: If a local cached image is corrupted, automatically attempt to re-download it from TMDB.
+    - [ ] Notice completely instantly if a movie poster picture file is totally broken or won't load properly.
+    - [ ] Try quietly completely in the background entirely to download a fresh copy of the picture from the internet.
+    - [ ] Replace the broken picture instantly explicitly on the screen the exact second the new one finishes downloading.
+    - [ ] Stop trying completely permanently if the internet is down entirely so the app doesn't freeze or crash.
+    - [ ] Show perfectly the neat, beautiful gray placeholder box completely while the app is silently fixing the picture.
+- Type Iconography: In "All Search Results", overlay a tiny Movie clapperboard or TV icon to distinguish media types.
+    - [ ] Look perfectly closely explicitly at mixed search results exactly to see what kind of media they are.
+    - [ ] Place a tiny, incredibly cute television icon precisely in the corner of all the television shows.
+    - [ ] Place a tiny movie clapperboard icon exactly in the corner of all the standard feature films.
+    - [ ] Keep these icons completely perfectly small so they don't cover up the actual title of the movie.
+    - [ ] Hide the icons entirely perfectly if the user is already specifically browsing just their TV or Movie libraries.
+- "Unwatched Only" Filter: Distinct from "Hide Completed"—this specifically hides anything you've started.
+    - [ ] Add a brand new checkbox completely separate exactly from the standard 'Hide Completed' button.
+    - [ ] Hide every single movie or show perfectly explicitly that the user has even watched five minutes of.
+    - [ ] Leave only the perfectly totally fresh, absolutely untouched movies directly on the screen.
+    - [ ] Help the user easily completely find exactly something brand new specifically they haven't started yet.
+    - [ ] Keep this filter perfectly completely compatible exactly with all the other genre or sorting tools.
+- Library Multi-Select State: Allow users to Ctrl+Click multiple posters to Bulk Remove.
+    - [ ] Let users completely hold down the Ctrl or Cmd key entirely and click exactly on several different movie posters.
+    - [ ] Highlight completely exactly every single poster perfectly they click perfectly so it is obvious they are selected.
+    - [ ] Pop completely exactly a new menu perfectly at the top of the screen entirely offering a massive 'Delete All' button.
+    - [ ] Remove completely perfectly every single chosen movie exactly the instant the big button is completely pressed.
+    - [ ] Un-highlight completely perfectly everything entirely the exact second the user clicks completely anywhere else on the page.
+- "Pin to Top" Feature: Right-click a show to pin it, ensuring it stays at the top of the grid regardless of sort order.
+    - [ ] Add a completely neat 'Pin to Top' completely button perfectly directly inside the custom right-click menu.
+    - [ ] Move that specific movie poster perfectly entirely explicitly to the absolute very first spot in the entire library.
+    - [ ] Keep it locked completely perfectly explicitly in that number one spot totally even if the user changes how the list is sorted.
+    - [ ] Add completely perfectly explicitly a tiny little thumbtack icon perfectly completely to the corner of the poster so it is obvious.
+    - [ ] Un-pin perfectly explicitly completely the poster perfectly the second the user explicitly entirely clicks the button again.
