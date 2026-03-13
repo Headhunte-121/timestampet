@@ -2,21 +2,18 @@ use rusqlite::{Connection, Result};
 use std::path::PathBuf;
 use std::fs;
 
-pub fn get_app_data_dir() -> PathBuf {
-    let mut exe_dir = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
-    // If we're running in debug mode (target/debug/app), move up to the project root for local data.
-    if exe_dir.ends_with("watchmark-tauri") || exe_dir.parent().map_or(false, |p| p.ends_with("debug") || p.ends_with("release")) {
-        // Just use current directory if development, otherwise alongside exe
-        if cfg!(debug_assertions) {
-            exe_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        } else {
-            exe_dir.pop();
-        }
-    } else {
-        exe_dir.pop();
-    }
+use directories::ProjectDirs;
 
-    let app_dir = exe_dir.join("WatchMark");
+pub fn get_app_data_dir() -> PathBuf {
+    let app_dir = if let Some(proj_dirs) = ProjectDirs::from("com", "WatchMark", "WatchMark") {
+        proj_dirs.data_local_dir().to_path_buf()
+    } else {
+        // Fallback to local execution directory if OS doesn't support appdata paths
+        let mut exe_dir = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
+        exe_dir.pop();
+        exe_dir.join("WatchMark")
+    };
+
     if !app_dir.exists() {
         fs::create_dir_all(&app_dir).unwrap_or_default();
     }
