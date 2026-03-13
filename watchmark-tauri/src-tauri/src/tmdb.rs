@@ -137,10 +137,7 @@ pub fn get_media_details(
                 r["number_of_episodes"].as_i64().unwrap_or(1),
             )),
         );
-        obj.insert(
-            "seasons".to_string(),
-            r["seasons"].clone(),
-        );
+        obj.insert("seasons".to_string(), r["seasons"].clone());
         obj.insert(
             "release_date".to_string(),
             Value::String(r["first_air_date"].as_str().unwrap_or("").to_string()),
@@ -160,18 +157,26 @@ pub fn get_media_details(
         );
     }
 
-    obj.insert("status".to_string(), Value::String("Plan to Watch".to_string()));
+    obj.insert(
+        "status".to_string(),
+        Value::String("Plan to Watch".to_string()),
+    );
 
     if let Some(vote) = r["vote_average"].as_f64() {
         if let Some(num) = serde_json::Number::from_f64(vote) {
             obj.insert("vote_average".to_string(), Value::Number(num));
         } else {
-            obj.insert("vote_average".to_string(), Value::Number(serde_json::Number::from(0)));
+            obj.insert(
+                "vote_average".to_string(),
+                Value::Number(serde_json::Number::from(0)),
+            );
         }
     } else {
-         obj.insert("vote_average".to_string(), Value::Number(serde_json::Number::from(0)));
+        obj.insert(
+            "vote_average".to_string(),
+            Value::Number(serde_json::Number::from(0)),
+        );
     }
-
 
     Ok(Value::Object(obj))
 }
@@ -214,7 +219,9 @@ pub fn get_tv_season_episodes(
         );
         obj.insert(
             "runtime".to_string(),
-            Value::Number(serde_json::Number::from(ep["runtime"].as_i64().unwrap_or(0))),
+            Value::Number(serde_json::Number::from(
+                ep["runtime"].as_i64().unwrap_or(0),
+            )),
         );
         obj.insert(
             "still_path".to_string(),
@@ -244,7 +251,10 @@ pub fn download_image(image_path: &str, size: &str) -> Option<String> {
     }
 
     let url = format!("https://image.tmdb.org/t/p/{}/{}", size, clean_path);
-    let client = Client::builder().timeout(Duration::from_secs(15)).build().ok()?;
+    let client = Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .ok()?;
 
     if let Ok(mut response) = client.get(&url).send() {
         if response.status().is_success() {

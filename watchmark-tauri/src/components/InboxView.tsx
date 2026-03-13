@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FolderSearch, Search, X } from "lucide-react";
-import { useUiStore } from "../store/uiStore";
 import { toast } from "sonner";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export default function InboxView({ onMatch }: any) {
-  const { showPrompt } = useUiStore();
   const [unmatched, setUnmatched] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -90,19 +89,23 @@ export default function InboxView({ onMatch }: any) {
   };
 
   const triggerScan = async () => {
-    // We would need the Rust File Dialog wrapper for this, using mocked path for demo or alert
-    const dir = await showPrompt("Scan Directory", "Enter full path to directory to scan:");
-    if (dir) {
-      try {
-        const res = await invoke("run_scan_directory", { directory: dir });
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Select Directory to Scan"
+      });
+
+      if (selected && typeof selected === 'string') {
+        const res = await invoke("run_scan_directory", { directory: selected });
         toast.success(`Found ${res} new unmatched files.`);
         fetchUnmatched();
-      } catch (e: any) {
-        if (e?.toString().includes("reading 'invoke'")) {
-          console.warn("Tauri invoke missing.");
-        } else {
-          toast.error("Scan Error: " + e);
-        }
+      }
+    } catch (e: any) {
+      if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
+        console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
+      } else {
+        toast.error("Scan Error: " + e);
       }
     }
   };

@@ -1,8 +1,8 @@
 use regex::Regex;
 use rusqlite::{params, Connection, Result};
 use std::path::Path;
-use walkdir::WalkDir;
 use tauri::{AppHandle, Emitter};
+use walkdir::WalkDir;
 
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"];
 
@@ -46,7 +46,11 @@ struct MatchBatchPayload {
     files: Vec<serde_json::Value>,
 }
 
-pub fn scan_directory(directory: &str, conn: &mut Connection, app_handle: &AppHandle) -> Result<i32> {
+pub fn scan_directory(
+    directory: &str,
+    conn: &mut Connection,
+    app_handle: &AppHandle,
+) -> Result<i32> {
     let mut new_unmatched_count = 0;
     let mut batch = Vec::new();
 
@@ -70,7 +74,8 @@ pub fn scan_directory(directory: &str, conn: &mut Connection, app_handle: &AppHa
 
                         if let (Some(s_num), Some(e_num)) = (season_num, episode_num) {
                             // TV Show Match
-                            let mut stmt = tx.prepare("SELECT id, title FROM Media WHERE type='TV'")?;
+                            let mut stmt =
+                                tx.prepare("SELECT id, title FROM Media WHERE type='TV'")?;
                             let shows = stmt.query_map([], |row| {
                                 Ok((
                                     row.get::<_, i32>(0)?,
@@ -154,7 +159,8 @@ pub fn scan_directory(directory: &str, conn: &mut Connection, app_handle: &AppHa
                         let mut group_key = series_name.clone();
                         if group_key.is_none() {
                             let stem = path.file_stem().unwrap().to_string_lossy();
-                            let fallback_match = Regex::new(r"^(.+?)(?=\.[sS]\d\d|\.\d{4})").unwrap();
+                            let fallback_match =
+                                Regex::new(r"^(.+?)(?=\.[sS]\d\d|\.\d{4})").unwrap();
                             if let Some(caps) = fallback_match.captures(&stem) {
                                 group_key = Some(caps.get(1).unwrap().as_str().to_string());
                             } else {
@@ -162,7 +168,8 @@ pub fn scan_directory(directory: &str, conn: &mut Connection, app_handle: &AppHa
                             }
                         }
 
-                        let clean_group_key = group_key.map(|k| k.replace(&['.', '_'][..], " ").trim().to_string());
+                        let clean_group_key =
+                            group_key.map(|k| k.replace(&['.', '_'][..], " ").trim().to_string());
 
                         let group_key_clone = clean_group_key.clone();
                         let res = tx.execute(
@@ -190,7 +197,12 @@ pub fn scan_directory(directory: &str, conn: &mut Connection, app_handle: &AppHa
                     }
 
                     if batch.len() >= 50 {
-                        let _ = app_handle.emit("scan-match-batch", MatchBatchPayload { files: batch.clone() });
+                        let _ = app_handle.emit(
+                            "scan-match-batch",
+                            MatchBatchPayload {
+                                files: batch.clone(),
+                            },
+                        );
                         batch.clear();
                     }
                 }

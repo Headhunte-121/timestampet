@@ -1,29 +1,23 @@
 use crate::db::get_db_connection;
-use crate::models::{HistoryEntry, Media, UnmatchedFile, Settings};
-use crate::error::{AppError, handle_panic};
+use crate::error::{handle_panic, AppError};
+use crate::models::{HistoryEntry, Media, Settings, UnmatchedFile};
 use rusqlite::params;
 use serde_json::{json, Value};
 use std::thread;
 
 #[tauri::command]
 pub fn get_settings() -> Result<Settings, AppError> {
-    handle_panic(|| {
-        Ok(crate::settings::load_settings())
-    })
+    handle_panic(|| Ok(crate::settings::load_settings()))
 }
 
 #[tauri::command]
 pub fn save_settings(settings: Settings) -> Result<(), AppError> {
-    handle_panic(|| {
-        crate::settings::save_settings(&settings).map_err(AppError::from)
-    })
+    handle_panic(|| crate::settings::save_settings(&settings).map_err(AppError::from))
 }
 
 #[tauri::command]
 pub fn delete_media_cmd(media_id: i32) -> Result<(), AppError> {
-    handle_panic(|| {
-        crate::db::delete_media(media_id).map_err(AppError::from)
-    })
+    handle_panic(|| crate::db::delete_media(media_id).map_err(AppError::from))
 }
 
 #[tauri::command]
@@ -58,17 +52,21 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
             let m_type = m["type"].as_str().unwrap_or_default().to_string();
 
             // Watched count
-            let watched_eps: i32 = conn.query_row(
-                "SELECT COUNT(*) FROM Episodes WHERE media_id=? AND status='Completed'",
-                params![media_id],
-                |r| r.get(0),
-            ).unwrap_or(0);
+            let watched_eps: i32 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM Episodes WHERE media_id=? AND status='Completed'",
+                    params![media_id],
+                    |r| r.get(0),
+                )
+                .unwrap_or(0);
 
             m["completed_eps"] = json!(watched_eps);
 
             let mut seasons = vec![];
             if m_type == "TV" {
-                let mut s_stmt = conn.prepare("SELECT DISTINCT season_num FROM Episodes WHERE media_id=? ORDER BY season_num")?;
+                let mut s_stmt = conn.prepare(
+                    "SELECT DISTINCT season_num FROM Episodes WHERE media_id=? ORDER BY season_num",
+                )?;
                 let s_rows = s_stmt.query_map(params![media_id], |row| row.get::<_, i32>(0));
                 if let Ok(s_rows_iter) = s_rows {
                     for s in s_rows_iter.flatten() {
@@ -80,13 +78,15 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
             }
             m["seasons"] = json!(seasons);
 
-            let mut eps_stmt = conn.prepare("
+            let mut eps_stmt = conn.prepare(
+                "
                 SELECT e.*, l.file_path
                 FROM Episodes e
                 LEFT JOIN Local_Files l ON e.id = l.episode_id
                 WHERE e.media_id=?
                 ORDER BY e.season_num, e.ep_num
-            ")?;
+            ",
+            )?;
 
             let mut episodes = vec![];
             if let Ok(ep_rows) = eps_stmt.query_map(params![media_id], |row| {
@@ -121,7 +121,11 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
 }
 
 #[tauri::command]
-pub async fn add_to_tracker(tmdb_id: String, media_type: String, archive: bool) -> Result<(), AppError> {
+pub async fn add_to_tracker(
+    tmdb_id: String,
+    media_type: String,
+    archive: bool,
+) -> Result<(), AppError> {
     tokio::task::spawn_blocking(move || {
         handle_panic(|| {
             let settings = crate::settings::load_settings();
@@ -447,7 +451,11 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
 }
 
 #[tauri::command]
-pub fn get_library_data(media_type: &str, sort_by: &str, hide_completed: bool) -> Result<Vec<Media>, AppError> {
+pub fn get_library_data(
+    media_type: &str,
+    sort_by: &str,
+    hide_completed: bool,
+) -> Result<Vec<Media>, AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;
 
@@ -591,7 +599,10 @@ pub fn fetch_history() -> Result<Vec<HistoryEntry>, AppError> {
 }
 
 #[tauri::command]
-pub fn run_scan_directory(app_handle: tauri::AppHandle, directory: String) -> Result<i32, AppError> {
+pub fn run_scan_directory(
+    app_handle: tauri::AppHandle,
+    directory: String,
+) -> Result<i32, AppError> {
     handle_panic(std::panic::AssertUnwindSafe(|| {
         let mut conn = get_db_connection()?;
         crate::scanner::scan_directory(&directory, &mut conn, &app_handle).map_err(AppError::from)
@@ -603,14 +614,21 @@ pub fn perform_tmdb_search(query: &str) -> Result<Vec<Value>, AppError> {
     handle_panic(|| {
         let settings = crate::settings::load_settings();
         if settings.tmdb_api_key.is_empty() {
-            return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
+            return Err(AppError::Custom(
+                "Missing TMDB API Key. Please add it in Settings.".to_string(),
+            ));
         }
-        crate::tmdb::search_media(&settings.tmdb_api_key, query).map_err(|e| AppError::Custom(e.to_string()))
+        crate::tmdb::search_media(&settings.tmdb_api_key, query)
+            .map_err(|e| AppError::Custom(e.to_string()))
     })
 }
 
 #[tauri::command]
-pub async fn assign_unmatched_to_tracker(tmdb_id: String, media_type: String, group_key: String) -> Result<(), AppError> {
+pub async fn assign_unmatched_to_tracker(
+    tmdb_id: String,
+    media_type: String,
+    group_key: String,
+) -> Result<(), AppError> {
     tokio::task::spawn_blocking(move || {
         handle_panic(|| {
             let settings = crate::settings::load_settings();

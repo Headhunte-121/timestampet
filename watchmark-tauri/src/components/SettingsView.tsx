@@ -2,11 +2,10 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
-import { useUiStore } from "../store/uiStore";
 import { toast } from "sonner";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export default function SettingsView() {
-  const { showPrompt } = useUiStore();
   const [settings, setSettings] = useState<any>({
     vlc_path: "",
     tmdb_api_key: "",
@@ -42,18 +41,50 @@ export default function SettingsView() {
   };
 
   const runScan = async () => {
-    const dir = await showPrompt("Run Scan", "Enter directory to scan:", "C:\\");
-    if (dir) {
-      setScanStatus("Scan started...");
-      invoke("run_scan_directory", { directory: dir })
-        .then((count) => {
-          toast.success(`Scan complete. Found ${count} unmatched files.`);
-          setScanStatus("");
-        })
-        .catch(e => {
-          toast.error("Error during scan: " + e);
-          setScanStatus("");
-        });
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Select Directory to Scan"
+      });
+      if (selected && typeof selected === 'string') {
+        setScanStatus("Scan started...");
+        invoke("run_scan_directory", { directory: selected })
+          .then((count) => {
+            toast.success(`Scan complete. Found ${count} unmatched files.`);
+            setScanStatus("");
+          })
+          .catch(e => {
+            toast.error("Error during scan: " + e);
+            setScanStatus("");
+          });
+      }
+    } catch (e: any) {
+      if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
+        console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
+      } else {
+        toast.error("Error opening dialog: " + e);
+      }
+    }
+  };
+
+  const browseVlcPath = async () => {
+    try {
+      const selected = await open({
+        directory: false,
+        multiple: false,
+        title: "Select VLC Executable",
+        filters: [{ name: 'Executable', extensions: ['exe', 'app', 'bin'] }]
+      });
+      if (selected && typeof selected === 'string') {
+        setSettings({ ...settings, vlc_path: selected });
+      }
+    } catch (e: any) {
+       if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
+        console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
+      } else {
+        toast.error("Error opening dialog: " + e);
+      }
     }
   };
 
@@ -83,7 +114,7 @@ export default function SettingsView() {
               className="flex-1 bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
               placeholder="C:\Program Files\VideoLAN\VLC\vlc.exe"
             />
-            <button className="px-6 py-3 bg-white/10 hover:bg-white/20 font-bold rounded-xl transition-colors text-white">
+            <button onClick={browseVlcPath} className="px-6 py-3 bg-white/10 hover:bg-white/20 font-bold rounded-xl transition-colors text-white">
               Browse
             </button>
           </div>
