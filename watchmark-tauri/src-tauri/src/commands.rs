@@ -114,14 +114,15 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
 }
 
 #[tauri::command]
-pub fn add_to_tracker(tmdb_id: String, media_type: String, archive: bool) -> Result<(), AppError> {
-    handle_panic(|| {
-        let settings = crate::settings::load_settings();
-        if settings.tmdb_api_key.is_empty() {
-            return Err(AppError::Custom("Missing TMDB API Key".to_string()));
-        }
+pub async fn add_to_tracker(tmdb_id: String, media_type: String, archive: bool) -> Result<(), AppError> {
+    tokio::task::spawn_blocking(move || {
+        handle_panic(|| {
+            let settings = crate::settings::load_settings();
+            if settings.tmdb_api_key.is_empty() {
+                return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
+            }
 
-        if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &media_type) {
+            if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &media_type) {
 
             if let Some(poster) = details["poster_path"].as_str() {
                 crate::tmdb::download_image(poster, "w500");
@@ -223,8 +224,9 @@ pub fn add_to_tracker(tmdb_id: String, media_type: String, archive: bool) -> Res
             }
         }
 
-        Ok(())
-    })
+            Ok(())
+        })
+    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
 }
 
 #[tauri::command]
@@ -593,37 +595,41 @@ pub fn run_scan_directory(directory: &str) -> Result<i32, AppError> {
 pub fn perform_tmdb_search(query: &str) -> Result<Vec<Value>, AppError> {
     handle_panic(|| {
         let settings = crate::settings::load_settings();
+        if settings.tmdb_api_key.is_empty() {
+            return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
+        }
         crate::tmdb::search_media(&settings.tmdb_api_key, query).map_err(|e| AppError::Custom(e.to_string()))
     })
 }
 
 #[tauri::command]
-pub fn assign_unmatched_to_tracker(tmdb_id: String, media_type: String, group_key: String) -> Result<(), AppError> {
-    handle_panic(|| {
-        let settings = crate::settings::load_settings();
-        if settings.tmdb_api_key.is_empty() {
-            return Err(AppError::Custom("Missing TMDB API Key".to_string()));
-        }
+pub async fn assign_unmatched_to_tracker(tmdb_id: String, media_type: String, group_key: String) -> Result<(), AppError> {
+    tokio::task::spawn_blocking(move || {
+        handle_panic(|| {
+            let settings = crate::settings::load_settings();
+            if settings.tmdb_api_key.is_empty() {
+                return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
+            }
 
-        // Fetch files for this group before spawning the thread
-        let mut unmatched_files = Vec::new();
-        if let Ok(conn) = get_db_connection() {
-            if let Ok(mut stmt) = conn.prepare("SELECT file_path, parsed_season, parsed_episode FROM Unmatched_Files WHERE group_key = ?") {
-                if let Ok(rows) = stmt.query_map(params![group_key], |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, Option<i32>>(1)?,
-                        row.get::<_, Option<i32>>(2)?,
-                    ))
-                }) {
-                    for r in rows.flatten() {
-                        unmatched_files.push(r);
+            // Fetch files for this group before spawning the thread
+            let mut unmatched_files = Vec::new();
+            if let Ok(conn) = get_db_connection() {
+                if let Ok(mut stmt) = conn.prepare("SELECT file_path, parsed_season, parsed_episode FROM Unmatched_Files WHERE group_key = ?") {
+                    if let Ok(rows) = stmt.query_map(params![group_key], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, Option<i32>>(1)?,
+                            row.get::<_, Option<i32>>(2)?,
+                        ))
+                    }) {
+                        for r in rows.flatten() {
+                            unmatched_files.push(r);
+                        }
                     }
                 }
             }
-        }
 
-        if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &media_type) {
+            if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &media_type) {
 
             if let Some(poster) = details["poster_path"].as_str() {
                 crate::tmdb::download_image(poster, "w500");
@@ -763,6 +769,7 @@ pub fn assign_unmatched_to_tracker(tmdb_id: String, media_type: String, group_ke
             }
         }
 
-        Ok(())
-    })
+            Ok(())
+        })
+    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
 }
