@@ -11,8 +11,10 @@ export default function SettingsView() {
   const [settings, setSettings] = useState<any>({
     vlc_path: "",
     tmdb_api_key: "",
-    window_geometry: "1200x800",
-    window_position: "+100+100",
+    width: 1280,
+    height: 800,
+    x: 100,
+    y: 100,
     cinema_mode: true
   });
 
@@ -137,6 +139,27 @@ export default function SettingsView() {
             />
             Cinema Mode (High Quality Animations & Effects)
           </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-bold text-gray-300 mb-2">Window Width:</label>
+            <input
+              type="number"
+              value={settings.width}
+              onChange={e => setSettings({ ...settings, width: parseInt(e.target.value) || 1280 })}
+              className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-300 mb-2">Window Height:</label>
+            <input
+              type="number"
+              value={settings.height}
+              onChange={e => setSettings({ ...settings, height: parseInt(e.target.value) || 800 })}
+              className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-4 mt-8">

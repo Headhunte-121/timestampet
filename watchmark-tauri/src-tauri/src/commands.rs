@@ -3,16 +3,32 @@ use crate::error::{handle_panic, AppError};
 use crate::models::{HistoryEntry, Media, Settings, UnmatchedFile};
 use rusqlite::params;
 use serde_json::{json, Value};
-use std::thread;
+use std::sync::Arc;
+use tokio::sync::{mpsc, RwLock};
 
-#[tauri::command]
-pub fn get_settings() -> Result<Settings, AppError> {
-    handle_panic(|| Ok(crate::settings::load_settings()))
+pub struct AppState {
+    pub settings: Arc<RwLock<Settings>>,
+    pub settings_tx: mpsc::Sender<Settings>,
 }
 
 #[tauri::command]
-pub fn save_settings(settings: Settings) -> Result<(), AppError> {
-    handle_panic(|| crate::settings::save_settings(&settings).map_err(AppError::from))
+pub async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, AppError> {
+    let settings = state.settings.read().await;
+    Ok(settings.clone())
+}
+
+#[tauri::command]
+pub async fn save_settings(
+    settings: Settings,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
+    {
+        let mut current_settings = state.settings.write().await;
+        *current_settings = settings.clone();
+    }
+
+    // Send to debouncer task
+    state.settings_tx.send(settings).await.map_err(|e| AppError::Custom(e.to_string()))
 }
 
 #[tauri::command]
@@ -128,7 +144,8 @@ pub async fn add_to_tracker(
 ) -> Result<(), AppError> {
     let task = tokio::task::spawn_blocking(move || {
         handle_panic(|| {
-            let settings = crate::settings::load_settings();
+            let settings = crate::settings::load_settings()
+                .map_err(|e| AppError::Custom(e))?;
             if settings.tmdb_api_key.is_empty() {
                 return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
             }
@@ -639,7 +656,8 @@ pub async fn run_scan_directory(
 pub async fn perform_tmdb_search(query: String) -> Result<Vec<Value>, AppError> {
     let task = tokio::task::spawn_blocking(move || {
         handle_panic(|| {
-            let settings = crate::settings::load_settings();
+            let settings = crate::settings::load_settings()
+                .map_err(|e| AppError::Custom(e))?;
             if settings.tmdb_api_key.is_empty() {
                 return Err(AppError::Custom(
                     "Missing TMDB API Key. Please add it in Settings.".to_string(),
@@ -664,7 +682,8 @@ pub async fn assign_unmatched_to_tracker(
 ) -> Result<(), AppError> {
     let task = tokio::task::spawn_blocking(move || {
         handle_panic(|| {
-            let settings = crate::settings::load_settings();
+            let settings = crate::settings::load_settings()
+                .map_err(|e| AppError::Custom(e))?;
             if settings.tmdb_api_key.is_empty() {
                 return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
             }

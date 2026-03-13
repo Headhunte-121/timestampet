@@ -1,4 +1,22 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+fn deserialize_to_i32<'de, D>(deserializer: D) -> Result<i32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum IntOrFloat {
+        Int(i32),
+        Float(f64),
+    }
+
+    match IntOrFloat::deserialize(deserializer) {
+        Ok(IntOrFloat::Int(i)) => Ok(i),
+        Ok(IntOrFloat::Float(f)) => Ok(f.round() as i32),
+        Err(e) => Err(e),
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Media {
@@ -81,11 +99,36 @@ pub struct UnmatchedFile {
     pub group_key: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
     pub vlc_path: String,
-    pub window_geometry: String,
-    pub window_position: String,
+    #[serde(deserialize_with = "deserialize_to_i32", default = "default_width")]
+    pub width: i32,
+    #[serde(deserialize_with = "deserialize_to_i32", default = "default_height")]
+    pub height: i32,
+    #[serde(deserialize_with = "deserialize_to_i32", default = "default_x")]
+    pub x: i32,
+    #[serde(deserialize_with = "deserialize_to_i32", default = "default_y")]
+    pub y: i32,
     pub tmdb_api_key: String,
     pub cinema_mode: bool,
+}
+
+fn default_width() -> i32 { 1280 }
+fn default_height() -> i32 { 800 }
+fn default_x() -> i32 { 100 }
+fn default_y() -> i32 { 100 }
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            vlc_path: String::new(),
+            width: default_width(),
+            height: default_height(),
+            x: default_x(),
+            y: default_y(),
+            tmdb_api_key: String::new(),
+            cinema_mode: true,
+        }
+    }
 }

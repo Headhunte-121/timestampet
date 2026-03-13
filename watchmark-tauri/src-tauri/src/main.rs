@@ -60,7 +60,52 @@ fn main() {
 
     db::init_db().expect("Failed to initialize database");
 
+    let initial_settings = match settings::load_settings() {
+        Ok(s) => s,
+        Err(e) => {
+            let error_msg = format!("Fatal Error: Could not load or generate configuration files.\n\nError details: {}", e);
+            MessageDialog::new()
+                .set_type(MessageType::Error)
+                .set_title("WatchMark - Fatal Error")
+                .set_text(&error_msg)
+                .show_alert()
+                .unwrap();
+            std::process::exit(1);
+        }
+    };
+
+    let (settings_tx, mut settings_rx) = tokio::sync::mpsc::channel::<models::Settings>(100);
+
+    // Spawn debouncer task for saving settings
+    tokio::spawn(async move {
+        let mut last_settings: Option<models::Settings> = None;
+        let mut timeout = tokio::time::interval(tokio::time::Duration::from_millis(500));
+        timeout.tick().await; // consume first tick immediately
+
+        loop {
+            tokio::select! {
+                Some(settings) = settings_rx.recv() => {
+                    last_settings = Some(settings);
+                    timeout.reset();
+                }
+                _ = timeout.tick() => {
+                    if let Some(settings) = last_settings.take() {
+                        if let Err(e) = settings::save_settings(&settings) {
+                            log::error!("Failed to save debounced settings: {}", e);
+                        } else {
+                            log::info!("Settings successfully saved to disk.");
+                        }
+                    }
+                }
+            }
+        }
+    });
+
     tauri::Builder::default()
+        .manage(commands::AppState {
+            settings: std::sync::Arc::new(tokio::sync::RwLock::new(initial_settings)),
+            settings_tx,
+        })
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
