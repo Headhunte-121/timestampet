@@ -15,7 +15,7 @@ Whenever you finish implementing a specific task (referred to dynamically as `[T
 
 ### 3. Update the Progress Log (`update.md`)
 * Open `update.md`.
-* Add a new section for the current `[TASK_ID]` and summarize the updates, changes, and implementations made during this commit.
+* Add a new section for the current `[TASK_ID]` and summarize the updates, changes, and implementations made during this commit at the bottom.
 
 ### 4. Record Test Results (`TestResult.md`)
 * Open `TestResult.md`.
