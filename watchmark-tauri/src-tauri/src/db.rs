@@ -58,6 +58,43 @@ pub fn get_db_path() -> PathBuf {
     get_app_data_dir().join("db").join("watchmark.db")
 }
 
+pub fn check_db_permissions(db_path: &PathBuf) -> Result<(), crate::error::AppError> {
+    // Try to open in ReadWrite mode to check if we can write to an existing db file
+    // Or check if we can write a canary to the directory
+    if db_path.exists() {
+        if let Err(e) = Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE) {
+            // Permission Denied or File Locked
+            let mut canary_path = db_path.clone();
+            canary_path.set_extension("canary");
+            if std::fs::write(&canary_path, b"test").is_err() {
+                return Err(crate::error::AppError::Fatal(format!(
+                    "Cannot write to database directory. Permission denied: {:?}",
+                    db_path.parent()
+                )));
+            } else {
+                let _ = std::fs::remove_file(canary_path);
+                return Err(crate::error::AppError::Fatal(format!(
+                    "Database file is locked or cannot be accessed: {:?}",
+                    db_path
+                )));
+            }
+        }
+    } else {
+        // Check directory write permission
+        let mut canary_path = db_path.clone();
+        canary_path.set_extension("canary");
+        if std::fs::write(&canary_path, b"test").is_err() {
+            return Err(crate::error::AppError::Fatal(format!(
+                "Cannot write to database directory. Permission denied: {:?}",
+                db_path.parent()
+            )));
+        } else {
+            let _ = std::fs::remove_file(canary_path);
+        }
+    }
+    Ok(())
+}
+
 pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::Error> {
     let _ = ensure_directories();
     if let Some(conn_mutex) = DB_CONNECTION.get() {
@@ -65,8 +102,21 @@ pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::
     } else {
         // Fallback or initialization if not set (should not happen if init_db is called first)
         let db_path = get_db_path();
-        let conn = Connection::open(db_path)?;
+
+        let conn = Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+                | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
+                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+        )?;
+
+        // Apply PRAGMA tuning
         let _ = conn.execute("PRAGMA cache_size = -2000;", ());
+        let _ = conn.execute("PRAGMA journal_mode = WAL;", ());
+        let _ = conn.execute("PRAGMA synchronous = NORMAL;", ());
+        let _ = conn.execute("PRAGMA temp_store = MEMORY;", ());
+        let _ = conn.execute("PRAGMA foreign_keys = ON;", ());
+
         let mutex = Mutex::new(conn);
         DB_CONNECTION
             .set(mutex)
@@ -75,17 +125,31 @@ pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::
     }
 }
 
-pub fn init_db() -> Result<()> {
+pub fn init_db() -> Result<(), crate::error::AppError> {
     let _ = ensure_directories();
     if DB_CONNECTION.get().is_none() {
         let db_path = get_db_path();
-        let conn = Connection::open(db_path)?;
+
+        check_db_permissions(&db_path)?;
+
+        let conn = Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+                | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
+                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+        )?;
+
         // Apply PRAGMA tuning
         conn.execute("PRAGMA cache_size = -2000;", ())?;
+        conn.execute("PRAGMA journal_mode = WAL;", ())?;
+        conn.execute("PRAGMA synchronous = NORMAL;", ())?;
+        conn.execute("PRAGMA temp_store = MEMORY;", ())?;
+        conn.execute("PRAGMA foreign_keys = ON;", ())?;
+
         let _ = DB_CONNECTION.set(Mutex::new(conn));
     }
 
-    let conn = get_db_connection()?;
+    let mut conn = get_db_connection()?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS Media (
@@ -120,7 +184,7 @@ pub fn init_db() -> Result<()> {
             status TEXT DEFAULT 'Unwatched',
             completed_date TEXT,
             air_date TEXT,
-            FOREIGN KEY (media_id) REFERENCES Media (id),
+            FOREIGN KEY (media_id) REFERENCES Media (id) ON DELETE CASCADE,
             UNIQUE(media_id, season_num, ep_num)
         )",
         (),
@@ -131,7 +195,7 @@ pub fn init_db() -> Result<()> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             episode_id INTEGER UNIQUE,
             file_path TEXT UNIQUE,
-            FOREIGN KEY (episode_id) REFERENCES Episodes (id)
+            FOREIGN KEY (episode_id) REFERENCES Episodes (id) ON DELETE CASCADE
         )",
         (),
     )?;
@@ -141,7 +205,7 @@ pub fn init_db() -> Result<()> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             episode_id INTEGER,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (episode_id) REFERENCES Episodes (id)
+            FOREIGN KEY (episode_id) REFERENCES Episodes (id) ON DELETE CASCADE
         )",
         (),
     )?;
@@ -177,7 +241,7 @@ pub fn init_db() -> Result<()> {
     }
 
     if user_version < 2 {
-        let tx = conn.unchecked_transaction()?;
+        let tx = conn.transaction()?;
         let v2_migrations = vec![
             "ALTER TABLE Media ADD COLUMN backdrop_path TEXT",
             "ALTER TABLE Episodes ADD COLUMN still_path TEXT",
@@ -194,7 +258,7 @@ pub fn init_db() -> Result<()> {
             // but fail on syntax/other errors.
             if let Err(e) = tx.execute(query, ()) {
                 if !e.to_string().contains("duplicate column name") {
-                    return Err(e);
+                    return Err(crate::error::AppError::DbError(e));
                 }
             }
         }
@@ -203,7 +267,7 @@ pub fn init_db() -> Result<()> {
     }
 
     if user_version < 3 {
-        let tx = conn.unchecked_transaction()?;
+        let tx = conn.transaction()?;
         let v3_migrations = vec![
             "ALTER TABLE History ADD COLUMN is_legacy INTEGER DEFAULT 0",
             "ALTER TABLE History ADD COLUMN session_id TEXT",
@@ -215,7 +279,7 @@ pub fn init_db() -> Result<()> {
         for query in v3_migrations {
             if let Err(e) = tx.execute(query, ()) {
                 if !e.to_string().contains("duplicate column name") {
-                    return Err(e);
+                    return Err(crate::error::AppError::DbError(e));
                 }
             }
         }
@@ -227,10 +291,10 @@ pub fn init_db() -> Result<()> {
 }
 
 pub fn delete_media(media_id: i32) -> Result<()> {
-    let conn = get_db_connection()?;
+    let mut conn = get_db_connection()?;
 
     // Begin transaction for safety
-    let tx = conn.unchecked_transaction()?;
+    let tx = conn.transaction()?;
 
     // Fetch poster and backdrop paths before deleting
     let mut paths = Vec::new();

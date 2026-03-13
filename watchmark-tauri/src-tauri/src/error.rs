@@ -18,6 +18,9 @@ pub enum AppError {
     #[error("A critical backend error occurred: {0}")]
     Panic(String),
 
+    #[error("Fatal Database/Permission error: {0}")]
+    Fatal(String),
+
     #[error("{0}")]
     Custom(String),
 }
@@ -34,6 +37,7 @@ impl Serialize for AppError {
             AppError::IoError(e) => format!("IO error: {}", e),
             AppError::JsonError(e) => format!("Data Mismatch/Parse Error: {}", e),
             AppError::Panic(ref msg) => format!("Critical Panic: {}", msg),
+            AppError::Fatal(ref msg) => format!("Fatal Error: {}", msg),
             AppError::Custom(ref msg) => msg.to_string(),
         };
 

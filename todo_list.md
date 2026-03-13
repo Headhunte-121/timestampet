@@ -532,13 +532,13 @@ This document represents the complete functional blueprint and state of the Watc
 
 ## 🗄️ Part 5: Database & Schema Design (SQLite) (Incomplete)
 
-**5.1 Local, offline-first SQLite database (watchmark.db).** (Incomplete)
+**5.1 Local, offline-first SQLite database (watchmark.db).** (Complete)
 
-- [ ] Ensure database initialization creates a new file seamlessly if one is not found.
-- [ ] Verify PRAGMA settings enable Write-Ahead Logging (WAL) for faster performance.
-- [ ] Handle edge cases where the directory lacks file write permissions.
-- [ ] Test database migration mechanisms for future schema updates.
-- [ ] Ensure foreign key constraints are strictly enabled on every connection.
+- [x] Ensure database initialization creates a new file seamlessly if one is not found.
+- [x] Verify PRAGMA settings enable Write-Ahead Logging (WAL) for faster performance.
+- [x] Handle edge cases where the directory lacks file write permissions.
+- [x] Test database migration mechanisms for future schema updates.
+- [x] Ensure foreign key constraints are strictly enabled on every connection.
 
 **5.2 Media table schema (ID, TMDB ID, title, type, synopsis).** (Incomplete)
 
