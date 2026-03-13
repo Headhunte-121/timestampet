@@ -192,3 +192,10 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Designed dynamic directional tracking allowing for negative duration reporting for "Early Watch" occurrences.
 - Integrated accurate defaults when air times are omitted by falling back to assumed midnights.
 - Configured frontend React component (`History.tsx`) to render visually distinct badges depending on the time capsule object.
+
+## TODO 5.8 (Followup): Backdate Contextual Constraint Logic
+- Implemented `is_air_date_manual` in the `Episodes` SQLite table and schema migrations (V7) to protect manually overridden dates from `Refresh Data` TMDB Syncing.
+- Augmented the `add_to_tracker` sync engine to perform a dynamic check against `is_air_date_manual` before silently inserting data updates, safeguarding user custom input.
+- Validated new strings like 'TBD' or fundamentally corrupted API returns dynamically dropping the update assignment and protecting the local DB string.
+- Added `backdate_season` core logic enforcing contextual spreading, meaning if a user specifies a month with 30 days and 10 episodes, the history arrays naturally span apart safely.
+- Wrote and tested verification edge cases against timeline gaps accurately assigning early viewing booleans.
