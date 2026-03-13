@@ -126,7 +126,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               <LazyImage
                 src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
                 alt={item.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${item.is_unaired ? 'grayscale-[0.5] opacity-70' : ''}`}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-[#15171e] text-gray-500 font-bold p-4 text-center">
@@ -134,11 +134,19 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               </div>
             )}
 
+            {item.is_unaired && (
+              <div className="absolute top-2 left-2 z-20">
+                <div className="px-2 py-1 bg-blue-500/80 backdrop-blur-md rounded-md text-[10px] font-bold text-white shadow-md uppercase tracking-wider">
+                  Planned
+                </div>
+              </div>
+            )}
+
             {/* Dark overlay on hover */}
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
               <h3 className="text-white font-bold leading-tight mb-1">{item.title}</h3>
               <p className="text-xs text-gray-300 mb-2">
-                {item.release_date?.substring(0, 4) || "Unknown"}
+                {item.release_date ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : "Unknown"}
               </p>
 
               <div className="flex items-center gap-1 text-[#FF6B00] text-sm font-bold mb-1">

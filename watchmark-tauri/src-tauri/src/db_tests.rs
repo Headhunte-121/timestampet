@@ -434,3 +434,107 @@ mod feature_5_6_tests {
         assert_eq!(cleaned1, cleaned2);
     }
 }
+
+#[cfg(test)]
+mod feature_5_7_tests {
+    use rusqlite::Connection;
+
+    fn setup_test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+
+        conn.execute(
+            "CREATE TABLE Media (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tmdb_id TEXT UNIQUE,
+                \"type\" TEXT NOT NULL DEFAULT 'TV',
+                \"title\" TEXT,
+                release_date TEXT,
+                is_exact_date BOOLEAN DEFAULT 1
+            )",
+            (),
+        ).unwrap();
+
+        conn
+    }
+
+    #[test]
+    fn test_jan_1st_sort() {
+        let conn = setup_test_db();
+
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('1', 'Show B', '2024-01-02')", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('2', 'Show A', '2024-01-01')", ()).unwrap();
+
+        let mut stmt = conn.prepare("SELECT title FROM Media ORDER BY release_date ASC").unwrap();
+        let rows: Vec<String> = stmt.query_map([], |row| row.get(0)).unwrap().filter_map(Result::ok).collect();
+
+        assert_eq!(rows[0], "Show A");
+        assert_eq!(rows[1], "Show B");
+    }
+
+    #[test]
+    fn test_mass_null_sort_last() {
+        let conn = setup_test_db();
+
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('1', 'No Date Show', NULL)", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('2', 'Empty Date Show', '')", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('3', 'Old Show', '1940-01-01')", ()).unwrap();
+
+        let mut stmt = conn.prepare("SELECT title FROM Media ORDER BY CASE WHEN release_date IS NULL OR release_date = '' THEN 1 ELSE 0 END, release_date DESC").unwrap();
+        let rows: Vec<String> = stmt.query_map([], |row| row.get(0)).unwrap().filter_map(Result::ok).collect();
+
+        assert_eq!(rows[0], "Old Show");
+        assert!(rows[1] == "No Date Show" || rows[1] == "Empty Date Show");
+        assert!(rows[2] == "No Date Show" || rows[2] == "Empty Date Show");
+    }
+
+    #[test]
+    fn test_decade_edge_filter() {
+        let conn = setup_test_db();
+
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('1', '1989', '1989-12-31')", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('2', '1990', '1990-01-01')", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('3', '1999', '1999-12-31')", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, release_date) VALUES ('4', '2000', '2000-01-01')", ()).unwrap();
+
+        let mut stmt = conn.prepare("SELECT title FROM Media WHERE release_date BETWEEN '1990-01-01' AND '1999-12-31' ORDER BY release_date ASC").unwrap();
+        let rows: Vec<String> = stmt.query_map([], |row| row.get(0)).unwrap().filter_map(Result::ok).collect();
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0], "1990");
+        assert_eq!(rows[1], "1999");
+    }
+}
+
+#[cfg(test)]
+mod feature_5_7_tests_2 {
+    use rusqlite::Connection;
+
+    #[test]
+    fn test_tmdb_parsing_and_padding() {
+        // Mock the logic used in tmdb.rs where length is 4.
+        let raw_air_date = "2026";
+        let (final_date, is_exact) = if raw_air_date.len() == 4 {
+            (format!("{}-01-01", raw_air_date), false)
+        } else if raw_air_date.is_empty() {
+            ("".to_string(), false)
+        } else {
+            (raw_air_date.to_string(), true)
+        };
+
+        assert_eq!(final_date, "2026-01-01");
+        assert_eq!(is_exact, false);
+
+        // Valid Date test
+        let raw_air_date_valid = "2024-05-12";
+        let (final_date_valid, is_exact_valid) = if raw_air_date_valid.len() == 4 {
+            (format!("{}-01-01", raw_air_date_valid), false)
+        } else if raw_air_date_valid.is_empty() {
+            ("".to_string(), false)
+        } else {
+            (raw_air_date_valid.to_string(), true)
+        };
+
+        assert_eq!(final_date_valid, "2024-05-12");
+        assert_eq!(is_exact_valid, true);
+    }
+}

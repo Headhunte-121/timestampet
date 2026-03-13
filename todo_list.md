@@ -580,13 +580,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test rapid inserts when scanning 10,000 completely unrecognized anime files.
 - [x] Verify path collision constraints prevent duplicating items already in Local_Files.
 
-**5.7 release_date column for precise library sorting.** (Incomplete)
+**5.7 release_date column for precise library sorting.** (Complete)
 
-- [ ] Ensure DATE columns are properly formatted 'YYYY-MM-DD' for SQLite sorting.
-- [ ] Handle edge cases where TMDB provides only 'YYYY'.
-- [ ] Verify sorting queries use `NULLS LAST` so unreleased shows fall to the bottom.
-- [ ] Test filtering by explicit year ranges using SQL `BETWEEN`.
-- [ ] Ensure dates in the future correctly flag the UI as 'Unaired'.
+- [x] Ensure DATE columns are properly formatted 'YYYY-MM-DD' for SQLite sorting.
+- [x] Handle edge cases where TMDB provides only 'YYYY'.
+- [x] Verify sorting queries use `NULLS LAST` so unreleased shows fall to the bottom.
+- [x] Test filtering by explicit year ranges using SQL `BETWEEN`.
+- [x] Ensure dates in the future correctly flag the UI as 'Unaired'.
 
 **5.8 air_date column for episode 'time capsule' comparisons.** (Incomplete)
 

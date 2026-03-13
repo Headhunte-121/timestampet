@@ -165,6 +165,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             vote_average REAL DEFAULT 0.0,
             user_rating INTEGER DEFAULT 0,
             release_date TEXT,
+            is_exact_date BOOLEAN DEFAULT 1,
             UNIQUE(tmdb_id, \"type\")
         )",
         (),
@@ -185,6 +186,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             status TEXT DEFAULT 'Unwatched',
             completed_date TEXT,
             air_date TEXT,
+            is_exact_date BOOLEAN DEFAULT 1,
             FOREIGN KEY (media_id) REFERENCES Media (id) ON DELETE CASCADE,
             UNIQUE(media_id, season_num, ep_num)
         )",
@@ -339,6 +341,23 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
 
         tx.execute("CREATE INDEX IF NOT EXISTS idx_history_timestamp ON History(timestamp DESC, id DESC)", ())?;
         tx.execute("PRAGMA user_version = 5", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 6 {
+        let tx = conn.transaction()?;
+        let v6_migrations = vec![
+            "ALTER TABLE Media ADD COLUMN is_exact_date BOOLEAN DEFAULT 1",
+            "ALTER TABLE Episodes ADD COLUMN is_exact_date BOOLEAN DEFAULT 1",
+        ];
+        for query in v6_migrations {
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(crate::error::AppError::DbError(e));
+                }
+            }
+        }
+        tx.execute("PRAGMA user_version = 6", ())?;
         tx.commit()?;
     }
 

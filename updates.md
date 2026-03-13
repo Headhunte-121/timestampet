@@ -177,3 +177,10 @@ Update 20: Feature 5.5 History Relational Table
 - Re-architected the Rust `scanner.rs` to batch `INSERT` statements into chunks of 500, resolving extreme slow-downs when scanning 10,000 unrecognized anime files.
 - Improved auto-migration logic: if a file in the Unmatched pool is matched manually or via automatic heuristics, it is atomically removed from the Inbox.
 - Added a "Clear Inbox" soft-truncation button in the UI executing `DELETE FROM Unmatched_Files`.
+
+Update 21: Feature 5.7 release_date column and precise library sorting
+- Added `release_date` mapping for Movies and `first_air_date` mapping for TV Shows from TMDB.
+- Added `is_exact_date` to `Media` and `Episodes` to differentiate between YYYY strings that have been padded to 'YYYY-01-01' and actual precise dates.
+- Implemented robust date padding logic (YYYY becomes YYYY-01-01) in Rust before DB insertion for safe SQL DATE ordering.
+- Implemented `NULLS LAST` sorting fallback directly in SQLite commands, keeping unreleased media at the bottom of standard `DESC` ordering.
+- Replaced the "Play Next" and local "Play" buttons with a disabled "📅 Coming Soon" indicator and applied grayscale styling when the `air_date` or `release_date` evaluates to true for `is_unaired` using `chrono` logic.

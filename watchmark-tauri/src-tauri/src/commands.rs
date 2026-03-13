@@ -130,6 +130,17 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
         if let Ok(mut rows) = stmt.query(params![media_id]) {
             if let Ok(Some(row)) = rows.next() {
                 let m_type: String = row.get(2).unwrap_or_default();
+                let release_date: String = row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default();
+                let is_unaired = if !release_date.is_empty() {
+                    let now = chrono::Utc::now().naive_utc().date();
+                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&release_date, "%Y-%m-%d") {
+                        parsed > now
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
                 media = Some(json!({
                     "id": row.get::<_, i32>(0).unwrap_or(0),
                     "tmdb_id": row.get::<_, String>(1).unwrap_or_default(),
@@ -142,7 +153,9 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                     "status": row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
                     "vote_average": row.get::<_, Option<f64>>(9).unwrap_or_default().unwrap_or(0.0),
                     "user_rating": row.get::<_, Option<i32>>(10).unwrap_or_default().unwrap_or(0),
-                    "release_date": row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
+                    "release_date": release_date,
+                    "is_exact_date": row.get::<_, Option<bool>>(12).unwrap_or_default().unwrap_or(true),
+                    "is_unaired": is_unaired,
                 }));
             }
         }
@@ -189,6 +202,17 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
 
             let mut episodes = vec![];
             if let Ok(ep_rows) = eps_stmt.query_map(params![media_id], |row| {
+                let air_date: String = row.get::<_, Option<String>>(12)?.unwrap_or_default();
+                let is_unaired = if !air_date.is_empty() {
+                    let now = chrono::Utc::now().naive_utc().date();
+                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&air_date, "%Y-%m-%d") {
+                        parsed > now
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
                 Ok(json!({
                     "id": row.get::<_, i32>(0)?,
                     "media_id": row.get::<_, i32>(1)?,
@@ -202,8 +226,10 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                     "last_position": row.get::<_, i32>(9)?,
                     "status": row.get::<_, Option<String>>(10)?.unwrap_or_default(),
                     "completed_date": row.get::<_, Option<String>>(11)?.unwrap_or_default(),
-                    "air_date": row.get::<_, Option<String>>(12)?.unwrap_or_default(),
-                    "file_path": row.get::<_, Option<String>>(13)?
+                    "air_date": air_date,
+                    "is_exact_date": row.get::<_, Option<bool>>(13).unwrap_or_default().unwrap_or(true),
+                    "file_path": row.get::<_, Option<String>>(14)?,
+                    "is_unaired": is_unaired,
                 }))
             }) {
                 for ep in ep_rows.flatten() {
@@ -280,7 +306,7 @@ pub async fn add_to_tracker(
 
                     let media_id = if let Some(id) = existing_id {
                         let _ = tx.execute(
-                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?
+                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?
                              WHERE id = ?",
                             params![
                                 details["title"].as_str().unwrap_or("Unknown Title"),
@@ -290,18 +316,19 @@ pub async fn add_to_tracker(
                                 details["total_episodes"].as_i64().unwrap_or(1) as i32,
                                 details["vote_average"].as_f64().unwrap_or(0.0),
                                 details["release_date"].as_str().unwrap_or(""),
+                                details["is_exact_date"].as_bool().unwrap_or(true),
                                 id
                             ]
                         );
                         id
                     } else {
                         let _ = tx.execute(
-                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON CONFLICT(tmdb_id, \"type\") DO UPDATE SET
                                 \"title\"=excluded.\"title\", synopsis=excluded.synopsis, poster_path=excluded.poster_path,
                                 backdrop_path=excluded.backdrop_path, total_episodes=excluded.total_episodes,
-                                vote_average=excluded.vote_average, release_date=excluded.release_date",
+                                vote_average=excluded.vote_average, release_date=excluded.release_date, is_exact_date=excluded.is_exact_date",
                             params![
                                 tmdb_id,
                                 valid_media_type,
@@ -312,7 +339,8 @@ pub async fn add_to_tracker(
                                 details["total_episodes"].as_i64().unwrap_or(1) as i32,
                                 details["status"].as_str().unwrap_or("Plan to Watch"),
                                 details["vote_average"].as_f64().unwrap_or(0.0),
-                                details["release_date"].as_str().unwrap_or("")
+                                details["release_date"].as_str().unwrap_or(""),
+                                details["is_exact_date"].as_bool().unwrap_or(true)
                             ]
                         );
 
@@ -345,11 +373,11 @@ pub async fn add_to_tracker(
                             let season_num = ep["season_num"].as_i64().unwrap_or(1) as u32;
                             let ep_num = ep["ep_num"].as_i64().unwrap_or(1) as u32;
                             let _ = tx.execute(
-                                "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date, is_exact_date)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                  ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
                                     \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
-                                    overview=excluded.overview, air_date=excluded.air_date",
+                                    overview=excluded.overview, air_date=excluded.air_date, is_exact_date=excluded.is_exact_date",
                                 params![
                                     media_id,
                                     season_num,
@@ -360,7 +388,8 @@ pub async fn add_to_tracker(
                                     ep_overview,
                                     ep_status,
                                     ep_watch_count,
-                                    ep["air_date"].as_str().unwrap_or("")
+                                    ep["air_date"].as_str().unwrap_or(""),
+                                    ep["is_exact_date"].as_bool().unwrap_or(true)
                                 ]
                             );
 
@@ -380,11 +409,11 @@ pub async fn add_to_tracker(
                         }
                     } else {
                         let _ = tx.execute(
-                            "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
-                             VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?)
+                            "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date, is_exact_date)
+                             VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
                                 \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
-                                overview=excluded.overview, air_date=excluded.air_date",
+                                overview=excluded.overview, air_date=excluded.air_date, is_exact_date=excluded.is_exact_date",
                             params![
                                 media_id,
                                 details["title"].as_str().unwrap_or("Unknown Title"),
@@ -393,7 +422,8 @@ pub async fn add_to_tracker(
                                 synopsis,
                                 ep_status,
                                 ep_watch_count,
-                                details["release_date"].as_str().unwrap_or("")
+                                details["release_date"].as_str().unwrap_or(""),
+                                details["is_exact_date"].as_bool().unwrap_or(true)
                             ]
                         );
 
@@ -618,6 +648,17 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
 
         let mut recent_media: Vec<Media> = Vec::new();
         if let Ok(rows) = ra_stmt.query_map([], |row| {
+            let release_date: String = row.get(11)?;
+            let is_unaired = if !release_date.is_empty() {
+                let now = chrono::Utc::now().naive_utc().date();
+                if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&release_date, "%Y-%m-%d") {
+                    parsed > now
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
             Ok(Media {
                 id: row.get(0)?,
                 tmdb_id: row.get(1)?,
@@ -630,11 +671,13 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
                 status: row.get(8)?,
                 vote_average: row.get(9)?,
                 user_rating: row.get(10)?,
-                release_date: row.get(11)?,
-                completed_eps: row.get(12)?,
-                last_watched: row.get(13)?,
-                min_year: row.get(14)?,
-                max_year: row.get(15)?,
+                release_date,
+                is_exact_date: row.get::<_, Option<bool>>(12)?.unwrap_or(true),
+                is_unaired: Some(is_unaired),
+                completed_eps: row.get(13)?,
+                last_watched: row.get(14)?,
+                min_year: row.get(15)?,
+                max_year: row.get(16)?,
             })
         }) {
             for m in rows.flatten() {
@@ -741,6 +784,17 @@ pub async fn get_library_data(
             let param_refs: Vec<&dyn rusqlite::ToSql> = sql_params.iter().map(|p| p.as_ref()).collect();
 
             let rows = stmt.query_map(rusqlite::params_from_iter(param_refs), |row| {
+                let release_date: String = row.get(11)?;
+                let is_unaired = if !release_date.is_empty() {
+                    let now = chrono::Utc::now().naive_utc().date();
+                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&release_date, "%Y-%m-%d") {
+                        parsed > now
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
                 Ok(Media {
                     id: row.get(0)?,
                     tmdb_id: row.get(1)?,
@@ -753,11 +807,13 @@ pub async fn get_library_data(
                     status: row.get(8)?,
                     vote_average: row.get(9)?,
                     user_rating: row.get(10)?,
-                    release_date: row.get(11)?,
-                    completed_eps: row.get(12)?,
-                    last_watched: row.get(13)?,
-                    min_year: row.get(14)?,
-                    max_year: row.get(15)?,
+                    release_date,
+                    is_exact_date: row.get::<_, Option<bool>>(12)?.unwrap_or(true),
+                    is_unaired: Some(is_unaired),
+                    completed_eps: row.get(13)?,
+                    last_watched: row.get(14)?,
+                    min_year: row.get(15)?,
+                    max_year: row.get(16)?,
                 })
             })?;
 
@@ -1066,7 +1122,7 @@ pub async fn assign_unmatched_to_tracker(
 
                     let media_id = if let Some(id) = existing_id {
                         let _ = tx.execute(
-                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?
+                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?
                              WHERE id = ?",
                             params![
                                 details["title"].as_str().unwrap_or("Unknown Title"),
@@ -1076,18 +1132,19 @@ pub async fn assign_unmatched_to_tracker(
                                 details["total_episodes"].as_i64().unwrap_or(1) as i32,
                                 details["vote_average"].as_f64().unwrap_or(0.0),
                                 details["release_date"].as_str().unwrap_or(""),
+                                details["is_exact_date"].as_bool().unwrap_or(true),
                                 id
                             ]
                         );
                         id
                     } else {
                         let _ = tx.execute(
-                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON CONFLICT(tmdb_id, \"type\") DO UPDATE SET
                                 \"title\"=excluded.\"title\", synopsis=excluded.synopsis, poster_path=excluded.poster_path,
                                 backdrop_path=excluded.backdrop_path, total_episodes=excluded.total_episodes,
-                                vote_average=excluded.vote_average, release_date=excluded.release_date",
+                                vote_average=excluded.vote_average, release_date=excluded.release_date, is_exact_date=excluded.is_exact_date",
                             params![
                                 tmdb_id,
                                 valid_media_type,
@@ -1098,7 +1155,8 @@ pub async fn assign_unmatched_to_tracker(
                                 details["total_episodes"].as_i64().unwrap_or(1) as i32,
                                 details["status"].as_str().unwrap_or("Plan to Watch"),
                                 details["vote_average"].as_f64().unwrap_or(0.0),
-                                details["release_date"].as_str().unwrap_or("")
+                                details["release_date"].as_str().unwrap_or(""),
+                                details["is_exact_date"].as_bool().unwrap_or(true)
                             ]
                         );
 
@@ -1127,11 +1185,11 @@ pub async fn assign_unmatched_to_tracker(
                             }
 
                             let _ = tx.execute(
-                                "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date, is_exact_date)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                  ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
                                     \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
-                                    overview=excluded.overview, air_date=excluded.air_date",
+                                    overview=excluded.overview, air_date=excluded.air_date, is_exact_date=excluded.is_exact_date",
                                 params![
                                     media_id,
                                     ep["season_num"].as_i64().unwrap_or(1) as u32,
@@ -1142,17 +1200,18 @@ pub async fn assign_unmatched_to_tracker(
                                     ep_overview,
                                     ep_status,
                                     ep_watch_count,
-                                    ep["air_date"].as_str().unwrap_or("")
+                                    ep["air_date"].as_str().unwrap_or(""),
+                                    ep["is_exact_date"].as_bool().unwrap_or(true)
                                 ]
                             );
                         }
                     } else {
                         let _ = tx.execute(
-                            "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date)
-                             VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?)
+                            "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, status, watch_count, air_date, is_exact_date)
+                             VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
                                 \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
-                                overview=excluded.overview, air_date=excluded.air_date",
+                                overview=excluded.overview, air_date=excluded.air_date, is_exact_date=excluded.is_exact_date",
                             params![
                                 media_id,
                                 details["title"].as_str().unwrap_or("Unknown Title"),
@@ -1161,7 +1220,8 @@ pub async fn assign_unmatched_to_tracker(
                                 synopsis,
                                 ep_status,
                                 ep_watch_count,
-                                details["release_date"].as_str().unwrap_or("")
+                                details["release_date"].as_str().unwrap_or(""),
+                                details["is_exact_date"].as_bool().unwrap_or(true)
                             ]
                         );
                     }
