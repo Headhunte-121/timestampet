@@ -63,8 +63,13 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   }, [settings, setIsDirty]);
 
   useEffect(() => {
-    setSaveCallback(saveSettings);
-    return () => setSaveCallback(null);
+      // Because `setSaveCallback` is a React state setter taking a function,
+      // we need to wrap our callback inside another function so React doesn't
+      // evaluate it immediately.
+      setSaveCallback(() => saveSettings as any);
+      return () => {
+        setSaveCallback(null);
+      };
   }, [saveSettings, setSaveCallback]);
 
   useEffect(() => {
