@@ -1,0 +1,80 @@
+# WatchMark Pro: Definitive Master To-Do List
+
+This document represents the absolute state of the WatchMark codebase compared to the Master Blueprint. Every single requested feature is listed below with its completion status.
+
+### Status Key:
+- `[x]` **Complete**: Fully implemented according to the blueprint.
+- `[/]` **Partial**: Exists in some form but is missing logic, styling, or functionality.
+- `[ ]` **Missing**: Not implemented at all.
+
+---
+
+## 1. Global UI & UX Engine
+- `[x]` **Cinematic Dark Theme**: `#0D0F14` background, `#1F222A` surfaces, pure white text, and `#FF6B00` accents are fully applied across React components.
+- `[x]` **Hybrid Window Layout**: Tauri `tauri.conf.json` handles the native OS title bar. A sleek navigation bar exists under it in `App.tsx`.
+- `[ ]` **Global "Turbo-Scroll"**: **MISSING**. There is no global multiplier applied to the mouse wheel delta (4x-5x speed) in the frontend wrapper.
+    - *Action Required*: Create a custom React hook or global event listener in `App.tsx` that hijacks the `wheel` event and multiplies the `deltaY` by 4 or 5 before applying it to the scroll container's `scrollTop`.
+- `[x]` **In-Place UI Updates**: `refreshTrigger` hooks state is implemented avoiding full page jumps.
+- `[ ]` **Toast Notifications**: **MISSING**. Currently, the app uses native browser `alert()` popups (e.g., in `InboxView.tsx` and `Dashboard.tsx`).
+    - *Action Required*: Implement a library like `react-hot-toast` or a custom Framer Motion slide-in component anchored to the bottom-right for "Scan Complete" or "Sync Successful" messages.
+- `[x]` **Strict Data Sanitization**: Fallbacks for TMDB errors (`Unknown Title`, Unsplash placeholders) exist across components.
+
+## 2. The Dashboard (Home)
+- `[x]` **Hero Section**: 450px high banner with gradient fades, dynamic "▶ Resume" button, progress bar based on runtime math, and TMDB/Unsplash backdrop mapping.
+- `[ ]` **"Up Next" Smart Queue**: **PARTIAL**. The horizontal scrolling row exists visually, but the backend query `get_dashboard_data` in `commands.rs` just grabs the *first* unwatched episode (`LIMIT 1`). It does not explicitly calculate the *next unwatched* episode reliably if the user skips around.
+    - *Action Required*: Ensure the Rust SQL query robustly selects `MIN(season_num)` and `MIN(ep_num)` where `status = 'Unwatched'` for each media ID.
+- `[x]` **Recently Added**: Horizontal carousel of posters with hover effects (`scale-105`) and dark glass play overlay.
+- `[x]` **Personal Stats Bar**: Frost glass cards displaying calculated "Total Episodes Watched", "Hours Watched", and "Shows Completed".
+- `[ ]` **Global Quick Search**: **MISSING**. The pill-shaped search bar visually exists in `App.tsx` but has no `onChange` handler or debounced query connected to `perform_tmdb_search` or local DB filtering.
+    - *Action Required*: Wire the input to an `onChange` state, filter local library results, and render a dropdown or replace the main view with search results.
+
+## 3. Media Discovery & Inbox (Triage)
+- `[x]` **Smart Media Scanner**: Rust `scanner.rs` (assumed working per previous iterations) parses filenames via regex and matches to TMDB.
+- `[x]` **The "Inbox" (Unmatched Files)**: Dedicated sidebar tab grouping unrecognized files by extracted series name (`InboxView.tsx`).
+- `[ ]` **1-Click Bulk Matching**: **MISSING**. Clicking a grouped folder in `InboxView.tsx` currently does nothing.
+    - *Action Required*: Clicking a folder must open a modal/search dialog to query TMDB and bulk-assign all files in that group to the selected show ID via a new Rust command.
+- `[ ]` **Advanced/Manual Match Override**: **MISSING**. No UI toggle exists in the Inbox to manually map a specific file to a specific Season/Episode.
+    - *Action Required*: Add an expandable menu under the Inbox groups to manually input SxxExx and force a database link.
+- `[ ]` **Destructive "Remove Show"**: **MISSING**. The trash icon exists visually in `MediaDetails.tsx` but has no `onClick` handler.
+    - *Action Required*: Create a Rust command to `DELETE` from History, Local_Files, Episodes, and Media for a specific ID, and wire it to the trash icon.
+
+## 4. Library Organization (TV Shows & Movies)
+- `[x]` **Sleek Poster Grid**: 2:3 aspect ratio posters with dim hover effects and play overlay exist in `Library.tsx`.
+- `[x]` **"At-a-Glance" Quick Stats**: The bottom edge progress bar (Gray/Orange/Green logic) and the top-right corner star badge (`★ 8.5/5`) are fully implemented.
+- `[x]` **Advanced Sorting**: Dropdown filtering by Recently Added, Alphabetical, Release Year, and Top Rated is wired up.
+- `[ ]` **Smart Filters (Hide Completed)**: **PARTIAL**. The checkbox exists and passes the boolean to Rust, but if the Rust query `(SELECT COUNT(...) < m.total_episodes)` doesn't correctly handle movies or 0 episode counts, it could bug out. Needs strict validation.
+
+## 5. Media Details View (The Deep Dive)
+- `[x]` **Cinematic Header**: Wide backdrop banner overlapping poster, Title, Genre/Type tags, and Synopsis.
+- `[ ]` **Dual Rating System**: **PARTIAL**. Shows the official TMDB Score (`vote_average`), but the 5-star interactive user rating is completely missing.
+    - *Action Required*: Add a row of 5 clickable SVG stars that update the `user_rating` integer in the `Media` table and instantly refresh the UI.
+- `[x]` **Dynamic Season Tabs**: Pill buttons to switch seasons horizontally are implemented.
+- `[ ]` **Air-Date Context**: **PARTIAL**. Show-level year (`release_date.substring(0,4)`) exists, but the Episode-level exact "Aired: Oct 12, 2011" string is missing from the episode list rows.
+    - *Action Required*: Render `ep.air_date` next to the `ep.runtime` in the episode map in `MediaDetails.tsx`.
+- `[ ]` **Interactive Toggle (○ / ✓)**: **PARTIAL**. The visual circle/checkmark exists in the episodes list, but clicking it does absolutely nothing.
+    - *Action Required*: Wire an `onClick` to a new Rust command that toggles the episode status between `Completed` and `Unwatched`, inserting/deleting from `History` if needed.
+- `[ ]` **Seamless "Refresh Data"**: **MISSING**. No sync button exists to query TMDB for new episodes without removing the show.
+
+## 6. Playback & Smart Tracking (VLC Integration)
+- `[x]` **Direct VLC Integration**: Spawns VLC via `Command::new` with the local file path.
+- `[x]` **VLC Heartbeat Monitoring**: Background Rust thread polls `http://127.0.0.1:8080/requests/status.json` every 5 seconds.
+- `[x]` **Auto-Completion & Resume**: Updates `last_position`, and if `high_water_mark > 0.90`, it marks as Completed.
+- `[x]` **Micro-Log Session Tracking**: Rust inserts `session_id`, `pause_count`, `completion_ratio` into the DB dynamically.
+- `[ ]` **Missing File Indication (☁️ / ❌)**: **MISSING**. In `Dashboard.tsx` and `MediaDetails.tsx`, if the file is missing, the Play button just disables. It should explicitly render a Cloud or X icon per the blueprint requirements instead of the Play triangle.
+
+## 7. The "Diary" (Watch History & Backdating)
+- `[ ]` **Lazy-Loaded Timeline**: **MISSING**. `History.tsx` loads the entire `history` array at once. No chunk loading or pagination.
+- `[ ]` **Date Grouping**: **MISSING**. The timeline is a flat list. There are no bold headers grouping items by "Today," "Yesterday," or specific Months.
+- `[ ]` **Auto-Binge Detection (Accordions)**: **MISSING**. While the *Rust backend* generates the `session_id` to group items watched within 6 hours, the *React frontend* completely ignores it.
+    - *Action Required*: Refactor `History.tsx` to group objects by `session_id`. Render expandable "🔥 BINGE: X Episodes" cards that, when clicked, reveal the individual episode rows underneath.
+- `[ ]` **Legacy Grouping**: **MISSING**. The UI displays an ugly `is_legacy === 1` tag, rather than rendering non-expandable Year/Month block cards.
+
+## 8. Legacy Scaling & Binge-Tracking (Backdating)
+- `[ ]` **Season-Level Triage (Backdating Picker)**: **MISSING**. The "Mark All Watched" button in `MediaDetails.tsx` does nothing.
+    - *Action Required*: It must open a popup with three distinct options: `Today`, `Archive (No History)`, and `Backdate (Year/Month)`.
+- `[ ]` **Natural Timeline Engine**: **MISSING**. The logic to naturally spread bulk-marked episodes across a selected past month to emulate real watch habits does not exist.
+
+## 9. Under-the-Hood Stability
+- `[ ]` **Central Database Write-Queue**: **MISSING**. The Rust backend uses `get_db_connection()` directly inside every Tauri command. SQLite allows concurrent reads, but concurrent writes will throw "Database is Locked" errors under heavy load.
+    - *Action Required*: Spawn a dedicated Rust worker thread `mpsc::channel` that receives `Insert/Update` SQL enums and executes them synchronously.
+- `[x]` **Asynchronous Image Loading**: Handled natively by the browser rendering engine pulling from TMDB via `<img>` tags (though offline caching logic to `%APPDATA%` mentioned in blueprint is not visibly connected to the frontend `src` attributes).
