@@ -1,14 +1,5 @@
 This file serves as a chronological record of all significant updates, feature implementations, and bug fixes applied to the WatchMark project.
 
-## TODO 5.4 Feature 5.4: Local_Files Relational Table
-- Added `file_size` and `file_hash` columns to `Local_Files` table.
-- Added migration to version 4 of DB.
-- Added `xxHash` crate for sparse hashing capability to evaluate and compare large media files.
-- Built "Larger Wins" heuristic collision detection during filesystem scanning, enabling auto-upgrades to higher quality local file additions.
-- Modified React Settings page to include Database path repair tools.
-- Modified `EpisodeRow` in `MediaDetails` to include `Unlink Local File` using a Context Menu.
-- Added Play Validation which actively queries disk availability directly when 'Play Next' or specific 'Play' buttons are clicked, launching interactive toast requests with 'Locate' file picker if unmapped.
-- Validated tests confirming `Local_Files` drops safely without disrupting specific parent Episode metadata.
 
 WatchMark Pro - Missing Feature Implementation Audit
 
@@ -160,3 +151,14 @@ Update 18: Feature 5.3 & 5.14 - Episodes Schema, Data Sanitization, and Cascadin
 - Safe TMDB Parsing: Implemented a robust `TmdbEpisode` struct in `models.rs` with a custom `deserialize_flexible_runtime` deserializer capable of handling strings, "N/A", nulls, or standard integers to prevent API noise from breaking the sync loop.
 - UI Labels for Specials: Mapped Season 0 specifically to output the label "Specials" in the `MediaDetails.tsx` React component, and verified backend SQL logic strictly sorts by `season_num ASC, ep_num ASC` so they appear first.
 - Cascading Deletes: Removed manual procedural row deletions (`History`, `Local_Files`, `Episodes`) in `delete_media()` and successfully tested full reliance on SQLite `ON DELETE CASCADE` relations.
+
+Update 19: Feature 5.4: Local_Files Relational Table
+- Added `file_size` and `file_hash` columns to `Local_Files` table.
+- Added migration to version 4 of DB.
+- Added `xxHash` crate for sparse hashing capability to evaluate and compare large media files.
+- Built "Larger Wins" heuristic collision detection during filesystem scanning, enabling auto-upgrades to higher quality local file additions.
+- Modified React Settings page to include Database path repair tools.
+- Modified `EpisodeRow` in `MediaDetails` to include `Unlink Local File` using a Context Menu.
+- Added Play Validation which actively queries disk availability directly when 'Play Next' or specific 'Play' buttons are clicked, launching interactive toast requests with 'Locate' file picker if unmapped.
+- Validated tests confirming `Local_Files` drops safely without disrupting specific parent Episode metadata.
+
