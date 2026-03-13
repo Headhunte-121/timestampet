@@ -114,14 +114,14 @@ fn main() {
             });
             use tauri_plugin_global_shortcut::{ShortcutState, GlobalShortcutExt};
 
-            let app_handle = app.handle().clone();
+            let _app_handle = app.handle().clone();
 
             // Register hotkey: Ctrl+Shift+S (Scan Directory)
             let scan_shortcut = "CommandOrControl+Shift+S";
             let hide_shortcut = "CommandOrControl+Shift+H";
 
             if let Err(e) = app.global_shortcut().on_shortcut(scan_shortcut, {
-                move |app, shortcut, event| {
+                move |app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.emit("tray-scan", ());
@@ -133,7 +133,7 @@ fn main() {
             }
 
             if let Err(e) = app.global_shortcut().on_shortcut(hide_shortcut, {
-                move |app, shortcut, event| {
+                move |app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
                         if let Some(window) = app.get_webview_window("main") {
                             if window.is_visible().unwrap_or(false) {

@@ -40,6 +40,7 @@ pub struct Media {
     pub max_year: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Episode {
     pub id: i32,

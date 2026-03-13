@@ -62,7 +62,7 @@ pub fn check_db_permissions(db_path: &PathBuf) -> Result<(), crate::error::AppEr
     // Try to open in ReadWrite mode to check if we can write to an existing db file
     // Or check if we can write a canary to the directory
     if db_path.exists() {
-        if let Err(e) = Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE) {
+        if let Err(_e) = Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE) {
             // Permission Denied or File Locked
             let mut canary_path = db_path.clone();
             canary_path.set_extension("canary");
@@ -111,11 +111,11 @@ pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::
         )?;
 
         // Apply PRAGMA tuning
-        let _ = conn.execute("PRAGMA cache_size = -2000;", ());
-        let _ = conn.execute("PRAGMA journal_mode = WAL;", ());
-        let _ = conn.execute("PRAGMA synchronous = NORMAL;", ());
-        let _ = conn.execute("PRAGMA temp_store = MEMORY;", ());
-        let _ = conn.execute("PRAGMA foreign_keys = ON;", ());
+        let _ = conn.pragma_update(None, "cache_size", "-2000");
+        let _ = conn.pragma_update(None, "journal_mode", "WAL");
+        let _ = conn.pragma_update(None, "synchronous", "NORMAL");
+        let _ = conn.pragma_update(None, "temp_store", "MEMORY");
+        let _ = conn.pragma_update(None, "foreign_keys", "ON");
 
         let mutex = Mutex::new(conn);
         DB_CONNECTION
@@ -140,11 +140,11 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         )?;
 
         // Apply PRAGMA tuning
-        conn.execute("PRAGMA cache_size = -2000;", ())?;
-        conn.execute("PRAGMA journal_mode = WAL;", ())?;
-        conn.execute("PRAGMA synchronous = NORMAL;", ())?;
-        conn.execute("PRAGMA temp_store = MEMORY;", ())?;
-        conn.execute("PRAGMA foreign_keys = ON;", ())?;
+        conn.pragma_update(None, "cache_size", "-2000")?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.pragma_update(None, "temp_store", "MEMORY")?;
+        conn.pragma_update(None, "foreign_keys", "ON")?;
 
         let _ = DB_CONNECTION.set(Mutex::new(conn));
     }
