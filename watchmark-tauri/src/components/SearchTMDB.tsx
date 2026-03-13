@@ -75,12 +75,18 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
 
               <button
                 onClick={() => {
+                  setLoading(true);
                   invoke("add_to_tracker", {
                     tmdbId: item.tmdb_id,
                     mediaType: item.type,
                     archive: false
-                  }).then(() => alert("Added to Tracker!"))
-                    .catch(e => alert("Error: " + e));
+                  }).then(() => {
+                    alert("Added to Tracker!");
+                    setLoading(false);
+                  }).catch(e => {
+                    alert("Error: " + e);
+                    setLoading(false);
+                  });
                 }}
                 className="w-full py-2 bg-[#FF6B00] text-white font-bold rounded-lg hover:bg-[#E66000] transition-colors"
               >
