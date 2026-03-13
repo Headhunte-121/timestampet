@@ -2184,3 +2184,119 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Slide the rest of the page up smoothly to fill in the space where the posters used to be.
     - [ ] Remember which rows are hidden permanently so they stay closed the next time the app opens.
     - [ ] Flip the arrow upside down so it is obvious the user can click it again to bring the posters back.
+
+## 📅 Part 24: Diary & History Refinements
+- Inline Date Editing: A pencil icon on history entries to manually correct the day/time.
+    - [ ] Add a small pencil icon next to the time on every single history row.
+    - [ ] Change the text into a simple date and time picker when the pencil is clicked.
+    - [ ] Update the timeline instantly to move the row to its new proper date section.
+    - [ ] Stop the user from setting a date that is in the future.
+    - [ ] Remember to update any binge blocks if the new time separates it from the group.
+- Non-Destructive Deletion: An X button to delete a specific watch event from history without altering the global "Completed" status.
+    - [ ] Add a tiny trash can or 'X' icon specifically to history rows.
+    - [ ] Remove the row from the timeline when clicked so it is gone.
+    - [ ] Keep the episode marked as finished in the main library even after deleting the row.
+    - [ ] Ask for a quick confirmation so the user doesn't delete a memory by accident.
+    - [ ] Update the daily watch time numbers to reflect that the episode is gone.
+- Daily Total Calculations: Next to the "Today" header, show (3h 45m) representing total time watched that specific day.
+    - [ ] Add up the runtimes of every single episode watched on a specific date.
+    - [ ] Display this total time neatly right next to the date header, like 'Monday (2h 15m)'.
+    - [ ] Skip showing the time if it adds up to zero.
+    - [ ] Use the actual lengths of the video files instead of estimates when possible.
+    - [ ] Update the number immediately if the user deletes a history row from that day.
+- Monthly Wrap-Up: At the top of a Monthly group, display "24 Episodes, 3 Movies Watched".
+    - [ ] Group the history neatly by month when the user scrolls far back enough in time.
+    - [ ] Count exactly how many movies and television episodes were finished in that month.
+    - [ ] Display a beautiful summary header at the start of the month, like 'October 2023 Summary'.
+    - [ ] Keep the summary hidden if the user only watched one or two things that month.
+    - [ ] Separate the movie count from the television count so the numbers are clear.
+- Calendar Picker Filter: A date-range picker input to filter history between specific weeks.
+    - [ ] Add a calendar button to the top of the history page to open a date selector.
+    - [ ] Let the user pick a specific start date and a specific end date.
+    - [ ] Hide all history rows that fall outside of that chosen window of time.
+    - [ ] Provide quick preset buttons like 'Last Week' or 'Last Month'.
+    - [ ] Give the user an easy way to clear the filter and see everything again.
+- Activity Heatmap: A GitHub-style contribution grid visualization of your watching habits over the year.
+    - [ ] Build a small grid of boxes where each box represents one day of the year.
+    - [ ] Color the boxes darker green or orange based on how many hours were watched that day.
+    - [ ] Let the user hover over a box to see the exact date and exactly what they watched.
+    - [ ] Place this heatmap at the very top of the history page or in the settings.
+    - [ ] Provide buttons to flip back and see heatmaps from previous years.
+- Episode-Specific Search: The History search bar queries exact episode names ("The Red Wedding") not just show titles.
+    - [ ] Make the search bar on the history page look incredibly deep into the data.
+    - [ ] Find matches even if the user just types the specific title of one episode.
+    - [ ] Show the exact date they watched that specific episode in the search results.
+    - [ ] Ignore uppercase and lowercase letters so the search is easy to use.
+    - [ ] Keep the search fast even if the user has watched thousands of episodes.
+- History Pagination UI: Visual indicators at the bottom indicating Page 1 of 50.
+    - [ ] Break the massive history list into smaller pages to keep the app running fast.
+    - [ ] Show a neat row of numbers at the bottom to let the user jump between pages.
+    - [ ] Highlight the current page number so they know exactly where they are.
+    - [ ] Provide simple 'Next' and 'Previous' buttons for easy reading.
+    - [ ] Ensure scrolling to the bottom naturally loads the next page without making them click.
+- Binge Duration Math: On a Binge-Block, explicitly state "Binge Duration: 6h 15m".
+    - [ ] Add up the exact running time of every episode tucked inside a binge block.
+    - [ ] Display this impressive total time prominently right on the closed block.
+    - [ ] Update the math if the user removes an episode from the block.
+    - [ ] Make sure the time format matches the rest of the app, like '6h 15m'.
+    - [ ] Hide this string if the block only contains two very short episodes.
+- Clipboard Sharing: A button to copy a binge log to clipboard formatted for Discord/Reddit (Finished Breaking Bad S1 - 8/10!).
+    - [ ] Add a small 'Share' icon right next to the binge duration text.
+    - [ ] Generate a clean, readable text summary when the user clicks the icon.
+    - [ ] Include the show name, the season number, and the user's personal star rating in the text.
+    - [ ] Save the text directly to their computer clipboard instantly.
+    - [ ] Show a quick 'Copied!' message so they know it worked.
+- Rewatch Flagging: If watch_count > 1, history entries get a subtle circular arrow icon indicating a rewatch.
+    - [ ] Check if the user has watched the exact same episode before on an older date.
+    - [ ] Add a small, elegant looping arrow icon next to the newest history row.
+    - [ ] Help the user easily see at a glance which shows they enjoy repeating.
+    - [ ] Provide a small tooltip explaining 'Rewatch' when they hover over the icon.
+    - [ ] Ensure the first time they watched it stays normal without the special icon.
+- Rewatch Filter: Toggle history to only show items you have watched multiple times.
+    - [ ] Add a simple toggle switch near the search bar on the history page.
+    - [ ] Hide everything except the rows that have the special rewatch arrow icon.
+    - [ ] Let the user easily see all their favorite, highly-repeated shows in one place.
+    - [ ] Keep the dates and timeline layout intact while this filter is on.
+    - [ ] Show a friendly empty state if they have never rewatched anything.
+- CSV Export: Fully format and export the SQLite History table to a portable .csv file.
+    - [ ] Create a big 'Export History' button in the advanced settings menu.
+    - [ ] Build a standard spreadsheet file containing every single watch date, show title, and rating.
+    - [ ] Let the user pick exactly where on their computer they want to save the file.
+    - [ ] Format the dates cleanly so they work properly in Excel or other spreadsheet programs.
+    - [ ] Show a clear progress bar if the export takes a few seconds to build.
+- Generic CSV Import: Import logic to parse standard Letterboxd/Trakt export formats to backfill the database.
+    - [ ] Add an 'Import History' button right next to the export option.
+    - [ ] Let the user select a spreadsheet file they downloaded from other movie websites.
+    - [ ] Read the file and match the old titles to the correct internet database IDs.
+    - [ ] Add all the old dates into the app's history without breaking the timeline.
+    - [ ] Show a summary of how many shows were successfully added when it finishes.
+- Timeline Fast-Scroller: A tiny alphabet/year vertical index on the right edge of the screen to jump instantly to 2018.
+    - [ ] Draw a very thin vertical list of years on the far right side of the history screen.
+    - [ ] Let the user click '2018' to instantly jump all the way down the page to that year.
+    - [ ] Make the list of years update automatically based on how far back their history goes.
+    - [ ] Keep the list stuck to the screen even while the user scrolls normally.
+    - [ ] Hide this fast-scroller on narrow mobile screens so it doesn't block the text.
+- Watch Gap String: "Watched 5 years after airing" dynamically calculated string on history rows.
+    - [ ] Compare the date the user watched the episode to the date it originally aired on television.
+    - [ ] Calculate the exact number of years or months between those two dates.
+    - [ ] Display a fun little string like 'Watched 2 years later' right inside the history row.
+    - [ ] Hide the string if they watched it on the exact same day it premiered.
+    - [ ] Hide the string if the internet database doesn't know when the episode aired.
+- Accordion Auto-Collapse: Expanding a Binge-Block automatically closes previously opened ones to keep the view clean.
+    - [ ] Notice when the user clicks to open a large group of watched episodes.
+    - [ ] Find any other groups that are currently open on the screen and close them smoothly.
+    - [ ] Prevent the page from becoming miles long and impossible to navigate.
+    - [ ] Keep the scroll position steady so the screen doesn't jump wildly when things close.
+    - [ ] Let the user turn this feature off in the settings if they prefer leaving everything open.
+- Midnight Crossover Icon: A tiny moon icon if a single Binge-Block spans across two calendar days.
+    - [ ] Notice if a single continuous viewing session starts before midnight and ends after midnight.
+    - [ ] Add a small, elegant crescent moon icon next to the binge duration time.
+    - [ ] Let the user know they stayed up incredibly late without being judgmental.
+    - [ ] Provide a tooltip explaining 'Spans across midnight' when hovered.
+    - [ ] Keep the block safely grouped under the day the viewing session started.
+- "Marathon" Tier Badge: Binge-Blocks exceeding 12 hours receive a special red/gold flame badge.
+    - [ ] Check if the total running time of a single group of episodes goes over twelve hours.
+    - [ ] Add an exciting, colorful flame icon to the top of that specific group.
+    - [ ] Reward the user for their massive dedication to finishing a story.
+    - [ ] Ensure the badge is visually distinct from the standard completion checkmarks.
+    - [ ] Hide the badge if the user manually changes the dates and breaks the marathon.
