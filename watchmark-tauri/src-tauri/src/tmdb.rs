@@ -184,7 +184,7 @@ pub fn get_media_details(
 pub fn get_tv_season_episodes(
     api_key: &str,
     tmdb_id: &str,
-    season_num: i64,
+    season_num: u32,
 ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
     let url = format!("{}/tv/{}/season/{}", TMDB_API_BASE, tmdb_id, season_num);
     let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
@@ -197,7 +197,10 @@ pub fn get_tv_season_episodes(
     let episodes = r["episodes"].as_array().unwrap_or(&vec![]).clone();
     let mut formatted = Vec::new();
 
-    for ep in episodes {
+    for ep_value in episodes {
+        // Attempt to parse into our typed struct to safely extract runtime
+        let tmdb_ep: crate::models::TmdbEpisode = serde_json::from_value(ep_value)?;
+
         let mut obj = serde_json::Map::new();
         obj.insert(
             "season_num".to_string(),
@@ -205,31 +208,27 @@ pub fn get_tv_season_episodes(
         );
         obj.insert(
             "ep_num".to_string(),
-            Value::Number(serde_json::Number::from(
-                ep["episode_number"].as_i64().unwrap_or(0),
-            )),
+            Value::Number(serde_json::Number::from(tmdb_ep.episode_number)),
         );
         obj.insert(
             "title".to_string(),
-            Value::String(ep["name"].as_str().unwrap_or("Unknown Title").to_string()),
+            Value::String(tmdb_ep.name.unwrap_or("Unknown Title".to_string())),
         );
         obj.insert(
             "overview".to_string(),
-            Value::String(ep["overview"].as_str().unwrap_or("").to_string()),
+            Value::String(tmdb_ep.overview.unwrap_or("".to_string())),
         );
         obj.insert(
             "runtime".to_string(),
-            Value::Number(serde_json::Number::from(
-                ep["runtime"].as_i64().unwrap_or(0),
-            )),
+            Value::Number(serde_json::Number::from(tmdb_ep.runtime)),
         );
         obj.insert(
             "still_path".to_string(),
-            Value::String(ep["still_path"].as_str().unwrap_or("").to_string()),
+            Value::String(tmdb_ep.still_path.unwrap_or("".to_string())),
         );
         obj.insert(
             "air_date".to_string(),
-            Value::String(ep["air_date"].as_str().unwrap_or("").to_string()),
+            Value::String(tmdb_ep.air_date.unwrap_or("".to_string())),
         );
         formatted.push(Value::Object(obj));
     }
