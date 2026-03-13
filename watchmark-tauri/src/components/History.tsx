@@ -68,6 +68,17 @@ export default function History() {
                 <div className="mt-2 flex gap-4 text-sm font-medium">
                   <span className="text-[#FF6B00]">{new Date(entry.timestamp * 1000).toLocaleString()}</span>
                   {entry.is_legacy === 1 && <span className="bg-white/10 text-gray-300 px-2 rounded-md">Legacy Import</span>}
+                  {entry.time_capsule && (
+                    <span className={`px-2 rounded-md font-bold ${entry.time_capsule.is_early ? 'bg-blue-500/20 text-blue-400' : 'bg-white/10 text-gray-300'}`}>
+                      {entry.time_capsule.is_early ? (
+                        "Early Watch"
+                      ) : entry.time_capsule.total_days === 0 ? (
+                        "Watched on Release Day"
+                      ) : (
+                        `Watched ${entry.time_capsule.years > 0 ? `${entry.time_capsule.years}y ` : ''}${entry.time_capsule.months > 0 ? `${entry.time_capsule.months}m ` : ''}${entry.time_capsule.days > 0 ? `${entry.time_capsule.days}d ` : ''}later`.trim()
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
               {group.type === "binge_block" ? (

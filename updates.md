@@ -184,3 +184,11 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Implemented robust date padding logic (YYYY becomes YYYY-01-01) in Rust before DB insertion for safe SQL DATE ordering.
 - Implemented `NULLS LAST` sorting fallback directly in SQLite commands, keeping unreleased media at the bottom of standard `DESC` ordering.
 - Replaced the "Play Next" and local "Play" buttons with a disabled "📅 Coming Soon" indicator and applied grayscale styling when the `air_date` or `release_date` evaluates to true for `is_unaired` using `chrono` logic.
+
+## TODO 5.8: air_date column for episode 'time capsule' comparisons
+- Added logic in Rust (`calculate_gap` in `commands.rs`) to calculate the Duration between `Episodes.air_date` and `History.timestamp`.
+- Included accurate math conversions taking leap years and timezone boundaries into account via the `chrono` crate.
+- Added structured output of "Gap Object" representing the difference in years, months, and days.
+- Designed dynamic directional tracking allowing for negative duration reporting for "Early Watch" occurrences.
+- Integrated accurate defaults when air times are omitted by falling back to assumed midnights.
+- Configured frontend React component (`History.tsx`) to render visually distinct badges depending on the time capsule object.
