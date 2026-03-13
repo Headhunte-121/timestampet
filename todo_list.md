@@ -1336,3 +1336,125 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Test specifically verifying the structure required for Database, Posters, Backdrops, and Episode Stills.
     - [ ] Ensure the creation specifically logs precisely to the background debugging file entirely.
 
+
+## ⌨️ Part 17: Advanced Navigation & Shortcuts (UX Polish)
+- Ctrl+K / Cmd+K Global Shortcut: Instantly focuses the Top Search Bar from anywhere.
+    - [ ] Add a global keyboard event listener specifically for the Ctrl+K and Cmd+K keybindings.
+    - [ ] Block the default browser behavior (e.g., search engine focus) when this combination is pressed.
+    - [ ] Immediately place the text cursor directly into the top search bar input field.
+    - [ ] Make sure the shortcut works regardless of which page or modal the user is currently viewing.
+    - [ ] Check that pressing the shortcut again while already focused safely does nothing or toggles the focus off.
+- Esc Key Binding: Closes open modals, clears search inputs, or unfocuses elements.
+    - [ ] Bind the Escape key to close any active overlay or popup completely.
+    - [ ] If no modal is open, use the key to clear the text inside the current active search input.
+    - [ ] Remove focus (`blur()`) from the currently selected UI element if there are no inputs to clear.
+    - [ ] Stop event propagation so that pressing Esc doesn't accidentally trigger multiple actions at once.
+    - [ ] Keep the underlying page layout exactly as it was before the element was focused.
+- Arrow Key Grid Navigation: Allow users to use keyboard arrows to jump between posters in the Library.
+    - [ ] Calculate the number of columns dynamically so that 'Up' and 'Down' jump precisely to the correct row.
+    - [ ] Move focus visually to the next or previous poster when 'Left' or 'Right' is pressed.
+    - [ ] Auto-scroll the page vertically if the newly focused poster sits outside the current viewport.
+    - [ ] Wrap the selection gracefully from the end of a row directly to the beginning of the next one.
+    - [ ] Keep standard scroll behavior intact if focus hasn't been placed inside the library grid.
+- Spacebar Playback: Pressing Space while a media card is focused instantly launches it in VLC.
+    - [ ] Listen specifically for the Spacebar keydown event solely when a poster card holds active focus.
+    - [ ] Trigger the exact same playback function as a left mouse click on the 'Play' button.
+    - [ ] Prevent the browser's default behavior of scrolling down the page when Space is pressed.
+    - [ ] Disable the shortcut cleanly if the focused item lacks a valid local file path.
+    - [ ] Do not trigger playback if the Spacebar is pressed while typing inside a text input.
+- Shift+Click Multi-Select: Select multiple files at once in the Inbox for bulk ignoring/assigning.
+    - [ ] Store the index of the last clicked item securely in React state.
+    - [ ] Select all items sequentially between the previous click and the new Shift+Click target.
+    - [ ] Update the UI to clearly highlight every currently selected row at once.
+    - [ ] Ignore the action if the Shift key is pressed without an initial starting item.
+    - [ ] Clear the multi-selection entirely if the user clicks anywhere else without holding Shift.
+- Mouse Back/Forward Support: Utilize side mouse buttons to navigate back and forth between Library and Details views.
+    - [ ] Hook into the browser's native `popstate` events to track mouse button hardware signals.
+    - [ ] Navigate the internal React Router history stack directly using these explicit buttons.
+    - [ ] Maintain exact scroll positions from the previous page when traversing backward.
+    - [ ] Provide a smooth cross-fade animation instead of a sudden page snap during navigation.
+    - [ ] Safely do nothing if the user clicks 'Back' on the very first page of their session.
+- Breadcrumb Trails: E.g., Library > TV Shows > Breaking Bad > Season 2 visible at the top of the detail view.
+    - [ ] Extract the current routing hierarchy dynamically from the URL path structure.
+    - [ ] Format each segment clearly with a delicate arrow or slash separating them.
+    - [ ] Make the earlier trail items directly clickable to easily jump back up the hierarchy.
+    - [ ] Truncate extremely long titles within the trail specifically to prevent layout overflow.
+    - [ ] Fade the text color slightly for older segments to draw focus to the current active level.
+- Custom Context Menus: Right-clicking a poster opens a sleek, custom dark-mode menu (Play Next, Mark Watched, Edit, Remove).
+    - [ ] Intercept the default browser right-click event strictly preventing the standard context menu from appearing.
+    - [ ] Render a custom dropdown menu directly at the precise X/Y pixel coordinates of the cursor.
+    - [ ] Close the menu instantly if the user clicks anywhere else on the screen.
+    - [ ] Provide specific action buttons that directly map to existing functions like 'Play Next'.
+    - [ ] Keep the menu bounded within the screen edges to avoid cutting off options at the bottom or sides.
+- Sticky Section Headers: As you scroll down the Library or History, the headers ("Recently Added", "Today") stick to the top of the screen until pushed up by the next header.
+    - [ ] Apply CSS `position: sticky` securely to the specific date or section label containers.
+    - [ ] Give the sticky header a slightly darker background so it remains legible over the scrolling content beneath it.
+    - [ ] Coordinate the `z-index` strictly to ensure it stays above images but below the main top navigation bar.
+    - [ ] Push the current header out of view flawlessly the moment the bottom edge touches the next incoming header.
+    - [ ] Support immediate un-sticking when the user scrolls back up past the content block.
+- Double-Click Play: Double-clicking a show poster bypasses the details page and instantly plays the next unwatched episode.
+    - [ ] Differentiate between a single click (navigates) and a double click (plays) using a short timeout delay.
+    - [ ] Determine the next unwatched episode rapidly in the background upon the second click.
+    - [ ] Launch the VLC process directly exactly as if the 'Play Next' button was pressed.
+    - [ ] Display an immediate visual loading state (like a spinner) so the user knows playback is initiating.
+    - [ ] Disable the double-click entirely if the show is 100% finished.
+- Alt+Click Catch-Up: Alt+Clicking an episode checkmark automatically marks that episode and all previous episodes in the season as watched.
+    - [ ] Identify the specific integer index of the clicked episode correctly.
+    - [ ] Update the status to 'Completed' for all episodes in the season that fall numerically before this index.
+    - [ ] Queue the database updates cleanly so all rows commit without creating a race condition.
+    - [ ] Reflect the visual checkmarks for the entire range instantaneously without waiting for a server refresh.
+    - [ ] Warn the user explicitly if this action involves more than 20 episodes at once.
+- Global Command Palette: Press Cmd+P to open a quick-action menu (e.g., type ">Scan" to trigger a directory scan).
+    - [ ] Create a centralized modal that specifically captures `Cmd+P` or `Ctrl+P`.
+    - [ ] Render a list of available text-based commands that filter down directly as the user types.
+    - [ ] Execute the corresponding application function instantly when an item is chosen via the Enter key.
+    - [ ] Close the palette fully the moment an action is executed.
+    - [ ] Build a priority sorting system so the most commonly used commands appear right at the top.
+- Touchpad Swipe Gestures: Swipe left/right on a laptop trackpad to go back/forward in the app history.
+    - [ ] Capture horizontal scroll events strictly when they exceed a certain momentum threshold.
+    - [ ] Trigger the standard React Router navigation precisely mimicking the browser's native swipe.
+    - [ ] Render a subtle visual overlay indicator (like a fading arrow) exactly showing the direction of the swipe.
+    - [ ] Prevent horizontal swiping from triggering on elements that actually need internal side-scrolling (like carousels).
+    - [ ] Provide a settings toggle to explicitly disable swipe gestures for users who find them intrusive.
+- Floating Action Button (FAB): A subtle "Jump to Top" arrow appears when scrolling deep into the Library.
+    - [ ] Monitor the exact vertical scroll position in real-time.
+    - [ ] Reveal a rounded button precisely in the bottom-right corner exclusively after scrolling past 500 pixels.
+    - [ ] Animate the appearance and disappearance of the button strictly utilizing opacity fades.
+    - [ ] Click the button to instantly and smoothly animate the page view right back to `y: 0`.
+    - [ ] Hide the button completely on specific pages that do not support vertical scrolling.
+- Shortcut Cheat Sheet: Press ? anywhere to open a modal displaying all keyboard shortcuts.
+    - [ ] Bind the `?` character to uniquely trigger a global modal overlay.
+    - [ ] Layout the shortcuts explicitly in a clean, two-column grid matching keys to specific actions.
+    - [ ] Only allow the modal to open if the user isn't currently typing inside a search bar or text input.
+    - [ ] Provide a standard 'Close' button to strictly exit the cheat sheet.
+    - [ ] Automatically pause any active background processes or videos entirely if the cheat sheet is invoked.
+- Scroll Memory: Pressing "Back" from a show details page restores your exact scroll position in the Library grid.
+    - [ ] Record the precise `window.scrollY` value to state right before navigating away from the list.
+    - [ ] Restore that exact Y-coordinate instantaneously upon returning to the specific route.
+    - [ ] Stop the page from accidentally snapping to the top explicitly while images load asynchronously.
+    - [ ] Clear the memory safely if the user navigates specifically via a top menu link instead of the back button.
+    - [ ] Maintain independent scroll records specifically for Movies vs TV Shows libraries.
+- Focus Trapping: When a modal is open, pressing Tab cycles only through modal buttons, preventing the background UI from being highlighted.
+    - [ ] Find the very first and absolute last focusable elements strictly inside the active modal container.
+    - [ ] Loop focus straight back to the first element when pressing Tab on the very last one.
+    - [ ] Move focus backwards strictly to the final element when hitting Shift+Tab on the first one.
+    - [ ] Prevent screen readers from accidentally interacting with the darkened page explicitly behind the modal.
+    - [ ] Restore exact focus straight back to the original element that triggered the modal once it closes.
+- Auto-Focus Search: Clicking the "Search TMDB" sidebar tab instantly focuses the input cursor.
+    - [ ] Attach a `useRef` directly to the primary search input on the target page.
+    - [ ] Call the `.focus()` method immediately upon component mount or route transition.
+    - [ ] Display the blinking cursor precisely indicating the user can start typing without needing to click again.
+    - [ ] Maintain focus even if a slight loading animation delays the full page render.
+    - [ ] Do not steal focus if the user clicks the tab while already dragging an item.
+- Inline Clear Button: A tiny x icon appears inside the search bar when typing, allowing 1-click clearing.
+    - [ ] Render the 'X' icon perfectly aligned inside the right edge of the text box container.
+    - [ ] Make the icon visible entirely conditionally, only when the string length strictly exceeds 0 characters.
+    - [ ] Click the icon to instantly reset the string specifically to empty.
+    - [ ] Keep the cursor fully focused precisely inside the input directly after clearing it.
+    - [ ] Apply a subtle hover background precisely to the icon to make it feel clickable.
+- Native Window Dragging: The entire empty space of the top navigation bar acts as a -webkit-app-region: drag zone to move the desktop window.
+    - [ ] Apply the specific CSS class exactly to the background container of the top header.
+    - [ ] Exempt interactive elements like buttons and search inputs specifically by explicitly applying `no-drag`.
+    - [ ] Track mouse movements seamlessly matching the window coordinates to the cursor position on the screen.
+    - [ ] Prevent dragging strictly if the application is fully maximized to full screen.
+    - [ ] Ensure double-clicking the drag zone perfectly toggles the maximize/restore state of the window.
