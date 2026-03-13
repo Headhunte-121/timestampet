@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use rusqlite::Connection;
+    use rusqlite::{Connection, params};
 
     fn setup_test_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
@@ -281,5 +281,94 @@ mod tests {
         // Ensure Episode still exists
         let ep_count: i32 = conn.query_row("SELECT COUNT(*) FROM Episodes WHERE id = ?", [ep_id], |r| r.get(0)).unwrap();
         assert_eq!(ep_count, 1, "Episode should NOT be deleted when Local_Files link is removed");
+    }
+
+    #[test]
+    fn test_history_leap_year_epoch() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        // Just mock the History table
+        conn.execute(
+            "CREATE TABLE History (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL,
+                last_position INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Completed',
+                is_legacy BOOLEAN DEFAULT 0,
+                session_id TEXT,
+                start_time DATETIME,
+                end_time DATETIME,
+                pause_count INTEGER DEFAULT 0,
+                completion_ratio REAL DEFAULT 0.0
+            )",
+            (),
+        ).unwrap();
+
+        // 2024-02-29T12:00:00Z -> 1709208000
+        let ts = 1709208000;
+        conn.execute("INSERT INTO History (episode_id, timestamp) VALUES (1, ?)", params![ts]).unwrap();
+
+        let stored_ts: i64 = conn.query_row("SELECT timestamp FROM History WHERE id = 1", [], |r| r.get(0)).unwrap();
+        assert_eq!(stored_ts, 1709208000);
+    }
+
+    #[test]
+    fn test_history_mass_triage_same_millisecond() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute(
+            "CREATE TABLE History (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+            )",
+            (),
+        ).unwrap();
+
+        let ts = 1700000000;
+
+        // Insert 100 rows with exact same timestamp
+        let tx = conn.transaction().unwrap();
+        for i in 1..=100 {
+            tx.execute("INSERT INTO History (episode_id, timestamp) VALUES (?, ?)", params![i, ts]).unwrap();
+        }
+        tx.commit().unwrap();
+
+        let mut stmt = conn.prepare("SELECT id, episode_id FROM History ORDER BY timestamp DESC, id DESC").unwrap();
+        let mut rows = stmt.query([]).unwrap();
+
+        // ID 100 should be first, ID 1 should be last due to `id DESC` tie-breaker
+        if let Some(row) = rows.next().unwrap() {
+            let id: i32 = row.get(0).unwrap();
+            let ep_id: i32 = row.get(1).unwrap();
+            assert_eq!(id, 100);
+            assert_eq!(ep_id, 100);
+        } else {
+            panic!("No rows found");
+        }
+
+        // Delete one collision entry
+        conn.execute("DELETE FROM History WHERE id = 50", []).unwrap();
+        let count: i32 = conn.query_row("SELECT COUNT(*) FROM History", [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 99); // Only one removed
+    }
+
+    #[test]
+    fn test_history_missing_timestamp_fallback() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute(
+            "CREATE TABLE History (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+            )",
+            (),
+        ).unwrap();
+
+        conn.execute("INSERT INTO History (episode_id) VALUES (1)", []).unwrap();
+
+        let stored_ts: i64 = conn.query_row("SELECT timestamp FROM History WHERE id = 1", [], |r| r.get(0)).unwrap();
+
+        let now = chrono::Utc::now().timestamp();
+        assert!((now - stored_ts).abs() <= 1); // Close enough
     }
 }

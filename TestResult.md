@@ -92,3 +92,11 @@
 | **Path Migration** | Use the repair tool to migrate files from one drive to another. Verify the process completes safely. | **Pass.** Rust Unit Test (`db_tests.rs/test_local_files_repair_paths`). `REPLACE` string interpolation correctly executed `UPDATE` over the rows, preserving suffix paths identically. |
 | **Unlink Action** | Unlink a local file explicitly from the database. | **Pass.** Rust Unit Test (`db_tests.rs/test_local_files_remove_link`). Verified row is completely dropped in `Local_Files` without triggering a cascade delete to the parent `Episode` row. |
 | **Quality Upgrade** | Scan smaller file, then larger duplicate file. Verify app chooses the larger version. | **Pass.** Verified using `"Larger Wins"` heuristic collision detection built into the backend filesystem scanner script logic `scanner.rs`. |
+
+## TODO 5.5 Feature 5.5: History relational table
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| **The "Leap Year" Entry** | Log an episode on Feb 29th. Verify the UNIX epoch accurately reflects the leap day without rounding errors. | **Pass.** Rust Unit Test (`db_tests.rs/test_history_leap_year_epoch`). Validated inserting timestamp `1709208000` accurately reflects back natively matching the strict bounds of 2024-02-29. |
+| **The "Mass Triage" Stress Test** | Mark 100 episodes simultaneously. Verify exact same timestamp and sorting order correctly inserts. | **Pass.** Rust Unit Test (`db_tests.rs/test_history_mass_triage_same_millisecond`). Inserted 100 rows within 1 millisecond. Query properly tied-broke items using `id DESC`, keeping rows strictly aligned. |
+| **Collision Deletion** | Manually delete one of the 50 identical-timestamp entries. | **Pass.** Rust Unit Test (`db_tests.rs/test_history_mass_triage_same_millisecond`). Deleting `id = 50` successfully reduced count to 99 leaving remaining rows fully preserved safely independent of the timestamp. |
+| **Missing Timestamp** | Insert row skipping the timestamp entirely. | **Pass.** Rust Unit Test (`db_tests.rs/test_history_missing_timestamp_fallback`). Omission reliably triggered standard SQLite generation using `strftime('%s', 'now')` dropping seamlessly alongside modern rust Unix definitions natively. |

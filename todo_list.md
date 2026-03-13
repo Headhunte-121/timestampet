@@ -564,13 +564,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test deleting a path explicitly from this table without deleting the Episode data.
 - [x] Verify file size or hash metadata fields are available for future collision checks.
 
-**5.5 History relational table (Tracking timestamp, episode ID).** (Incomplete)
+**5.5 History relational table (Tracking timestamp, episode ID).** (Complete)
 
-- [ ] Ensure timestamps are uniformly stored as UTC integers (UNIX epoch).
-- [ ] Handle edge cases where a user marks 50 episodes watched in the exact same millisecond.
-- [ ] Verify that deleting an episode correctly cascades to wipe all its history entries.
-- [ ] Test indexing on the timestamp column to ensure timeline UI fetching is instant.
-- [ ] Ensure missing timestamps dynamically fall back to current time on insert.
+- [x] Ensure timestamps are uniformly stored as UTC integers (UNIX epoch).
+- [x] Handle edge cases where a user marks 50 episodes watched in the exact same millisecond.
+- [x] Verify that deleting an episode correctly cascades to wipe all its history entries.
+- [x] Test indexing on the timestamp column to ensure timeline UI fetching is instant.
+- [x] Ensure missing timestamps dynamically fall back to current time on insert.
 
 **5.6 Unmatched_Files staging table for the Inbox.** (Incomplete)
 

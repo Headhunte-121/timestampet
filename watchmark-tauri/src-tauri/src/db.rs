@@ -206,12 +206,22 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS History (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            episode_id INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            episode_id INTEGER NOT NULL,
+            timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+            last_position INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'Completed',
+            is_legacy BOOLEAN DEFAULT 0,
+            session_id TEXT,
+            start_time DATETIME,
+            end_time DATETIME,
+            pause_count INTEGER DEFAULT 0,
+            completion_ratio REAL DEFAULT 0.0,
             FOREIGN KEY (episode_id) REFERENCES Episodes (id) ON DELETE CASCADE
         )",
         (),
     )?;
+
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_history_timestamp ON History(timestamp DESC, id DESC)", ())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS Unmatched_Files (
@@ -304,6 +314,31 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             }
         }
         tx.execute("PRAGMA user_version = 4", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 5 {
+        let tx = conn.transaction()?;
+        let v5_migrations = vec![
+            "ALTER TABLE History ADD COLUMN last_position INTEGER DEFAULT 0",
+            "ALTER TABLE History ADD COLUMN status TEXT DEFAULT 'Completed'",
+        ];
+        for query in v5_migrations {
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(crate::error::AppError::DbError(e));
+                }
+            }
+        }
+
+        // Migrate string timestamps to epoch integers safely using SQLite strftime, catching bad formats
+        let _ = tx.execute(
+            "UPDATE History SET timestamp = CAST(strftime('%s', timestamp) AS INTEGER) WHERE typeof(timestamp) = 'text'",
+            ()
+        );
+
+        tx.execute("CREATE INDEX IF NOT EXISTS idx_history_timestamp ON History(timestamp DESC, id DESC)", ())?;
+        tx.execute("PRAGMA user_version = 5", ())?;
         tx.commit()?;
     }
 
