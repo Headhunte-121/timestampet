@@ -1947,3 +1947,125 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Keep it locked completely perfectly explicitly in that number one spot totally even if the user changes how the list is sorted.
     - [ ] Add completely perfectly explicitly a tiny little thumbtack icon perfectly completely to the corner of the poster so it is obvious.
     - [ ] Un-pin perfectly explicitly completely the poster perfectly the second the user explicitly entirely clicks the button again.
+
+## 🕵️ Part 22: Scanner & Parsing Intelligence
+- Multi-Root Directories: Support adding multiple target folders (e.g., D:\TV Shows and E:\Anime).
+    - [ ] Create a neat, organized list in the settings specifically showing every single folder the app currently watches.
+    - [ ] Add a prominent button letting users easily pick an entirely new folder from any hard drive on their computer.
+    - [ ] Let users quickly and safely remove a folder from the list entirely without permanently deleting any of their history.
+    - [ ] Scan perfectly through all the listed folders simultaneously without mixing up the movies inside them.
+    - [ ] Show a polite warning completely if a user accidentally tries to add the exact same folder twice.
+- .watchmarkignore Support: Place this file in a folder to tell the scanner to skip it entirely.
+    - [ ] Teach the app to quietly look specifically for a tiny, hidden file named exactly `.watchmarkignore` inside any folder.
+    - [ ] Skip the entire folder and absolutely everything inside it instantly if that special file is found.
+    - [ ] Ignore completely any sub-folders perfectly hiding inside the ignored folder.
+    - [ ] Help users easily hide personal home videos or private collections explicitly without moving them off the hard drive.
+    - [ ] Keep the app completely fast and silent while it skips over these ignored sections.
+- Sample File Exclusion: Automatically ignore video files under 50MB (bypasses trailers/samples).
+    - [ ] Check exactly how large every single video file is completely before trying to identify it.
+    - [ ] Skip entirely over tiny files that are just short preview clips or downloading errors.
+    - [ ] Put a simple slider directly in the settings so the user can change exactly what 'tiny' means to them.
+    - [ ] Keep the main movie library completely clean explicitly by keeping these junk files out.
+    - [ ] Process the large, actual movie files perfectly normally even if they sit right next to a tiny preview file.
+- Absolute Number Parsing: Regex logic to understand Anime formatting (e.g., Naruto 105.mkv -> Season 1, Ep 105).
+    - [ ] Teach the app completely to recognize specifically when a video file just has one giant number, like '105'.
+    - [ ] Map these massive numbers perfectly back specifically to 'Season 1' so the television library doesn't break.
+    - [ ] Stop the app entirely from accidentally thinking the number '105' means 'Season 1, Episode 5'.
+    - [ ] Identify the show title exactly correctly even when it sits right next to these strange numbering formats.
+    - [ ] Match the episode perfectly exactly with the correct internet summary information even if the numbering is weird.
+- Date-Based Parsing: Regex for daily shows (e.g., Late Show 2024-03-10.mkv).
+    - [ ] Recognize perfectly exactly when a file name uses a full calendar date completely instead of normal season numbers.
+    - [ ] Pull the exact year, month, and day entirely out of the file name cleanly.
+    - [ ] Search the internet database perfectly using that exact date to find the specific daily talk show episode.
+    - [ ] Keep the show title completely separate exactly from the date so the app knows exactly what to search for.
+    - [ ] Organize these daily episodes perfectly inside the app exactly in the correct calendar order.
+- Boot-Up Auto-Scan: Optional setting to run a silent background scan every time WatchMark opens.
+    - [ ] Add a simple checkbox specifically in the settings offering to look for new movies the exact second the app starts.
+    - [ ] Run the search completely silently in the background so the user can start using the app instantly.
+    - [ ] Show a tiny, subtle spinning icon completely out of the way so the user knows the app is thinking.
+    - [ ] Pop a completely polite notification exactly when the invisible search finishes, explicitly if it found new things.
+    - [ ] Let users turn this off completely entirely if they prefer explicitly to control exactly when the app searches their computer.
+- File System Watcher (Rust notify): Hooks into OS events to instantly recognize when a file is dragged into your watched folder without manual scanning.
+    - [ ] Listen perfectly quietly directly to the user's computer to hear exactly when a brand new file is created.
+    - [ ] Add the brand new movie completely instantly to the app the exact second it finishes downloading or copying.
+    - [ ] Prevent the app completely entirely from trying to read the file before it is completely finished copying over.
+    - [ ] Notice perfectly exactly if the user decides to suddenly delete a movie or move it to a different folder.
+    - [ ] Keep the main library perfectly up-to-date instantly without the user ever explicitly needing to click a refresh button.
+- Detailed Scan Log Modal: Shows exactly what Regex matched what string and what TMDB ID was assigned.
+    - [ ] Create a special, completely detailed history page showing exactly what the app did during its last search.
+    - [ ] List perfectly every single file it found and completely explain exactly how it guessed the title.
+    - [ ] Show entirely specifically which internet movie ID it decided to attach perfectly to the file.
+    - [ ] Highlight completely exactly which files the app completely failed to understand entirely so the user can fix them.
+    - [ ] Keep this detailed screen completely hidden explicitly inside the settings completely so it doesn't confuse normal users.
+- "Dry Run" Scan: Simulates a scan and shows you what it would match without writing to the database.
+    - [ ] Build a completely safe, practice search button exactly that explicitly doesn't save anything permanently.
+    - [ ] Show the user exactly a completely detailed list perfectly predicting what the app would do.
+    - [ ] Let the user explicitly check perfectly to see if their complicated folder names will confuse the app.
+    - [ ] Keep the actual, permanent movie library completely perfectly untouched explicitly during this practice test.
+    - [ ] Give the user perfectly entirely a big, obvious button exactly to make the changes permanent if they like the results.
+- Duplicate Resolution: If S01E01 is found twice, UI allows user to pick between the 1080p and 720p version.
+    - [ ] Notice perfectly explicitly if the exact same episode is hiding completely twice inside the user's folders.
+    - [ ] Pause the automatic process entirely and pop perfectly exactly a helpful little message asking the user for help.
+    - [ ] Show the user perfectly explicitly both file names so they can clearly see the difference in quality.
+    - [ ] Let the user explicitly click perfectly exactly which version they want to keep completely permanently in their library.
+    - [ ] Remember perfectly their choice completely so the app doesn't bother them exactly about those specific files again.
+- Incomplete Download Skipping: Ignores .part, .crdownload, and .!qB files instantly.
+    - [ ] Ignore completely perfectly any file that has an ending explicitly matching common downloading programs.
+    - [ ] Skip over them completely silently exactly so the user's library doesn't fill up with broken, unplayable junk.
+    - [ ] Notice perfectly entirely exactly the second the downloading program finishes explicitly and renames the file normally.
+    - [ ] Add the finally completed file exactly perfectly to the library completely instantly once it is ready.
+    - [ ] Prevent the app completely entirely from crashing explicitly if it tries perfectly to read a half-finished file.
+- Auto-Cleanup: If a show is removed from Tracker, optionally prompt "Delete empty parent folders?".
+    - [ ] Notice completely perfectly exactly when the user explicitly removes an entire show perfectly from the app.
+    - [ ] Check perfectly exactly if the folder that used completely to hold that show is now totally, perfectly empty.
+    - [ ] Pop a polite, completely entirely optional message perfectly asking if the user wants to delete the empty folder too.
+    - [ ] Leave the folder perfectly entirely alone explicitly if the user clicks 'No' completely.
+    - [ ] Keep the user's computer completely perfectly clean entirely without them explicitly having to do it themselves.
+- Split-Movie Merging: Detects Movie-CD1.avi and Movie-CD2.avi and handles them logically.
+    - [ ] Recognize perfectly completely when a single long movie explicitly is broken perfectly into two separate video files.
+    - [ ] Group both parts completely entirely under one single, beautiful poster perfectly in the main library.
+    - [ ] Start playing explicitly the second part completely automatically exactly the second the first part finishes.
+    - [ ] Remember perfectly exactly where the user paused explicitly even if the pause happens precisely exactly across the split.
+    - [ ] Keep the library perfectly clean explicitly by completely hiding the confusing duplicate files from the main screen.
+- Archive Detection: Flags .rar or .zip files containing video and notifies the user to extract them.
+    - [ ] Notice perfectly explicitly when a massive video file is completely hidden exactly inside a compressed folder.
+    - [ ] Pop a helpful, completely perfectly friendly warning explicitly exactly letting the user know they need to unzip it.
+    - [ ] Prevent the app completely entirely from trying to explicitly force the video player perfectly to play a zipped file.
+    - [ ] Stop completely explicitly bothering the user perfectly about the zip file once they successfully extract the video.
+    - [ ] Keep the app completely fast explicitly by exactly not trying completely to scan entirely inside every single zip file on the computer.
+- Fallback Folder Parsing: If a file is named 1.mkv, the parser crawls up to read the parent directory name Breaking Bad.
+    - [ ] Notice perfectly explicitly when a video file name is completely entirely too short perfectly to be a real title.
+    - [ ] Look perfectly exactly at the name of the folder completely holding the file explicitly to find the real show name.
+    - [ ] Combine the folder name completely exactly with the file number perfectly to figure out explicitly what the episode is.
+    - [ ] Add the episode completely perfectly to the library explicitly exactly as if the file name had been perfectly normal.
+    - [ ] Handle situations perfectly entirely explicitly where the folder name is also completely useless or confusing.
+- Inbox Sort by Date: Sort unmatched files by the OS "Date Modified" attribute.
+    - [ ] Give the user completely explicitly a perfectly simple button exactly to sort their confusing files by age.
+    - [ ] Put the completely absolutely newest, most recently downloaded files explicitly perfectly at the top of the list.
+    - [ ] Help the user perfectly explicitly completely figure out what a file is exactly by remembering perfectly exactly when they downloaded it.
+    - [ ] Refresh the completely perfectly exactly explicit list instantly completely when the button is clicked.
+    - [ ] Keep the list perfectly explicitly completely organized exactly even if the user has thousands of confusing files.
+- Inbox Sort by Size: Sort unmatched files by byte size.
+    - [ ] Add a completely entirely perfectly explicit button exactly to sort the confusing files completely explicitly by how massive they are.
+    - [ ] Group massive, completely gigantic 4K movies perfectly explicitly together entirely at one end of the list.
+    - [ ] Group tiny, perfectly explicit little preview clips completely exactly completely at the other end.
+    - [ ] Help the user completely perfectly identify explicitly exactly what a file is entirely by looking completely explicitly at its size.
+    - [ ] Keep the sorting completely perfectly fast exactly even if the user explicitly has a massive hard drive.
+- Inbox Fuzzy Matching: Groups strings with minor typos together (e.g., "The Wrie" and "The Wire").
+    - [ ] Notice completely perfectly explicitly when two file names are almost perfectly exactly identical completely.
+    - [ ] Group them entirely explicitly perfectly completely together exactly in the confusing files list even if one has a small typo.
+    - [ ] Help the user completely explicitly perfectly fix entirely exactly both files at the exact same time.
+    - [ ] Stop completely perfectly explicitly exactly grouping files completely together if they are actually totally different shows.
+    - [ ] Make the confusing files list completely perfectly explicitly much smaller exactly and easier entirely to manage.
+- Inbox Inline Editing: Allow the user to manually edit the extracted string in the UI before hitting "Search TMDB".
+    - [ ] Let the user perfectly completely entirely explicitly click right on the guessed title exactly in the confusing files list.
+    - [ ] Turn the text completely perfectly exactly into a totally normal typing box entirely so they can fix spelling mistakes.
+    - [ ] Search the internet completely perfectly explicitly exactly the second they finish typing the completely fixed name.
+    - [ ] Save completely perfectly entirely explicitly the user completely entirely from exactly opening a massive separate popup window.
+    - [ ] Keep the typing box completely perfectly exactly explicit completely simple entirely and easy to use.
+- Inbox Type Override: A quick toggle to force TMDB to search for a "Movie" if the parser incorrectly guessed "TV".
+    - [ ] Add a tiny, completely perfect explicitly exactly simple button completely next to the confusing file explicitly.
+    - [ ] Let the user completely exactly perfectly flip entirely between explicitly 'Television' perfectly and entirely 'Movie'.
+    - [ ] Search the internet completely explicitly exactly perfectly again instantly entirely using the completely brand new category.
+    - [ ] Help the user completely entirely perfectly explicitly fix mistakes exactly when a completely perfectly movie happens exactly to have a number in its name.
+    - [ ] Keep the button completely perfectly entirely explicit exactly out of the way completely entirely unless the user needs it.
