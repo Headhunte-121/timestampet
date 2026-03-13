@@ -76,31 +76,6 @@ fn main() {
 
     let (settings_tx, mut settings_rx) = tokio::sync::mpsc::channel::<models::Settings>(100);
 
-    // Spawn debouncer task for saving settings
-    tokio::spawn(async move {
-        let mut last_settings: Option<models::Settings> = None;
-        let mut timeout = tokio::time::interval(tokio::time::Duration::from_millis(500));
-        timeout.tick().await; // consume first tick immediately
-
-        loop {
-            tokio::select! {
-                Some(settings) = settings_rx.recv() => {
-                    last_settings = Some(settings);
-                    timeout.reset();
-                }
-                _ = timeout.tick() => {
-                    if let Some(settings) = last_settings.take() {
-                        if let Err(e) = settings::save_settings(&settings) {
-                            log::error!("Failed to save debounced settings: {}", e);
-                        } else {
-                            log::info!("Settings successfully saved to disk.");
-                        }
-                    }
-                }
-            }
-        }
-    });
-
     tauri::Builder::default()
         .manage(commands::AppState {
             settings: std::sync::Arc::new(tokio::sync::RwLock::new(initial_settings)),
@@ -113,6 +88,30 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
+            // Spawn debouncer task for saving settings inside Tauri's managed tokio runtime
+            tauri::async_runtime::spawn(async move {
+                let mut last_settings: Option<models::Settings> = None;
+                let mut timeout = tokio::time::interval(tokio::time::Duration::from_millis(500));
+                timeout.tick().await; // consume first tick immediately
+
+                loop {
+                    tokio::select! {
+                        Some(settings) = settings_rx.recv() => {
+                            last_settings = Some(settings);
+                            timeout.reset();
+                        }
+                        _ = timeout.tick() => {
+                            if let Some(settings) = last_settings.take() {
+                                if let Err(e) = crate::settings::save_settings(&settings) {
+                                    log::error!("Failed to save debounced settings: {}", e);
+                                } else {
+                                    log::info!("Settings successfully saved to disk.");
+                                }
+                            }
+                        }
+                    }
+                }
+            });
             use tauri_plugin_global_shortcut::{ShortcutState, GlobalShortcutExt};
 
             let app_handle = app.handle().clone();
