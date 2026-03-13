@@ -5,10 +5,10 @@ This document represents the complete functional blueprint and state of the Watc
 ## 🟢 Part 1: Core Architecture & Backend Engine (Rust/Tauri)
 - Built on the modern Tauri 2.0 framework for maximum efficiency.
     - [x] Verify compatibility with the latest Tauri 2.0 release candidate and plugins.
-    - [ ] Ensure standard webview protocols are correctly registered across OSs.
-    - [ ] Handle edge cases where the system webview is outdated or missing entirely.
-    - [ ] Confirm that local development hot-reloading does not leak memory over time.
-    - [ ] Test core feature degradation if running on unsupported legacy OS versions.
+    - [x] Ensure standard webview protocols are correctly registered across OSs.
+    - [x] Handle edge cases where the system webview is outdated or missing entirely.
+    - [x] Confirm that local development hot-reloading does not leak memory over time.
+    - [x] Test core feature degradation if running on unsupported legacy OS versions.
 - 100% Rust backend ensuring native OS performance.
     - [x] Ensure zero background CPU usage when the app is idle.
     - [x] Gracefully handle panics in Rust threads without crashing the entire app shell.
