@@ -9,26 +9,57 @@ use directories::ProjectDirs;
 static DB_CONNECTION: OnceLock<Mutex<Connection>> = OnceLock::new();
 
 pub fn get_app_data_dir() -> PathBuf {
-    let app_dir = if let Some(proj_dirs) = ProjectDirs::from("com", "WatchMark", "WatchMark") {
+    if let Some(proj_dirs) = ProjectDirs::from("com", "WatchMark", "WatchMark") {
         proj_dirs.data_local_dir().to_path_buf()
     } else {
-        // Fallback to local execution directory if OS doesn't support appdata paths
+        // Only fallback to a local directory if the OS literally lacks an AppData directory (very rare)
         let mut exe_dir = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
         exe_dir.pop();
         exe_dir.join("WatchMark")
-    };
-
-    if !app_dir.exists() {
-        fs::create_dir_all(&app_dir).unwrap_or_default();
     }
-    app_dir
+}
+
+pub fn ensure_directories() -> std::io::Result<()> {
+    let app_dir = get_app_data_dir();
+
+    let paths_to_create = vec![
+        app_dir.clone(),
+        app_dir.join("db"),
+        app_dir.join("cache").join("posters"),
+        app_dir.join("cache").join("backdrops"),
+        app_dir.join("cache").join("stills"),
+    ];
+
+    for path in paths_to_create {
+        if path.exists() {
+            if path.is_file() {
+                // Rogue file collision! Delete or rename the rogue file
+                let _ = fs::remove_file(&path);
+                fs::create_dir_all(&path)?;
+            }
+        } else {
+            fs::create_dir_all(&path)?;
+        }
+
+        // Final metadata check
+        let meta = fs::metadata(&path)?;
+        if !meta.is_dir() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("Failed to create directory at {:?}", path)
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 pub fn get_db_path() -> PathBuf {
-    get_app_data_dir().join("watchmark.db")
+    get_app_data_dir().join("db").join("watchmark.db")
 }
 
 pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::Error> {
+    let _ = ensure_directories();
     if let Some(conn_mutex) = DB_CONNECTION.get() {
         Ok(conn_mutex.lock().unwrap())
     } else {
@@ -45,6 +76,7 @@ pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::
 }
 
 pub fn init_db() -> Result<()> {
+    let _ = ensure_directories();
     if DB_CONNECTION.get().is_none() {
         let db_path = get_db_path();
         let conn = Connection::open(db_path)?;
@@ -126,26 +158,69 @@ pub fn init_db() -> Result<()> {
         (),
     )?;
 
-    // Run migrations safely
-    let migrations = vec![
-        "ALTER TABLE Media ADD COLUMN backdrop_path TEXT",
-        "ALTER TABLE Episodes ADD COLUMN still_path TEXT",
-        "ALTER TABLE Episodes ADD COLUMN overview TEXT",
-        "ALTER TABLE Media ADD COLUMN vote_average REAL DEFAULT 0.0",
-        "ALTER TABLE Media ADD COLUMN user_rating INTEGER DEFAULT 0",
-        "ALTER TABLE Media ADD COLUMN release_date TEXT",
-        "ALTER TABLE Episodes ADD COLUMN completed_date TEXT",
-        "ALTER TABLE Episodes ADD COLUMN air_date TEXT",
-        "ALTER TABLE History ADD COLUMN is_legacy INTEGER DEFAULT 0",
-        "ALTER TABLE History ADD COLUMN session_id TEXT",
-        "ALTER TABLE History ADD COLUMN start_time DATETIME",
-        "ALTER TABLE History ADD COLUMN end_time DATETIME",
-        "ALTER TABLE History ADD COLUMN pause_count INTEGER DEFAULT 0",
-        "ALTER TABLE History ADD COLUMN completion_ratio REAL DEFAULT 0.0",
-    ];
+    // Run migrations safely via PRAGMA user_version
+    let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
 
-    for query in migrations {
-        let _ = conn.execute(query, ()); // Ignore errors if column already exists
+    if user_version == 0 {
+        // If it's a completely new database, we just created all columns via CREATE TABLE above.
+        // We can just bump the version to 3 directly.
+        // But to be safe if it's an old Python DB that had no user_version, we can just let
+        // the migrations run. The `conn.execute` ignores errors anyway for adding columns.
+        // However, the instructions say we should use BEGIN TRANSACTION and COMMIT.
+        // Since ALTER TABLE ADD COLUMN IF NOT EXISTS is not standard in SQLite, and we
+        // want to be transactionally safe, we will just try to run them inside transactions.
+        // If one fails, the transaction rolls back, but we can't easily catch individual 'column already exists'
+        // errors without aborting the transaction.
+        // A safer approach for SQLite migration from version 0 (unknown) is to try adding columns one by one and ignore errors,
+        // OR rely on the fact that if user_version == 0, it MIGHT be a fresh DB.
+        // Let's implement the 3-Tier system properly.
+    }
+
+    if user_version < 2 {
+        let tx = conn.unchecked_transaction()?;
+        let v2_migrations = vec![
+            "ALTER TABLE Media ADD COLUMN backdrop_path TEXT",
+            "ALTER TABLE Episodes ADD COLUMN still_path TEXT",
+            "ALTER TABLE Episodes ADD COLUMN overview TEXT",
+            "ALTER TABLE Media ADD COLUMN vote_average REAL DEFAULT 0.0",
+            "ALTER TABLE Media ADD COLUMN user_rating INTEGER DEFAULT 0",
+            "ALTER TABLE Media ADD COLUMN release_date TEXT",
+            "ALTER TABLE Episodes ADD COLUMN completed_date TEXT",
+            "ALTER TABLE Episodes ADD COLUMN air_date TEXT",
+        ];
+        for query in v2_migrations {
+            // Try to execute the query. If a column already exists, sqlite throws a specific
+            // error (e.g., "duplicate column name"). We want to skip this error for backward compatibility
+            // but fail on syntax/other errors.
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(e);
+                }
+            }
+        }
+        tx.execute("PRAGMA user_version = 2", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 3 {
+        let tx = conn.unchecked_transaction()?;
+        let v3_migrations = vec![
+            "ALTER TABLE History ADD COLUMN is_legacy INTEGER DEFAULT 0",
+            "ALTER TABLE History ADD COLUMN session_id TEXT",
+            "ALTER TABLE History ADD COLUMN start_time DATETIME",
+            "ALTER TABLE History ADD COLUMN end_time DATETIME",
+            "ALTER TABLE History ADD COLUMN pause_count INTEGER DEFAULT 0",
+            "ALTER TABLE History ADD COLUMN completion_ratio REAL DEFAULT 0.0",
+        ];
+        for query in v3_migrations {
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(e);
+                }
+            }
+        }
+        tx.execute("PRAGMA user_version = 3", ())?;
+        tx.commit()?;
     }
 
     Ok(())

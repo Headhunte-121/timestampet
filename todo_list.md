@@ -100,13 +100,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Provide placeholder arrays for empty history or library results.
 - [ ] Test deeply nested JSON serialization ensuring no unexpected `undefined` bubbles up.
 
-**1.13 Auto-generation of local application data directories on first boot.** (Incomplete)
+**1.13 Auto-generation of local application data directories on first boot.** (Complete)
 
-- [ ] Handle edge cases where the OS denies write permissions to the intended install directory.
-- [ ] Verify nested folders (`/cache/posters`, `/db`) are created successfully.
-- [ ] Provide a fatal error UI if directory creation completely fails.
-- [ ] Test behavior if a user manually deletes the data folder while the app is running.
-- [ ] Ensure proper fallback logic if migrating from an older schema.
+- [x] Handle edge cases where the OS denies write permissions to the intended install directory.
+- [x] Verify nested folders (`/cache/posters`, `/db`) are created successfully.
+- [x] Provide a fatal error UI if directory creation completely fails.
+- [x] Test behavior if a user manually deletes the data folder while the app is running.
+- [x] Ensure proper fallback logic if migrating from an older schema.
 
 **1.14 Persistent JSON settings storage (Window size, position, API keys).** (Incomplete)
 

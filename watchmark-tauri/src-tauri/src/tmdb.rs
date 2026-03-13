@@ -242,6 +242,8 @@ pub fn download_image(image_path: &str, size: &str) -> Option<String> {
         return None;
     }
 
+    let _ = crate::db::ensure_directories();
+
     let clean_path = image_path.trim_start_matches('/');
     let filename = format!("{}_{}", size, clean_path);
     let local_path = get_poster_cache_dir().join(&filename);

@@ -16,8 +16,48 @@ use tauri::{
     Manager, Emitter
 };
 use tauri_plugin_notification::NotificationExt;
+use native_dialog::{MessageDialog, MessageType};
+
+fn canary_check() -> Result<(), std::io::Error> {
+    let app_dir = db::get_app_data_dir();
+    // Try to create base dir if not exist
+    if !app_dir.exists() {
+        if let Err(e) = std::fs::create_dir_all(&app_dir) {
+            return Err(e);
+        }
+    }
+
+    let canary_path = app_dir.join(".canary");
+    if let Err(e) = std::fs::write(&canary_path, b"canary") {
+        return Err(e);
+    }
+    let _ = std::fs::remove_file(canary_path);
+    Ok(())
+}
 
 fn main() {
+    if let Err(e) = canary_check() {
+        let error_msg = format!("Fatal Error: Could not initialize application data directory.\n\nPermissions Required to write to: {:?}\n\nError details: {}", db::get_app_data_dir(), e);
+        MessageDialog::new()
+            .set_type(MessageType::Error)
+            .set_title("WatchMark - Fatal Error")
+            .set_text(&error_msg)
+            .show_alert()
+            .unwrap();
+        std::process::exit(1);
+    }
+
+    if let Err(e) = db::ensure_directories() {
+         let error_msg = format!("Fatal Error: Could not create nested application data directories.\n\nError details: {}", e);
+         MessageDialog::new()
+            .set_type(MessageType::Error)
+            .set_title("WatchMark - Fatal Error")
+            .set_text(&error_msg)
+            .show_alert()
+            .unwrap();
+        std::process::exit(1);
+    }
+
     db::init_db().expect("Failed to initialize database");
 
     tauri::Builder::default()

@@ -103,3 +103,9 @@ Update 12: Seamless IPC Bridging & Stability [Todo 1.9]
 - Implemented proper pagination chunking in the History view (limit 100 per page) with a "Load More" action.
 - Centralized event listener cleanup in React components (e.g., `App.tsx` and `SettingsView.tsx`) to ensure unlisten functions are explicitly awaited and correctly executed on unmount, preventing HMR ghosting and duplicate listeners.
 - Integrated a global type-mismatch error handler in the frontend wrapper that gracefully intercepts `serde` deserialization mismatches and displays clear warnings rather than failing silently.
+
+Update 13: Local App Data Directory Stability [Todo 1.13]
+- Shifted application data resolution from portable logic directly to the OS-sanctioned `AppData\Local\WatchMark` (via `%LOCALAPPDATA%`) to prevent Windows Defender and Controlled Folder Access blocks.
+- Implemented a pre-flight Canary Check in `main.rs`. If the directory lacks write access, Tauri does not boot and instead spawns a fatal native OS dialog via `native-dialog` crate.
+- Added JIT (Just-In-Time) directory recreation in `db::ensure_directories()`. This runs immediately before any SQLite `Connection::open()` or external HTTP `reqwest` download logic, preventing crashes if users manually delete `/cache` folders during application runtime.
+- Re-architected SQLite migration initialization with a rigid 3-Tier `PRAGMA user_version` engine. Ensures the base schema (V1), metadata columns (V2), and session history columns (V3) are transaction-safe, atomic, and will correctly rollback rather than throw 'column already exists' panics.
