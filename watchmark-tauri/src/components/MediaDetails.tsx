@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
-import { Play, ArrowLeft, Star, Trash2, CloudOff } from "lucide-react";
+import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Lock } from "lucide-react";
 import { useUiStore } from "../store/uiStore";
 import { toast } from "sonner";
 
@@ -73,13 +73,18 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="w-64 shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10"
+          className="relative w-64 shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10"
         >
           <img
             src={`https://image.tmdb.org/t/p/w500${data.poster_path}`}
             alt="Poster"
-            className="w-full h-auto object-cover"
+            className={`w-full h-auto object-cover ${data.is_unaired ? 'grayscale-[0.5] opacity-70' : ''}`}
           />
+          {data.is_unaired && (
+            <div className="absolute top-2 left-2 z-20 px-2 py-1 bg-blue-500/80 backdrop-blur-md rounded-md text-[10px] font-bold text-white shadow-md uppercase tracking-wider">
+              Planned
+            </div>
+          )}
         </motion.div>
 
         {/* Title and Info */}
@@ -97,7 +102,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <span className={`px-3 py-1 rounded-md backdrop-blur-md text-white ${data.type === 'Unknown' ? 'bg-red-500/80' : 'bg-white/10'}`}>
               {data.type}
             </span>
-            <span className="text-gray-300">Aired: {data.release_date?.substring(0, 4)}</span>
+            <span className="text-gray-300">Aired: {data.release_date ? (data.is_exact_date ? data.release_date : data.release_date.substring(0, 4)) : "Unknown"}</span>
             <span className="flex items-center gap-1 text-[#F5C518] bg-black/50 px-3 py-1 rounded-md">
               <Star className="w-4 h-4 fill-current" /> {data.vote_average.toFixed(1)} / 10
             </span>
@@ -122,9 +127,15 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           </div>
 
           <div className="flex gap-4">
-            <button className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all shadow-lg shadow-orange-500/20 hover:scale-105">
-              <Play fill="currentColor" /> Play Next
-            </button>
+            {data.is_unaired ? (
+              <div className="flex items-center gap-2 px-8 py-4 bg-gray-700/50 text-gray-300 font-bold rounded-full backdrop-blur-md cursor-not-allowed">
+                <Clock className="w-5 h-5" /> 📅 Coming Soon
+              </div>
+            ) : (
+              <button className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all shadow-lg shadow-orange-500/20 hover:scale-105">
+                <Play fill="currentColor" /> Play Next
+              </button>
+            )}
             <button className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full backdrop-blur-md transition-all hover:scale-105">
               Mark All Watched
             </button>
@@ -210,60 +221,69 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     </div>
                  )}
                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity">
-                    <button
-                      onClick={async () => {
-                        if (ep.file_path) {
-                          try {
-                              const validation: any = await invoke("validate_and_hash_file", { episodeId: ep.id, filePath: ep.file_path });
-                              if (validation.status === "missing" || validation.status === "corrupted") {
-                                  toast.error(`File is ${validation.status}.`, {
-                                      action: {
-                                          label: "Locate",
-                                          onClick: async () => {
-                                              try {
-                                                  const { open } = await import('@tauri-apps/plugin-dialog');
-                                                  const selected = await open({
-                                                      multiple: false,
-                                                      title: "Locate File",
-                                                  });
-                                                  if (selected && typeof selected === 'string') {
-                                                      await invoke("update_local_file", { episodeId: ep.id, newPath: selected });
-                                                      toast.success("File linked successfully!");
-                                                      // Refresh data
-                                                      invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
-                                                      // Play new file
-                                                      invoke("play_episode_cmd", {
-                                                          episodeId: ep.id,
-                                                          filePath: selected,
-                                                          lastPosition: ep.last_position,
-                                                      });
-                                                  }
-                                              } catch (err) {
-                                                  toast.error("Failed to locate file.");
-                                              }
-                                          }
-                                      },
-                                      duration: 5000,
-                                  });
-                                  return;
-                              }
-                          } catch (e) {
-                              toast.error(`Validation error: ${e}`);
-                              return;
-                          }
+                    {ep.is_unaired ? (
+                      <div className="w-12 h-12 rounded-full bg-gray-700/80 flex items-center justify-center text-white shadow-lg cursor-not-allowed group/tooltip relative">
+                        <Lock className="w-5 h-5" />
+                        <div className="absolute -top-10 scale-0 group-hover/tooltip:scale-100 transition-transform bg-black text-white text-xs px-3 py-1 rounded-md whitespace-nowrap">
+                          {ep.air_date ? `Airing ${ep.air_date}` : 'Unaired'}
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          if (ep.file_path) {
+                            try {
+                                const validation: any = await invoke("validate_and_hash_file", { episodeId: ep.id, filePath: ep.file_path });
+                                if (validation.status === "missing" || validation.status === "corrupted") {
+                                    toast.error(`File is ${validation.status}.`, {
+                                        action: {
+                                            label: "Locate",
+                                            onClick: async () => {
+                                                try {
+                                                    const { open } = await import('@tauri-apps/plugin-dialog');
+                                                    const selected = await open({
+                                                        multiple: false,
+                                                        title: "Locate File",
+                                                    });
+                                                    if (selected && typeof selected === 'string') {
+                                                        await invoke("update_local_file", { episodeId: ep.id, newPath: selected });
+                                                        toast.success("File linked successfully!");
+                                                        // Refresh data
+                                                        invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+                                                        // Play new file
+                                                        invoke("play_episode_cmd", {
+                                                            episodeId: ep.id,
+                                                            filePath: selected,
+                                                            lastPosition: ep.last_position,
+                                                        });
+                                                    }
+                                                } catch (err) {
+                                                    toast.error("Failed to locate file.");
+                                                }
+                                            }
+                                        },
+                                        duration: 5000,
+                                    });
+                                    return;
+                                }
+                            } catch (e) {
+                                toast.error(`Validation error: ${e}`);
+                                return;
+                            }
 
-                          invoke("play_episode_cmd", {
-                            episodeId: ep.id,
-                            filePath: ep.file_path,
-                            lastPosition: ep.last_position,
-                          }).catch(e => toast.error(e));
-                        } else {
-                          toast.error("Missing File Path. Scan directory to match file.");
-                        }
-                      }}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white scale-75 hover:scale-100 transition-transform shadow-lg ${ep.file_path ? 'bg-[#FF6B00] shadow-orange-500/30' : 'bg-gray-600 shadow-gray-500/30'}`}>
-                       {ep.file_path ? <Play className="w-5 h-5 ml-1" fill="currentColor" /> : <CloudOff className="w-5 h-5" />}
-                    </button>
+                            invoke("play_episode_cmd", {
+                              episodeId: ep.id,
+                              filePath: ep.file_path,
+                              lastPosition: ep.last_position,
+                            }).catch(e => toast.error(e));
+                          } else {
+                            toast.error("Missing File Path. Scan directory to match file.");
+                          }
+                        }}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white scale-75 hover:scale-100 transition-transform shadow-lg ${ep.file_path ? 'bg-[#FF6B00] shadow-orange-500/30' : 'bg-gray-600 shadow-gray-500/30'}`}>
+                        {ep.file_path ? <Play className="w-5 h-5 ml-1" fill="currentColor" /> : <CloudOff className="w-5 h-5" />}
+                      </button>
+                    )}
                  </div>
                  {ep.status === "Watching" && ep.runtime > 0 && (
                     <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10">

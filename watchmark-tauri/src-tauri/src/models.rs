@@ -144,8 +144,10 @@ pub struct Media {
     pub vote_average: f64,
     pub user_rating: i32,
     pub release_date: String,
+    pub is_exact_date: bool,
 
     // Virtual fields
+    pub is_unaired: Option<bool>,
     pub completed_eps: Option<i32>,
     pub last_watched: Option<String>,
     pub min_year: Option<String>,
@@ -168,8 +170,10 @@ pub struct Episode {
     pub file_path: Option<String>,
     pub overview: String,
     pub air_date: String,
+    pub is_exact_date: bool,
 
     // Virtual fields joined
+    pub is_unaired: Option<bool>,
     pub show_title: Option<String>,
     pub backdrop_path: Option<String>,
     pub media_type: Option<String>,
@@ -194,6 +198,7 @@ pub struct HistoryEntry {
     pub ep_title: String,
     pub still_path: String,
     pub air_date: String,
+    pub is_exact_date: bool,
 
     // Joined media data
     pub media_id: i32,

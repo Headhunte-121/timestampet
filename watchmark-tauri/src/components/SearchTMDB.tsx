@@ -71,7 +71,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
               <h3 className="text-white font-bold leading-tight mb-1">{item.title}</h3>
               <p className="text-xs text-gray-300 mb-4 uppercase tracking-wider font-bold">
-                {item.type} • {item.release_date?.substring(0, 4) || "Unknown"}
+                {item.type} • {item.release_date ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : "Unknown"}
               </p>
 
               <button

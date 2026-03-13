@@ -75,9 +75,22 @@ pub fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, Box<dyn st
                 r["release_date"].as_str()
             }
             .unwrap_or("");
+
+            let (final_date, is_exact) = if release_date.len() == 4 {
+                (format!("{}-01-01", release_date), false)
+            } else if release_date.is_empty() {
+                ("".to_string(), false)
+            } else {
+                (release_date.to_string(), true)
+            };
+
             obj.insert(
                 "release_date".to_string(),
-                Value::String(release_date.to_string()),
+                Value::String(final_date),
+            );
+            obj.insert(
+                "is_exact_date".to_string(),
+                Value::Bool(is_exact),
             );
 
             filtered.push(Value::Object(obj));
@@ -138,9 +151,21 @@ pub fn get_media_details(
             )),
         );
         obj.insert("seasons".to_string(), r["seasons"].clone());
+        let air_date = r["first_air_date"].as_str().unwrap_or("");
+        let (final_date, is_exact) = if air_date.len() == 4 {
+            (format!("{}-01-01", air_date), false)
+        } else if air_date.is_empty() {
+            ("".to_string(), false)
+        } else {
+            (air_date.to_string(), true)
+        };
         obj.insert(
             "release_date".to_string(),
-            Value::String(r["first_air_date"].as_str().unwrap_or("").to_string()),
+            Value::String(final_date),
+        );
+        obj.insert(
+            "is_exact_date".to_string(),
+            Value::Bool(is_exact),
         );
     } else {
         obj.insert(
@@ -151,9 +176,21 @@ pub fn get_media_details(
             "runtime".to_string(),
             Value::Number(serde_json::Number::from(r["runtime"].as_i64().unwrap_or(0))),
         );
+        let rel_date = r["release_date"].as_str().unwrap_or("");
+        let (final_date, is_exact) = if rel_date.len() == 4 {
+            (format!("{}-01-01", rel_date), false)
+        } else if rel_date.is_empty() {
+            ("".to_string(), false)
+        } else {
+            (rel_date.to_string(), true)
+        };
         obj.insert(
             "release_date".to_string(),
-            Value::String(r["release_date"].as_str().unwrap_or("").to_string()),
+            Value::String(final_date),
+        );
+        obj.insert(
+            "is_exact_date".to_string(),
+            Value::Bool(is_exact),
         );
     }
 
@@ -226,9 +263,21 @@ pub fn get_tv_season_episodes(
             "still_path".to_string(),
             Value::String(tmdb_ep.still_path.unwrap_or("".to_string())),
         );
+        let raw_air_date = tmdb_ep.air_date.unwrap_or("".to_string());
+        let (final_date, is_exact) = if raw_air_date.len() == 4 {
+            (format!("{}-01-01", raw_air_date), false)
+        } else if raw_air_date.is_empty() {
+            ("".to_string(), false)
+        } else {
+            (raw_air_date, true)
+        };
         obj.insert(
             "air_date".to_string(),
-            Value::String(tmdb_ep.air_date.unwrap_or("".to_string())),
+            Value::String(final_date),
+        );
+        obj.insert(
+            "is_exact_date".to_string(),
+            Value::Bool(is_exact),
         );
         formatted.push(Value::Object(obj));
     }

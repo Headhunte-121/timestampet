@@ -107,3 +107,11 @@
 | *String cleaning trailing & leading release tags* | *Rust Unit Test (`db_tests.rs`)* | *Pass* |
 | *Fallback to directory on generic 01.mkv naming* | *Rust Unit Test (`db_tests.rs`)* | *Pass* |
 | *Unmatched files DB collision uniqueness verification* | *Rust Unit Test (`db_tests.rs`)* | *Pass* |
+## TODO 5.7 release_date column for precise library sorting
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *The "Jan 1st" Test* | *Rust Unit Test (`db_tests.rs/test_jan_1st_sort`)* | *Pass. 2024-01-01 correctly sorts before 2024-01-02.* |
+| *The "Year-Only" sync* | *Rust Unit Test (`db_tests.rs/test_tmdb_parsing_and_padding`)* | *Pass. Verified that '2026' evaluates to '2026-01-01' with `is_exact_date` equal to false.* |
+| *Mass Null Test* | *Rust Unit Test (`db_tests.rs/test_mass_null_sort_last`)* | *Pass. NULL and Empty Strings are forced to the bottom using `CASE WHEN` logic.* |
+| *The "Decade Edge" Test* | *Rust Unit Test (`db_tests.rs/test_decade_edge_filter`)* | *Pass. SQL `BETWEEN` correctly handles string comparisons across years.* |
+| *"Air Date Today" Bug (Unaired Boolean)* | *Manual Playwright Testing and Rust integration logic* | *Pass. Rust `commands.rs` dynamically evaluates `< now` natively avoiding stale DB booleans.* |
