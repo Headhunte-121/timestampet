@@ -26,6 +26,11 @@ function App() {
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
 
+  // Settings Navigation Guard
+  const [isSettingsDirty, setIsSettingsDirty] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<{ view: View | null, mediaId: number | null } | null>(null);
+  const [saveSettingsCallback, setSaveSettingsCallback] = useState<(() => Promise<boolean>) | null>(null);
+
   // Refresh UI hook
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { isCinemaMode, initialized, initializeSettings } = useAppStore();
@@ -57,9 +62,39 @@ function App() {
     { id: "history", label: "History", icon: Clock },
   ] as const;
 
-  const handleNav = (view: View) => {
-    setCurrentView(view);
-    setSelectedMediaId(null);
+  const handleNav = (view: View, mediaId: number | null = null) => {
+    if (isSettingsDirty && currentView === "settings" && view !== "settings") {
+      setPendingNavigation({ view, mediaId });
+    } else {
+      // Allow re-clicking the same tab to close the current item
+      if (currentView === view && !selectedMediaId && !mediaId) {
+          return; // Do nothing if already on the root of the tab
+      }
+      setCurrentView(view);
+      setSelectedMediaId(mediaId);
+    }
+  };
+
+  const confirmNavigation = async (save: boolean) => {
+    if (save && saveSettingsCallback) {
+        const success = await saveSettingsCallback();
+        if (!success) return; // Keep modal open or stay on page if save fails
+    }
+
+    // We must reset the unsaved changes state in the components as well
+    // but React state will reset when the view is unmounted.
+    setIsSettingsDirty(false);
+    if (pendingNavigation) {
+        if (pendingNavigation.view) {
+            setCurrentView(pendingNavigation.view);
+        }
+        setSelectedMediaId(pendingNavigation.mediaId);
+        setPendingNavigation(null);
+    }
+  };
+
+  const cancelNavigation = () => {
+      setPendingNavigation(null);
   };
 
   return (
@@ -144,7 +179,7 @@ function App() {
               >
                 <MediaDetails
                   mediaId={selectedMediaId}
-                  onBack={() => setSelectedMediaId(null)}
+                  onBack={() => handleNav(currentView)}
                   refreshTrigger={refreshTrigger}
                 />
               </motion.div>
@@ -157,18 +192,61 @@ function App() {
                 transition={isCinemaMode ? { duration: 0.2 } : { duration: 0 }}
                 className="h-full w-full"
               >
-                {currentView === "dashboard" && <Dashboard onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-                {currentView === "tv" && <Library type="TV" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-                {currentView === "movies" && <Library type="Movie" onMediaSelect={setSelectedMediaId} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-                {currentView === "search" && <SearchTMDB onMediaSelect={setSelectedMediaId} />}
+                {currentView === "dashboard" && <Dashboard onMediaSelect={(id) => handleNav("dashboard", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "tv" && <Library type="TV" onMediaSelect={(id) => handleNav("tv", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "movies" && <Library type="Movie" onMediaSelect={(id) => handleNav("movies", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "search" && <SearchTMDB onMediaSelect={(id) => handleNav("search", id)} />}
                 {currentView === "inbox" && <InboxView onMatch={() => setRefreshTrigger(prev => prev + 1)} />}
                 {currentView === "history" && <History />}
-                {currentView === "settings" && <SettingsView />}
+                {currentView === "settings" && <SettingsView setIsDirty={setIsSettingsDirty} setSaveCallback={setSaveSettingsCallback} />}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
+
+      {/* Navigation Guard Modal */}
+      <AnimatePresence>
+          {pendingNavigation && (
+              <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+              >
+                  <motion.div
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.95, opacity: 0 }}
+                      className="bg-[#1F222A] p-8 rounded-2xl border border-white/10 max-w-md w-full shadow-2xl"
+                  >
+                      <h2 className="text-2xl font-bold text-white mb-2">Unsaved Changes</h2>
+                      <p className="text-gray-400 mb-8">You have unsaved changes in your settings. Do you want to save them before leaving?</p>
+                      <div className="flex flex-col gap-3">
+                          <button
+                              onClick={() => confirmNavigation(true)}
+                              className="w-full py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl transition-colors"
+                          >
+                              Save & Leave
+                          </button>
+                          <button
+                              onClick={() => confirmNavigation(false)}
+                              className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
+                          >
+                              Discard & Leave
+                          </button>
+                          <button
+                              onClick={cancelNavigation}
+                              className="w-full py-3 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white font-bold rounded-xl transition-colors mt-2"
+                          >
+                              Cancel
+                          </button>
+                      </div>
+                  </motion.div>
+              </motion.div>
+          )}
+      </AnimatePresence>
+
     </div>
     </MotionConfig>
   );

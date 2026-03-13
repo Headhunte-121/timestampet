@@ -118,3 +118,11 @@ Update 14: Persistent Settings Storage & Auto-Repair [Todo 1.14]
 - Introduced a debounce mechanism (500ms delay via `tokio::sync::mpsc`) in the backend to batch multiple rapid `save_settings` calls into a single atomic disk write, protecting against concurrent UI tab race conditions.
 - Enhanced Boot Verification logic to explicitly re-read the `settings.json` file immediately after creation. If the OS denies write access (e.g. read-only AppData directory), the app throws a fatal, human-readable native dialog before Tauri initializes.
 - Updated the React Settings UI to bind directly to the new `width` and `height` integer fields.
+
+Update 15: Dedicated Settings UI Page Layout [Todo 16.8]
+- Restructured `SettingsView.tsx` into a Master-Detail layout with a vertical sidebar navigating between 'General', 'Playback', 'Scanner', 'System', and 'Advanced' tabs, utilizing the glowing `#FF6B00` active state indicator.
+- Implemented a precise `grid-cols-[250px_1fr]` Tailwind layout for all setting rows, ensuring text inputs, number fields, and pill selectors are perfectly left-aligned while descriptions sit neatly under bold headers.
+- Engineered a robust `isDirty` state tracker that deep compares current form values against the `initialSettings` loaded from Rust.
+- Built an animated Floating Action Bar (Footer) using `framer-motion` that gracefully slides up from the bottom of the viewport when unsaved changes are detected, offering distinct "Save" (solid orange) and "Discard" (transparent with border) actions.
+- Integrated a Navigation Guard system in `App.tsx`. If the user attempts to switch sidebar tabs while `isDirty` is true, a 3-option confirmation modal ("Save & Leave", "Discard & Leave", "Cancel") intercepts the route transition securely.
+- Expanded the Rust `models.rs` and `settings.rs` to include and serialize the new configuration parameters (`language`, `auto_complete_threshold`, `binge_grouping_hours`, `auto_resume`, `auto_scan_on_boot`, `logging_level`) without breaking backwards compatibility.

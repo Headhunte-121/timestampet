@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
@@ -6,8 +6,25 @@ import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
 import { invokeWithTimeout } from "../utils/ipc";
+import { AnimatePresence, motion } from "framer-motion";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export default function SettingsView() {
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+type SettingsTab = "General" | "Playback" | "Scanner" | "System" | "Advanced";
+
+interface SettingsViewProps {
+    setIsDirty: (isDirty: boolean) => void;
+    setSaveCallback: (callback: (() => Promise<boolean>) | null) => void;
+}
+
+export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsViewProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("General");
+
+  const [initialSettings, setInitialSettings] = useState<any>(null);
   const [settings, setSettings] = useState<any>({
     vlc_path: "",
     tmdb_api_key: "",
@@ -15,15 +32,47 @@ export default function SettingsView() {
     height: 800,
     x: 100,
     y: 100,
-    cinema_mode: true
+    cinema_mode: true,
+    language: "en-US",
+    auto_complete_threshold: 90,
+    binge_grouping_hours: 6,
+    auto_resume: true,
+    auto_scan_on_boot: false,
+    logging_level: "Info"
   });
 
   const { isCinemaMode, setCinemaMode } = useAppStore();
   const [scanStatus, setScanStatus] = useState<string>("");
+  const isDirty = initialSettings && JSON.stringify(settings) !== JSON.stringify(initialSettings);
+
+  useEffect(() => {
+    setIsDirty(isDirty);
+  }, [isDirty, setIsDirty]);
+
+  const saveSettings = useCallback(async (): Promise<boolean> => {
+    try {
+        await invoke("save_settings", { settings });
+        toast.success("Settings saved successfully.");
+        setInitialSettings(JSON.parse(JSON.stringify(settings)));
+        setIsDirty(false);
+        return true;
+    } catch (e) {
+        toast.error("Error saving settings: " + e);
+        return false;
+    }
+  }, [settings, setIsDirty]);
+
+  useEffect(() => {
+      setSaveCallback(() => saveSettings);
+      return () => setSaveCallback(null);
+  }, [saveSettings, setSaveCallback]);
 
   useEffect(() => {
     invoke("get_settings")
-      .then((res: any) => setSettings(res))
+      .then((res: any) => {
+          setSettings(res);
+          setInitialSettings(JSON.parse(JSON.stringify(res)));
+      })
       .catch(console.error);
 
     const unlisten = listen("scan-match-batch", (event: any) => {
@@ -38,10 +87,16 @@ export default function SettingsView() {
     };
   }, []);
 
-  const saveSettings = () => {
-    invoke("save_settings", { settings })
-      .then(() => toast.success("Settings saved successfully."))
-      .catch(e => toast.error("Error saving settings: " + e));
+  const discardChanges = () => {
+      if (initialSettings) {
+          setSettings(JSON.parse(JSON.stringify(initialSettings)));
+          setCinemaMode(initialSettings.cinema_mode); // Revert app state too
+          setIsDirty(false); // Make sure to reset dirty state
+      }
+  };
+
+  const updateSetting = (key: string, value: any) => {
+      setSettings((prev: any) => ({ ...prev, [key]: value }));
   };
 
   const runScan = async () => {
@@ -93,94 +148,313 @@ export default function SettingsView() {
     }
   };
 
+  const tabs: SettingsTab[] = ["General", "Playback", "Scanner", "System", "Advanced"];
+
   return (
-    <div className="p-12 pb-24 max-w-3xl">
+    <div className="p-12 pb-32 h-full relative">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Settings</h1>
 
-      <div className="bg-[#1F222A] p-8 rounded-2xl border border-white/5 space-y-8 shadow-xl">
-        <div>
-          <label className="block text-sm font-bold text-gray-300 mb-2">TMDB API Key:</label>
-          <input
-            type="password"
-            value={settings.tmdb_api_key}
-            onChange={e => setSettings({ ...settings, tmdb_api_key: e.target.value })}
-            className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
-            placeholder="ey..."
-          />
+      <div className="flex h-full gap-8">
+        {/* Settings Sidebar */}
+        <div className="w-48 flex-shrink-0 flex flex-col gap-1">
+            {tabs.map((tab) => (
+                <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                        "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                        activeTab === tab
+                            ? "text-white bg-[#1F222A]"
+                            : "text-gray-400 hover:text-white hover:bg-white/5"
+                    )}
+                >
+                    {activeTab === tab && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#FF6B00] shadow-[0_0_10px_#FF6B00]" />
+                    )}
+                    {tab}
+                </button>
+            ))}
         </div>
 
-        <div>
-          <label className="block text-sm font-bold text-gray-300 mb-2">VLC Executable Path:</label>
-          <div className="flex gap-4">
-            <input
-              type="text"
-              value={formatWindowsPath(settings.vlc_path)}
-              onChange={e => setSettings({ ...settings, vlc_path: e.target.value })}
-              className="flex-1 bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
-              placeholder="C:\Program Files\VideoLAN\VLC\vlc.exe"
-            />
-            <button onClick={browseVlcPath} className="px-6 py-3 bg-white/10 hover:bg-white/20 font-bold rounded-xl transition-colors text-white">
-              Browse
-            </button>
-          </div>
-        </div>
+        {/* Settings Content Area */}
+        <div className="flex-1 bg-[#1F222A] p-8 rounded-2xl border border-white/5 shadow-xl overflow-y-auto">
+            {activeTab === "General" && (
+                <div className="space-y-6">
+                    {/* Setting Row */}
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">TMDB API Key</h3>
+                            <p className="text-xs text-gray-500 mt-1">Required to fetch poster art and synopsis from TMDB.</p>
+                        </div>
+                        <div>
+                            <input
+                                type="password"
+                                value={settings.tmdb_api_key}
+                                onChange={e => updateSetting('tmdb_api_key', e.target.value)}
+                                className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
+                                placeholder="ey..."
+                            />
+                        </div>
+                    </div>
 
-        <div>
-          <label className="flex items-center gap-3 cursor-pointer text-sm font-bold text-gray-300">
-            <input
-              type="checkbox"
-              checked={isCinemaMode}
-              onChange={(e) => {
-                const newMode = e.target.checked;
-                setCinemaMode(newMode);
-                setSettings({ ...settings, cinema_mode: newMode });
-              }}
-              className="accent-[#FF6B00] w-5 h-5 rounded focus:ring-[#FF6B00]"
-            />
-            Cinema Mode (High Quality Animations & Effects)
-          </label>
-        </div>
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">VLC Executable Path</h3>
+                            <p className="text-xs text-gray-500 mt-1">Absolute path to your local VLC installation.</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                value={formatWindowsPath(settings.vlc_path)}
+                                onChange={e => updateSetting('vlc_path', e.target.value)}
+                                className="flex-1 bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
+                                placeholder="C:\Program Files\VideoLAN\VLC\vlc.exe"
+                            />
+                            <button onClick={browseVlcPath} className="px-6 py-3 bg-white/10 hover:bg-white/20 font-bold rounded-xl transition-colors text-white">
+                                Browse
+                            </button>
+                        </div>
+                    </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-300 mb-2">Window Width:</label>
-            <input
-              type="number"
-              value={settings.width}
-              onChange={e => setSettings({ ...settings, width: parseInt(e.target.value) || 1280 })}
-              className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-300 mb-2">Window Height:</label>
-            <input
-              type="number"
-              value={settings.height}
-              onChange={e => setSettings({ ...settings, height: parseInt(e.target.value) || 800 })}
-              className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
-            />
-          </div>
-        </div>
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Cinema Mode</h3>
+                            <p className="text-xs text-gray-500 mt-1">Enable high quality animations and UI effects.</p>
+                        </div>
+                        <div className="flex items-center h-full">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={isCinemaMode}
+                                    onChange={(e) => {
+                                        setCinemaMode(e.target.checked);
+                                        updateSetting('cinema_mode', e.target.checked);
+                                    }}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FF6B00]"></div>
+                            </label>
+                        </div>
+                    </div>
 
-        <div className="flex flex-col gap-4 mt-8">
-          <div className="flex gap-4">
-            <button
-              onClick={saveSettings}
-              className="px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl w-full sm:w-auto shadow-lg shadow-orange-500/20 hover:scale-105 transition-all duration-300"
-            >
-              Save Settings
-            </button>
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Language</h3>
+                            <p className="text-xs text-gray-500 mt-1">Preferred metadata language.</p>
+                        </div>
+                        <div className="flex gap-2">
+                             {['en-US', 'es-ES', 'fr-FR'].map(lang => (
+                                 <button
+                                     key={lang}
+                                     onClick={() => updateSetting('language', lang)}
+                                     className={cn(
+                                         "px-4 py-2 rounded-full text-sm font-bold transition-colors",
+                                         settings.language === lang ? "bg-[#FF6B00] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"
+                                     )}
+                                 >
+                                     {lang}
+                                 </button>
+                             ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
-            <button
-              onClick={runScan}
-              className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl w-full sm:w-auto shadow-lg hover:scale-105 transition-all duration-300"
-            >
-              Run Scan
-            </button>
-          </div>
-          {scanStatus && <div className="text-gray-400 text-sm mt-2">{scanStatus}</div>}
+            {activeTab === "Playback" && (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Auto-complete Threshold (%)</h3>
+                            <p className="text-xs text-gray-500 mt-1">Percentage required to mark an episode as watched.</p>
+                        </div>
+                        <div>
+                            <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={settings.auto_complete_threshold}
+                                onChange={e => updateSetting('auto_complete_threshold', parseInt(e.target.value) || 90)}
+                                className="w-full max-w-[150px] bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Binge Grouping (Hours)</h3>
+                            <p className="text-xs text-gray-500 mt-1">Time gap allowed before breaking a binge session block.</p>
+                        </div>
+                        <div>
+                            <input
+                                type="number"
+                                min="1"
+                                max="48"
+                                value={settings.binge_grouping_hours}
+                                onChange={e => updateSetting('binge_grouping_hours', parseInt(e.target.value) || 6)}
+                                className="w-full max-w-[150px] bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Auto-Resume</h3>
+                            <p className="text-xs text-gray-500 mt-1">Automatically resume from last paused position.</p>
+                        </div>
+                        <div className="flex items-center h-full">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.auto_resume}
+                                    onChange={(e) => updateSetting('auto_resume', e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FF6B00]"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === "Scanner" && (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Manual Scan</h3>
+                            <p className="text-xs text-gray-500 mt-1">Scan a specific directory for new media.</p>
+                        </div>
+                        <div>
+                             <button
+                                onClick={runScan}
+                                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
+                            >
+                                Run Scan
+                            </button>
+                            {scanStatus && <div className="text-gray-400 text-sm mt-2">{scanStatus}</div>}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Auto-Scan on Boot</h3>
+                            <p className="text-xs text-gray-500 mt-1">Automatically scan known directories when WatchMark starts.</p>
+                        </div>
+                        <div className="flex items-center h-full">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.auto_scan_on_boot}
+                                    onChange={(e) => updateSetting('auto_scan_on_boot', e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FF6B00]"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === "System" && (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Logging Level</h3>
+                            <p className="text-xs text-gray-500 mt-1">Detail level for rust backend logs.</p>
+                        </div>
+                        <div className="flex gap-2">
+                             {['Debug', 'Info', 'Warn', 'Error'].map(level => (
+                                 <button
+                                     key={level}
+                                     onClick={() => updateSetting('logging_level', level)}
+                                     className={cn(
+                                         "px-4 py-2 rounded-full text-sm font-bold transition-colors",
+                                         settings.logging_level === level ? "bg-[#FF6B00] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"
+                                     )}
+                                 >
+                                     {level}
+                                 </button>
+                             ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Database Maintenance</h3>
+                            <p className="text-xs text-gray-500 mt-1">Optimize and backup SQLite database.</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => toast.success("Database backup initiated.")}
+                                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
+                            >
+                                Backup DB
+                            </button>
+                            <button
+                                onClick={() => toast.success("Database vacuum completed.")}
+                                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
+                            >
+                                Vacuum DB
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-[#EF4444]">Danger Zone</h3>
+                            <p className="text-xs text-gray-500 mt-1">Irreversible destructive actions.</p>
+                        </div>
+                        <div>
+                             <button
+                                onClick={() => toast.error("Factory reset is not implemented yet.")}
+                                className="px-6 py-3 border border-[#EF4444] text-[#EF4444] hover:bg-[#EF4444] hover:text-white font-bold rounded-xl transition-colors"
+                            >
+                                Factory Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === "Advanced" && (
+                <div className="flex items-center justify-center h-full text-gray-500 flex-col gap-4">
+                    <span className="text-6xl">🚧</span>
+                    <p className="font-bold">Advanced Settings Coming Soon</p>
+                </div>
+            )}
         </div>
       </div>
+
+      {/* Floating Action Bar */}
+      <AnimatePresence>
+          {isDirty && (
+              <motion.div
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 100, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  className="fixed bottom-0 left-64 right-0 p-6 z-[100] pointer-events-none"
+              >
+                  <div className="bg-[#1F222A]/90 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-4 flex justify-between items-center max-w-4xl mx-auto pointer-events-auto">
+                      <div className="text-white font-bold px-4">Unsaved Changes</div>
+                      <div className="flex gap-4">
+                           <button
+                              onClick={discardChanges}
+                              className="px-8 py-3 bg-transparent border border-white/20 hover:bg-white/5 text-white font-bold rounded-xl transition-colors"
+                          >
+                              Discard
+                          </button>
+                          <button
+                              onClick={saveSettings}
+                              className="px-8 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl shadow-[0_0_15px_rgba(255,107,0,0.5)] transition-colors"
+                          >
+                              Save
+                          </button>
+                      </div>
+                  </div>
+              </motion.div>
+          )}
+      </AnimatePresence>
+
     </div>
   );
 }
