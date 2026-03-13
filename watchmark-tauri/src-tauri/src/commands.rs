@@ -591,11 +591,11 @@ pub fn fetch_history() -> Result<Vec<HistoryEntry>, AppError> {
 }
 
 #[tauri::command]
-pub fn run_scan_directory(directory: &str) -> Result<i32, AppError> {
-    handle_panic(|| {
+pub fn run_scan_directory(app_handle: tauri::AppHandle, directory: String) -> Result<i32, AppError> {
+    handle_panic(std::panic::AssertUnwindSafe(|| {
         let mut conn = get_db_connection()?;
-        crate::scanner::scan_directory(directory, &mut conn).map_err(AppError::from)
-    })
+        crate::scanner::scan_directory(&directory, &mut conn, &app_handle).map_err(AppError::from)
+    }))
 }
 
 #[tauri::command]

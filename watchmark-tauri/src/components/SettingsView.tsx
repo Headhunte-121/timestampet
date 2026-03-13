@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
 
 export default function SettingsView() {
@@ -12,17 +13,45 @@ export default function SettingsView() {
   });
 
   const { isCinemaMode, setCinemaMode } = useAppStore();
+  const [scanStatus, setScanStatus] = useState<string>("");
 
   useEffect(() => {
     invoke("get_settings")
       .then((res: any) => setSettings(res))
       .catch(console.error);
+
+    const unlisten = listen("scan-match-batch", (event: any) => {
+      const batch = event.payload.files;
+      if (batch && batch.length > 0) {
+        setScanStatus((prev) => `Scanned ${batch.length} files in latest batch...`);
+      }
+    });
+
+    return () => {
+      unlisten.then(f => f());
+    };
   }, []);
 
   const saveSettings = () => {
     invoke("save_settings", { settings })
       .then(() => alert("Settings saved successfully."))
       .catch(e => alert("Error saving settings: " + e));
+  };
+
+  const runScan = () => {
+    const dir = prompt("Enter directory to scan:", "C:\\");
+    if (dir) {
+      setScanStatus("Scan started...");
+      invoke("run_scan_directory", { directory: dir })
+        .then((count) => {
+          alert(`Scan complete. Found ${count} unmatched files.`);
+          setScanStatus("");
+        })
+        .catch(e => {
+          alert("Error during scan: " + e);
+          setScanStatus("");
+        });
+    }
   };
 
   return (
@@ -73,12 +102,24 @@ export default function SettingsView() {
           </label>
         </div>
 
-        <button
-          onClick={saveSettings}
-          className="mt-8 px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl w-full sm:w-auto shadow-lg shadow-orange-500/20 hover:scale-105 transition-all duration-300"
-        >
-          Save Settings
-        </button>
+        <div className="flex flex-col gap-4 mt-8">
+          <div className="flex gap-4">
+            <button
+              onClick={saveSettings}
+              className="px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl w-full sm:w-auto shadow-lg shadow-orange-500/20 hover:scale-105 transition-all duration-300"
+            >
+              Save Settings
+            </button>
+
+            <button
+              onClick={runScan}
+              className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl w-full sm:w-auto shadow-lg hover:scale-105 transition-all duration-300"
+            >
+              Run Scan
+            </button>
+          </div>
+          {scanStatus && <div className="text-gray-400 text-sm mt-2">{scanStatus}</div>}
+        </div>
       </div>
     </div>
   );

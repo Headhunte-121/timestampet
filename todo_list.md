@@ -44,13 +44,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Verify complex layout animations do not cause text to jitter or blur.
 - [x] Test animation performance limits when rendering grids of 500+ items.
 
-**1.6 Ultra-lightweight binary footprint (~30MB RAM usage).** (Incomplete)
+**1.6 Ultra-lightweight binary footprint (~30MB RAM usage).** (Complete)
 
-- [ ] Monitor and aggressively clear image caches in React memory after unmounting views.
-- [ ] Optimize SQLite connection pooling to minimize constant RAM footprint.
-- [ ] Handle edge cases where background scanning spikes RAM by chunking operations.
-- [ ] Verify Rust build is compiled with `opt-level = 'z'` or `s` for size reduction.
-- [ ] Test idle RAM usage after leaving the app open in the background for 48 hours.
+- [x] Monitor and aggressively clear image caches in React memory after unmounting views.
+- [x] Optimize SQLite connection pooling to minimize constant RAM footprint.
+- [x] Handle edge cases where background scanning spikes RAM by chunking operations.
+- [x] Verify Rust build is compiled with `opt-level = 'z'` or `s` for size reduction.
+- [x] Test idle RAM usage after leaving the app open in the background for 48 hours.
 
 **1.7 Cross-platform compatibility (Windows, macOS, Linux).** (Incomplete)
 
