@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2 } from "lucide-react";
+import { useUiStore } from "../store/uiStore";
+import { toast } from "sonner";
 
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
+  const { showConfirm } = useUiStore();
   const [data, setData] = useState<any>(null);
   const [activeSeason, setActiveSeason] = useState<number>(1);
   const isAnimatingRef = useRef(false);
@@ -104,17 +107,18 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <button
               onClick={async () => {
                 if (isAnimatingRef.current) return;
-                const confirmDelete = window.confirm("Are you sure you want to remove this show? This action cannot be undone.");
+                const confirmDelete = await showConfirm("Remove Media", "Are you sure you want to remove this show? This action cannot be undone.");
                 if (confirmDelete) {
                   isAnimatingRef.current = true;
                   try {
                     // Block UI until backend completes safely
                     await invoke("delete_media_cmd", { mediaId });
                     // Once database cleanup is confirmed, transition safely back
+                    toast.success("Media removed successfully.");
                     onBack();
                   } catch (e) {
                     console.error("Failed to delete media:", e);
-                    alert("Failed to delete media.");
+                    toast.error("Failed to delete media.");
                     isAnimatingRef.current = false;
                   }
                 }
@@ -131,13 +135,13 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       <div className="mt-24 px-12">
         {/* Season Tabs */}
         {data.type === "TV" && data.seasons && (
-          <div className="flex gap-4 mb-8 overflow-x-auto pb-4 hide-scrollbar">
+          <div className="flex flex-wrap gap-2 mb-8">
             {data.seasons.map((s: number) => (
               <button
                 key={s}
                 onClick={() => setActiveSeason(s)}
-                className={`px-8 py-3 rounded-full font-bold transition-all whitespace-nowrap ${
-                  s === activeSeason ? 'bg-white text-black' : 'bg-white/5 hover:bg-white/10 text-gray-300'
+                className={`px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap ${
+                  s === activeSeason ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/20' : 'bg-white/5 hover:bg-white/10 text-gray-300'
                 }`}
               >
                 Season {s}
@@ -169,9 +173,9 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                             episodeId: ep.id,
                             filePath: ep.file_path,
                             lastPosition: ep.last_position,
-                          }).catch(alert);
+                          }).catch(e => toast.error(e));
                         } else {
-                          alert("Missing File Path. Scan directory to match file.");
+                          toast.error("Missing File Path. Scan directory to match file.");
                         }
                       }}
                       className="w-12 h-12 rounded-full bg-[#FF6B00] flex items-center justify-center text-white scale-75 hover:scale-100 transition-transform shadow-lg shadow-orange-500/30">
