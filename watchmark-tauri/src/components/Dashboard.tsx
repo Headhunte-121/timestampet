@@ -252,7 +252,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {filteredRecent.length > 0 && (
         <>
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Recently Added</h2>
-          <div className="flex gap-6 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
+          <div className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
             {filteredRecent.map((media) => {
               const imgUrl = media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : PLACEHOLDER_POSTER;
 
@@ -260,7 +260,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                 <div
                   key={media.id}
                   onClick={() => onMediaSelect(media.id)}
-                  className="relative flex-none min-w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-all duration-300 hover:scale-105 hover:z-10 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A]"
+                  className="relative flex-none w-[140px] md:w-[160px] lg:w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-all duration-300 hover:scale-105 hover:z-10 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A]"
                 >
                   <img
                     src={imgUrl}

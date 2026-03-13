@@ -9,7 +9,18 @@
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
-  "plugins": {},
+  "plugins": {
+    "cli": {
+      "watch": {
+        "ignore": [
+          "**/WatchMark/**",
+          "WatchMark/**",
+          "WatchMark/*",
+          ".taurignore"
+        ]
+      }
+    }
+  },
   "app": {
     "windows": [
       {
