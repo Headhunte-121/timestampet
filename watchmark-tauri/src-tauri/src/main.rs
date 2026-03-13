@@ -79,6 +79,7 @@ fn main() {
             commands::fetch_history,
             commands::run_scan_directory,
             commands::perform_tmdb_search,
+            commands::assign_unmatched_to_tracker,
             vlc::play_episode_cmd,
         ])
         .run(tauri::generate_context!())
