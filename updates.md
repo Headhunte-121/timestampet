@@ -126,3 +126,10 @@ Update 15: Dedicated Settings UI Page Layout [Todo 16.8]
 - Built an animated Floating Action Bar (Footer) using `framer-motion` that gracefully slides up from the bottom of the viewport when unsaved changes are detected, offering distinct "Save" (solid orange) and "Discard" (transparent with border) actions.
 - Integrated a Navigation Guard system in `App.tsx`. If the user attempts to switch sidebar tabs while `isDirty` is true, a 3-option confirmation modal ("Save & Leave", "Discard & Leave", "Cancel") intercepts the route transition securely.
 - Expanded the Rust `models.rs` and `settings.rs` to include and serialize the new configuration parameters (`language`, `auto_complete_threshold`, `binge_grouping_hours`, `auto_resume`, `auto_scan_on_boot`, `logging_level`) without breaking backwards compatibility.
+
+Update 16: Database Initialization, Concurrency & Foreign Key Cascading [Todo 5.1]
+- DB Lazy Creation: Integrated explicit OpenFlags (`SQLITE_OPEN_CREATE | SQLITE_OPEN_READ_WRITE | SQLITE_OPEN_URI`) ensuring rusqlite constructs the `watchmark.db` database properly on cold boot.
+- PRAGMA Concurrency Tuning: Applied WAL (Write-Ahead Logging) to `db.rs` ensuring high-speed concurrent read/write behavior, preventing `database is locked` panics during bulk operations.
+- AppData Canary Verification: Added `check_db_permissions` which tries to open the database file explicitly, or writes a temporary `.canary` file. If the OS denies write or the file is heavily locked, it triggers a custom `AppError::Fatal` resulting in a native Windows warning to the user, averting silent thread crashes.
+- Atomic Migrations: Patched the SQLite schema updater in `init_db`. Wrapped schema alterations inside safe atomic `transaction()?` structures handling `duplicate column name` exceptions logically rather than bypassing standard integrity.
+- Cascading Delete Hooks: Altered the base table `CREATE` commands for `Episodes`, `Local_Files`, and `History` to strictly implement `FOREIGN KEY (...) REFERENCES ... ON DELETE CASCADE`, shifting manual cleanup burden entirely onto native SQLite features while maintaining `PRAGMA foreign_keys = ON;`.
