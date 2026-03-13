@@ -540,13 +540,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test database migration mechanisms for future schema updates.
 - [x] Ensure foreign key constraints are strictly enabled on every connection.
 
-**5.2 Media table schema (ID, TMDB ID, title, type, synopsis).** (Incomplete)
+**5.2 Media table schema (ID, TMDB ID, title, type, synopsis).** (Complete)
 
-- [ ] Verify string constraints prevent buffer overflow on massive synopsis texts.
-- [ ] Ensure TMDB ID is strictly UNIQUE to prevent duplicate show entries.
-- [ ] Handle edge cases where 'title' contains raw SQL reserved keywords.
-- [ ] Test fallback default values if 'type' (Movie/TV) is explicitly omitted.
-- [ ] Verify NULL handling for synopsis to prevent query failures.
+- [x] Verify string constraints prevent buffer overflow on massive synopsis texts.
+- [x] Ensure TMDB ID is strictly UNIQUE to prevent duplicate show entries.
+- [x] Handle edge cases where 'title' contains raw SQL reserved keywords.
+- [x] Test fallback default values if 'type' (Movie/TV) is explicitly omitted.
+- [x] Verify NULL handling for synopsis to prevent query failures.
 
 **5.3 Episodes table schema (ID, media ID, season, episode num, title, runtime).** (Incomplete)
 

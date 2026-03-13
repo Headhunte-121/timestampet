@@ -192,10 +192,10 @@ function App() {
                 transition={isCinemaMode ? { duration: 0.2 } : { duration: 0 }}
                 className="h-full w-full"
               >
-                {currentView === "dashboard" && <Dashboard onMediaSelect={(id) => handleNav("dashboard", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-                {currentView === "tv" && <Library type="TV" onMediaSelect={(id) => handleNav("tv", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-                {currentView === "movies" && <Library type="Movie" onMediaSelect={(id) => handleNav("movies", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-                {currentView === "search" && <SearchTMDB onMediaSelect={(id) => handleNav("search", id)} />}
+                {currentView === "dashboard" && <Dashboard onMediaSelect={(id: number) => handleNav("dashboard", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "tv" && <Library type="TV" onMediaSelect={(id: number) => handleNav("tv", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "movies" && <Library type="Movie" onMediaSelect={(id: number) => handleNav("movies", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
+                {currentView === "search" && <SearchTMDB onMediaSelect={(id: number) => handleNav("search", id)} />}
                 {currentView === "inbox" && <InboxView onMatch={() => setRefreshTrigger(prev => prev + 1)} />}
                 {currentView === "history" && <History />}
                 {currentView === "settings" && <SettingsView setIsDirty={setIsSettingsDirty} setSaveCallback={setSaveSettingsCallback} />}

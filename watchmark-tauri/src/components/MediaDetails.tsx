@@ -9,6 +9,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const { showConfirm } = useUiStore();
   const [data, setData] = useState<any>(null);
   const [activeSeason, setActiveSeason] = useState<number>(1);
+  const [showFullSynopsis, setShowFullSynopsis] = useState<boolean>(false);
   const isAnimatingRef = useRef(false);
 
   useEffect(() => {
@@ -86,16 +87,32 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           </h1>
 
           <div className="flex items-center gap-4 mb-6 text-sm font-bold tracking-wider">
-            <span className="bg-white/10 text-white px-3 py-1 rounded-md backdrop-blur-md">{data.type}</span>
+            <span className={`px-3 py-1 rounded-md backdrop-blur-md text-white ${data.type === 'Unknown' ? 'bg-red-500/80' : 'bg-white/10'}`}>
+              {data.type}
+            </span>
             <span className="text-gray-300">Aired: {data.release_date?.substring(0, 4)}</span>
             <span className="flex items-center gap-1 text-[#F5C518] bg-black/50 px-3 py-1 rounded-md">
               <Star className="w-4 h-4 fill-current" /> {data.vote_average.toFixed(1)} / 10
             </span>
           </div>
 
-          <p className="text-lg text-gray-300 leading-relaxed mb-8 drop-shadow-md">
-            {data.synopsis}
-          </p>
+          <div className="mb-8">
+            <p className="text-lg text-gray-300 leading-relaxed drop-shadow-md whitespace-pre-line">
+              {!data.synopsis || data.synopsis.trim() === ""
+                ? "No overview available."
+                : (showFullSynopsis || data.synopsis.length <= 300)
+                ? data.synopsis
+                : `${data.synopsis.substring(0, 300)}...`}
+            </p>
+            {data.synopsis && data.synopsis.length > 300 && (
+              <button
+                onClick={() => setShowFullSynopsis(!showFullSynopsis)}
+                className="mt-2 text-[#FF6B00] hover:text-[#FF8533] font-bold text-sm"
+              >
+                {showFullSynopsis ? "View Less" : "View More"}
+              </button>
+            )}
+          </div>
 
           <div className="flex gap-4">
             <button className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all shadow-lg shadow-orange-500/20 hover:scale-105">
