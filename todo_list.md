@@ -1458,3 +1458,125 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Track mouse movements seamlessly matching the window coordinates to the cursor position on the screen.
     - [ ] Prevent dragging strictly if the application is fully maximized to full screen.
     - [ ] Ensure double-clicking the drag zone perfectly toggles the maximize/restore state of the window.
+
+## 🎥 Part 18: Cinematic UI & Animation Details
+- Dynamic Background Tinting: The app extracts the dominant color from the active show's poster and applies a subtle 5% tint to the background #0D0F14.
+    - [ ] Calculate the dominant hex color directly from the primary `w500` poster image using a fast algorithm.
+    - [ ] Blend this extracted color perfectly with the global `#0D0F14` background at exactly 5% opacity.
+    - [ ] Transition the global tint smoothly (e.g., over 1.5 seconds) whenever the user navigates between entirely different shows.
+    - [ ] Fall back immediately to the pure `#0D0F14` baseline if the extraction process completely fails or the image is entirely grayscale.
+    - [ ] Cache the calculated hex string directly in the database to prevent heavy re-calculation on every single page load.
+- Hero Parallax Scrolling: As you scroll down the Dashboard, the Hero Backdrop scrolls at 50% speed, creating 3D depth.
+    - [ ] Bind the background Y-position directly to the native `window.scrollY` value via a Framer Motion `useTransform` hook.
+    - [ ] Apply a strict `0.5` multiplier to the movement so the background image visually trails behind the foreground content.
+    - [ ] Limit the maximum translation distance firmly to prevent the image from snapping out of its container boundaries.
+    - [ ] Disable the parallax effect entirely on specific mobile viewports where scroll-linked animations severely stutter.
+    - [ ] Keep the heavy black gradient overlay completely stationary while strictly the image underneath moves.
+- Cinematic Film Grain: A very faint, CSS-based animated film grain overlays the background for texture.
+    - [ ] Render a lightweight SVG or CSS-noise pattern precisely fixed over the entire screen behind all interactive UI layers.
+    - [ ] Adjust the mix-blend-mode or opacity so the grain is barely perceptible (e.g., `< 3%` opacity) to avoid looking dirty.
+    - [ ] Animate the noise sequence specifically using rapid frame stepping (`steps(4)`) rather than smooth linear motion.
+    - [ ] Disable the animation entirely if the user has triggered native OS 'reduced motion' accessibility settings.
+    - [ ] Prevent the grain layer specifically from accidentally capturing any mouse clicks or hover events.
+- Active Show Shimmer: The poster of a show you are currently watching has a very subtle, slow-pulsing glowing border.
+    - [ ] Identify library items correctly possessing an active `status='Watching'` flag.
+    - [ ] Draw a 1px solid border utilizing a deep variant of the `#FF6B00` VLC Orange exactly around the poster rim.
+    - [ ] Cycle the box-shadow intensity gracefully between a dim glow and slightly brighter glow over a 3-second infinite loop.
+    - [ ] Remove the shimmer instantly the absolute second the show hits 100% completion or is manually completely unwatched.
+    - [ ] Maintain extreme subtlety so a grid featuring 5 currently active shows doesn't look like a chaotic neon sign.
+- Aspect-Ratio Skeleton Loaders: Loading placeholders perfectly match the 2:3 ratio of posters and 16:9 ratio of episodes.
+    - [ ] Enforce the exact same strict Tailwind `aspect-[2/3]` sizing specifically onto the initial gray poster skeleton blocks.
+    - [ ] Utilize the strict `aspect-video` ratio completely on the individual horizontal episode skeletons.
+    - [ ] Scale the skeleton boxes fluidly to match the exact responsive grid width of the real images that will replace them.
+    - [ ] Match the `rounded-xl` and `rounded-2xl` corner radii flawlessly so the shapes do not mutate upon data arrival.
+    - [ ] Render a placeholder play button silhouette exactly centered on the episode skeletons.
+- Shimmering Skeletons: Loading boxes use a smooth, left-to-right CSS gradient animation.
+    - [ ] Replace standard pulsing opacity with a dedicated `linear-gradient` moving steadily across the X-axis.
+    - [ ] Tweak the gradient colors strictly using shades of `#1F222A` and slightly lighter silver tones to mimic glossy reflection.
+    - [ ] Synchronize the animation timing perfectly across all visible skeletons so they shine entirely in unison.
+    - [ ] Loop the translation seamlessly without any harsh visual jumps or resets at the end of the keyframes.
+    - [ ] Prevent the shimmering gradient from overflowing outside the skeleton's rounded corners.
+- Staggered Grid Intro: When loading the Library, posters fade-in-up one by one in a rapid wave sequence, rather than flashing on screen simultaneously.
+    - [ ] Map an incremental animation delay specifically using the index of each item in the rendered array (`delay: index * 0.05`).
+    - [ ] Combine an opacity fade from 0 with a slight upward Y-axis translation (e.g., `y: 20 -> 0`).
+    - [ ] Trigger the entire sequence only once per distinct page load, strictly avoiding re-triggering it on every tiny layout shift.
+    - [ ] Limit the staggering explicitly to strictly the visible items in the viewport, so massive libraries don't delay the bottom items by 10 seconds.
+    - [ ] Handle empty search results swiftly by completely bypassing any grid staggering logic.
+- Custom Themed Tooltips: Native OS tooltips are replaced by instant, styled #1F222A glassy popups.
+    - [ ] Strip out standard HTML `title` attributes completely across all specific interactive buttons or icons to prevent the ugly white OS default.
+    - [ ] Render an absolutely positioned floating box featuring `backdrop-blur-md` and exactly the `#1F222A` background color.
+    - [ ] Calculate standard boundaries to ensure the tooltip flips above or below the cursor strictly to prevent clipping outside the viewport.
+    - [ ] Delay the appearance of the tooltip perfectly by `200ms` so it doesn't flicker wildly when sweeping the mouse quickly across a row.
+    - [ ] Utilize a tiny, sharp arrow element specifically pointing precisely from the tooltip box directly toward the hovered icon.
+- Hero Text Shadowing: Ensures pure white text is perfectly readable even if the movie backdrop is a bright daytime scene.
+    - [ ] Inject a tight, incredibly dark drop-shadow directly directly onto the massive Hero Title and sub-text elements.
+    - [ ] Adjust the shadow specifically without making the text look artificially heavily outlined (e.g., a massive spread value).
+    - [ ] Layer a secondary, much larger, and completely soft blurred shadow behind the entire text block to darken the specific area.
+    - [ ] Combine this approach perfectly with the existing bottom-left gradient overlay for absolute foolproof contrast.
+    - [ ] Evaluate the text readability exactly on completely pure white fallback backgrounds to guarantee effectiveness.
+- Search Match Highlighting: When using Quick Search, the matching letters in the title are highlighted in orange.
+    - [ ] Split the raw text string correctly right at the precise index where the search term match begins and ends.
+    - [ ] Wrap the matched characters strictly in a specific `<span class="text-[#FF6B00]">` tag.
+    - [ ] Maintain the original casing of the actual title string specifically, even if the user typed the search query entirely in lowercase.
+    - [ ] Handle edge cases seamlessly where the search string explicitly matches multiple completely distinct parts of the same title.
+    - [ ] Keep the font weight strictly bold only on the matching portion to draw the eye directly to the relevant letters.
+- Hero Crossfade Transitions: Changing the featured Hero show performs a smooth 1-second image crossfade.
+    - [ ] Mount the newly selected backdrop image silently behind the currently visible one exactly before the animation begins.
+    - [ ] Fade the opacity of the old image strictly from 1 to 0 completely over the precise duration.
+    - [ ] Prevent rapid clicking through the library strictly from queuing up 5 overlapping images directly inside the DOM.
+    - [ ] Fade out the associated Hero Title and 'Resume' button simultaneously, swapping the text exactly at the midpoint of the transition.
+    - [ ] Handle transitioning accurately when navigating away specifically to a page that lacks a Hero banner entirely.
+- "Ken Burns" Hero Effect: The Dashboard backdrop slowly scales up (1.00 to 1.05) over 30 seconds for subtle life.
+    - [ ] Apply a continuous, extremely slow linear scale animation specifically to the absolute background image container.
+    - [ ] Set the animation exactly to alternate indefinitely (e.g., zooming in over 30s, zooming out slowly over 30s).
+    - [ ] Maintain the exact origin point perfectly centered so the image doesn't awkwardly drift left or right.
+    - [ ] Ensure the CSS `will-change: transform` property is set precisely to prevent jagged sub-pixel rendering.
+    - [ ] Halt the animation completely the exact second the user scrolls away, freeing up GPU resources.
+- Glowing Progress Tails: The active end of the orange progress bar features a subtle blur/glow drop-shadow.
+    - [ ] Attach a distinct, brightly colored, absolutely positioned glowing dot exactly at the absolute right-edge of the orange fill bar.
+    - [ ] Mask the glow specifically so it spills slightly forward into the empty gray track, mimicking light bleeding.
+    - [ ] Render the glow explicitly utilizing the `#FF6B00` color directly to match the active progress track.
+    - [ ] Hide the glowing tail completely if the episode specifically hits 100% completion and the bar turns entirely green.
+    - [ ] Hide the tail completely if the progress specifically sits at 0%.
+- Truncation Fade: Long titles use a mask-image: linear-gradient to fade out softly on the right edge instead of hard ... cuts.
+    - [ ] Apply the specific CSS `mask-image` purely targeting the very right-most 20px of the title text container.
+    - [ ] Ensure the text container explicitly sets `white-space: nowrap` exactly to prevent vertical breaking.
+    - [ ] Fade the text cleanly to transparent precisely just before it hits the right edge constraint.
+    - [ ] Disable the standard `text-overflow: ellipsis` behavior completely on strings utilizing this specific fade.
+    - [ ] Do not apply the fade mask directly on short titles that fit perfectly within the boundaries.
+- Golden Completion Badge: Shows with 100% completion get a special gold laurel-wreath icon instead of the standard checkmark.
+    - [ ] Calculate the specific boolean logic exactly identifying when a show perfectly matches `completed_eps == total_eps`.
+    - [ ] Substitute the default green checkmark vector exactly with the intricate SVG laurel-wreath asset.
+    - [ ] Color the icon flawlessly utilizing a specific, distinct gold gradient (`#FFD700` or similar).
+    - [ ] Render the badge distinctly overlapping the specific top-left corner of the completely finished library poster.
+    - [ ] Hide the badge specifically if the user manually marks even one single episode perfectly as unwatched again.
+- Dynamic Border-Radii: Posters have an 8px radius, but when hovered/scaled, the radius adjusts slightly to maintain optical perfection.
+    - [ ] Calculate the specific corner radius exactly relative to the absolute scale of the hover state.
+    - [ ] Shift the border radius smoothly (e.g., `rounded-xl` to `rounded-lg`) exactly during the Framer Motion scale-up.
+    - [ ] Prevent the corners strictly from artificially looking sharper when the poster physically expands to 105%.
+    - [ ] Synchronize the transition completely seamlessly alongside the main drop-shadow escalation.
+    - [ ] Restore the exact original radius flawlessly the millisecond the mouse leaves the poster boundary.
+- Glass Reflection Animation: Hovering a card triggers a fast, 45-degree white light reflection sweep across the surface.
+    - [ ] Generate a pseudo-element precisely containing a bright, semi-transparent white diagonal gradient.
+    - [ ] Anchor the element directly off-screen slightly outside the specific bounds of the poster container.
+    - [ ] Translate the reflection smoothly from the top-left completely across the poster down to the bottom-right upon specific mouse entry.
+    - [ ] Clip the bright reflection completely using `overflow-hidden` so it strictly only shines directly inside the specific card itself.
+    - [ ] Limit the animation specifically strictly occurring exactly once per hover to completely prevent endless distracting looping.
+- Variable Opacity Stars: Unfilled stars in the rating widget are explicitly 20% opacity white, not just gray.
+    - [ ] Set the strict base color of all five SVG stars entirely to pure white (`#FFFFFF`).
+    - [ ] Knock the CSS opacity precisely down to exactly `0.2` on strictly the stars that represent the remaining un-voted score.
+    - [ ] Raise the opacity immediately to full `1.0` specifically whenever the specific star is hovered or actively clicked.
+    - [ ] Keep the completely colored specific `#FF6B00` active stars entirely solid without any transparency adjustments.
+    - [ ] Adjust the specific layout padding perfectly so the translucent stars do not visually disappear entirely on bright backdrops.
+- Star "Pop" Animation: Clicking a star triggers a micro-scaling "bounce" effect.
+    - [ ] Define a specific keyframe animation strictly expanding the SVG slightly up to 120% scale.
+    - [ ] Rapidly snap the precise scale specifically back down exactly to exactly 100% using an elastic easing curve.
+    - [ ] Trigger the animation completely simultaneously explicitly on all stars preceding exactly the clicked one.
+    - [ ] Keep the duration incredibly short (e.g., `< 150ms`) entirely to specifically mimic a highly tactile, physical button press.
+    - [ ] Do not trigger the scaling animation specifically strictly when the user specifically only hovers over the stars.
+- Smooth Accordion Heights: Expanding a Binge-Block animates the height dynamically rather than instantly snapping the layout down.
+    - [ ] Wrap exactly the entire inner child list precisely strictly inside a Framer Motion `<motion.div>` component.
+    - [ ] Animate specifically the `height` directly exactly from `0` up to entirely `"auto"` upon state toggle.
+    - [ ] Utilize exactly a specific spring-based easing exactly strictly to provide a soft, organic unrolling feel.
+    - [ ] Prevent specifically any child text or nested specifically play buttons completely strictly from wrapping awkwardly mid-animation.
+    - [ ] Retract perfectly exactly specifically the specifically height back strictly to 0 completely smoothly precisely upon collapsing the block.
