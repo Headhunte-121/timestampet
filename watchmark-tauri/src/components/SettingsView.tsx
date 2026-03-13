@@ -5,6 +5,7 @@ import { useAppStore } from "../store/useAppStore";
 import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
+import { invokeWithTimeout } from "../utils/ipc";
 
 export default function SettingsView() {
   const [settings, setSettings] = useState<any>({
@@ -50,12 +51,13 @@ export default function SettingsView() {
       });
       if (selected && typeof selected === 'string') {
         setScanStatus("Scan started...");
-        invoke("run_scan_directory", { directory: selected })
-          .then((count) => {
+        // Ensure a generous timeout matching the backend (300 seconds)
+        invokeWithTimeout<number>("run_scan_directory", { directory: selected }, 300000)
+          .then((count: number) => {
             toast.success(`Scan complete. Found ${count} unmatched files.`);
             setScanStatus("");
           })
-          .catch(e => {
+          .catch((e: any) => {
             toast.error("Error during scan: " + e);
             setScanStatus("");
           });

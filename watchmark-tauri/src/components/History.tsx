@@ -1,12 +1,41 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeWithTimeout } from "../utils/ipc";
 
 export default function History() {
   const [history, setHistory] = useState<any[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    invoke("fetch_history").then((res: any) => setHistory(res)).catch(console.error);
+    loadHistory(0, true);
   }, []);
+
+  const loadHistory = async (pageNum: number, isInitial = false) => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      // Chunk loading with limit 100
+      const res: any = await invokeWithTimeout("fetch_history", { page: pageNum, pageSize: 100 });
+      if (isInitial) {
+        setHistory(res);
+      } else {
+        setHistory(prev => [...prev, ...res]);
+      }
+      setHasMore(res.length === 100);
+      setPage(pageNum);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      loadHistory(page + 1);
+    }
+  };
 
   return (
     <div className="p-12 pt-24">
@@ -40,6 +69,18 @@ export default function History() {
               )}
             </div>
           ))}
+
+          {hasMore && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={handleLoadMore}
+                disabled={loading}
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {loading ? "Loading..." : "Load More"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

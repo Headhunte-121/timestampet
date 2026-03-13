@@ -94,3 +94,12 @@ Update 11: Windows Native Optimization & System Integration [Todo 1.7]
 - Configured NSIS installer with `installMode: "currentUser"` to bypass UAC prompts and handled `PermissionDenied` errors gracefully in the recursive directory scanner.
 - Verified SmartScreen mitigations by appending valid company and copyright metadata in `tauri.conf.json`.
 - Handled Global Keyboard Shortcuts securely using `tauri-plugin-global-shortcut` (Ctrl+Shift+S for Scan, Ctrl+Shift+H for Hide/Show) with native Toast fallback if shortcuts are already claimed by other Windows apps.
+
+Update 12: Seamless IPC Bridging & Stability [Todo 1.9]
+- Implemented timeout safety using `tokio::time::timeout` for heavy Tauri commands (e.g. `add_to_tracker`, `perform_tmdb_search`) to prevent the backend from hanging on deadlocks.
+- Created a frontend `invokeWithTimeout` helper in React to stop waiting for frozen IPC calls and allow the UI to recover cleanly.
+- Secured path inputs utilizing the `dunce` crate in Rust to safely canonicalize directory paths and prevent injection panics.
+- Refactored `fetch_history` and `get_library_data` by moving their massive serialization loops into `tokio::task::spawn_blocking` to completely offload them from the main Tauri event loop and keep the UI responsive during massive data loads.
+- Implemented proper pagination chunking in the History view (limit 100 per page) with a "Load More" action.
+- Centralized event listener cleanup in React components (e.g., `App.tsx` and `SettingsView.tsx`) to ensure unlisten functions are explicitly awaited and correctly executed on unmount, preventing HMR ghosting and duplicate listeners.
+- Integrated a global type-mismatch error handler in the frontend wrapper that gracefully intercepts `serde` deserialization mismatches and displays clear warnings rather than failing silently.

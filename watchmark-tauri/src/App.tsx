@@ -38,6 +38,7 @@ function App() {
     const unlisten = listen("vlc-closed", () => {
       setRefreshTrigger(prev => prev + 1);
     });
+
     return () => {
       unlisten.then(fn => fn());
     };

@@ -126,7 +126,7 @@ pub async fn add_to_tracker(
     media_type: String,
     archive: bool,
 ) -> Result<(), AppError> {
-    tokio::task::spawn_blocking(move || {
+    let task = tokio::task::spawn_blocking(move || {
         handle_panic(|| {
             let settings = crate::settings::load_settings();
             if settings.tmdb_api_key.is_empty() {
@@ -237,7 +237,12 @@ pub async fn add_to_tracker(
 
             Ok(())
         })
-    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
+    });
+
+    match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
+        Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
+        Err(_) => Err(AppError::Custom("Task Timed Out".to_string())),
+    }
 }
 
 #[tauri::command]
@@ -451,78 +456,85 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
 }
 
 #[tauri::command]
-pub fn get_library_data(
-    media_type: &str,
-    sort_by: &str,
+pub async fn get_library_data(
+    media_type: String,
+    sort_by: String,
     hide_completed: bool,
 ) -> Result<Vec<Media>, AppError> {
-    handle_panic(|| {
-        let conn = get_db_connection()?;
+    tokio::task::spawn_blocking(move || {
+        handle_panic(|| {
+            let conn = get_db_connection()?;
 
-        let mut base_query = "
-            SELECT m.*,
-                   (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') as completed_eps,
-                   (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched,
-                   (SELECT MIN(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as min_year,
-                   (SELECT MAX(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as max_year
-            FROM Media m
-        ".to_string();
+            let mut base_query = "
+                SELECT m.*,
+                       (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') as completed_eps,
+                       (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched,
+                       (SELECT MIN(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as min_year,
+                       (SELECT MAX(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as max_year
+                FROM Media m
+            ".to_string();
 
-        let mut where_clauses = Vec::new();
+            let mut where_clauses = Vec::new();
+            let mut sql_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
-        if media_type != "All" {
-            where_clauses.push(format!("m.type = '{}'", media_type));
-        }
+            if media_type != "All" {
+                where_clauses.push("m.type = ?".to_string());
+                sql_params.push(Box::new(media_type));
+            }
 
-        if hide_completed {
-            where_clauses.push("(SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') < m.total_episodes".to_string());
-        }
+            if hide_completed {
+                where_clauses.push("(SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') < m.total_episodes".to_string());
+            }
 
-        if !where_clauses.is_empty() {
-            base_query.push_str(" WHERE ");
-            base_query.push_str(&where_clauses.join(" AND "));
-        }
+            if !where_clauses.is_empty() {
+                base_query.push_str(" WHERE ");
+                base_query.push_str(&where_clauses.join(" AND "));
+            }
 
-        let order_by = match sort_by {
-            "Alphabetical (A-Z)" => " ORDER BY m.title ASC",
-            "Release Year" => " ORDER BY CASE WHEN m.release_date IS NULL OR m.release_date = '' THEN 1 ELSE 0 END, m.release_date DESC",
-            "My Top Rated" => " ORDER BY m.user_rating DESC, m.id DESC",
-            "Sort by Last Watched" => " ORDER BY last_watched DESC NULLS LAST, m.id DESC",
-            _ => " ORDER BY m.id DESC",
-        };
+            let order_by = match sort_by.as_str() {
+                "Alphabetical (A-Z)" => " ORDER BY m.title ASC",
+                "Release Year" => " ORDER BY CASE WHEN m.release_date IS NULL OR m.release_date = '' THEN 1 ELSE 0 END, m.release_date DESC",
+                "My Top Rated" => " ORDER BY m.user_rating DESC, m.id DESC",
+                "Sort by Last Watched" => " ORDER BY last_watched DESC NULLS LAST, m.id DESC",
+                _ => " ORDER BY m.id DESC",
+            };
 
-        base_query.push_str(order_by);
+            base_query.push_str(order_by);
 
-        let mut stmt = conn.prepare(&base_query)?;
+            let mut stmt = conn.prepare(&base_query)?;
 
-        let rows = stmt.query_map([], |row| {
-            Ok(Media {
-                id: row.get(0)?,
-                tmdb_id: row.get(1)?,
-                r#type: row.get(2)?,
-                title: row.get(3)?,
-                synopsis: row.get(4)?,
-                poster_path: row.get(5)?,
-                backdrop_path: row.get(6)?,
-                total_episodes: row.get(7)?,
-                status: row.get(8)?,
-                vote_average: row.get(9)?,
-                user_rating: row.get(10)?,
-                release_date: row.get(11)?,
-                completed_eps: row.get(12)?,
-                last_watched: row.get(13)?,
-                min_year: row.get(14)?,
-                max_year: row.get(15)?,
-            })
-        })?;
+            // Convert Vec<Box<dyn ToSql>> to a format rusqlite understands
+            let param_refs: Vec<&dyn rusqlite::ToSql> = sql_params.iter().map(|p| p.as_ref()).collect();
 
-        let mut media_list = Vec::new();
-        for m in rows.flatten() {
-            media_list.push(m);
-        }
+            let rows = stmt.query_map(rusqlite::params_from_iter(param_refs), |row| {
+                Ok(Media {
+                    id: row.get(0)?,
+                    tmdb_id: row.get(1)?,
+                    r#type: row.get(2)?,
+                    title: row.get(3)?,
+                    synopsis: row.get(4)?,
+                    poster_path: row.get(5)?,
+                    backdrop_path: row.get(6)?,
+                    total_episodes: row.get(7)?,
+                    status: row.get(8)?,
+                    vote_average: row.get(9)?,
+                    user_rating: row.get(10)?,
+                    release_date: row.get(11)?,
+                    completed_eps: row.get(12)?,
+                    last_watched: row.get(13)?,
+                    min_year: row.get(14)?,
+                    max_year: row.get(15)?,
+                })
+            })?;
 
-        Ok(media_list)
-    })
+            let mut media_list = Vec::new();
+            for m in rows.flatten() {
+                media_list.push(m);
+            }
+
+            Ok(media_list)
+        })
+    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
 }
 
 #[tauri::command]
@@ -551,76 +563,97 @@ pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
 }
 
 #[tauri::command]
-pub fn fetch_history() -> Result<Vec<HistoryEntry>, AppError> {
-    handle_panic(|| {
-        let conn = get_db_connection()?;
-        let mut stmt = conn.prepare(
-            "
-            SELECT h.id as hist_id, h.timestamp, h.session_id, h.is_legacy, h.start_time, h.end_time, h.pause_count, h.completion_ratio,
-                   e.id as episode_id, e.season_num, e.ep_num, e.title as ep_title, e.still_path, e.air_date,
-                   m.id as media_id, m.title as show_title, m.poster_path, m.backdrop_path, m.type as media_type
-            FROM History h
-            JOIN Episodes e ON h.episode_id = e.id
-            JOIN Media m ON e.media_id = m.id
-            ORDER BY h.timestamp DESC
-            "
-        )?;
+pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<Vec<HistoryEntry>, AppError> {
+    tokio::task::spawn_blocking(move || {
+        handle_panic(|| {
+            let conn = get_db_connection()?;
+            let limit = page_size.unwrap_or(100);
+            let offset = page.unwrap_or(0) * limit;
 
-        let rows = stmt.query_map([], |row| {
-            Ok(HistoryEntry {
-                hist_id: row.get(0)?,
-                timestamp: row.get(1)?,
-                session_id: row.get(2)?,
-                is_legacy: row.get(3)?,
-                start_time: row.get(4)?,
-                end_time: row.get(5)?,
-                pause_count: row.get(6)?,
-                completion_ratio: row.get(7)?,
-                episode_id: row.get(8)?,
-                season_num: row.get(9)?,
-                ep_num: row.get(10)?,
-                ep_title: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
-                still_path: row.get::<_, Option<String>>(12)?.unwrap_or_default(),
-                air_date: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
-                media_id: row.get(14)?,
-                show_title: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
-                poster_path: row.get::<_, Option<String>>(16)?.unwrap_or_default(),
-                backdrop_path: row.get::<_, Option<String>>(17)?.unwrap_or_default(),
-                media_type: row.get::<_, Option<String>>(18)?.unwrap_or_default(),
-            })
-        })?;
+            let mut stmt = conn.prepare(
+                "
+                SELECT h.id as hist_id, h.timestamp, h.session_id, h.is_legacy, h.start_time, h.end_time, h.pause_count, h.completion_ratio,
+                       e.id as episode_id, e.season_num, e.ep_num, e.title as ep_title, e.still_path, e.air_date,
+                       m.id as media_id, m.title as show_title, m.poster_path, m.backdrop_path, m.type as media_type
+                FROM History h
+                JOIN Episodes e ON h.episode_id = e.id
+                JOIN Media m ON e.media_id = m.id
+                ORDER BY h.timestamp DESC
+                LIMIT ? OFFSET ?
+                "
+            )?;
 
-        let mut history = Vec::new();
-        for r in rows.flatten() {
-            history.push(r);
-        }
-        Ok(history)
-    })
+            let rows = stmt.query_map(params![limit, offset], |row| {
+                Ok(HistoryEntry {
+                    hist_id: row.get(0)?,
+                    timestamp: row.get(1)?,
+                    session_id: row.get(2)?,
+                    is_legacy: row.get(3)?,
+                    start_time: row.get(4)?,
+                    end_time: row.get(5)?,
+                    pause_count: row.get(6)?,
+                    completion_ratio: row.get(7)?,
+                    episode_id: row.get(8)?,
+                    season_num: row.get(9)?,
+                    ep_num: row.get(10)?,
+                    ep_title: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
+                    still_path: row.get::<_, Option<String>>(12)?.unwrap_or_default(),
+                    air_date: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
+                    media_id: row.get(14)?,
+                    show_title: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
+                    poster_path: row.get::<_, Option<String>>(16)?.unwrap_or_default(),
+                    backdrop_path: row.get::<_, Option<String>>(17)?.unwrap_or_default(),
+                    media_type: row.get::<_, Option<String>>(18)?.unwrap_or_default(),
+                })
+            })?;
+
+            let mut history = Vec::new();
+            for r in rows.flatten() {
+                history.push(r);
+            }
+            Ok(history)
+        })
+    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
 }
 
 #[tauri::command]
-pub fn run_scan_directory(
+pub async fn run_scan_directory(
     app_handle: tauri::AppHandle,
     directory: String,
 ) -> Result<i32, AppError> {
-    handle_panic(std::panic::AssertUnwindSafe(|| {
-        let mut conn = get_db_connection()?;
-        crate::scanner::scan_directory(&directory, &mut conn, &app_handle).map_err(AppError::from)
-    }))
+    let task = tokio::task::spawn_blocking(move || {
+        handle_panic(std::panic::AssertUnwindSafe(|| {
+            let mut conn = get_db_connection()?;
+            crate::scanner::scan_directory(&directory, &mut conn, &app_handle).map_err(AppError::from)
+        }))
+    });
+
+    // Provide a generous timeout for massive directory scans (e.g. 5 minutes)
+    match tokio::time::timeout(std::time::Duration::from_secs(300), task).await {
+        Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
+        Err(_) => Err(AppError::Custom("Scan Directory Task Timed Out".to_string())),
+    }
 }
 
 #[tauri::command]
-pub fn perform_tmdb_search(query: &str) -> Result<Vec<Value>, AppError> {
-    handle_panic(|| {
-        let settings = crate::settings::load_settings();
-        if settings.tmdb_api_key.is_empty() {
-            return Err(AppError::Custom(
-                "Missing TMDB API Key. Please add it in Settings.".to_string(),
-            ));
-        }
-        crate::tmdb::search_media(&settings.tmdb_api_key, query)
-            .map_err(|e| AppError::Custom(e.to_string()))
-    })
+pub async fn perform_tmdb_search(query: String) -> Result<Vec<Value>, AppError> {
+    let task = tokio::task::spawn_blocking(move || {
+        handle_panic(|| {
+            let settings = crate::settings::load_settings();
+            if settings.tmdb_api_key.is_empty() {
+                return Err(AppError::Custom(
+                    "Missing TMDB API Key. Please add it in Settings.".to_string(),
+                ));
+            }
+            crate::tmdb::search_media(&settings.tmdb_api_key, &query)
+                .map_err(|e| AppError::Custom(e.to_string()))
+        })
+    });
+
+    match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
+        Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
+        Err(_) => Err(AppError::Custom("Task Timed Out".to_string())),
+    }
 }
 
 #[tauri::command]
@@ -629,7 +662,7 @@ pub async fn assign_unmatched_to_tracker(
     media_type: String,
     group_key: String,
 ) -> Result<(), AppError> {
-    tokio::task::spawn_blocking(move || {
+    let task = tokio::task::spawn_blocking(move || {
         handle_panic(|| {
             let settings = crate::settings::load_settings();
             if settings.tmdb_api_key.is_empty() {
@@ -796,5 +829,10 @@ pub async fn assign_unmatched_to_tracker(
 
             Ok(())
         })
-    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
+    });
+
+    match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
+        Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
+        Err(_) => Err(AppError::Custom("Task Timed Out".to_string())),
+    }
 }

@@ -170,13 +170,20 @@ pub async fn play_episode_cmd(
         ));
     }
 
-    if !std::path::Path::new(&file_path).exists() {
-        return Err(AppError::Custom("File does not exist".to_string()));
-    }
+    // Sanitize path inputs to avoid injection or panics
+    let canonical_path = dunce::canonicalize(&file_path).map_err(|_| {
+        AppError::Custom(format!("Invalid or non-existent path: {}", file_path))
+    })?;
+
+    let canonical_vlc = dunce::canonicalize(&settings.vlc_path).map_err(|_| {
+        AppError::Custom("Invalid VLC executable path configured in Settings".to_string())
+    })?;
+
+    let file_path = canonical_path.to_string_lossy().to_string();
 
     let start_sec = if last_position > 0 { last_position } else { 0 };
 
-    if let Some(proc) = play_in_vlc(&settings.vlc_path, &file_path, start_sec) {
+    if let Some(proc) = play_in_vlc(&canonical_vlc.to_string_lossy(), &file_path, start_sec) {
         let mut session_id = uuid::Uuid::new_v4().to_string();
         let start_dt_str = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
