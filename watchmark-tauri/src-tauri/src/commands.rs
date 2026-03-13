@@ -3,8 +3,8 @@ use crate::error::{handle_panic, AppError};
 use crate::models::{HistoryEntry, Media, Settings, UnmatchedFile};
 use rusqlite::params;
 use serde_json::{json, Value};
-use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use std::sync::{Arc, RwLock};
+use tokio::sync::mpsc;
 
 pub struct AppState {
     pub settings: Arc<RwLock<Settings>>,
@@ -13,7 +13,7 @@ pub struct AppState {
 
 #[tauri::command]
 pub async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, AppError> {
-    let settings = state.settings.read().await;
+    let settings = state.settings.read().unwrap();
     Ok(settings.clone())
 }
 
@@ -23,7 +23,7 @@ pub async fn save_settings(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
     {
-        let mut current_settings = state.settings.write().await;
+        let mut current_settings = state.settings.write().unwrap();
         *current_settings = settings.clone();
     }
 

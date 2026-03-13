@@ -78,7 +78,7 @@ fn main() {
 
     tauri::Builder::default()
         .manage(commands::AppState {
-            settings: std::sync::Arc::new(tokio::sync::RwLock::new(initial_settings)),
+            settings: std::sync::Arc::new(std::sync::RwLock::new(initial_settings)),
             settings_tx,
         })
         .plugin(tauri_plugin_log::Builder::new().build())
