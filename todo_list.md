@@ -1337,246 +1337,369 @@ This document represents the complete functional blueprint and state of the Watc
     - [ ] Ensure the creation specifically logs precisely to the background debugging file entirely.
 
 
+
 ## ⌨️ Part 17: Advanced Navigation & Shortcuts (UX Polish)
 - Ctrl+K / Cmd+K Global Shortcut: Instantly focuses the Top Search Bar from anywhere.
-    - [ ] Add a global keyboard event listener specifically for the Ctrl+K and Cmd+K keybindings.
-    - [ ] Block the default browser behavior (e.g., search engine focus) when this combination is pressed.
-    - [ ] Immediately place the text cursor directly into the top search bar input field.
-    - [ ] Make sure the shortcut works regardless of which page or modal the user is currently viewing.
-    - [ ] Check that pressing the shortcut again while already focused safely does nothing or toggles the focus off.
+    - [ ] Make sure pressing Ctrl+K or Cmd+K instantly places the typing cursor into the main search box.
+    - [ ] Stop the internet browser from doing its own normal search shortcut when these keys are pressed.
+    - [ ] Check that this shortcut works perfectly no matter what screen or popup the user is currently looking at.
+    - [ ] Let the user simply start typing right away without needing to use their mouse.
+    - [ ] Ignore the shortcut politely if the user is already typing inside another completely different text box.
 - Esc Key Binding: Closes open modals, clears search inputs, or unfocuses elements.
-    - [ ] Bind the Escape key to close any active overlay or popup completely.
-    - [ ] If no modal is open, use the key to clear the text inside the current active search input.
-    - [ ] Remove focus (`blur()`) from the currently selected UI element if there are no inputs to clear.
-    - [ ] Stop event propagation so that pressing Esc doesn't accidentally trigger multiple actions at once.
-    - [ ] Keep the underlying page layout exactly as it was before the element was focused.
+    - [ ] Close any open popup window immediately if the user taps the Escape key.
+    - [ ] Clear any typed words out of the search bar entirely if no popup is currently open.
+    - [ ] Deselect whatever button or link the user is currently focused on if the search bar is already empty.
+    - [ ] Prevent the app from doing all three things at exactly the same time.
+    - [ ] Leave the screen looking exactly as it was before the user accidentally clicked something.
 - Arrow Key Grid Navigation: Allow users to use keyboard arrows to jump between posters in the Library.
-    - [ ] Calculate the number of columns dynamically so that 'Up' and 'Down' jump precisely to the correct row.
-    - [ ] Move focus visually to the next or previous poster when 'Left' or 'Right' is pressed.
-    - [ ] Auto-scroll the page vertically if the newly focused poster sits outside the current viewport.
-    - [ ] Wrap the selection gracefully from the end of a row directly to the beginning of the next one.
-    - [ ] Keep standard scroll behavior intact if focus hasn't been placed inside the library grid.
+    - [ ] Move the visual highlight smoothly from one movie poster to the next when tapping the Left or Right arrow keys.
+    - [ ] Jump up or down to the exact poster in the row above or below when using the Up or Down keys.
+    - [ ] Scroll the page automatically so the newly highlighted poster is always completely visible on the screen.
+    - [ ] Wrap the highlight cleanly back to the start of the next row when moving past the edge of the screen.
+    - [ ] Stop the arrow keys from accidentally scrolling the whole page if the user hasn't selected a poster yet.
 - Spacebar Playback: Pressing Space while a media card is focused instantly launches it in VLC.
-    - [ ] Listen specifically for the Spacebar keydown event solely when a poster card holds active focus.
-    - [ ] Trigger the exact same playback function as a left mouse click on the 'Play' button.
-    - [ ] Prevent the browser's default behavior of scrolling down the page when Space is pressed.
-    - [ ] Disable the shortcut cleanly if the focused item lacks a valid local file path.
-    - [ ] Do not trigger playback if the Spacebar is pressed while typing inside a text input.
+    - [ ] Start playing the video instantly if the user hits the Spacebar while highlighting a movie poster.
+    - [ ] Play exactly the same episode that the normal orange 'Play' button would launch.
+    - [ ] Stop the page from accidentally jumping downward when Space is pressed.
+    - [ ] Do absolutely nothing if the highlighted show is missing its video file.
+    - [ ] Ignore the Spacebar completely if the user is currently typing a word into the search box.
 - Shift+Click Multi-Select: Select multiple files at once in the Inbox for bulk ignoring/assigning.
-    - [ ] Store the index of the last clicked item securely in React state.
-    - [ ] Select all items sequentially between the previous click and the new Shift+Click target.
-    - [ ] Update the UI to clearly highlight every currently selected row at once.
-    - [ ] Ignore the action if the Shift key is pressed without an initial starting item.
-    - [ ] Clear the multi-selection entirely if the user clicks anywhere else without holding Shift.
+    - [ ] Remember exactly which item the user clicked first when managing new files.
+    - [ ] Highlight every single item perfectly between the first click and a new Shift+Click.
+    - [ ] Change the background color slightly on all selected rows so they stand out clearly.
+    - [ ] Cancel the mass-selection entirely if the user clicks somewhere else without holding the Shift key.
+    - [ ] Keep this feature completely disabled outside of the specific file management screen.
 - Mouse Back/Forward Support: Utilize side mouse buttons to navigate back and forth between Library and Details views.
-    - [ ] Hook into the browser's native `popstate` events to track mouse button hardware signals.
-    - [ ] Navigate the internal React Router history stack directly using these explicit buttons.
-    - [ ] Maintain exact scroll positions from the previous page when traversing backward.
-    - [ ] Provide a smooth cross-fade animation instead of a sudden page snap during navigation.
-    - [ ] Safely do nothing if the user clicks 'Back' on the very first page of their session.
+    - [ ] Let users click the extra buttons on the side of their mouse to jump back to the previous screen.
+    - [ ] Move between the main movie library and specific show details smoothly using these physical buttons.
+    - [ ] Remember exactly how far down the page the user had scrolled when they go backwards.
+    - [ ] Fade the previous screen back in gently instead of snapping jarringly.
+    - [ ] Prevent errors entirely if the user clicks 'Back' immediately after opening the app for the first time.
 - Breadcrumb Trails: E.g., Library > TV Shows > Breaking Bad > Season 2 visible at the top of the detail view.
-    - [ ] Extract the current routing hierarchy dynamically from the URL path structure.
-    - [ ] Format each segment clearly with a delicate arrow or slash separating them.
-    - [ ] Make the earlier trail items directly clickable to easily jump back up the hierarchy.
-    - [ ] Truncate extremely long titles within the trail specifically to prevent layout overflow.
-    - [ ] Fade the text color slightly for older segments to draw focus to the current active level.
+    - [ ] Show a neat, simple text trail clearly indicating exactly where the user is inside the app.
+    - [ ] Separate each section cleanly with a subtle little arrow so it reads easily.
+    - [ ] Allow the user to click any older section of the trail to jump right back to it instantly.
+    - [ ] Shorten incredibly long show names neatly so they don't push the trail off the edge of the screen.
+    - [ ] Color the older steps slightly darker to help the current page stand out perfectly.
 - Custom Context Menus: Right-clicking a poster opens a sleek, custom dark-mode menu (Play Next, Mark Watched, Edit, Remove).
-    - [ ] Intercept the default browser right-click event strictly preventing the standard context menu from appearing.
-    - [ ] Render a custom dropdown menu directly at the precise X/Y pixel coordinates of the cursor.
-    - [ ] Close the menu instantly if the user clicks anywhere else on the screen.
-    - [ ] Provide specific action buttons that directly map to existing functions like 'Play Next'.
-    - [ ] Keep the menu bounded within the screen edges to avoid cutting off options at the bottom or sides.
+    - [ ] Block the standard, clunky computer menu from appearing when right-clicking a movie poster.
+    - [ ] Show a beautiful, dark-themed menu specifically right next to where the mouse clicked.
+    - [ ] Close this menu instantly if the user simply clicks anywhere else on the page.
+    - [ ] Provide clear, easy buttons to instantly play the show, mark it watched, or remove it.
+    - [ ] Keep the menu completely visible on screen even if the user clicks right at the very bottom edge.
 - Sticky Section Headers: As you scroll down the Library or History, the headers ("Recently Added", "Today") stick to the top of the screen until pushed up by the next header.
-    - [ ] Apply CSS `position: sticky` securely to the specific date or section label containers.
-    - [ ] Give the sticky header a slightly darker background so it remains legible over the scrolling content beneath it.
-    - [ ] Coordinate the `z-index` strictly to ensure it stays above images but below the main top navigation bar.
-    - [ ] Push the current header out of view flawlessly the moment the bottom edge touches the next incoming header.
-    - [ ] Support immediate un-sticking when the user scrolls back up past the content block.
+    - [ ] Pin the date label specifically to the top edge of the screen while the user scrolls through that section.
+    - [ ] Give the label a solid background so the scrolling movies don't make the text hard to read.
+    - [ ] Make sure the label stays clearly underneath the main search bar so they don't overlap awkwardly.
+    - [ ] Push the old label up and out of the way smoothly the exact moment the next date section arrives.
+    - [ ] Un-pin the label instantly when the user decides to scroll back up.
 - Double-Click Play: Double-clicking a show poster bypasses the details page and instantly plays the next unwatched episode.
-    - [ ] Differentiate between a single click (navigates) and a double click (plays) using a short timeout delay.
-    - [ ] Determine the next unwatched episode rapidly in the background upon the second click.
-    - [ ] Launch the VLC process directly exactly as if the 'Play Next' button was pressed.
-    - [ ] Display an immediate visual loading state (like a spinner) so the user knows playback is initiating.
-    - [ ] Disable the double-click entirely if the show is 100% finished.
+    - [ ] Notice perfectly if a user clicks a movie poster twice rapidly instead of just once.
+    - [ ] Skip opening the show's page entirely and figure out exactly which episode they need to watch next.
+    - [ ] Launch the video player right away with that specific episode.
+    - [ ] Show a small spinning icon instantly so the user knows the video is about to start.
+    - [ ] Ignore the double-click completely if the user has already watched every single episode of that show.
 - Alt+Click Catch-Up: Alt+Clicking an episode checkmark automatically marks that episode and all previous episodes in the season as watched.
-    - [ ] Identify the specific integer index of the clicked episode correctly.
-    - [ ] Update the status to 'Completed' for all episodes in the season that fall numerically before this index.
-    - [ ] Queue the database updates cleanly so all rows commit without creating a race condition.
-    - [ ] Reflect the visual checkmarks for the entire range instantaneously without waiting for a server refresh.
-    - [ ] Warn the user explicitly if this action involves more than 20 episodes at once.
+    - [ ] Check exactly which episode number the user is currently holding the Alt key on.
+    - [ ] Mark that specific episode, and every single episode before it, completely finished all at once.
+    - [ ] Save this progress quietly in the background so the app doesn't freeze or slow down.
+    - [ ] Fill in all the visual checkmarks instantly on the screen so the user sees it worked.
+    - [ ] Display a brief warning if the user accidentally tries to mark 50 episodes at the exact same time.
 - Global Command Palette: Press Cmd+P to open a quick-action menu (e.g., type ">Scan" to trigger a directory scan).
-    - [ ] Create a centralized modal that specifically captures `Cmd+P` or `Ctrl+P`.
-    - [ ] Render a list of available text-based commands that filter down directly as the user types.
-    - [ ] Execute the corresponding application function instantly when an item is chosen via the Enter key.
-    - [ ] Close the palette fully the moment an action is executed.
-    - [ ] Build a priority sorting system so the most commonly used commands appear right at the top.
+    - [ ] Open a handy central menu strictly when the user presses Cmd+P or Ctrl+P.
+    - [ ] Show a list of quick actions that filters down instantly as the user types letters.
+    - [ ] Start the chosen action immediately when the user presses Enter.
+    - [ ] Close the menu completely the exact second the action begins.
+    - [ ] Keep the most popular or frequently used actions right at the very top of the list.
 - Touchpad Swipe Gestures: Swipe left/right on a laptop trackpad to go back/forward in the app history.
-    - [ ] Capture horizontal scroll events strictly when they exceed a certain momentum threshold.
-    - [ ] Trigger the standard React Router navigation precisely mimicking the browser's native swipe.
-    - [ ] Render a subtle visual overlay indicator (like a fading arrow) exactly showing the direction of the swipe.
-    - [ ] Prevent horizontal swiping from triggering on elements that actually need internal side-scrolling (like carousels).
-    - [ ] Provide a settings toggle to explicitly disable swipe gestures for users who find them intrusive.
+    - [ ] Recognize when a user makes a strong, intentional swipe on their laptop touchpad.
+    - [ ] Change pages exactly like a normal web browser does when swiping back or forward.
+    - [ ] Show a gentle fading arrow on the edge of the screen to confirm the swipe was noticed.
+    - [ ] Ignore horizontal swipes entirely if the user is just trying to scroll through a row of movie posters.
+    - [ ] Let users turn off this swipe feature entirely in the settings if they don't like it.
 - Floating Action Button (FAB): A subtle "Jump to Top" arrow appears when scrolling deep into the Library.
-    - [ ] Monitor the exact vertical scroll position in real-time.
-    - [ ] Reveal a rounded button precisely in the bottom-right corner exclusively after scrolling past 500 pixels.
-    - [ ] Animate the appearance and disappearance of the button strictly utilizing opacity fades.
-    - [ ] Click the button to instantly and smoothly animate the page view right back to `y: 0`.
-    - [ ] Hide the button completely on specific pages that do not support vertical scrolling.
+    - [ ] Notice quietly when the user has scrolled significantly far down a very long list of movies.
+    - [ ] Show a small, rounded button neatly in the bottom corner of the screen.
+    - [ ] Fade the button in smoothly instead of having it appear suddenly.
+    - [ ] Scroll the page perfectly back up to the very top the moment the user clicks the button.
+    - [ ] Keep the button completely hidden if the page is short enough to see everything at once.
 - Shortcut Cheat Sheet: Press ? anywhere to open a modal displaying all keyboard shortcuts.
-    - [ ] Bind the `?` character to uniquely trigger a global modal overlay.
-    - [ ] Layout the shortcuts explicitly in a clean, two-column grid matching keys to specific actions.
-    - [ ] Only allow the modal to open if the user isn't currently typing inside a search bar or text input.
-    - [ ] Provide a standard 'Close' button to strictly exit the cheat sheet.
-    - [ ] Automatically pause any active background processes or videos entirely if the cheat sheet is invoked.
+    - [ ] Open a helpful popup listing every keyboard trick strictly when the user presses the '?' key.
+    - [ ] Organize the list neatly so it is easy to read at a quick glance.
+    - [ ] Keep the popup closed if the user is just trying to type a question mark into the search bar.
+    - [ ] Add a simple 'Close' button to hide the list when they are done.
+    - [ ] Pause any video that is currently playing the second this cheat sheet appears.
 - Scroll Memory: Pressing "Back" from a show details page restores your exact scroll position in the Library grid.
-    - [ ] Record the precise `window.scrollY` value to state right before navigating away from the list.
-    - [ ] Restore that exact Y-coordinate instantaneously upon returning to the specific route.
-    - [ ] Stop the page from accidentally snapping to the top explicitly while images load asynchronously.
-    - [ ] Clear the memory safely if the user navigates specifically via a top menu link instead of the back button.
-    - [ ] Maintain independent scroll records specifically for Movies vs TV Shows libraries.
+    - [ ] Remember perfectly how far down the user had scrolled before they clicked on a movie.
+    - [ ] Jump right back to that exact spot smoothly when they hit the 'Back' button.
+    - [ ] Stop the page from awkwardly jumping to the top while the movie posters are loading.
+    - [ ] Forget the scroll spot completely if they click the home button to start a fresh search.
+    - [ ] Remember separate scroll spots for the TV library and the Movie library simultaneously.
 - Focus Trapping: When a modal is open, pressing Tab cycles only through modal buttons, preventing the background UI from being highlighted.
-    - [ ] Find the very first and absolute last focusable elements strictly inside the active modal container.
-    - [ ] Loop focus straight back to the first element when pressing Tab on the very last one.
-    - [ ] Move focus backwards strictly to the final element when hitting Shift+Tab on the first one.
-    - [ ] Prevent screen readers from accidentally interacting with the darkened page explicitly behind the modal.
-    - [ ] Restore exact focus straight back to the original element that triggered the modal once it closes.
+    - [ ] Keep the keyboard focus strictly inside a popup window when one is open.
+    - [ ] Loop the focus from the last button in the popup straight back to the first button automatically.
+    - [ ] Stop the user from accidentally highlighting buttons on the dark screen behind the popup.
+    - [ ] Make sure this works perfectly backwards too, if the user holds Shift while pressing Tab.
+    - [ ] Give the focus exactly back to the main search bar once the popup is finally closed.
 - Auto-Focus Search: Clicking the "Search TMDB" sidebar tab instantly focuses the input cursor.
-    - [ ] Attach a `useRef` directly to the primary search input on the target page.
-    - [ ] Call the `.focus()` method immediately upon component mount or route transition.
-    - [ ] Display the blinking cursor precisely indicating the user can start typing without needing to click again.
-    - [ ] Maintain focus even if a slight loading animation delays the full page render.
-    - [ ] Do not steal focus if the user clicks the tab while already dragging an item.
+    - [ ] Place the typing cursor directly into the big search box the second the user opens the search page.
+    - [ ] Show the blinking line immediately so the user knows they can type without clicking first.
+    - [ ] Keep the cursor there patiently even if the rest of the page takes a second to load.
+    - [ ] Stop stealing the cursor completely if the user clicks the search page while already trying to do something else.
+    - [ ] Make sure clicking the clear button puts the cursor right back into the box again.
 - Inline Clear Button: A tiny x icon appears inside the search bar when typing, allowing 1-click clearing.
-    - [ ] Render the 'X' icon perfectly aligned inside the right edge of the text box container.
-    - [ ] Make the icon visible entirely conditionally, only when the string length strictly exceeds 0 characters.
-    - [ ] Click the icon to instantly reset the string specifically to empty.
-    - [ ] Keep the cursor fully focused precisely inside the input directly after clearing it.
-    - [ ] Apply a subtle hover background precisely to the icon to make it feel clickable.
+    - [ ] Show a tiny 'X' mark neatly at the far right edge of the search box.
+    - [ ] Keep the 'X' completely hidden until the user actually types at least one letter.
+    - [ ] Wipe the entire search box completely clean the instant the 'X' is clicked.
+    - [ ] Put the typing cursor right back into the clean box automatically so they can try again.
+    - [ ] Give the 'X' a very slight highlight when hovered so it feels like a real button.
 - Native Window Dragging: The entire empty space of the top navigation bar acts as a -webkit-app-region: drag zone to move the desktop window.
-    - [ ] Apply the specific CSS class exactly to the background container of the top header.
-    - [ ] Exempt interactive elements like buttons and search inputs specifically by explicitly applying `no-drag`.
-    - [ ] Track mouse movements seamlessly matching the window coordinates to the cursor position on the screen.
-    - [ ] Prevent dragging strictly if the application is fully maximized to full screen.
-    - [ ] Ensure double-clicking the drag zone perfectly toggles the maximize/restore state of the window.
+    - [ ] Let the user click and hold any empty space at the top of the app to move the whole window.
+    - [ ] Stop the window from moving entirely if they click specifically on a button or the search box instead.
+    - [ ] Keep the window moving smoothly exactly following the mouse across the screen.
+    - [ ] Turn off dragging entirely if the window is already maximized to fill the whole screen.
+    - [ ] Let the user double-click the empty space to quickly maximize or shrink the window.
 
 ## 🎥 Part 18: Cinematic UI & Animation Details
 - Dynamic Background Tinting: The app extracts the dominant color from the active show's poster and applies a subtle 5% tint to the background #0D0F14.
-    - [ ] Calculate the dominant hex color directly from the primary `w500` poster image using a fast algorithm.
-    - [ ] Blend this extracted color perfectly with the global `#0D0F14` background at exactly 5% opacity.
-    - [ ] Transition the global tint smoothly (e.g., over 1.5 seconds) whenever the user navigates between entirely different shows.
-    - [ ] Fall back immediately to the pure `#0D0F14` baseline if the extraction process completely fails or the image is entirely grayscale.
-    - [ ] Cache the calculated hex string directly in the database to prevent heavy re-calculation on every single page load.
+    - [ ] Pick out the main, most vibrant color directly from the show's main poster image.
+    - [ ] Mix this color very faintly with the dark background of the app to give each show a unique mood.
+    - [ ] Fade this subtle color in very smoothly when opening a new show page.
+    - [ ] Go back to the standard dark background immediately if the poster is totally black and white.
+    - [ ] Save this color completely in the background so the app doesn't have to figure it out again next time.
 - Hero Parallax Scrolling: As you scroll down the Dashboard, the Hero Backdrop scrolls at 50% speed, creating 3D depth.
-    - [ ] Bind the background Y-position directly to the native `window.scrollY` value via a Framer Motion `useTransform` hook.
-    - [ ] Apply a strict `0.5` multiplier to the movement so the background image visually trails behind the foreground content.
-    - [ ] Limit the maximum translation distance firmly to prevent the image from snapping out of its container boundaries.
-    - [ ] Disable the parallax effect entirely on specific mobile viewports where scroll-linked animations severely stutter.
-    - [ ] Keep the heavy black gradient overlay completely stationary while strictly the image underneath moves.
+    - [ ] Make the giant top image slide down slightly slower than the rest of the page when scrolling.
+    - [ ] Ensure this creates a beautiful, subtle 3D window effect without feeling dizzying.
+    - [ ] Stop the image cleanly before it scrolls too far and shows an ugly empty gap.
+    - [ ] Turn this effect off entirely on phones or older computers to keep the app running fast.
+    - [ ] Keep the dark shadow over the image completely still so the title text stays easy to read.
 - Cinematic Film Grain: A very faint, CSS-based animated film grain overlays the background for texture.
-    - [ ] Render a lightweight SVG or CSS-noise pattern precisely fixed over the entire screen behind all interactive UI layers.
-    - [ ] Adjust the mix-blend-mode or opacity so the grain is barely perceptible (e.g., `< 3%` opacity) to avoid looking dirty.
-    - [ ] Animate the noise sequence specifically using rapid frame stepping (`steps(4)`) rather than smooth linear motion.
-    - [ ] Disable the animation entirely if the user has triggered native OS 'reduced motion' accessibility settings.
-    - [ ] Prevent the grain layer specifically from accidentally capturing any mouse clicks or hover events.
+    - [ ] Place a nearly invisible layer of static noise over the entire background of the app.
+    - [ ] Keep it incredibly faint so it adds a subtle movie-theater feel without making the screen look dirty.
+    - [ ] Make the static move slightly so it feels like real, classic film texture.
+    - [ ] Turn the moving static off completely if the user has requested fewer animations on their computer.
+    - [ ] Ensure this static never accidentally blocks a user from clicking a button underneath it.
 - Active Show Shimmer: The poster of a show you are currently watching has a very subtle, slow-pulsing glowing border.
-    - [ ] Identify library items correctly possessing an active `status='Watching'` flag.
-    - [ ] Draw a 1px solid border utilizing a deep variant of the `#FF6B00` VLC Orange exactly around the poster rim.
-    - [ ] Cycle the box-shadow intensity gracefully between a dim glow and slightly brighter glow over a 3-second infinite loop.
-    - [ ] Remove the shimmer instantly the absolute second the show hits 100% completion or is manually completely unwatched.
-    - [ ] Maintain extreme subtlety so a grid featuring 5 currently active shows doesn't look like a chaotic neon sign.
+    - [ ] Find exactly which shows the user is currently in the middle of watching.
+    - [ ] Draw a very thin, glowing orange line precisely around the edge of those specific posters.
+    - [ ] Make the glow pulse very slowly and smoothly so it isn't distracting.
+    - [ ] Turn the glow off entirely the exact moment the user finishes the last episode.
+    - [ ] Keep the effect subtle enough that a whole row of active shows doesn't look like a neon sign.
 - Aspect-Ratio Skeleton Loaders: Loading placeholders perfectly match the 2:3 ratio of posters and 16:9 ratio of episodes.
-    - [ ] Enforce the exact same strict Tailwind `aspect-[2/3]` sizing specifically onto the initial gray poster skeleton blocks.
-    - [ ] Utilize the strict `aspect-video` ratio completely on the individual horizontal episode skeletons.
-    - [ ] Scale the skeleton boxes fluidly to match the exact responsive grid width of the real images that will replace them.
-    - [ ] Match the `rounded-xl` and `rounded-2xl` corner radii flawlessly so the shapes do not mutate upon data arrival.
-    - [ ] Render a placeholder play button silhouette exactly centered on the episode skeletons.
+    - [ ] Make sure the gray loading boxes are exactly the same shape as the movie posters will be.
+    - [ ] Make the episode loading boxes perfectly widescreen so they don't look awkwardly tall.
+    - [ ] Shrink or grow these boxes smoothly to fit any screen size just like real images would.
+    - [ ] Round the corners of the loading boxes perfectly so they match the final polished look.
+    - [ ] Put a tiny, faint play button shape exactly in the middle of the episode loading boxes.
 - Shimmering Skeletons: Loading boxes use a smooth, left-to-right CSS gradient animation.
-    - [ ] Replace standard pulsing opacity with a dedicated `linear-gradient` moving steadily across the X-axis.
-    - [ ] Tweak the gradient colors strictly using shades of `#1F222A` and slightly lighter silver tones to mimic glossy reflection.
-    - [ ] Synchronize the animation timing perfectly across all visible skeletons so they shine entirely in unison.
-    - [ ] Loop the translation seamlessly without any harsh visual jumps or resets at the end of the keyframes.
-    - [ ] Prevent the shimmering gradient from overflowing outside the skeleton's rounded corners.
+    - [ ] Add a shiny, moving highlight completely across all the gray loading boxes.
+    - [ ] Make the highlight sweep smoothly from left to right like light reflecting off glass.
+    - [ ] Keep all the boxes shimmering exactly together at the exact same time.
+    - [ ] Make the highlight loop endlessly without any jarring jumps or stutters.
+    - [ ] Keep the shiny effect neatly inside the rounded corners of the loading boxes.
 - Staggered Grid Intro: When loading the Library, posters fade-in-up one by one in a rapid wave sequence, rather than flashing on screen simultaneously.
-    - [ ] Map an incremental animation delay specifically using the index of each item in the rendered array (`delay: index * 0.05`).
-    - [ ] Combine an opacity fade from 0 with a slight upward Y-axis translation (e.g., `y: 20 -> 0`).
-    - [ ] Trigger the entire sequence only once per distinct page load, strictly avoiding re-triggering it on every tiny layout shift.
-    - [ ] Limit the staggering explicitly to strictly the visible items in the viewport, so massive libraries don't delay the bottom items by 10 seconds.
-    - [ ] Handle empty search results swiftly by completely bypassing any grid staggering logic.
+    - [ ] Bring the movie posters onto the screen one after another in a quick, flowing wave.
+    - [ ] Make them fade in gently while sliding up slightly into place.
+    - [ ] Show this beautiful wave only once when the page loads, not every single time the user clicks a button.
+    - [ ] Stop the wave completely on posters that are way down out of sight to save computer power.
+    - [ ] Show the posters instantly without the wave if a user is just typing a fast search.
 - Custom Themed Tooltips: Native OS tooltips are replaced by instant, styled #1F222A glassy popups.
-    - [ ] Strip out standard HTML `title` attributes completely across all specific interactive buttons or icons to prevent the ugly white OS default.
-    - [ ] Render an absolutely positioned floating box featuring `backdrop-blur-md` and exactly the `#1F222A` background color.
-    - [ ] Calculate standard boundaries to ensure the tooltip flips above or below the cursor strictly to prevent clipping outside the viewport.
-    - [ ] Delay the appearance of the tooltip perfectly by `200ms` so it doesn't flicker wildly when sweeping the mouse quickly across a row.
-    - [ ] Utilize a tiny, sharp arrow element specifically pointing precisely from the tooltip box directly toward the hovered icon.
+    - [ ] Remove the ugly, standard white hover-text boxes that computers normally show.
+    - [ ] Replace them exactly with beautiful, dark, slightly see-through popup boxes.
+    - [ ] Make sure these boxes always stay completely on the screen and never get cut off at the edges.
+    - [ ] Wait just a tiny fraction of a second before showing them so they don't flash annoyingly when moving the mouse fast.
+    - [ ] Add a tiny, sharp pointer completely connecting the box directly to the button the user is hovering over.
 - Hero Text Shadowing: Ensures pure white text is perfectly readable even if the movie backdrop is a bright daytime scene.
-    - [ ] Inject a tight, incredibly dark drop-shadow directly directly onto the massive Hero Title and sub-text elements.
-    - [ ] Adjust the shadow specifically without making the text look artificially heavily outlined (e.g., a massive spread value).
-    - [ ] Layer a secondary, much larger, and completely soft blurred shadow behind the entire text block to darken the specific area.
-    - [ ] Combine this approach perfectly with the existing bottom-left gradient overlay for absolute foolproof contrast.
-    - [ ] Evaluate the text readability exactly on completely pure white fallback backgrounds to guarantee effectiveness.
+    - [ ] Add a very tight, dark shadow exactly behind the big show title at the top of the page.
+    - [ ] Keep the shadow incredibly clean so the letters don't look blurry or messy.
+    - [ ] Put a much softer, larger dark cloud completely behind all the text to dim the bright image behind it.
+    - [ ] Blend this perfectly with the dark bottom edge so the transition looks completely natural.
+    - [ ] Test the text specifically against a completely pure white image to guarantee it can always be read perfectly.
 - Search Match Highlighting: When using Quick Search, the matching letters in the title are highlighted in orange.
-    - [ ] Split the raw text string correctly right at the precise index where the search term match begins and ends.
-    - [ ] Wrap the matched characters strictly in a specific `<span class="text-[#FF6B00]">` tag.
-    - [ ] Maintain the original casing of the actual title string specifically, even if the user typed the search query entirely in lowercase.
-    - [ ] Handle edge cases seamlessly where the search string explicitly matches multiple completely distinct parts of the same title.
-    - [ ] Keep the font weight strictly bold only on the matching portion to draw the eye directly to the relevant letters.
+    - [ ] Find exactly the specific letters the user typed directly inside the movie title.
+    - [ ] Change strictly those matching letters to a bright orange color so they stand out perfectly.
+    - [ ] Keep the original capital or lowercase letters exactly the same, even if the user typed them differently.
+    - [ ] Handle it perfectly if the user types a word that shows up twice in the very same title.
+    - [ ] Make the orange letters slightly bolder entirely to catch the user's eye instantly.
 - Hero Crossfade Transitions: Changing the featured Hero show performs a smooth 1-second image crossfade.
-    - [ ] Mount the newly selected backdrop image silently behind the currently visible one exactly before the animation begins.
-    - [ ] Fade the opacity of the old image strictly from 1 to 0 completely over the precise duration.
-    - [ ] Prevent rapid clicking through the library strictly from queuing up 5 overlapping images directly inside the DOM.
-    - [ ] Fade out the associated Hero Title and 'Resume' button simultaneously, swapping the text exactly at the midpoint of the transition.
-    - [ ] Handle transitioning accurately when navigating away specifically to a page that lacks a Hero banner entirely.
+    - [ ] Load the new background image completely silently before showing it.
+    - [ ] Fade the old image away completely smoothly over one full second.
+    - [ ] Stop the app from slowing down perfectly if the user clicks through five shows extremely fast.
+    - [ ] Fade the title text out and swap it to the new title exactly in the middle of the transition.
+    - [ ] Handle it beautifully if the user clicks back to the main menu without any background image at all.
 - "Ken Burns" Hero Effect: The Dashboard backdrop slowly scales up (1.00 to 1.05) over 30 seconds for subtle life.
-    - [ ] Apply a continuous, extremely slow linear scale animation specifically to the absolute background image container.
-    - [ ] Set the animation exactly to alternate indefinitely (e.g., zooming in over 30s, zooming out slowly over 30s).
-    - [ ] Maintain the exact origin point perfectly centered so the image doesn't awkwardly drift left or right.
-    - [ ] Ensure the CSS `will-change: transform` property is set precisely to prevent jagged sub-pixel rendering.
-    - [ ] Halt the animation completely the exact second the user scrolls away, freeing up GPU resources.
+    - [ ] Make the giant background image grow incredibly slowly over a long period of time.
+    - [ ] Have it slowly zoom in and then perfectly zoom back out in an endless, gentle loop.
+    - [ ] Keep the very center of the image exactly in the middle so it doesn't drift off to the side.
+    - [ ] Ensure the movement is completely perfectly smooth without any tiny visual jitters or steps.
+    - [ ] Pause the growing entirely the second the user scrolls away so the computer doesn't waste energy.
 - Glowing Progress Tails: The active end of the orange progress bar features a subtle blur/glow drop-shadow.
-    - [ ] Attach a distinct, brightly colored, absolutely positioned glowing dot exactly at the absolute right-edge of the orange fill bar.
-    - [ ] Mask the glow specifically so it spills slightly forward into the empty gray track, mimicking light bleeding.
-    - [ ] Render the glow explicitly utilizing the `#FF6B00` color directly to match the active progress track.
-    - [ ] Hide the glowing tail completely if the episode specifically hits 100% completion and the bar turns entirely green.
-    - [ ] Hide the tail completely if the progress specifically sits at 0%.
+    - [ ] Add a bright, glowing orange dot exactly at the very tip of the progress bar.
+    - [ ] Let the glow spill slightly forward completely into the empty part of the bar like a real light.
+    - [ ] Keep the color of the glow perfectly matching the vibrant orange of the filled bar.
+    - [ ] Turn the glow off entirely if the bar is completely full and turns green.
+    - [ ] Hide the glowing dot completely if the user hasn't started the episode yet.
 - Truncation Fade: Long titles use a mask-image: linear-gradient to fade out softly on the right edge instead of hard ... cuts.
-    - [ ] Apply the specific CSS `mask-image` purely targeting the very right-most 20px of the title text container.
-    - [ ] Ensure the text container explicitly sets `white-space: nowrap` exactly to prevent vertical breaking.
-    - [ ] Fade the text cleanly to transparent precisely just before it hits the right edge constraint.
-    - [ ] Disable the standard `text-overflow: ellipsis` behavior completely on strings utilizing this specific fade.
-    - [ ] Do not apply the fade mask directly on short titles that fit perfectly within the boundaries.
+    - [ ] Fade the very end of incredibly long titles out smoothly into the background.
+    - [ ] Stop the text completely from wrapping awkwardly onto a second line.
+    - [ ] Hide the standard, ugly three dots (...) perfectly when this smooth fade is used.
+    - [ ] Only use this smooth fade entirely on titles that are actually too long to fit.
+    - [ ] Keep short titles looking exactly normal without any fading at all.
 - Golden Completion Badge: Shows with 100% completion get a special gold laurel-wreath icon instead of the standard checkmark.
-    - [ ] Calculate the specific boolean logic exactly identifying when a show perfectly matches `completed_eps == total_eps`.
-    - [ ] Substitute the default green checkmark vector exactly with the intricate SVG laurel-wreath asset.
-    - [ ] Color the icon flawlessly utilizing a specific, distinct gold gradient (`#FFD700` or similar).
-    - [ ] Render the badge distinctly overlapping the specific top-left corner of the completely finished library poster.
-    - [ ] Hide the badge specifically if the user manually marks even one single episode perfectly as unwatched again.
+    - [ ] Check perfectly if a user has watched every single available episode of a show.
+    - [ ] Swap the normal green checkmark completely for a beautiful, detailed gold wreath icon.
+    - [ ] Make the gold color incredibly vibrant and slightly shiny so it feels like a real reward.
+    - [ ] Place the wreath exactly in the top corner of the movie poster where it is easy to see.
+    - [ ] Remove the gold wreath instantly if the user decides to mark an episode as unwatched later.
 - Dynamic Border-Radii: Posters have an 8px radius, but when hovered/scaled, the radius adjusts slightly to maintain optical perfection.
-    - [ ] Calculate the specific corner radius exactly relative to the absolute scale of the hover state.
-    - [ ] Shift the border radius smoothly (e.g., `rounded-xl` to `rounded-lg`) exactly during the Framer Motion scale-up.
-    - [ ] Prevent the corners strictly from artificially looking sharper when the poster physically expands to 105%.
-    - [ ] Synchronize the transition completely seamlessly alongside the main drop-shadow escalation.
-    - [ ] Restore the exact original radius flawlessly the millisecond the mouse leaves the poster boundary.
+    - [ ] Change the roundness of the poster corners very slightly exactly when the poster grows on hover.
+    - [ ] Keep the corners looking perfectly smooth entirely without becoming awkwardly sharp during the animation.
+    - [ ] Time the corner change flawlessly to match the exact speed of the poster growing.
+    - [ ] Keep the dark shadow behind the poster completely perfectly matched to the new corner shape.
+    - [ ] Return the corners to their exact normal shape instantly when the user moves the mouse away.
 - Glass Reflection Animation: Hovering a card triggers a fast, 45-degree white light reflection sweep across the surface.
-    - [ ] Generate a pseudo-element precisely containing a bright, semi-transparent white diagonal gradient.
-    - [ ] Anchor the element directly off-screen slightly outside the specific bounds of the poster container.
-    - [ ] Translate the reflection smoothly from the top-left completely across the poster down to the bottom-right upon specific mouse entry.
-    - [ ] Clip the bright reflection completely using `overflow-hidden` so it strictly only shines directly inside the specific card itself.
-    - [ ] Limit the animation specifically strictly occurring exactly once per hover to completely prevent endless distracting looping.
+    - [ ] Create a shiny, see-through streak of white light completely across the movie poster.
+    - [ ] Hide the light entirely off to the side before the user hovers over the poster.
+    - [ ] Sweep the light rapidly exactly from the top corner to the bottom corner when the mouse touches it.
+    - [ ] Keep the light strictly inside the exact edges of the poster so it doesn't spill onto the background.
+    - [ ] Only show the light sweep exactly once per hover so it doesn't loop forever and become annoying.
 - Variable Opacity Stars: Unfilled stars in the rating widget are explicitly 20% opacity white, not just gray.
-    - [ ] Set the strict base color of all five SVG stars entirely to pure white (`#FFFFFF`).
-    - [ ] Knock the CSS opacity precisely down to exactly `0.2` on strictly the stars that represent the remaining un-voted score.
-    - [ ] Raise the opacity immediately to full `1.0` specifically whenever the specific star is hovered or actively clicked.
-    - [ ] Keep the completely colored specific `#FF6B00` active stars entirely solid without any transparency adjustments.
-    - [ ] Adjust the specific layout padding perfectly so the translucent stars do not visually disappear entirely on bright backdrops.
+    - [ ] Make the empty rating stars exactly a very faint, see-through white color instead of dull gray.
+    - [ ] Turn them perfectly solid and bright immediately when the user hovers over them.
+    - [ ] Keep the filled, orange stars entirely completely solid so they stand out.
+    - [ ] Ensure the empty, faint stars are still perfectly easy to see against a bright background image.
+    - [ ] Color the stars instantly exactly when clicked without waiting for a server to respond.
 - Star "Pop" Animation: Clicking a star triggers a micro-scaling "bounce" effect.
-    - [ ] Define a specific keyframe animation strictly expanding the SVG slightly up to 120% scale.
-    - [ ] Rapidly snap the precise scale specifically back down exactly to exactly 100% using an elastic easing curve.
-    - [ ] Trigger the animation completely simultaneously explicitly on all stars preceding exactly the clicked one.
-    - [ ] Keep the duration incredibly short (e.g., `< 150ms`) entirely to specifically mimic a highly tactile, physical button press.
-    - [ ] Do not trigger the scaling animation specifically strictly when the user specifically only hovers over the stars.
+    - [ ] Make the star jump perfectly slightly larger for a tiny fraction of a second when clicked.
+    - [ ] Snap the star back completely down to normal size quickly to feel like a real, tactile button.
+    - [ ] Make all the stars before the clicked one entirely jump exactly at the same time.
+    - [ ] Keep the jump incredibly short so it feels completely snappy and responsive.
+    - [ ] Ignore the jump effect entirely if the user is merely sliding their mouse over the stars.
 - Smooth Accordion Heights: Expanding a Binge-Block animates the height dynamically rather than instantly snapping the layout down.
-    - [ ] Wrap exactly the entire inner child list precisely strictly inside a Framer Motion `<motion.div>` component.
-    - [ ] Animate specifically the `height` directly exactly from `0` up to entirely `"auto"` upon state toggle.
-    - [ ] Utilize exactly a specific spring-based easing exactly strictly to provide a soft, organic unrolling feel.
-    - [ ] Prevent specifically any child text or nested specifically play buttons completely strictly from wrapping awkwardly mid-animation.
-    - [ ] Retract perfectly exactly specifically the specifically height back strictly to 0 completely smoothly precisely upon collapsing the block.
+    - [ ] Make the history section perfectly slide open smoothly to reveal the episodes hidden inside.
+    - [ ] Let the area grow completely exactly as tall as it needs to be to fit the new content.
+    - [ ] Give the sliding motion a very slight, natural bounce entirely so it feels completely organic.
+    - [ ] Stop the text inside from looking awkwardly squished perfectly while the section is opening.
+    - [ ] Slide the section perfectly back shut entirely smoothly when the user clicks to close it.
+
+## 📡 Part 19: VLC Engine & Playback Polish
+- Auto-Fullscreen Flag: Option in Settings to append --fullscreen to the VLC launch command.
+    - [ ] Provide a simple toggle switch in the settings menu allowing users to choose if videos should always open in fullscreen mode.
+    - [ ] Save this choice permanently so it is remembered every time the user opens the application.
+    - [ ] Apply the fullscreen behavior flawlessly every time a video is played.
+    - [ ] Allow the user to press the Escape key once the video is playing to return to a standard window without breaking the connection.
+    - [ ] Prevent any conflict if the user happens to have standard fullscreen preferences already set up inside their own video player.
+- Launch Muted Flag: Option to launch VLC silently (--volume=0).
+    - [ ] Include a straightforward checkbox in the preferences to start all new media completely muted by default.
+    - [ ] Open the video player with zero volume immediately when this setting is turned on.
+    - [ ] Ensure this feature only affects the video player itself, leaving the main computer volume completely untouched.
+    - [ ] Display a helpful visual hint on the dashboard letting the user know the audio is intentionally silenced.
+    - [ ] Permit the user to freely turn the volume back up manually at any point while watching.
+- Preferred Audio Track: Save an integer preference (e.g., Track 2 for Japanese audio) and pass to VLC.
+    - [ ] Allow users to pick their favorite audio language (like 'Track 1' or 'Track 2') from a simple dropdown menu.
+    - [ ] Remember this choice automatically for the specific TV show so they don't have to select it every episode.
+    - [ ] Start the video player smoothly with the chosen audio track already active.
+    - [ ] Fall back quietly to the default audio track if the requested one is missing from the file.
+    - [ ] Add a small tooltip explaining that track numbers are based entirely on how the video file was created.
+- Preferred Subtitle Track: Save and pass subtitle track preference to VLC (--sub-track).
+    - [ ] Give users the ability to lock in a specific subtitle track number to match their language preference.
+    - [ ] Launch the media player with the correct subtitles displaying instantly on screen.
+    - [ ] Offer a clear 'Off' or 'Disabled' option for users who never want subtitles to appear automatically.
+    - [ ] Handle situations gracefully where a video has no subtitles at all, ensuring playback still starts normally.
+    - [ ] Recognize and load standalone subtitle files automatically if they are placed next to the video file.
+- "Memory Jogger" Rewind: Auto-resume rewinds 5 seconds from the exact last_position to refresh the user's memory of the scene.
+    - [ ] Calculate the starting position exactly 5 seconds prior to where the user previously paused the video.
+    - [ ] Start the video at the very beginning (0 seconds) if they paused less than 5 seconds into the clip.
+    - [ ] Skip this rewind entirely if the user is launching a brand new, never-before-seen episode.
+    - [ ] Provide a simple slider in the settings to let users change this rewind length from 0 to 15 seconds.
+    - [ ] Update the progress bar visually on the dashboard so it correctly reflects the slightly rewound starting point.
+- VLC Instance Management: Detect if VLC is already running and cleanly enqueue/replace media without spawning multiple windows.
+    - [ ] Check quietly in the background if the video player is already open before trying to launch a new video.
+    - [ ] Swap the media cleanly inside the existing player window instead of cluttering the screen with a second window.
+    - [ ] Bring the existing player window directly to the front so the user knows the new video has started.
+    - [ ] Reconnect the background tracker seamlessly so the new video's progress is saved correctly.
+    - [ ] Show a gentle warning message if the user clicks 'Play' on five different episodes at the exact same time.
+- Zombie Process Recovery: If WatchMark crashes and restarts while VLC is open, it automatically reconnects to the running VLC HTTP heartbeat.
+    - [ ] Look for an orphaned video player window immediately when the tracking app is opened.
+    - [ ] Re-establish the connection to the video player quietly without interrupting the movie that is currently playing.
+    - [ ] Update the app's dashboard instantly to show exactly what is currently playing and how much time is left.
+    - [ ] Continue tracking the progress seamlessly as if the tracking app had never closed.
+    - [ ] Ignore any video players that the user opened manually themselves, focusing only on ones the app controls.
+- Reset Progress Action: A specific UI button to clear last_position to 0 without marking as unwatched.
+    - [ ] Place a small, clear 'Reset' icon right beside the progress bar on the show's detail page.
+    - [ ] Clear out the saved pause time completely without deleting the history of when they watched it.
+    - [ ] Update the page immediately to show that the episode is back to 0% progress.
+    - [ ] Ask for a quick confirmation or require a double-click so the user doesn't accidentally wipe their progress.
+    - [ ] Keep the show comfortably in the 'Continue Watching' row if they still have other episodes left to finish.
+- Missing File "Locate" Button: If a file is moved, the ☁️ icon turns into a magnifying glass to manually re-link the new file path.
+    - [ ] Change the missing file icon into an interactive magnifying glass to let the user find the missing video.
+    - [ ] Open a standard file browser window when clicked, filtering specifically for video files.
+    - [ ] Update the missing link instantly once the user selects the new correct file location.
+    - [ ] Swap the magnifying glass right back to the standard 'Play' button immediately after it's fixed.
+    - [ ] Verify the newly chosen file actually works before saving the changes to prevent further confusion.
+- OS Title Bar Injection: Pass TMDB episode title to VLC (--meta-title) so the Windows Taskbar reads "Breaking Bad - S01E01" instead of "file_xyz.mkv".
+    - [ ] Build a clean, readable name using the show title, season, episode number, and episode name.
+    - [ ] Send this beautiful name directly to the video player so it displays correctly at the top of the window.
+    - [ ] Handle special characters like quotes or emojis safely so they don't break the title.
+    - [ ] Shorten the title elegantly with an ellipsis if it is incredibly long and won't fit in the taskbar.
+    - [ ] Make sure this custom title also appears nicely in the standard volume control popups on the user's computer.
+- OS Media Art Injection: Pass local cached poster path to VLC (--meta-art) for Windows/Mac media control overlays.
+    - [ ] Find the exact location of the downloaded poster image on the user's computer.
+    - [ ] Send this image path to the video player when the episode starts.
+    - [ ] Skip this feature entirely without causing an error if the poster image hasn't finished downloading yet.
+    - [ ] Check that the image displays correctly on the computer's lock screen when the user pauses the video and walks away.
+    - [ ] Handle folder names with spaces or special characters perfectly so the image always loads.
+- VLC Crash Catching: If the VLC .exe exits with a crash code, WatchMark displays a specific error toast.
+    - [ ] Watch the video player closely in the background to see if it closes normally or if it unexpectedly crashes.
+    - [ ] Show a helpful, bright red warning notification on the screen if a crash is detected.
+    - [ ] Stop the app from saving corrupted pause times if the player crashed while the user was skipping forward.
+    - [ ] Provide a small button on the notification to let advanced users view what went wrong.
+    - [ ] Ensure the main tracking app remains completely stable and usable even if the video player fails entirely.
+- "Test VLC Connection" Button: A button in Settings to verify the path and HTTP port are accessible.
+    - [ ] Add a prominent 'Test Connection' button right below where the user types in their video player folder path.
+    - [ ] Open a hidden version of the player briefly just to make sure the app can talk to it successfully.
+    - [ ] Close the hidden player instantly once the test is finished.
+    - [ ] Show a cheerful green 'Success' badge if everything is working perfectly.
+    - [ ] Display clear troubleshooting advice if the test fails or times out.
+- Configurable Heartbeat: Slider in settings to change polling from 5s to 1s (high precision) or 10s (low CPU).
+    - [ ] Provide an easy-to-use slider letting users choose how often the app checks the video progress.
+    - [ ] Update the settings instantly as the user drags the slider, without needing to click a save button.
+    - [ ] Apply the new checking speed immediately, even if a video is currently playing.
+    - [ ] Add simple text labels explaining that faster checking uses slightly more battery power.
+    - [ ] Set the default value to 5 seconds to provide a great balance for most users right out of the box.
+- Minimization Auto-Pause: Optional setting: When WatchMark is minimized, send an HTTP command to pause VLC.
+    - [ ] Detect exactly when the user minimizes the main tracking app window.
+    - [ ] Send a quick command to pause the video player the second the app drops out of view.
+    - [ ] Automatically un-pause the movie the moment the user brings the tracking app back onto their screen.
+    - [ ] Make this feature optional so users with two monitors can keep watching while using other apps.
+    - [ ] Ignore the pause command completely if the video is already paused to prevent accidentally un-pausing it.
+- "Skip Intro" Manual Offset: Set a global offset per-show (e.g., "Always start this anime at 01:30").
+    - [ ] Create a small text box on the show's page where the user can type in a specific amount of seconds to skip.
+    - [ ] Start every new, unwatched episode of that show exactly at that requested timestamp automatically.
+    - [ ] Keep standard pause-and-resume behavior fully intact if the user has already watched past the intro.
+    - [ ] Show a brief 'Skipped Intro' message on the screen when the video starts so the user knows it worked.
+    - [ ] Allow the user to easily delete the number to return the show back to normal playback.
+- Live Playback HUD: A tiny "Now Playing" widget in WatchMark's sidebar updating live while VLC is open.
+    - [ ] Dedicate a small space at the bottom of the navigation menu specifically for a live status card.
+    - [ ] Show the title of the current episode and a tiny progress bar that fills up while they watch.
+    - [ ] Slide the widget onto the screen smoothly the exact moment the video player opens.
+    - [ ] Hide the widget completely when the movie is over so the screen stays clean and uncluttered.
+    - [ ] Ensure clicking the widget takes the user straight to that show's detail page.
+- Remote "Stop" Button: A button inside WatchMark that kills the VLC process without switching windows.
+    - [ ] Add a clear, red 'Stop' icon directly onto the live 'Now Playing' sidebar widget.
+    - [ ] Close the video player instantly when clicked without forcing the user to switch over to the video window.
+    - [ ] Wait for the video player to fully close before updating the main app screen.
+    - [ ] Make absolutely sure the final watch progress is saved securely right before the video window disappears.
+    - [ ] Return the user automatically to the episode list once the movie stops.
+- VLC Version Logging: Displays detected VLC version in Settings for debugging.
+    - [ ] Ask the video player quietly in the background what version it is currently running.
+    - [ ] Read the response cleanly to extract just the version number (like '3.0.18').
+    - [ ] Show this number in small, faint text at the bottom of the settings page for easy troubleshooting.
+    - [ ] Handle things calmly without crashing if the video player refuses to share its version number.
+    - [ ] Update this version number automatically if the user points the app to a different video player folder.
+- Portable VLC Support: Resolves relative paths (./VLC/vlc.exe) for users running off USB drives.
+    - [ ] Notice if the user types a folder path that looks like it belongs on a portable USB drive.
+    - [ ] Combine that portable path intelligently with wherever the tracking app is currently located.
+    - [ ] Check to make sure the video player actually exists in that exact folder before trying to open it.
+    - [ ] Save the path specifically in its portable format so the app still works if the USB drive gets a different letter next time.
+    - [ ] Give the user a friendly heads-up if they accidentally type the folder name wrong.
