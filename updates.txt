@@ -77,3 +77,5 @@ Update 8: Framer Motion Engine 1.5 Integration
 - Performance Scaling: Staggered entry animations are now strictly limited to the first 20 items in lists, with standard viewport fade-ins applied to subsequent items to handle 500+ item grids flawlessly without tanking the CPU.
 - Animation Lockout: Implemented an `isAnimatingRef` in `MediaDetails.tsx` for destructive 'Remove Show' events. It optimistically triggers the exit animation immediately and then fires the actual backend SQL cleanup cleanly without locking the UI.
 - Backend Sync: Built out the full cascading `delete_media_cmd` functionality in Rust, securely dropping all relational tracking rows from `History`, `Local_Files`, `Episodes` and wiping `cache` files from local storage on deletion.
+
+Update 9 [2026-03-13] - Performance Update: Implemented memory optimization layer (IntersectionObserver, SQLite Mutex, Release Strip).

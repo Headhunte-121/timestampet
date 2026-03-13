@@ -2,6 +2,7 @@ use regex::Regex;
 use rusqlite::{params, Connection, Result};
 use std::path::Path;
 use walkdir::WalkDir;
+use tauri::{AppHandle, Emitter};
 
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"];
 
@@ -40,8 +41,14 @@ pub fn parse_filename(filename: &str) -> (Option<String>, Option<i32>, Option<i3
     (None, None, None)
 }
 
-pub fn scan_directory(directory: &str, conn: &mut Connection) -> Result<i32> {
+#[derive(Clone, serde::Serialize)]
+struct MatchBatchPayload {
+    files: Vec<serde_json::Value>,
+}
+
+pub fn scan_directory(directory: &str, conn: &mut Connection, app_handle: &AppHandle) -> Result<i32> {
     let mut new_unmatched_count = 0;
+    let mut batch = Vec::new();
 
     let tx = conn.transaction()?;
 
@@ -157,24 +164,42 @@ pub fn scan_directory(directory: &str, conn: &mut Connection) -> Result<i32> {
 
                         let clean_group_key = group_key.map(|k| k.replace(&['.', '_'][..], " ").trim().to_string());
 
+                        let group_key_clone = clean_group_key.clone();
                         let res = tx.execute(
                             "INSERT INTO Unmatched_Files (file_path, filename, parsed_series, parsed_season, parsed_episode, group_key) VALUES (?, ?, ?, ?, ?, ?)",
                             params![
-                                str_path,
-                                filename,
-                                series_name,
-                                season_num,
-                                episode_num,
-                                clean_group_key
+                                &str_path,
+                                &filename,
+                                &series_name,
+                                &season_num,
+                                &episode_num,
+                                &clean_group_key
                             ],
                         );
                         if res.is_ok() {
                             new_unmatched_count += 1;
+                            batch.push(serde_json::json!({
+                                "file_path": str_path,
+                                "filename": filename,
+                                "parsed_series": series_name,
+                                "parsed_season": season_num,
+                                "parsed_episode": episode_num,
+                                "group_key": group_key_clone
+                            }));
                         }
+                    }
+
+                    if batch.len() >= 50 {
+                        let _ = app_handle.emit("scan-match-batch", MatchBatchPayload { files: batch.clone() });
+                        batch.clear();
                     }
                 }
             }
         }
+    }
+
+    if !batch.is_empty() {
+        let _ = app_handle.emit("scan-match-batch", MatchBatchPayload { files: batch });
     }
 
     tx.commit()?;

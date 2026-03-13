@@ -1,8 +1,12 @@
 use rusqlite::{Connection, Result};
 use std::path::PathBuf;
 use std::fs;
+use std::sync::{Mutex, MutexGuard};
+use std::sync::OnceLock;
 
 use directories::ProjectDirs;
+
+static DB_CONNECTION: OnceLock<Mutex<Connection>> = OnceLock::new();
 
 pub fn get_app_data_dir() -> PathBuf {
     let app_dir = if let Some(proj_dirs) = ProjectDirs::from("com", "WatchMark", "WatchMark") {
@@ -24,13 +28,29 @@ pub fn get_db_path() -> PathBuf {
     get_app_data_dir().join("watchmark.db")
 }
 
-pub fn get_db_connection() -> Result<Connection> {
-    let db_path = get_db_path();
-    let conn = Connection::open(db_path)?;
-    Ok(conn)
+pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::Error> {
+    if let Some(conn_mutex) = DB_CONNECTION.get() {
+        Ok(conn_mutex.lock().unwrap())
+    } else {
+        // Fallback or initialization if not set (should not happen if init_db is called first)
+        let db_path = get_db_path();
+        let conn = Connection::open(db_path)?;
+        let _ = conn.execute("PRAGMA cache_size = -2000;", ());
+        let mutex = Mutex::new(conn);
+        DB_CONNECTION.set(mutex).map_err(|_| rusqlite::Error::InvalidPath(Default::default()))?;
+        Ok(DB_CONNECTION.get().unwrap().lock().unwrap())
+    }
 }
 
 pub fn init_db() -> Result<()> {
+    if DB_CONNECTION.get().is_none() {
+        let db_path = get_db_path();
+        let conn = Connection::open(db_path)?;
+        // Apply PRAGMA tuning
+        conn.execute("PRAGMA cache_size = -2000;", ())?;
+        let _ = DB_CONNECTION.set(Mutex::new(conn));
+    }
+
     let conn = get_db_connection()?;
 
     conn.execute(
