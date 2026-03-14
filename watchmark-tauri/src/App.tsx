@@ -36,6 +36,10 @@ function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { isCinemaMode, initialized, initializeSettings } = useAppStore();
 
+  const isImporting = useTaskStore((state) => state.isImporting);
+  const importProgress = useTaskStore((state) => state.progress);
+  const importTotal = useTaskStore((state) => state.total);
+
   useEffect(() => {
     initializeSettings();
   }, [initializeSettings]);
@@ -168,10 +172,10 @@ function App() {
         {/* Progress Bar (Global) */}
         <div className="absolute top-0 left-0 w-full h-1 z-[100] pointer-events-none">
           <AnimatePresence>
-            {useTaskStore((state) => state.isImporting) && (
+            {isImporting && (
               <motion.div
                 initial={{ opacity: 0, scaleX: 0 }}
-                animate={{ opacity: 1, scaleX: useTaskStore((state) => state.total > 0 ? state.progress / 100 : 0) }}
+                animate={{ opacity: 1, scaleX: importTotal > 0 ? importProgress / 100 : 0 }}
                 exit={{ opacity: 0 }}
                 style={{ originX: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
