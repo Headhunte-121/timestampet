@@ -190,3 +190,7 @@
 | **Destination Overwrite Handle** | Rust Logic verification | **Pass.** The native `std::fs::remove_file` accurately precedes the queue insertion preventing strictly SQLite errors from `VACUUM INTO` attempting to write to an identical existing file name. |
 | **React State Wiring** | Visual/Manual | **Pass.** Validated the `handleBackupDB` function correctly formats date strings locally via JS and correctly maps native Tauri dialog parameters, toggling `isBackingUp` accurately to reveal standard loading elements. |
 | **Permission/Scope Binding** | Visual/Manual | **Pass.** Verified `dialog:default` natively handles filesystem writes cleanly via Tauri API bridging. |
+| `commands::restore_tests::test_fake_extension_rejection` | Pass | Rust | Verifies invalid SQLite file errors properly before staging for restore. |
+| `commands::restore_tests::test_valid_sqlite_staging` | Pass | Rust | Validates actual staging logic and flag creation. |
+| `commands::restore_tests::test_cold_swap_execution` | Pass | Rust | Tests renaming logic and fallback cleanup during cold swap. |
+| `commands::restore_tests::test_cold_swap_missing_pending_cleanup` | Pass | Rust | Simulates missing pending DB to ensure trigger is cleaned but main DB is untouched. |
