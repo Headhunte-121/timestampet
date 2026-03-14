@@ -281,3 +281,9 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **WebView Stabilization:** Addressed a Windows-specific WebView2 crash (where raw HTTP headers were dumped to the window output) by safely utilizing `try_state::<commands::AppState>()` inside early Tauri window lifecycle events, preventing unmanaged state panics.
 - **Custom Protocol Hardening:** Injected strict dynamic MIME type headers (`Content-Type`) into the `watchmark://` custom URI scheme responder, preventing WebView2 from occasionally corrupting the document DOM stream by interpreting raw binary chunks as text.
 - **Locking Performance:** Upgraded SQLite `busy_timeout` PRAGMAs to strictly use numeric types rather than strings, resolving a 15-second initialization deadlock.
+
+### Bug Fix: Tauri/Vite Proxy Misconfiguration
+- Resolved an issue where Tauri's internal proxy was throwing raw HTTP headers to the WebView2 engine instead of rendering the React application (`Access-Control-Allow-Origin: http://localhost:1420`).
+- This was resolved by fixing a path misalignment issue in the Vite configuration. Although the `index.html` was correctly positioned at the project root (`watchmark-tauri/index.html`), Vite's default root behavior occasionally conflicts with Tauri v2's proxy expectations.
+- Added `root: "."` directly to `vite.config.ts`, explicitly forcing Vite to serve the root directory to Tauri without ambiguity.
+- Ensured `tauri.conf.json` strictly matched via `devUrl: http://localhost:1420` eliminating the possibility of older `devPath` schema conflicts causing the WebView misfire.

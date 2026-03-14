@@ -206,3 +206,8 @@
 | "Mass Click" Logic (Queue burst) | Rust Unit Test (src/task_queue_tests.rs) | Pass |
 | Shutdown Timeout Guard (Drain) | Rust Unit Test (src/task_queue_tests.rs) | Pass |
 | Primary Key Collision Batch | Rust Unit Test (src/task_queue_tests.rs) | Pass |
+
+## TODO Bug Fix: Tauri/Vite Proxy Misconfiguration
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Ensure Vite build works correctly with explicitly defined root without breaking bundle outputs* | *Vite React Build Test (`npm run build` in `/watchmark-tauri`)* | *Pass - Output successfully bundled frontend resources to `dist/` without module resolution errors.* |
