@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Star } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
+import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 
 // Types matching the Rust backend structure
 interface Episode {
@@ -52,15 +53,18 @@ const PLACEHOLDER_POSTER = "https://images.unsplash.com/photo-1534447677768-be43
 export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery = "" }: { onMediaSelect: (id: number) => void, refreshTrigger: number, searchQuery?: string }) {
   const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<DashboardData | null>(null);
+  const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
-    invoke<DashboardData>("get_dashboard_data")
-      .then(setData)
+    asyncInvoke<DashboardData>("get_dashboard_data")
+      .then(res => {
+        if (res) setData(res);
+      })
       .catch((err) => {
         console.error("Failed to load dashboard data:", err);
         // Fallback or empty state if needed
       });
-  }, [refreshTrigger]);
+  }, [refreshTrigger, asyncInvoke]);
 
   if (!data) {
     // Skeleton Loading State

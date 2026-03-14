@@ -1,29 +1,32 @@
 import { useState, useEffect } from "react";
-import { invokeWithTimeout } from "../utils/ipc";
+import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 
 export default function History() {
   const [history, setHistory] = useState<any[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
     loadHistory(0, true);
-  }, []);
+  }, [asyncInvoke]);
 
   const loadHistory = async (pageNum: number, isInitial = false) => {
     if (loading) return;
     setLoading(true);
     try {
-      // Chunk loading with limit 100
-      const res: any = await invokeWithTimeout("fetch_history", { page: pageNum, pageSize: 100 });
-      if (isInitial) {
-        setHistory(res);
-      } else {
-        setHistory(prev => [...prev, ...res]);
+      // Chunk loading with limit 50 per requirement
+      const res: any = await asyncInvoke("fetch_history", { page: pageNum, pageSize: 50 });
+      if (res) {
+        if (isInitial) {
+          setHistory(res);
+        } else {
+          setHistory(prev => [...prev, ...res]);
+        }
+        setHasMore(res.length === 50);
+        setPage(pageNum);
       }
-      setHasMore(res.length === 100);
-      setPage(pageNum);
     } catch (e) {
       console.error(e);
     } finally {

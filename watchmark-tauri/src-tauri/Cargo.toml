@@ -52,3 +52,4 @@ keyring = { version = "3.6.3", features = ["windows-native", "linux-native", "ap
 base64 = "0.22.1"
 twox-hash = "2.1.2"
 fs3 = "0.5.0"
+tokio-util = "0.7.18"

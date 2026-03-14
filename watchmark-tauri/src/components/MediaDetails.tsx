@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { motion } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Lock } from "lucide-react";
 import { useUiStore } from "../store/uiStore";
+import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { toast } from "sonner";
 import { StarRating } from "./ui/StarRating";
 
@@ -14,6 +15,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const [showFullSynopsis, setShowFullSynopsis] = useState<boolean>(false);
   const isAnimatingRef = useRef(false);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, epId: number } | null>(null);
+  const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -45,15 +47,17 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   }, [mediaId, onBack, setProcessing]);
 
   useEffect(() => {
-    invoke("get_media_details_db", { mediaId })
+    asyncInvoke("get_media_details_db", { mediaId })
       .then((res: any) => {
-        setData(res);
-        if (res.seasons && res.seasons.length > 0) {
-           setActiveSeason(res.seasons[0]);
+        if (res) {
+          setData(res);
+          if (res.seasons && res.seasons.length > 0) {
+            setActiveSeason(res.seasons[0]);
+          }
         }
       })
       .catch(console.error);
-  }, [mediaId, refreshTrigger]);
+  }, [mediaId, refreshTrigger, asyncInvoke]);
 
   if (!data) {
     return (
@@ -193,7 +197,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               onClick={async () => {
                 try {
                   await invoke("mark_season_watched", { mediaId, seasonNum: activeSeason, archiveMode: false });
-                  invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+                  asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
                   toast.success(`Marked Season ${activeSeason} as Watched`);
                 } catch (e) {
                   toast.error(`Failed: ${e}`);
@@ -311,7 +315,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                                                         await invoke("update_local_file", { episodeId: ep.id, newPath: selected });
                                                         toast.success("File linked successfully!");
                                                         // Refresh data
-                                                        invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+                                                        asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
                                                         // Play new file
                                                         invoke("play_episode_cmd", {
                                                             episodeId: ep.id,
@@ -374,7 +378,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                         e.stopPropagation();
                         try {
                           await invoke("toggle_episode_status", { episodeId: ep.id });
-                          invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+                          asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
                         } catch (err) {
                           toast.error(`Failed to update status: ${err}`);
                         }
@@ -411,7 +415,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               try {
                 await invoke("remove_local_link", { episodeId: contextMenu.epId });
                 toast.success("Local link removed.");
-                invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+                asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
               } catch (e) {
                 toast.error(`Failed to remove link: ${e}`);
               }

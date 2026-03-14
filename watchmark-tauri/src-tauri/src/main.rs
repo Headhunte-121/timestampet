@@ -187,13 +187,19 @@ fn main() {
             log::info!("Tauri setup hook triggered. Initializing state...");
             let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new(app.handle().clone()));
 
+            let available_cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2);
+            let pool_size = (available_cores.saturating_sub(1)).max(1);
+
             app.manage(commands::AppState {
                 settings: app_backup_settings_arc,
                 settings_tx,
                 db_queue: db_queue.clone(),
                 is_maintenance_mode: std::sync::atomic::AtomicBool::new(false),
+                stats_cache: std::sync::Arc::new(std::sync::RwLock::new(None)),
+                read_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(pool_size)),
+                cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
             });
-            log::info!("AppState successfully managed by Tauri.");
+            log::info!("AppState successfully managed by Tauri. Thread pool restricted to {}", pool_size);
 
             #[cfg(test)]
             crate::backup_tests_module_trigger();
@@ -478,6 +484,7 @@ fn main() {
             });
         })
         .invoke_handler(tauri::generate_handler![
+            commands::cancel_task,
             commands::optimize_database,
             commands::repair_paths,
             commands::remove_local_link,

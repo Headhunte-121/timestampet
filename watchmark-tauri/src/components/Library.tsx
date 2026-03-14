@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
+import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 
 // Centralized Intersection Observer to avoid creating 500+ observers
 const lazyImageObserver = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
@@ -57,12 +57,15 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
   const [data, setData] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("Recently Added");
   const [hideCompleted, setHideCompleted] = useState(false);
+  const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
-    invoke("get_library_data", { mediaType: type, sortBy, hideCompleted })
-      .then((res: any) => setData(res))
+    asyncInvoke("get_library_data", { mediaType: type, sortBy, hideCompleted })
+      .then((res: any) => {
+        if (res) setData(res);
+      })
       .catch(console.error);
-  }, [type, sortBy, hideCompleted, refreshTrigger]);
+  }, [type, sortBy, hideCompleted, refreshTrigger, asyncInvoke]);
 
   const sortOptions = ["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated", "Sort by TMDB Rating"];
 

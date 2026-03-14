@@ -84,13 +84,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test SQLite `database is locked` error mitigation during rapid click events.
 - [x] Provide a fallback retry mechanism if a specific queued write fails.
 
-**1.11 Asynchronous multi-threaded read operations so the UI never blocks.** (Incomplete)
+**1.11 Asynchronous multi-threaded read operations so the UI never blocks.** (Complete)
 
-- [ ] Ensure pagination queries yield fast initial load times.
-- [ ] Handle edge cases where the user navigates away before a massive read completes.
-- [ ] Verify thread pool sizes do not exceed OS thread limits on low-end CPUs.
-- [ ] Test concurrent reads happening alongside background poster downloading.
-- [ ] Implement caching for highly repetitive reads (like global stats) to bypass DB entirely.
+- [x] Ensure pagination queries yield fast initial load times.
+- [x] Handle edge cases where the user navigates away before a massive read completes.
+- [x] Verify thread pool sizes do not exceed OS thread limits on low-end CPUs.
+- [x] Test concurrent reads happening alongside background poster downloading.
+- [x] Implement caching for highly repetitive reads (like global stats) to bypass DB entirely.
 
 **1.12 Strict NoneType/null data sanitization layer in Rust before data reaches React.** (Incomplete)
 

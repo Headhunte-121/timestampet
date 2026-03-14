@@ -246,6 +246,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
     )?;
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_history_timestamp ON History(timestamp DESC, id DESC)", ())?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)", ())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS Unmatched_Files (
@@ -438,6 +439,13 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         let tx = conn.transaction()?;
         let _ = tx.execute("UPDATE History SET session_id = NULL", ());
         tx.execute("PRAGMA user_version = 11", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 12 {
+        let tx = conn.transaction()?;
+        tx.execute("CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)", ())?;
+        tx.execute("PRAGMA user_version = 12", ())?;
         tx.commit()?;
     }
 

@@ -147,11 +147,26 @@ mod tests_feature_5_8 {
 
 use crate::task_queue::DbTaskQueue;
 
+use std::collections::HashMap;
+use tokio_util::sync::CancellationToken;
+
 pub struct AppState {
     pub settings: Arc<RwLock<Settings>>,
     pub settings_tx: mpsc::Sender<Settings>,
     pub db_queue: Arc<DbTaskQueue>,
     pub is_maintenance_mode: AtomicBool,
+    pub stats_cache: Arc<RwLock<Option<Value>>>,
+    pub read_semaphore: Arc<tokio::sync::Semaphore>,
+    pub cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
+}
+
+#[tauri::command]
+pub fn cancel_task(request_id: String, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    let mut tokens = state.cancel_tokens.write().unwrap();
+    if let Some(token) = tokens.remove(&request_id) {
+        token.cancel();
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -327,6 +342,10 @@ pub fn delete_media_cmd(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
     let db_queue = state.db_queue.clone();
+
+    if let Ok(mut cache) = state.stats_cache.write() {
+        *cache = None;
+    }
 
     // Instead of synchronous delete, we push it to the low priority queue
     db_queue.push_low_priority(move |conn| {
@@ -587,7 +606,7 @@ pub async fn add_to_tracker(
     archive: bool,
 ) -> Result<(), AppError> {
     let task = tokio::task::spawn_blocking(move || {
-        handle_panic(|| {
+        handle_panic(std::panic::AssertUnwindSafe(|| {
             let settings = crate::settings::load_settings()
                 .map_err(|e| AppError::Custom(e))?;
             if settings.tmdb_api_key.is_empty() {
@@ -874,7 +893,7 @@ pub async fn add_to_tracker(
         }
 
             Ok(())
-        })
+        }))
     });
 
     match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
@@ -884,7 +903,11 @@ pub async fn add_to_tracker(
 }
 
 #[tauri::command]
-pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: bool) -> Result<(), AppError> {
+pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: bool, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    if let Ok(mut cache) = state.stats_cache.write() {
+        *cache = None;
+    }
+
     tokio::task::spawn_blocking(move || {
         handle_panic(|| {
             let mut conn = crate::db::get_db_connection()?;
@@ -936,6 +959,10 @@ pub async fn archive_season(
     timestamp: Option<i64>,
 ) -> Result<(), AppError> {
     let db_queue = state.db_queue.clone();
+
+    if let Ok(mut cache) = state.stats_cache.write() {
+        *cache = None;
+    }
 
     tokio::task::spawn_blocking(move || {
         let app_clone1 = app.clone();
@@ -1008,9 +1035,21 @@ pub async fn archive_season(
 }
 
 #[tauri::command]
-pub fn get_dashboard_data() -> Result<Value, AppError> {
-    handle_panic(|| {
-        let conn = crate::db::get_readonly_connection()?;
+pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
+    let _permit = state.read_semaphore.acquire().await.unwrap();
+
+    let token = CancellationToken::new();
+    {
+        let mut tokens = state.cancel_tokens.write().unwrap();
+        tokens.insert(request_id.clone(), token.clone());
+    }
+
+    let cancel_tokens = state.cancel_tokens.clone();
+    let stats_cache = state.stats_cache.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        handle_panic(std::panic::AssertUnwindSafe(|| {
+            let conn = crate::db::get_readonly_connection()?;
 
         // 1. Hero Episode
         let mut hero_stmt = conn.prepare(
@@ -1184,60 +1223,97 @@ pub fn get_dashboard_data() -> Result<Value, AppError> {
         }
 
         // 4. Stats
-        let eps_watched: i32 = conn
-            .query_row(
-                "SELECT COUNT(*) as count FROM Episodes WHERE status = 'Completed'",
-                [],
-                |r| r.get(0),
-            )
-            .unwrap_or(0);
+        let cached_stats = {
+            let cache = stats_cache.read().unwrap();
+            cache.clone()
+        };
 
-        let hrs_watched: i32 = conn
-            .query_row(
-                "SELECT SUM(runtime) FROM Episodes WHERE status = 'Completed'",
-                [],
-                |r| r.get::<_, Option<i32>>(0).map(|v| v.unwrap_or(0) / 60),
-            )
-            .unwrap_or(0);
+        let stats = if let Some(s) = cached_stats {
+            s
+        } else {
+            let eps_watched: i32 = conn
+                .query_row(
+                    "SELECT COUNT(*) as count FROM History",
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap_or(0);
 
-        let shows_completed: i32 = conn
-            .query_row(
-                "SELECT COUNT(*) as c FROM Media WHERE status = 'Completed'",
-                [],
-                |r| r.get(0),
-            )
-            .unwrap_or(0);
+            let hrs_watched: i32 = conn
+                .query_row(
+                    "SELECT SUM(Episodes.runtime) FROM Episodes JOIN History ON Episodes.id = History.episode_id",
+                    [],
+                    |r| r.get::<_, Option<i32>>(0).map(|v| v.unwrap_or(0) / 60),
+                )
+                .unwrap_or(0);
 
-        let avg_rating: f64 = conn
-            .query_row(
-                "SELECT AVG(user_rating) FROM Media WHERE user_rating > 0",
-                [],
-                |r| r.get::<_, Option<f64>>(0).map(|v| v.unwrap_or(0.0)),
-            )
-            .unwrap_or(0.0);
+            let shows_completed: i32 = conn
+                .query_row(
+                    "SELECT COUNT(*) as c FROM Media WHERE status = 'Completed' OR (SELECT COUNT(*) FROM Episodes WHERE media_id = Media.id AND status = 'Completed') = Media.total_episodes",
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap_or(0);
+
+            let avg_rating: f64 = conn
+                .query_row(
+                    "SELECT AVG(user_rating) FROM Media WHERE user_rating > 0",
+                    [],
+                    |r| r.get::<_, Option<f64>>(0).map(|v| v.unwrap_or(0.0)),
+                )
+                .unwrap_or(0.0);
+
+            let new_stats = json!({
+                "eps_watched": eps_watched,
+                "hrs_watched": hrs_watched,
+                "shows_completed": shows_completed,
+                "avg_rating": avg_rating
+            });
+
+            if let Ok(mut cache) = stats_cache.write() {
+                *cache = Some(new_stats.clone());
+            }
+            new_stats
+        };
 
         Ok(json!({
             "hero_ep": hero_ep,
             "cw_eps": cw_eps,
             "recent_media": recent_media,
-            "stats": {
-                "eps_watched": eps_watched,
-                "hrs_watched": hrs_watched,
-                "shows_completed": shows_completed,
-                "avg_rating": avg_rating
-            }
+            "stats": stats
         }))
-    })
+        }))
+    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+    {
+        let mut tokens = cancel_tokens.write().unwrap();
+        tokens.remove(&request_id);
+    }
+
+    result
 }
 
 #[tauri::command]
 pub async fn get_library_data(
+    request_id: String,
     media_type: String,
     sort_by: String,
     hide_completed: bool,
+    state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Media>, AppError> {
-    tokio::task::spawn_blocking(move || {
-        handle_panic(|| {
+    let _permit = state.read_semaphore.acquire().await.unwrap();
+
+    let token = CancellationToken::new();
+    {
+        let mut tokens = state.cancel_tokens.write().unwrap();
+        tokens.insert(request_id.clone(), token.clone());
+    }
+
+    let cancel_tokens = state.cancel_tokens.clone();
+    let _stats_cache = state.stats_cache.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        handle_panic(std::panic::AssertUnwindSafe(|| {
             let conn = crate::db::get_readonly_connection()?;
 
             let mut base_query = "
@@ -1282,7 +1358,18 @@ pub async fn get_library_data(
             // Convert Vec<Box<dyn ToSql>> to a format rusqlite understands
             let param_refs: Vec<&dyn rusqlite::ToSql> = sql_params.iter().map(|p| p.as_ref()).collect();
 
-            let rows = stmt.query_map(rusqlite::params_from_iter(param_refs), |row| {
+            let mut media_list = Vec::new();
+            let mut rows = stmt.query(rusqlite::params_from_iter(param_refs))?;
+
+            let mut batch_count = 0;
+            while let Ok(Some(row)) = rows.next() {
+                if batch_count % 50 == 0 {
+                    if token.is_cancelled() {
+                        return Err(AppError::Custom("Task cancelled".to_string()));
+                    }
+                }
+                batch_count += 1;
+
                 let release_date: String = row.get(11)?;
                 let is_unaired = if !release_date.is_empty() {
                     let now = chrono::Utc::now().naive_utc().date();
@@ -1294,7 +1381,8 @@ pub async fn get_library_data(
                 } else {
                     false
                 };
-                Ok(Media {
+
+                media_list.push(Media {
                     id: row.get(0)?,
                     tmdb_id: row.get(1)?,
                     r#type: row.get(2)?,
@@ -1313,17 +1401,19 @@ pub async fn get_library_data(
                     last_watched: row.get(14)?,
                     min_year: row.get(15)?,
                     max_year: row.get(16)?,
-                })
-            })?;
-
-            let mut media_list = Vec::new();
-            for m in rows.flatten() {
-                media_list.push(m);
+                });
             }
 
             Ok(media_list)
-        })
-    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
+        }))
+    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+    {
+        let mut tokens = cancel_tokens.write().unwrap();
+        tokens.remove(&request_id);
+    }
+
+    result
 }
 
 #[tauri::command]
@@ -1407,9 +1497,19 @@ pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
 }
 
 #[tauri::command]
-pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<Vec<Value>, AppError> {
-    tokio::task::spawn_blocking(move || {
-        handle_panic(|| {
+pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Option<u32>, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+    let _permit = state.read_semaphore.acquire().await.unwrap();
+
+    let token = CancellationToken::new();
+    {
+        let mut tokens = state.cancel_tokens.write().unwrap();
+        tokens.insert(request_id.clone(), token.clone());
+    }
+
+    let cancel_tokens = state.cancel_tokens.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        handle_panic(std::panic::AssertUnwindSafe(|| {
             let conn = crate::db::get_readonly_connection()?;
             let limit = page_size.unwrap_or(100);
             let offset = page.unwrap_or(0) * limit;
@@ -1429,7 +1529,16 @@ pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<
 
             let mut history = Vec::new();
             let mut rows = stmt.query(params![limit, offset])?;
+
+            let mut batch_count = 0;
             while let Ok(Some(row)) = rows.next() {
+                if batch_count % 50 == 0 {
+                    if token.is_cancelled() {
+                        return Err(AppError::Custom("Task cancelled".to_string()));
+                    }
+                }
+                batch_count += 1;
+
                 let session_id: Option<String> = row.get(2)?;
                 let ts: i64 = row.get(1)?;
                 let runtime: i32 = row.get(14)?;
@@ -1502,8 +1611,15 @@ pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<
             }
 
             Ok(grouped_history)
-        })
-    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
+        }))
+    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+    {
+        let mut tokens = cancel_tokens.write().unwrap();
+        tokens.remove(&request_id);
+    }
+
+    result
 }
 
 #[tauri::command]
@@ -1531,9 +1647,19 @@ pub async fn run_scan_directory(
 }
 
 #[tauri::command]
-pub async fn perform_tmdb_search(query: String) -> Result<Vec<Value>, AppError> {
+pub async fn perform_tmdb_search(request_id: String, query: String, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+    let _permit = state.read_semaphore.acquire().await.unwrap();
+
+    let token = CancellationToken::new();
+    {
+        let mut tokens = state.cancel_tokens.write().unwrap();
+        tokens.insert(request_id.clone(), token.clone());
+    }
+
+    let cancel_tokens = state.cancel_tokens.clone();
+
     let task = tokio::task::spawn_blocking(move || {
-        handle_panic(|| {
+        handle_panic(std::panic::AssertUnwindSafe(|| {
             let settings = crate::settings::load_settings()
                 .map_err(|e| AppError::Custom(e))?;
             if settings.tmdb_api_key.is_empty() {
@@ -1543,23 +1669,33 @@ pub async fn perform_tmdb_search(query: String) -> Result<Vec<Value>, AppError> 
             }
             crate::tmdb::search_media(&settings.tmdb_api_key, &query)
                 .map_err(|e| AppError::Custom(e.to_string()))
-        })
+        }))
     });
 
-    match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
+    let result = match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
         Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
         Err(_) => Err(AppError::Custom("Task Timed Out".to_string())),
+    };
+
+    {
+        let mut tokens = cancel_tokens.write().unwrap();
+        tokens.remove(&request_id);
     }
+
+    result
 }
 
 #[tauri::command]
 pub async fn assign_unmatched_to_tracker(
+    request_id: String,
     tmdb_id: String,
     media_type: String,
     group_key: String,
+    state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
+    let cancel_tokens = state.cancel_tokens.clone();
     let task = tokio::task::spawn_blocking(move || {
-        handle_panic(|| {
+        handle_panic(std::panic::AssertUnwindSafe(|| {
             let settings = crate::settings::load_settings()
                 .map_err(|e| AppError::Custom(e))?;
             if settings.tmdb_api_key.is_empty() {
@@ -1859,18 +1995,25 @@ pub async fn assign_unmatched_to_tracker(
         }
 
             Ok(())
-        })
+        }))
     });
 
-    match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
+    let result = match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
         Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
         Err(_) => Err(AppError::Custom("Task Timed Out".to_string())),
+    };
+
+    {
+        let mut tokens = cancel_tokens.write().unwrap();
+        tokens.remove(&request_id);
     }
+
+    result
 }
 
 #[tauri::command]
-pub fn toggle_episode_status(episode_id: i32) -> Result<(), AppError> {
-    handle_panic(|| {
+pub fn toggle_episode_status(episode_id: i32, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    handle_panic(std::panic::AssertUnwindSafe(|| {
         let conn = get_db_connection()?;
 
         // Fetch current status
@@ -1910,8 +2053,12 @@ pub fn toggle_episode_status(episode_id: i32) -> Result<(), AppError> {
             )?;
         }
 
+        if let Ok(mut cache) = state.stats_cache.write() {
+            *cache = None;
+        }
+
         Ok(())
-    })
+    }))
 }
 
 #[cfg(test)]
@@ -1938,6 +2085,10 @@ pub async fn update_media_rating(
 
     let db_queue = state.db_queue.clone();
     db_queue.push_high_priority_action(crate::task_queue::DbAction::UpdateMediaRating(media_id, rating));
+
+    if let Ok(mut cache) = state.stats_cache.write() {
+        *cache = None;
+    }
 
     Ok(())
 }

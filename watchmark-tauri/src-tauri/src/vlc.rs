@@ -219,6 +219,9 @@ pub async fn play_episode_cmd(
     last_position: i32,
     state: tauri::State<'_, crate::commands::AppState>,
 ) -> Result<(), AppError> {
+    if let Ok(mut cache) = state.stats_cache.write() {
+        *cache = None;
+    }
     if state.is_maintenance_mode.load(std::sync::atomic::Ordering::SeqCst) {
         return Err(AppError::Custom("System Busy: Maintenance mode is currently active.".to_string()));
     }
