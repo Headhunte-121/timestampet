@@ -14,7 +14,7 @@ async fn test_feature_3_2_api_key_sanitization() {
     let state = AppState {
         settings,
         settings_tx: tx,
-        db_queue: Arc::new(crate::task_queue::DbTaskQueue::new()),
+        db_queue: Arc::new(crate::task_queue::DbTaskQueue::new_for_tests()),
         is_maintenance_mode: AtomicBool::new(false),
         is_api_authorized: AtomicBool::new(true),
         stats_cache: Arc::new(RwLock::new(None)),

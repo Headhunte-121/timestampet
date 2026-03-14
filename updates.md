@@ -335,3 +335,14 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 ### Rust Backend Fixes
 - **Commands Sync:** Fixed missing `__cmd__save_settings` compiler error by adding the `#[tauri::command]` attribute back to the `save_settings` function in `src-tauri/src/commands.rs`.
 - **Queue Logic:** Fixed `state.db_queue.clear()` compiler error by adding a `.clear()` method to `DbTaskQueue` in `src-tauri/src/task_queue.rs`. Note that due to `std::sync::mpsc::Sender` constraints, this serves as a logging placeholder while task cancellation effectively relies on the atomic `is_api_authorized` lock interceptor.
+
+
+
+### Fix Compilation Errors in perform_tmdb_search (Task 1.11 Support)
+- Fixed borrowing lifetime issues (`E0505`, `E0521`) inside the `tokio::task::spawn` in `perform_tmdb_search`.
+- Cloned `tauri::AppHandle` and extracted `AppState` dynamically within the spawned task to safely mutate `is_api_authorized` and `db_queue` states.
+- Re-implemented the `tokio::select!` block inside the spawned task to correctly race the TMDB network request against the `CancellationToken` (Task 1.11).
+- Addressed dead code warnings in `models::Stats` and `models::DashboardData` by adding `#[allow(dead_code)]` decorators.
+- Fixed test compilation failures by properly initializing `is_api_authorized` in `commands_tests_optimize` and `commands_tests_tmdb_auth`.
+
+

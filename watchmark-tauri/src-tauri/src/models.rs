@@ -242,6 +242,7 @@ pub struct HistoryEntry {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[allow(dead_code)]
 pub struct Stats {
     pub eps_watched: i32,
     pub hrs_watched: i32,
@@ -250,6 +251,7 @@ pub struct Stats {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[allow(dead_code)]
 pub struct DashboardData {
     pub hero_ep: Option<Episode>,
     #[serde(default)]

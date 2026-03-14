@@ -276,3 +276,11 @@
 | The "Type and Delete" Bug: Clear key resets to neutral state | Manual UI Verification | Pass (Debounce handles empty strings returning to neutral) |
 | Mid-Sync Revocation: Global lockdown on 401 | Manual UI Verification | Pass (api-auth-failed emitted, buttons disabled instantly) |
 | Account Suspension & Rate Limiting HTTP logic | Manual UI Verification | Pass (Yellow AlertTriangle and auto-retry countdown) |
+
+## TODO [Fix Borrowing and Escape Errors in perform_tmdb_search]
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| Ensure `cargo check` passes without `E0505` and `E0521` | Rust Compiler Check (`cargo check`) | Pass |
+| Ensure `cargo test` passes and `AppState` mock instances compile | Rust Unit Tests (`cargo test`) | Pass |
+| Ensure `is_api_authorized` and `db_queue` mutation compiles safely in a `'static` background thread | Rust Compiler Check | Pass |
+| Ensure unused code warnings for `models.rs` and other warnings are addressed | Rust Compiler Warnings | Pass |
