@@ -1,3 +1,5 @@
+/* WATCHMARK STANDARD PATTERN: All asynchronous data commands MUST implement requestId for cancellation support and pagination (page/limit) for UI performance. Follow this signature for all future connections to maintain Phase 1 & 2 integrity. */
+
 use crate::db::get_db_connection;
 use crate::error::{handle_panic, AppError};
 use crate::models::{Media, Settings, UnmatchedFile};
@@ -1422,6 +1424,7 @@ pub async fn get_library_data(
     media_type: String,
     sort_by: String,
     hide_completed: bool,
+    page: Option<u32>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Media>, AppError> {
     let _permit = state.read_semaphore.acquire().await.unwrap();
@@ -1475,6 +1478,13 @@ pub async fn get_library_data(
             };
 
             base_query.push_str(order_by);
+
+            // Apply pagination if provided
+            if let Some(p) = page {
+                let limit: u32 = 50; // Standard pagination limit
+                let offset: u32 = p * limit;
+                base_query.push_str(&format!(" LIMIT {} OFFSET {}", limit, offset));
+            }
 
             let mut stmt = conn.prepare(&base_query)?;
 
@@ -1785,7 +1795,7 @@ pub async fn run_scan_directory(
 }
 
 #[tauri::command]
-pub async fn perform_tmdb_search(request_id: String, query: String, page: u32, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+pub async fn perform_tmdb_search(request_id: String, query: String, page: Option<u32>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
     if !state.is_api_authorized.load(Ordering::SeqCst) {
         return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
     }
@@ -1819,11 +1829,13 @@ pub async fn perform_tmdb_search(request_id: String, query: String, page: u32, a
 
         let api_key = settings.tmdb_api_key;
 
+        let p = page.unwrap_or(1);
+
         tokio::select! {
             _ = token.cancelled() => {
                 Err(AppError::Custom("Search Task Cancelled".to_string()))
             }
-            res = crate::tmdb::search_media(&api_key, &query, page) => {
+            res = crate::tmdb::search_media(&api_key, &query, p) => {
                 match res {
                     Ok(results) => Ok(results),
                     Err(e) => {
