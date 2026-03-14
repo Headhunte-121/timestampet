@@ -3062,7 +3062,7 @@ This document represents the complete functional blueprint and state of the Watc
 
 **25.2 Manual DB Backup Action: A button opening a native OS dialog to save a copy of the database to Documents.** (Incomplete)
 
-- [ ] Add a clear 'Export Backup' button to the advanced settings page.
+- [ ] Wire up the 'Backup DB' button in the System settings tab.
 - [ ] Open a standard folder selection window when the user clicks the button.
 - [ ] Suggest a clear file name automatically, like 'WatchMark-Backup-2024.db'.
 - [ ] Copy the database over to their chosen folder safely and instantly.
@@ -3070,7 +3070,7 @@ This document represents the complete functional blueprint and state of the Watc
 
 **25.3 Manual DB Restore Action: Safely overwrite the active DB from a backup file with a restart prompt.** (Incomplete)
 
-- [ ] Add an 'Import Backup' button right next to the export button.
+- [ ] Add and wire up an 'Import Backup' button in the System settings tab.
 - [ ] Let the user pick a backup file from their computer using a standard file window.
 - [ ] Show a strong warning explaining that restoring a backup will erase their current progress.
 - [ ] Close the app automatically and swap the database files quietly in the background.
@@ -3078,7 +3078,7 @@ This document represents the complete functional blueprint and state of the Watc
 
 **25.4 VACUUM Optimizer: A "Clean Database" button that runs SQLite vacuum and analyze routines to shrink file size.** (Incomplete)
 
-- [ ] Put a 'Clean Up Space' button inside the database settings section.
+- [ ] Wire up the 'Vacuum DB' button in the System settings tab.
 - [ ] Run a deep optimization process to delete hidden leftover data and shrink the file size.
 - [ ] Show a spinning loading icon while the cleaning process runs so the user knows it is working.
 - [ ] Lock the rest of the app briefly so nothing breaks while the files are being organized.
