@@ -182,12 +182,12 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             still_path TEXT,
             overview TEXT,
             watch_count INTEGER DEFAULT 0,
-            last_position INTEGER DEFAULT 0,
+            last_position INTEGER NOT NULL DEFAULT 0,
             status TEXT DEFAULT 'Unwatched',
             completed_date TEXT,
             air_date TEXT,
             is_exact_date BOOLEAN DEFAULT 1,
-                is_air_date_manual BOOLEAN DEFAULT 0,
+            is_air_date_manual BOOLEAN DEFAULT 0,
             FOREIGN KEY (media_id) REFERENCES Media (id) ON DELETE CASCADE,
             UNIQUE(media_id, season_num, ep_num)
         )",
@@ -392,6 +392,24 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         let tx = conn.transaction()?;
         tx.execute("CREATE INDEX IF NOT EXISTS idx_media_tmdb_rating ON Media(vote_average)", ())?;
         tx.execute("PRAGMA user_version = 9", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 10 {
+        let tx = conn.transaction()?;
+        // The column already exists in the CREATE TABLE Episodes statement (added as INTEGER DEFAULT 0),
+        // but if we are migrating an existing database, we need to add it via ALTER TABLE.
+        let v10_migrations = vec![
+            "ALTER TABLE Episodes ADD COLUMN last_position INTEGER NOT NULL DEFAULT 0",
+        ];
+        for query in v10_migrations {
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(crate::error::AppError::DbError(e));
+                }
+            }
+        }
+        tx.execute("PRAGMA user_version = 10", ())?;
         tx.commit()?;
     }
 

@@ -620,13 +620,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test formatting to strictly one decimal place when returned to the UI.
 - [x] Ensure queries can sort by this value without crashing on nulls.
 
-**5.12 last_position integer column for sub-episode pause tracking.** (Incomplete)
+**5.12 last_position integer column for sub-episode pause tracking.** (Complete)
 
-- [ ] Ensure default value is strictly 0 on episode insertion.
-- [ ] Handle edge cases where last_position exceeds the stored total runtime.
-- [ ] Verify this column resets strictly to 0 if the episode is manually marked complete.
-- [ ] Test updating this value rapidly via the background VLC HTTP poller.
-- [ ] Ensure UI progress bars calculate width based on `(last_position / runtime) * 100`.
+- [x] Ensure default value is strictly 0 on episode insertion.
+- [x] Handle edge cases where last_position exceeds the stored total runtime.
+- [x] Verify this column resets strictly to 0 if the episode is manually marked complete.
+- [x] Test updating this value rapidly via the background VLC HTTP poller.
+- [x] Ensure UI progress bars calculate width based on `(last_position / runtime) * 100`.
 
 **5.13 session_id mapping column for grouping binges.** (Incomplete)
 

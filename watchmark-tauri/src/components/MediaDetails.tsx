@@ -165,8 +165,18 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                 <Play fill="currentColor" /> Play Next
               </button>
             )}
-            <button className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full backdrop-blur-md transition-all hover:scale-105">
-              Mark All Watched
+            <button
+              onClick={async () => {
+                try {
+                  await invoke("mark_season_watched", { mediaId, seasonNum: activeSeason, archiveMode: false });
+                  invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+                  toast.success(`Marked Season ${activeSeason} as Watched`);
+                } catch (e) {
+                  toast.error(`Failed: ${e}`);
+                }
+              }}
+              className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full backdrop-blur-md transition-all hover:scale-105">
+              Mark Season Watched
             </button>
             <button
               onClick={async () => {
@@ -315,18 +325,38 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     )}
                  </div>
                  {ep.status === "Watching" && ep.runtime > 0 && (
-                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10">
-                        <div
-                            className="h-full bg-[#FF6B00]"
-                            style={{ width: `${Math.min(100, (ep.last_position / (ep.runtime * 60)) * 100)}%` }}
-                        />
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10 flex">
+                        {(() => {
+                          const progress = Math.min(100, (ep.last_position / (ep.runtime * 60)) * 100);
+                          if (progress <= 0) return null;
+                          return (
+                            <div
+                                className="h-full"
+                                style={{
+                                  width: `${progress}%`,
+                                  minWidth: "2px",
+                                  backgroundColor: progress >= 90 ? "#1b5e20" : "#FF6B00"
+                                }}
+                            />
+                          );
+                        })()}
                     </div>
                  )}
                </div>
 
                <div className="flex-1">
                  <div className="flex items-center gap-4 mb-1">
-                    <button className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${ep.status === 'Completed' ? 'border-green-500 bg-green-500/20 text-green-500' : 'border-gray-600 hover:border-green-500 hover:bg-green-500/20'}`}>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await invoke("toggle_episode_status", { episodeId: ep.id });
+                          invoke("get_media_details_db", { mediaId }).then((res: any) => setData(res));
+                        } catch (err) {
+                          toast.error(`Failed to update status: ${err}`);
+                        }
+                      }}
+                      className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${ep.status === 'Completed' ? 'border-green-500 bg-green-500/20 text-green-500' : 'border-gray-600 hover:border-green-500 hover:bg-green-500/20'}`}>
                       {ep.status === 'Completed' ? "✓" : <div className="w-3 h-3 rounded-full bg-transparent" />}
                     </button>
                     <h3 className={`text-xl font-bold transition-colors ${ep.status === 'Completed' ? 'text-gray-400 font-normal' : 'text-white group-hover:text-[#FF6B00]'}`}>

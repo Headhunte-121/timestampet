@@ -225,3 +225,10 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Rendered a specific "NR" (Not Rated) badge with distinct styling for new shows returning `0.0`, preventing misleading 0/10 scores.
 - Added "Sort by TMDB Rating" filter option to the `Library.tsx` interface and connected it to the backend `get_library_data` logic using `DESC NULLS LAST` ordering.
 - Created `idx_media_tmdb_rating` SQLite index in `PRAGMA user_version = 9` migration to optimize massive library sorting performance.
+
+### Update Feature 5.12: Resume Playback
+- **Database Schema:** Bumped `PRAGMA user_version` to 10 and implemented `last_position INTEGER NOT NULL DEFAULT 0` within the `Episodes` table.
+- **VLC Throttling & Clamping:** Enhanced `vlc_heartbeat` to clamp `last_position` dynamically preventing overshoots, while batching writes intelligently on pause events, >30s scrubbing, or every 5-minutes avoiding excessive SSD locking.
+- **UI Progress Parity:** Enforced mathematical consistency in React computing progress percentage dynamically, complete with a persistent 2px fallback for extremely minor viewing slivers and an automated green success-shift when >90% watched.
+- **Auto-Complete Zone Logic:** Upgraded the heartbeat poller to ignore stale resume states globally inside the 10-second threshold bounds guaranteeing seamless auto-completion flows at file closure.
+- **Strict Manual Reset:** Upgraded API endpoints ensuring any toggled status change immediately forces `last_position = 0` explicitly blocking stuck memory on repeat viewings.

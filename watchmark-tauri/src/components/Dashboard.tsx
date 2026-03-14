@@ -99,7 +99,8 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
   // Derived progress logic
   const calculateProgress = (lastPos: number, runtimeMins: number) => {
     if (runtimeMins <= 0) return 0;
-    return Math.min(100, (lastPos / (runtimeMins * 60)) * 100);
+    const progress = (lastPos / (runtimeMins * 60)) * 100;
+    return Math.min(100, progress);
   };
 
   const filteredCW = data.cw_eps?.filter(ep =>
@@ -174,11 +175,21 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             </div>
 
             {data.hero_ep.status === "Watching" && data.hero_ep.runtime > 0 && (
-              <div className="w-64 h-1.5 bg-white/20 rounded-full mt-6 overflow-hidden">
-                <div
-                  className="h-full bg-[#FF6B00] rounded-full"
-                  style={{ width: `${calculateProgress(data.hero_ep.last_position, data.hero_ep.runtime)}%` }}
-                />
+              <div className="w-64 h-1.5 bg-white/20 rounded-full mt-6 overflow-hidden flex">
+                {(() => {
+                  const progress = calculateProgress(data.hero_ep.last_position, data.hero_ep.runtime);
+                  if (progress <= 0) return null;
+                  return (
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${progress}%`,
+                        minWidth: "2px",
+                        backgroundColor: progress >= 90 ? "#1b5e20" : "#FF6B00"
+                      }}
+                    />
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -236,11 +247,15 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     </button>
                   </div>
 
-                  {ep.status === "Watching" && ep.runtime > 0 && (
-                    <div className="h-1 w-full bg-white/10">
+                  {ep.status === "Watching" && ep.runtime > 0 && progress > 0 && (
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20 flex">
                       <div
-                        className="h-full bg-[#FF6B00]"
-                        style={{ width: `${progress}%` }}
+                        className="h-full"
+                        style={{
+                          width: `${progress}%`,
+                          minWidth: "2px",
+                          backgroundColor: progress >= 90 ? "#1b5e20" : "#FF6B00"
+                        }}
                       />
                     </div>
                   )}

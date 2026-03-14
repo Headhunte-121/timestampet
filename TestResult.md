@@ -146,3 +146,12 @@
 | 5.11 vote_average caching | Column forcibly overwritten on 'Refresh Data' | Pass | Manual / Rust | Confirmed `ON CONFLICT DO UPDATE SET vote_average=excluded.vote_average` in backend handles TMDB changes natively. |
 | 5.11 vote_average caching | Strictly one decimal place in UI | Pass | React UI | Updated `MediaDetails.tsx` applying `Number(val).toFixed(1)` rendering. Handled `0.0` gracefully with specific "NR" UI badge. |
 | 5.11 vote_average caching | Sort by this value without crashing on nulls | Pass | Rust Test | `test_mixed_null_library_sorting` explicitly verified `DESC NULLS LAST` logic correctly sorts `9.0, 8.5, 0.0, NULL`. |
+## TODO 5.12 Resume Playback (last_position)
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| **The "Fresh Library" Test** | Rust Unit Test (`db_tests.rs/test_fresh_library_zero_default`) | **Pass.** Verified that explicitly omitting the field inserts default `0`. |
+| **Null-Attempt Guard** | Rust Database Schema Verification | **Pass.** The database schema strictly defines `NOT NULL DEFAULT 0` for `last_position`, preventing UI math breaks gracefully. |
+| **The "Long Credits" Bug** | Rust Logic Verification (`vlc.rs/vlc_heartbeat`) | **Pass.** Implemented dynamic `max_seconds` logical clamping within `vlc_heartbeat` keeping limits perfectly bounded beneath the known total runtime. |
+| **The "Watch-Unwatch-Watch" Loop** | Backend `toggle_episode_status` Inspection | **Pass.** Safely mapped `last_position = 0` universally on ALL status updates regardless of toggling "Watched" or "Unwatched". |
+| **The "Scrubbing" Test** | VLC Polling Write-Throttling Logic | **Pass.** `vlc_heartbeat` tracks `last_written_time_seconds` and triggers commits explicitly upon jump > 30s or Paused, effectively throttling writes safely. |
+| **Rounding Error Check** | React Progress Bar Calculation | **Pass.** Handled mathematical division in `calculateProgress` using `Math.min(100, progress)` with a safe 0 bounds fallback enforcing a `minWidth: "2px"` CSS standard properly visualising any > 0 amount. |
