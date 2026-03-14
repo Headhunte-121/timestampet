@@ -192,3 +192,11 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Designed dynamic directional tracking allowing for negative duration reporting for "Early Watch" occurrences.
 - Integrated accurate defaults when air times are omitted by falling back to assumed midnights.
 - Configured frontend React component (`History.tsx`) to render visually distinct badges depending on the time capsule object.
+
+## TODO 5.9 is_legacy boolean flag for handling archived/backdated history
+- Added the `is_legacy` boolean strictly defaulting to 0 (false) for real-time natural watching.
+- Ensured legacy rows can be safely updated (e.g. QoL date editing) without the `is_legacy` status being silently overwritten or destroyed.
+- Implemented frontend React conditional rendering in `History.tsx` to display legacy items with 60% opacity "muted" styling, an "ARCHIVED" badge, and bypassing the expandable accordion pause logs.
+- Engineered a background Task Queue (`task_queue.rs`) utilizing `std::sync::mpsc` channels to seamlessly perform low-priority mass insertions of 500+ legacy rows.
+- Refactored `archive_season` to automatically backdate and spread legacy imports 24 hours apart, starting from the 1st of the month, successfully escaping database `is locked` deadlocks.
+- Verified analytics counting stats directly query the database seamlessly ignoring `is_legacy`, so lifetime "Total Episodes Watched" dynamically integrates archives natively.

@@ -4,6 +4,7 @@ use crate::models::{HistoryEntry, Media, Settings, UnmatchedFile};
 use rusqlite::params;
 use serde_json::{json, Value};
 use std::sync::{Arc, RwLock};
+use tauri::Emitter;
 use chrono::{Local, TimeZone, NaiveDate, Datelike};
 
 fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value> {
@@ -123,9 +124,12 @@ mod tests_feature_5_8 {
     }
 }
 
+use crate::task_queue::DbTaskQueue;
+
 pub struct AppState {
     pub settings: Arc<RwLock<Settings>>,
     pub settings_tx: mpsc::Sender<Settings>,
+    pub db_queue: Arc<DbTaskQueue>,
 }
 
 #[tauri::command]
@@ -624,6 +628,87 @@ pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: b
             Ok(())
         })
     }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
+}
+
+#[tauri::command]
+pub async fn archive_season(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    media_id: i32,
+    season_num: u32,
+    is_legacy: bool,
+    timestamp: Option<i64>,
+) -> Result<(), AppError> {
+    let db_queue = state.db_queue.clone();
+
+    tokio::task::spawn_blocking(move || {
+        let app_clone1 = app.clone();
+        handle_panic(std::panic::AssertUnwindSafe(move || {
+            let app = app_clone1;
+            let conn = get_db_connection()?;
+            let mut episode_ids = Vec::new();
+
+            {
+                let mut stmt = conn.prepare("SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? ORDER BY ep_num ASC")?;
+                let mut rows = stmt.query(params![media_id, season_num])?;
+                while let Ok(Some(row)) = rows.next() {
+                    episode_ids.push(row.get::<_, i32>(0).unwrap_or(0));
+                }
+            }
+
+            if episode_ids.is_empty() {
+                return Ok(());
+            }
+
+            let total_episodes = episode_ids.len();
+            let base_timestamp = timestamp.unwrap_or_else(|| chrono::Utc::now().timestamp());
+            let start_timestamp = if is_legacy {
+                use chrono::{DateTime, Utc, TimeZone, Datelike};
+                if let Some(dt) = Utc.timestamp_opt(base_timestamp, 0).single() {
+                    if let Some(first_of_month) = dt.with_day(1) {
+                        first_of_month.timestamp()
+                    } else {
+                        base_timestamp
+                    }
+                } else {
+                    base_timestamp
+                }
+            } else {
+                base_timestamp
+            };
+
+            let _ = app.emit("history-import-progress", json!({ "progress": 0, "total": total_episodes, "isImporting": true }));
+
+            for (i, ep_id) in episode_ids.into_iter().enumerate() {
+                let current_ep_timestamp = start_timestamp + (i as i64 * 86400);
+                let app_clone = app.clone();
+                let current_idx = i + 1;
+
+                db_queue.push_low_priority(move |conn| {
+                    let _ = conn.execute(
+                        "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1 WHERE id = ?",
+                        params![ep_id]
+                    );
+
+                    let session_id = uuid::Uuid::new_v4().to_string();
+                    let legacy_int = if is_legacy { 1 } else { 0 };
+
+                    let _ = conn.execute(
+                        "INSERT INTO History (episode_id, timestamp, is_legacy, session_id, status) VALUES (?, ?, ?, ?, 'Completed')",
+                        params![ep_id, current_ep_timestamp, legacy_int, session_id]
+                    );
+
+                    let progress_percent = (current_idx as f64 / total_episodes as f64 * 100.0) as i32;
+                    let is_importing = current_idx < total_episodes;
+                    let _ = app_clone.emit("history-import-progress", json!({ "progress": progress_percent, "total": total_episodes, "isImporting": is_importing }));
+                });
+            }
+
+            Ok::<(), AppError>(())
+        }))
+    }).await.unwrap_or_else(|_| Err(AppError::Custom("Task panicked".to_string())))?;
+
+    Ok(())
 }
 
 #[tauri::command]

@@ -10,6 +10,7 @@ mod scanner;
 mod settings;
 mod tmdb;
 mod vlc;
+pub mod task_queue;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -77,10 +78,13 @@ fn main() {
 
     let (settings_tx, mut settings_rx) = tokio::sync::mpsc::channel::<models::Settings>(100);
 
+    let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new());
+
     tauri::Builder::default()
         .manage(commands::AppState {
             settings: std::sync::Arc::new(std::sync::RwLock::new(initial_settings)),
             settings_tx,
+            db_queue: db_queue.clone(),
         })
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
@@ -303,6 +307,7 @@ fn main() {
             commands::get_media_details_db,
             commands::add_to_tracker,
             commands::mark_season_watched,
+            commands::archive_season,
             commands::get_dashboard_data,
             commands::get_library_data,
             commands::clear_unmatched_files,

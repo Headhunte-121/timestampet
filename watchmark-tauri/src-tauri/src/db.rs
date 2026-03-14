@@ -361,6 +361,24 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         tx.commit()?;
     }
 
+    if user_version < 7 {
+        let tx = conn.transaction()?;
+        let v7_migrations = vec![
+            "ALTER TABLE History ADD COLUMN is_legacy INTEGER NOT NULL DEFAULT 0",
+        ];
+        for query in v7_migrations {
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(crate::error::AppError::DbError(e));
+                }
+            }
+        }
+        // Ensure legacy rows that were added before are 0 by default if null
+        let _ = tx.execute("UPDATE History SET is_legacy = 0 WHERE is_legacy IS NULL", ());
+        tx.execute("PRAGMA user_version = 7", ())?;
+        tx.commit()?;
+    }
+
     Ok(())
 }
 

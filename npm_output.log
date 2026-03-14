@@ -1,0 +1,10 @@
+
+> watchmark-tauri@0.1.0 dev
+> vite
+
+
+  VITE v7.3.1  ready in 344 ms
+
+  ➜  Local:   http://localhost:1420/
+12:33:40 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
+12:34:51 AM [vite] (client) hmr update /src/index.css, /src/components/SearchTMDB.tsx, /src/components/History.tsx, /src/components/SettingsView.tsx, /src/components/InboxView.tsx

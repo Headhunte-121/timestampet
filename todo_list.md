@@ -596,13 +596,13 @@ This document represents the complete functional blueprint and state of the Watc
 -[x] Test updating this column gracefully without overwriting local manual changes.
 -[x] Verify leap year air dates do not cause day-offset bugs.
 
-**5.9 is_legacy boolean flag for handling archived/backdated history.** (Incomplete)
+**5.9 is_legacy boolean flag for handling archived/backdated history.** (Complete)
 
-- [ ] Ensure this flag strictly defaults to 0 (false) for real-time natural watching.
-- [ ] Handle edge cases where a legacy row is modified; does it stay legacy?
-- [ ] Verify the UI timeline parser bypasses expandable accordion logic for legacy items.
-- [ ] Test mass-insertion of 500 legacy rows ensuring database locks are avoided.
-- [ ] Ensure analytics/stats math still correctly counts legacy rows.
+- [x] Ensure this flag strictly defaults to 0 (false) for real-time natural watching.
+- [x] Handle edge cases where a legacy row is modified; does it stay legacy?
+- [x] Verify the UI timeline parser bypasses expandable accordion logic for legacy items.
+- [x] Test mass-insertion of 500 legacy rows ensuring database locks are avoided.
+- [x] Ensure analytics/stats math still correctly counts legacy rows.
 
 **5.10 user_rating integer column for 1-5 star personal scores.** (Incomplete)
 
