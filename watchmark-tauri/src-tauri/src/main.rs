@@ -18,6 +18,10 @@ mod backup;
 mod backup_tests;
 
 #[cfg(test)]
+#[path = "restore_tests.rs"]
+mod restore_tests;
+
+#[cfg(test)]
 fn backup_tests_module_trigger() {}
 
 use tauri::{
@@ -27,6 +31,47 @@ use tauri::{
 };
 use tauri_plugin_notification::NotificationExt;
 use native_dialog::{MessageDialog, MessageType};
+
+pub fn execute_cold_swap(app_dir: &std::path::Path) {
+    let trigger_file_path = app_dir.join(".restore_pending");
+
+    if trigger_file_path.exists() {
+        let db_dir = app_dir.join("db");
+        let active_db_path = db_dir.join("watchmark.db");
+        let pending_db_path = db_dir.join("watchmark.db.pending");
+        let old_db_path = db_dir.join("watchmark.db.old");
+
+        // Only proceed if the pending database was successfully staged
+        if pending_db_path.exists() {
+            // Move active to .old (overwrite if exists)
+            if active_db_path.exists() {
+                let _ = std::fs::rename(&active_db_path, &old_db_path);
+            }
+
+            // Move pending to active
+            if let Err(e) = std::fs::rename(&pending_db_path, &active_db_path) {
+                // Critical failure during rename. Attempt to revert.
+                if old_db_path.exists() {
+                    let _ = std::fs::rename(&old_db_path, &active_db_path);
+                }
+
+                let error_msg = format!("Fatal Error: Database Restore Failed during cold-swap. Changes reverted.\n\nError details: {}", e);
+                MessageDialog::new()
+                    .set_type(MessageType::Error)
+                    .set_title("WatchMark - Restore Error")
+                    .set_text(&error_msg)
+                    .show_alert()
+                    .unwrap();
+            } else {
+                // Success! Clean up the trigger file.
+                let _ = std::fs::remove_file(&trigger_file_path);
+            }
+        } else {
+            // Trigger file exists but pending DB is missing. Corrupt state. Clean up flag.
+            let _ = std::fs::remove_file(&trigger_file_path);
+        }
+    }
+}
 
 fn canary_check() -> Result<(), std::io::Error> {
     let app_dir = db::get_app_data_dir();
@@ -69,45 +114,7 @@ fn main() {
     }
 
     // Cold-Swap Database Restore Logic
-    let app_dir = db::get_app_data_dir();
-    let trigger_file_path = app_dir.join(".restore_pending");
-
-    if trigger_file_path.exists() {
-        let db_dir = app_dir.join("db");
-        let active_db_path = db_dir.join("watchmark.db");
-        let pending_db_path = db_dir.join("watchmark.db.pending");
-        let old_db_path = db_dir.join("watchmark.db.old");
-
-        // Only proceed if the pending database was successfully staged
-        if pending_db_path.exists() {
-            // Move active to .old (overwrite if exists)
-            if active_db_path.exists() {
-                let _ = std::fs::rename(&active_db_path, &old_db_path);
-            }
-
-            // Move pending to active
-            if let Err(e) = std::fs::rename(&pending_db_path, &active_db_path) {
-                // Critical failure during rename. Attempt to revert.
-                if old_db_path.exists() {
-                    let _ = std::fs::rename(&old_db_path, &active_db_path);
-                }
-
-                let error_msg = format!("Fatal Error: Database Restore Failed during cold-swap. Changes reverted.\n\nError details: {}", e);
-                MessageDialog::new()
-                    .set_type(MessageType::Error)
-                    .set_title("WatchMark - Restore Error")
-                    .set_text(&error_msg)
-                    .show_alert()
-                    .unwrap();
-            } else {
-                // Success! Clean up the trigger file.
-                let _ = std::fs::remove_file(&trigger_file_path);
-            }
-        } else {
-            // Trigger file exists but pending DB is missing. Corrupt state. Clean up flag.
-            let _ = std::fs::remove_file(&trigger_file_path);
-        }
-    }
+    execute_cold_swap(&db::get_app_data_dir());
 
     db::init_db().expect("Failed to initialize database");
 

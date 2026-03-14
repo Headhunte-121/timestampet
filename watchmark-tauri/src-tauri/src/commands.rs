@@ -295,19 +295,13 @@ pub fn delete_media_cmd(
     Ok(())
 }
 
-#[tauri::command]
-pub async fn prepare_restore(
-    backup_path: String,
-    app_handle: tauri::AppHandle,
-) -> Result<(), AppError> {
-    let backup_path_buf = std::path::PathBuf::from(&backup_path);
-
-    if !backup_path_buf.exists() {
+pub fn validate_and_stage_restore(backup_path: &std::path::Path, app_dir: &std::path::Path) -> Result<(), AppError> {
+    if !backup_path.exists() {
         return Err(AppError::Custom("Backup file does not exist".to_string()));
     }
 
     // Pragma Check: verify it's a valid SQLite database
-    match rusqlite::Connection::open_with_flags(&backup_path_buf, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) {
+    match rusqlite::Connection::open_with_flags(backup_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) {
         Ok(conn) => {
             let mut stmt = conn.prepare("PRAGMA integrity_check")
                 .map_err(|e| AppError::Custom(format!("Failed to prepare integrity check: {}", e)))?;
@@ -328,18 +322,33 @@ pub async fn prepare_restore(
     }
 
     // Prepare paths
-    let app_dir = crate::db::get_app_data_dir();
     let db_dir = app_dir.join("db");
+    if !db_dir.exists() {
+        std::fs::create_dir_all(&db_dir).map_err(|e| AppError::Custom(format!("Failed to create db dir: {}", e)))?;
+    }
     let pending_db_path = db_dir.join("watchmark.db.pending");
     let trigger_file_path = app_dir.join(".restore_pending");
 
     // Copy to pending path
-    std::fs::copy(&backup_path_buf, &pending_db_path)
+    std::fs::copy(backup_path, &pending_db_path)
         .map_err(|e| AppError::Custom(format!("Failed to stage backup file (possibly out of space): {}", e)))?;
 
     // Create trigger file
     std::fs::write(&trigger_file_path, b"pending_restore")
         .map_err(|e| AppError::Custom(format!("Failed to write restore trigger flag: {}", e)))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn prepare_restore(
+    backup_path: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), AppError> {
+    let backup_path_buf = std::path::PathBuf::from(&backup_path);
+    let app_dir = crate::db::get_app_data_dir();
+
+    validate_and_stage_restore(&backup_path_buf, &app_dir)?;
 
     // Delay restart slightly to allow the frontend to receive the success response
     // and prevent throwing an IPC error that triggers the catch block

@@ -255,3 +255,10 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **Dialog Wiring**: Wired Tauri's `@tauri-apps/plugin-dialog` to launch standard OS Save File dialogs utilizing `documentDir` as a fallback, pre-filling a structured suggestion (e.g., `WatchMark-Backup-YYYY-MM-DD.db`), restricted specifically to `.db` or `.sqlite` formats.
 - **High-Priority Atomic Copy**: Engineered an async `export_database` Rust command specifically pushing the SQLite `VACUUM INTO ?` SQL instruction exclusively into the `High Priority` DbTaskQueue, guaranteeing a pristine, non-corrupt snapshot.
 - **Overwrite Safety**: Included a strict OS `fs::remove_file` catch immediately preceding execution to prevent standard `VACUUM INTO` operations natively from crashing when presented with existing identically-named destination files.
+
+### Feature 25.3: Manual DB Restore (Completed)
+- Added a full cold-swap architecture to bypass OS file-locking constraints on Windows when replacing the active SQLite database.
+- Implemented `prepare_restore` which stages the backup file at `watchmark.db.pending` and drops a `.restore_pending` trigger file into the app data root.
+- The Tauri Boot Sequence (`main.rs`) now checks for this trigger before initializing `rusqlite` and renames the files (`.old`, `.pending` -> `watchmark.db`) to ensure atomicity.
+- Included an extensive React UI "Danger Zone" block with a "Type RESTORE" confirmation modal. Added safety interlocks in `useTaskStore` (`isScanning`, `isBackingUp`) to prevent the user from performing a restore while database writes are active.
+- Integrated `localStorage` persistence before restart to guarantee a celebratory notification is emitted upon boot.
