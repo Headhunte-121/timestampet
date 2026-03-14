@@ -22,6 +22,10 @@ mod backup_tests;
 mod restore_tests;
 
 #[cfg(test)]
+#[path = "task_queue_tests.rs"]
+mod task_queue_tests;
+
+#[cfg(test)]
 fn backup_tests_module_trigger() {}
 
 use tauri::{
@@ -134,26 +138,44 @@ fn main() {
 
     let (settings_tx, mut settings_rx) = tokio::sync::mpsc::channel::<models::Settings>(100);
 
-    let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new());
-
     // Spawn Background Backup Task
     let backup_settings_arc = std::sync::Arc::new(std::sync::RwLock::new(initial_settings.clone()));
     let app_backup_settings_arc = backup_settings_arc.clone();
 
     tauri::Builder::default()
-        .manage(commands::AppState {
-            settings: app_backup_settings_arc,
-            settings_tx,
-            db_queue: db_queue.clone(),
-            is_maintenance_mode: std::sync::atomic::AtomicBool::new(false),
-        })
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .setup(|app| {
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let state = window.state::<commands::AppState>();
+                let db_queue = state.db_queue.clone();
+                let app_handle = window.app_handle().clone();
+
+                api.prevent_close(); // Prevent immediate exit
+                let (tx, rx) = tokio::sync::oneshot::channel();
+                db_queue.shutdown(tx);
+
+                tauri::async_runtime::spawn(async move {
+                    // Wait for maximum 2 seconds for worker thread to drain
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), rx).await;
+                    app_handle.exit(0);
+                });
+            }
+        })
+        .setup(move |app| {
+            let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new(app.handle().clone()));
+
+            app.manage(commands::AppState {
+                settings: app_backup_settings_arc,
+                settings_tx,
+                db_queue: db_queue.clone(),
+                is_maintenance_mode: std::sync::atomic::AtomicBool::new(false),
+            });
+
             #[cfg(test)]
             crate::backup_tests_module_trigger();
 

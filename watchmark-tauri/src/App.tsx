@@ -87,9 +87,20 @@ function App() {
       }
     );
 
+    const unlistenDbFailed = listen("db-write-failed", () => {
+        toast.error(
+            <div>
+                <strong>Database Sync Issue</strong>
+                <p>A change failed to save after 3 attempts. Your data is safe, but this action needs a retry.</p>
+            </div>,
+            { duration: 8000, style: { background: "#b71c1c", color: "#ffffff", border: "none" } }
+        );
+    });
+
     return () => {
       unlisten.then(fn => fn());
       unlistenProgress.then(fn => fn());
+      unlistenDbFailed.then(fn => fn());
     };
   }, []);
 

@@ -199,3 +199,10 @@
 | Test Case | Method | Result |
 | :--- | :--- | :--- |
 | Verify optimization blocks when maintenance mode is active | Rust Unit Test (src-tauri/src/commands_tests_optimize.rs) | Pass |
+
+## TODO 1.10 Single-thread centralized Task Queue
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| "Mass Click" Logic (Queue burst) | Rust Unit Test (src/task_queue_tests.rs) | Pass |
+| Shutdown Timeout Guard (Drain) | Rust Unit Test (src/task_queue_tests.rs) | Pass |
+| Primary Key Collision Batch | Rust Unit Test (src/task_queue_tests.rs) | Pass |

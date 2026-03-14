@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests_feature_25_1 {
     use std::fs;
-    use std::path::PathBuf;
+
     use crate::backup::prune_backups;
 
     #[test]

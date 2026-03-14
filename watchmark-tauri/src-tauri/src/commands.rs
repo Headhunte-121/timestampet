@@ -1,12 +1,11 @@
 use crate::db::get_db_connection;
 use crate::error::{handle_panic, AppError};
-use crate::models::{HistoryEntry, Media, Settings, UnmatchedFile};
+use crate::models::{Media, Settings, UnmatchedFile};
 use rusqlite::params;
 use serde_json::{json, Value};
 use std::sync::{Arc, RwLock};
 use tauri::Emitter;
 use chrono::{Local, TimeZone, NaiveDate, Datelike};
-use tauri::Manager;
 
 fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value> {
     if air_date_str.is_empty() {
@@ -311,7 +310,7 @@ pub async fn save_settings(
 #[tauri::command]
 pub fn get_media_history_count(media_id: i32) -> Result<i32, AppError> {
     handle_panic(|| {
-        let conn = crate::db::get_db_connection()?;
+        let conn = crate::db::get_readonly_connection()?;
         let count: i32 = conn.query_row(
             "SELECT COUNT(*) FROM History WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id = ?)",
             rusqlite::params![media_id],
@@ -458,7 +457,7 @@ pub async fn export_database(
 #[tauri::command]
 pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
     handle_panic(|| {
-        let conn = get_db_connection()?;
+        let conn = crate::db::get_readonly_connection()?;
 
         let mut stmt = conn.prepare("SELECT * FROM Media WHERE id=?")?;
         let mut media: Option<Value> = None;
@@ -960,7 +959,7 @@ pub async fn archive_season(
             let total_episodes = episode_ids.len();
             let base_timestamp = timestamp.unwrap_or_else(|| chrono::Utc::now().timestamp());
             let start_timestamp = if is_legacy {
-                use chrono::{DateTime, Utc, TimeZone, Datelike};
+                use chrono::{Utc, TimeZone, Datelike};
                 if let Some(dt) = Utc.timestamp_opt(base_timestamp, 0).single() {
                     if let Some(first_of_month) = dt.with_day(1) {
                         first_of_month.timestamp()
@@ -1011,7 +1010,7 @@ pub async fn archive_season(
 #[tauri::command]
 pub fn get_dashboard_data() -> Result<Value, AppError> {
     handle_panic(|| {
-        let conn = get_db_connection()?;
+        let conn = crate::db::get_readonly_connection()?;
 
         // 1. Hero Episode
         let mut hero_stmt = conn.prepare(
@@ -1239,7 +1238,7 @@ pub async fn get_library_data(
 ) -> Result<Vec<Media>, AppError> {
     tokio::task::spawn_blocking(move || {
         handle_panic(|| {
-            let conn = get_db_connection()?;
+            let conn = crate::db::get_readonly_connection()?;
 
             let mut base_query = "
                 SELECT m.*,
@@ -1340,6 +1339,7 @@ pub fn clear_unmatched_files() -> Result<(), AppError> {
 #[tauri::command]
 pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
     handle_panic(|| {
+        // Must use read_write since it auto-prunes
         let mut conn = get_db_connection()?;
         let mut files = Vec::new();
 
@@ -1410,7 +1410,7 @@ pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
 pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<Vec<Value>, AppError> {
     tokio::task::spawn_blocking(move || {
         handle_panic(|| {
-            let conn = get_db_connection()?;
+            let conn = crate::db::get_readonly_connection()?;
             let limit = page_size.unwrap_or(100);
             let offset = page.unwrap_or(0) * limit;
 
@@ -1937,14 +1937,7 @@ pub async fn update_media_rating(
     }
 
     let db_queue = state.db_queue.clone();
-    db_queue.push_high_priority(move |conn| {
-        if let Err(e) = conn.execute(
-            "UPDATE Media SET user_rating = ? WHERE id = ?",
-            params![rating, media_id],
-        ) {
-            log::error!("Failed to update user_rating for media {}: {}", media_id, e);
-        }
-    });
+    db_queue.push_high_priority_action(crate::task_queue::DbAction::UpdateMediaRating(media_id, rating));
 
     Ok(())
 }
