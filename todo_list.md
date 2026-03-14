@@ -92,13 +92,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test concurrent reads happening alongside background poster downloading.
 - [x] Implement caching for highly repetitive reads (like global stats) to bypass DB entirely.
 
-**1.12 Strict NoneType/null data sanitization layer in Rust before data reaches React.** (Incomplete)
+**1.12 Strict NoneType/null data sanitization layer in Rust before data reaches React.** (Complete)
 
-- [ ] Map all missing TMDB dates to a safe default instead of null crashing UI components.
-- [ ] Ensure empty string descriptions do not collapse layout margins in React.
-- [ ] Handle edge cases where expected integers (like `runtime`) return as null or 0 from DB.
-- [ ] Provide placeholder arrays for empty history or library results.
-- [ ] Test deeply nested JSON serialization ensuring no unexpected `undefined` bubbles up.
+- [x] Map all missing TMDB dates to a safe default instead of null crashing UI components.
+- [x] Ensure empty string descriptions do not collapse layout margins in React.
+- [x] Handle edge cases where expected integers (like `runtime`) return as null or 0 from DB.
+- [x] Provide placeholder arrays for empty history or library results.
+- [x] Test deeply nested JSON serialization ensuring no unexpected `undefined` bubbles up.
 
 **1.13 Auto-generation of local application data directories on first boot.** (Complete)
 

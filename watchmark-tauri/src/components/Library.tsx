@@ -149,7 +149,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
               <h3 className="text-white font-bold leading-tight mb-1">{item.title}</h3>
               <p className="text-xs text-gray-300 mb-2">
-                {item.release_date ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : "Unknown"}
+                {item.is_date_known ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-gray-400">TBD</span>}
               </p>
 
               <div className="flex items-center gap-1 text-[#FF6B00] text-sm font-bold mb-1">

@@ -12,6 +12,11 @@ mod tmdb;
 mod vlc;
 pub mod task_queue;
 mod backup;
+mod sanitizer;
+
+#[cfg(test)]
+#[path = "sanitizer_tests.rs"]
+mod sanitizer_tests;
 
 #[cfg(test)]
 #[path = "backup_tests.rs"]

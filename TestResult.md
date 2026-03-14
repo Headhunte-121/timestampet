@@ -240,3 +240,17 @@
 | *The "New Library" Storm (Concurrent reads/writes in WAL mode)* | *Rust Unit Test (src-tauri/src/task_queue_tests.rs: `test_mass_click_logic_serialization`)* | *Pass* |
 | *The "Stale Stats" Check (Cache invalidation upon episode watch/unwatch)* | *Rust Endpoint tests for `get_dashboard_data` write-through invalidation* | *Pass* |
 | *Tab Switching Speed (Dashboard loads instantly via Cache)* | *Rust `stats_cache` Implementation & manual validation* | *Pass* |
+
+## Feature 1.12: Strict NoneType/null data sanitization layer in Rust
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| **The "Year Only" API Bug** | Rust Unit Test (`sanitizer_tests.rs/test_year_only_api_bug`) | **Pass.** Safely mapped `2025` to `2025-01-01` ensuring frontend date formatters do not crash while accurately flagging `is_exact_date` as false. |
+| **Historic Date Boundary** | Rust Unit Test (`sanitizer_tests.rs/test_historic_date_boundary`) | **Pass.** Ensured `1890-05-12` evaluates correctly without triggering false "TBD" flags from epoch bounds limitations. |
+| **The "Space-Only" Payload** | Rust Unit Test (`sanitizer_tests.rs/test_space_only_payload`) | **Pass.** Implemented regex `.trim()` scrubbing replacing invisible newlines strictly with `No overview available.` |
+| **HTML Tag Injection** | Rust Unit Test (`sanitizer_tests.rs/test_html_tag_injection`) | **Pass.** Replaced raw `<p></p>` metadata injections dynamically preventing React flexbox containers from collapsing. |
+| **The "0-Minute" Short** | Rust Unit Test (`sanitizer_tests.rs/test_zero_minute_short`) | **Pass.** Safely intercepted division operations where `runtime` equals 0 returning 0.0 mathematically instead of `NaN` UI corruption. |
+| **Negative Runtime Guard** | Rust Unit Test (`sanitizer_tests.rs/test_negative_runtime_guard`) | **Pass.** Clamped corrupted negative DB entries (e.g., `-50`) preventing negative progress bars. |
+| **First-Boot Dashboard** | Rust Unit Test (`sanitizer_tests.rs/test_first_boot_dashboard`) | **Pass.** Forced complete object initialization on empty datasets providing `[]` directly skipping null exceptions on frontend `.map()` loops. |
+| **Filter-to-Zero** | Rust Unit Test (`sanitizer_tests.rs/test_filter_to_zero`) | **Pass.** Simulated nested mapping proving empty structures yield valid empty arrays rather than `null`. |
+| **Orphaned Local File** | Rust Unit Test (`sanitizer_tests.rs/test_orphaned_local_file`) | **Pass.** Validated deeply nested deserialization guarantees graceful defaults (like `""` for files) over missing rows. |
+| **TMDB "Special" Season** | Rust Unit Test (`sanitizer_tests.rs/test_tmdb_special_season`) | **Pass.** Mapped missing metadata dynamically generating secure defaults rather than dropping the season object during nested serialization. |

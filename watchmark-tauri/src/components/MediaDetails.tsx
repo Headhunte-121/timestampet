@@ -131,7 +131,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <span className={`px-3 py-1 rounded-md backdrop-blur-md text-white ${data.type === 'Unknown' ? 'bg-red-500/80' : 'bg-white/10'}`}>
               {data.type}
             </span>
-            <span className="text-gray-300">Aired: {data.release_date ? (data.is_exact_date ? data.release_date : data.release_date.substring(0, 4)) : "Unknown"}</span>
+            <span className="text-gray-300">Aired: {data.is_date_known ? (data.is_exact_date ? data.release_date : data.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-gray-400">TBD</span>}</span>
             <span className="flex items-center gap-1 text-[#F5C518] bg-black/50 px-3 py-1 rounded-full min-w-[70px] justify-center text-center">
               {data.vote_average === null || data.vote_average === undefined ? (
                 <span className="font-bold text-gray-400 tracking-widest text-[10px] px-1">NO DATA</span>
@@ -291,7 +291,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                       <div className="w-12 h-12 rounded-full bg-gray-700/80 flex items-center justify-center text-white shadow-lg cursor-not-allowed group/tooltip relative">
                         <Lock className="w-5 h-5" />
                         <div className="absolute -top-10 scale-0 group-hover/tooltip:scale-100 transition-transform bg-black text-white text-xs px-3 py-1 rounded-md whitespace-nowrap">
-                          {ep.air_date ? `Airing ${ep.air_date}` : 'Unaired'}
+                          {ep.is_date_known ? `Airing ${ep.air_date}` : 'Unaired / TBD'}
                         </div>
                       </div>
                     ) : (
