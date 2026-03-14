@@ -243,3 +243,9 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **Asynchronous Teardown:** Refactored standard Tauri UI synchronous media deletion (`delete_media_cmd`) into an asynchronous task queued strictly within the Background Worker's Low Priority channel. This explicitly neutralizes UI locks and freeze frames previously caused by waiting for the standard SQLite thread handler to tear down massive datasets (e.g. 50,000+ History entries).
 - **Processing State UI:** Implemented a rich, native "Processing..." `ProcessingModal` utilizing standard Framer Motion layout configurations to blur and disable the UI cleanly. Listens strictly for Rust's global `media-deleted` payload channel avoiding frontend race conditions entirely.
 - **Industrial Integrity Tests:** Expanded Rust database unit tests matching standard requirements strictly assessing missing/malformed `PRAGMA foreign_keys = ON` execution constraints, Deep Tree mass relation cascading, and specific structural raw SQL Orphan Pass query executions guaranteeing table alignment unconditionally.
+
+### Feature 25.1: Automated SQLite Backups
+- **Backup Logic**: Added background Tokio task checking `last_backup_timestamp` periodically and executing `VACUUM INTO` over SQLite database file into `backups/watchmark_YYYY-MM-DD_HH-MM.bak` to ensure clean atomic copy without halting app operation.
+- **Retention Logic**: Added automatic pruning feature to strictly retain only 3 recent backups in the data folder.
+- **Safeguards**: Employed `fs3` to enforce 10MB free disk space requirement before vacuums to prevent disk corruption.
+- **UI Updates**: Configured frontend `SettingsView` via IPC listener updates showing 'Last automated backup' status labels.
