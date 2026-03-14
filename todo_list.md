@@ -232,13 +232,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Verify user-agent headers are explicitly set to prevent API blocking.
 - [x] Test behavior when the host OS firewall entirely blocks the application.
 
-**3.2 On-the-fly TMDB API Key validation.** (Incomplete)
+**3.2 On-the-fly TMDB API Key validation.** (Complete)
 
-- [ ] Provide instant visual feedback (Green Check / Red X) in the Settings UI when entering a key.
-- [ ] Handle whitespace or accidental hidden characters pasted into the key field.
-- [ ] Ensure invalid keys instantly halt all background API requests to prevent bans.
-- [ ] Test edge cases where the API key is valid but the TMDB account is rate-limited.
-- [ ] Display clear instructions/links for users to obtain their own API key.
+- [x] Provide instant visual feedback (Green Check / Red X) in the Settings UI when entering a key.
+- [x] Handle whitespace or accidental hidden characters pasted into the key field.
+- [x] Ensure invalid keys instantly halt all background API requests to prevent bans.
+- [x] Test edge cases where the API key is valid but the TMDB account is rate-limited.
+- [x] Display clear instructions/links for users to obtain their own API key.
 
 **3.3 Multi-search API endpoint integration for mixed TV/Movie results.** (Incomplete)
 

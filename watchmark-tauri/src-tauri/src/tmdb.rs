@@ -16,6 +16,42 @@ pub fn get_poster_cache_dir() -> PathBuf {
     dir
 }
 
+pub async fn validate_key(api_key: &str) -> Result<bool, AppError> {
+    let url = format!("{}/configuration", TMDB_API_BASE);
+
+    // Call the lightweight configuration endpoint
+    let res = NETWORK_MANAGER.external_client
+        .get(&url)
+        .query(&[("api_key", api_key)])
+        .send()
+        .await;
+
+    match res {
+        Ok(response) => {
+            if response.status().is_success() {
+                Ok(true)
+            } else if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+                Ok(false)
+            } else if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                // Return a specific error type for rate limiting so the caller can retry
+                // Parse the Retry-After header
+                let mut retry_after = 1; // Default to 1 second if header is missing
+                if let Some(val) = response.headers().get("Retry-After") {
+                    if let Ok(str_val) = val.to_str() {
+                        if let Ok(secs) = str_val.parse::<u64>() {
+                            retry_after = secs;
+                        }
+                    }
+                }
+                Err(AppError::Custom(format!("RATE_LIMIT:{}", retry_after)))
+            } else {
+                Err(crate::network::NetworkManager::handle_error(reqwest_middleware::Error::Reqwest(response.error_for_status().unwrap_err())))
+            }
+        }
+        Err(e) => Err(crate::network::NetworkManager::handle_error(e)),
+    }
+}
+
 pub async fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, AppError> {
     let url = format!("{}/search/multi", TMDB_API_BASE);
 

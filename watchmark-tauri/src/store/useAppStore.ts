@@ -4,13 +4,17 @@ import { invoke } from '@tauri-apps/api/core';
 interface AppState {
   isCinemaMode: boolean;
   initialized: boolean;
+  isApiAuthorized: boolean;
   setCinemaMode: (mode: boolean) => Promise<void>;
+  setApiAuthorized: (authorized: boolean) => void;
   initializeSettings: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   isCinemaMode: true,
   initialized: false,
+  isApiAuthorized: true,
+  setApiAuthorized: (authorized: boolean) => set({ isApiAuthorized: authorized }),
   setCinemaMode: async (mode: boolean) => {
     set({ isCinemaMode: mode });
     // Note: We intentionally do not auto-save to the backend here.

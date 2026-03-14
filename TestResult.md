@@ -266,3 +266,13 @@
 | *Firewall Os 10013 / 403 Forbidden handling* | *Rust Logic (`src/network.rs` - `map_reqwest_error`)* | *Pass - Correctly converts to `AppError::NetworkBlocked` payload `{"code":"BLOCKED"}`.* |
 | *Exponential Backoff Circuit Breaker* | *Rust Logic (`src/network.rs` - `RetryTransientMiddleware`)* | *Pass - Applies `ExponentialBackoff` limited to exactly 3 retries max for 503/server drops on the `external_client`.* |
 | *User-Agent Header compliance* | *Rust Logic (`src/network.rs`)* | *Pass - Correctly injects `WatchMark/2.0 (Windows; Desktop; +https://github.com/your-repo)`.* |
+
+## TODO 3.2
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| API Key Sanitization stripping whitespace & hidden chars | Rust Unit Test (src/commands_tests_tmdb_auth.rs) | Pass |
+| Rate Limit Retry Math (Regex logic for RATE_LIMIT:15 header delay) | Rust Unit Test (src/commands_tests_tmdb_auth.rs) | Pass |
+| The "Newline" Paste & Leading Space sanitization check in UI input | Manual UI Verification | Pass (Sanitized key overwrites UI instantly) |
+| The "Type and Delete" Bug: Clear key resets to neutral state | Manual UI Verification | Pass (Debounce handles empty strings returning to neutral) |
+| Mid-Sync Revocation: Global lockdown on 401 | Manual UI Verification | Pass (api-auth-failed emitted, buttons disabled instantly) |
+| Account Suspension & Rate Limiting HTTP logic | Manual UI Verification | Pass (Yellow AlertTriangle and auto-retry countdown) |
