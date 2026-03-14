@@ -254,3 +254,15 @@
 | **Filter-to-Zero** | Rust Unit Test (`sanitizer_tests.rs/test_filter_to_zero`) | **Pass.** Simulated nested mapping proving empty structures yield valid empty arrays rather than `null`. |
 | **Orphaned Local File** | Rust Unit Test (`sanitizer_tests.rs/test_orphaned_local_file`) | **Pass.** Validated deeply nested deserialization guarantees graceful defaults (like `""` for files) over missing rows. |
 | **TMDB "Special" Season** | Rust Unit Test (`sanitizer_tests.rs/test_tmdb_special_season`) | **Pass.** Mapped missing metadata dynamically generating secure defaults rather than dropping the season object during nested serialization. |
+
+## TODO 3.1 Secure HTTP requests via Rust reqwest (Ultra-Stable Network Engine)
+
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Expired Certificate Simulation (Reject standard HTTP requests to external)* | *Rust Unit Test (`src/network_tests.rs` - `test_https_enforcement`)* | *Pass* |
+| *Structured Error Mapping (JSON format)* | *Rust Unit Test (`src/network_tests.rs` - `test_error_mapping`)* | *Pass* |
+| *VLC Loopback HTTP Permitted* | *Rust Unit Test (`src/network_tests.rs` - `test_local_client_allows_http`)* | *Pass* |
+| *Hanging Socket Timeout Verification* | *Rust Logic (`src/network.rs` - `connect_timeout`)* | *Pass - NetworkManager properly sets a strict 5s connection timeout limit mapping to `AppError::NetworkTimeout`.* |
+| *Firewall Os 10013 / 403 Forbidden handling* | *Rust Logic (`src/network.rs` - `map_reqwest_error`)* | *Pass - Correctly converts to `AppError::NetworkBlocked` payload `{"code":"BLOCKED"}`.* |
+| *Exponential Backoff Circuit Breaker* | *Rust Logic (`src/network.rs` - `RetryTransientMiddleware`)* | *Pass - Applies `ExponentialBackoff` limited to exactly 3 retries max for 503/server drops on the `external_client`.* |
+| *User-Agent Header compliance* | *Rust Logic (`src/network.rs`)* | *Pass - Correctly injects `WatchMark/2.0 (Windows; Desktop; +https://github.com/your-repo)`.* |

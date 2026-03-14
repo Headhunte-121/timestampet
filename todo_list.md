@@ -224,13 +224,13 @@ This document represents the complete functional blueprint and state of the Watc
 
 ## 🌐 Part 3: TMDB Metadata & Syncing (Incomplete)
 
-**3.1 Secure HTTP requests via Rust reqwest.** (Incomplete)
+**3.1 Secure HTTP requests via Rust reqwest.** (Complete)
 
-- [ ] Ensure strict TLS/SSL validation is enforced for all API calls.
-- [ ] Handle connection timeouts gracefully on slow networks.
-- [ ] Implement exponential backoff retry logic for temporary network drops.
-- [ ] Verify user-agent headers are explicitly set to prevent API blocking.
-- [ ] Test behavior when the host OS firewall entirely blocks the application.
+- [x] Ensure strict TLS/SSL validation is enforced for all API calls.
+- [x] Handle connection timeouts gracefully on slow networks.
+- [x] Implement exponential backoff retry logic for temporary network drops.
+- [x] Verify user-agent headers are explicitly set to prevent API blocking.
+- [x] Test behavior when the host OS firewall entirely blocks the application.
 
 **3.2 On-the-fly TMDB API Key validation.** (Incomplete)
 

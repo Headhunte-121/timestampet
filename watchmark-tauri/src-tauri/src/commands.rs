@@ -624,17 +624,35 @@ pub async fn add_to_tracker(
     media_type: String,
     archive: bool,
 ) -> Result<(), AppError> {
+    let settings = crate::settings::load_settings()
+        .map_err(|e| AppError::Custom(e))?;
+    if settings.tmdb_api_key.is_empty() {
+        return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
+    }
+
+    let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
+    let details_res = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await;
+    let mut eps_res = Vec::new();
+
+    if let Ok(details) = &details_res {
+        if media_type == "TV" {
+            if let Some(seasons) = details["seasons"].as_array() {
+                for season in seasons {
+                    if let Some(s_num) = season["season_number"].as_i64() {
+                        if s_num >= 0 {
+                            if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num as u32).await {
+                                eps_res.extend(eps);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let task = tokio::task::spawn_blocking(move || {
         handle_panic(std::panic::AssertUnwindSafe(|| {
-            let settings = crate::settings::load_settings()
-                .map_err(|e| AppError::Custom(e))?;
-            if settings.tmdb_api_key.is_empty() {
-                return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
-            }
-
-            let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
-
-            if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type) {
+            if let Ok(details) = details_res {
 
             let mut synopsis = details["synopsis"].as_str().unwrap_or("").to_string();
             if synopsis.chars().count() > 10000 {
@@ -643,26 +661,19 @@ pub async fn add_to_tracker(
             }
 
             if let Some(poster) = details["poster_path"].as_str() {
-                crate::tmdb::download_image(poster, "w500");
+                let poster_str = poster.to_string();
+                tokio::spawn(async move {
+                    crate::tmdb::download_image(&poster_str, "w500").await;
+                });
             }
             if let Some(backdrop) = details["backdrop_path"].as_str() {
-                crate::tmdb::download_image(backdrop, "w1280");
+                let backdrop_str = backdrop.to_string();
+                tokio::spawn(async move {
+                    crate::tmdb::download_image(&backdrop_str, "w1280").await;
+                });
             }
 
-            let mut all_eps = Vec::new();
-            if valid_media_type == "TV" {
-                if let Some(seasons) = details["seasons"].as_array() {
-                    for season in seasons {
-                        if let Some(s_num) = season["season_number"].as_i64() {
-                            if s_num >= 0 {
-                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num as u32) {
-                                    all_eps.extend(eps);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            let all_eps = eps_res;
 
             if let Ok(mut conn) = get_db_connection() {
                 if let Ok(tx) = conn.transaction() {
@@ -1715,18 +1726,15 @@ pub async fn perform_tmdb_search(request_id: String, query: String, state: tauri
 
     let cancel_tokens = state.cancel_tokens.clone();
 
-    let task = tokio::task::spawn_blocking(move || {
-        handle_panic(std::panic::AssertUnwindSafe(|| {
-            let settings = crate::settings::load_settings()
-                .map_err(|e| AppError::Custom(e))?;
-            if settings.tmdb_api_key.is_empty() {
-                return Err(AppError::Custom(
-                    "Missing TMDB API Key. Please add it in Settings.".to_string(),
-                ));
-            }
-            crate::tmdb::search_media(&settings.tmdb_api_key, &query)
-                .map_err(|e| AppError::Custom(e.to_string()))
-        }))
+    let task = tokio::task::spawn(async move {
+        let settings = crate::settings::load_settings()
+            .map_err(|e| AppError::Custom(e))?;
+        if settings.tmdb_api_key.is_empty() {
+            return Err(AppError::Custom(
+                "Missing TMDB API Key. Please add it in Settings.".to_string(),
+            ));
+        }
+        crate::tmdb::search_media(&settings.tmdb_api_key, &query).await
     });
 
     let result = match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
@@ -1751,16 +1759,35 @@ pub async fn assign_unmatched_to_tracker(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
     let cancel_tokens = state.cancel_tokens.clone();
+
+    let settings = crate::settings::load_settings()
+        .map_err(|e| AppError::Custom(e))?;
+    if settings.tmdb_api_key.is_empty() {
+        return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
+    }
+
+    let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
+    let details_res = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await;
+    let mut eps_res = Vec::new();
+
+    if let Ok(details) = &details_res {
+        if media_type == "TV" {
+            if let Some(seasons) = details["seasons"].as_array() {
+                for season in seasons {
+                    if let Some(s_num) = season["season_number"].as_i64() {
+                        if s_num >= 0 {
+                            if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num as u32).await {
+                                eps_res.extend(eps);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let task = tokio::task::spawn_blocking(move || {
         handle_panic(std::panic::AssertUnwindSafe(|| {
-            let settings = crate::settings::load_settings()
-                .map_err(|e| AppError::Custom(e))?;
-            if settings.tmdb_api_key.is_empty() {
-                return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
-            }
-
-            let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
-
             // Fetch files for this group before spawning the thread
             let mut unmatched_files = Vec::new();
             if let Ok(conn) = get_db_connection() {
@@ -1779,7 +1806,7 @@ pub async fn assign_unmatched_to_tracker(
                 }
             }
 
-            if let Ok(details) = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type) {
+            if let Ok(details) = details_res {
 
             let mut synopsis = details["synopsis"].as_str().unwrap_or("").to_string();
             if synopsis.chars().count() > 10000 {
@@ -1788,26 +1815,19 @@ pub async fn assign_unmatched_to_tracker(
             }
 
             if let Some(poster) = details["poster_path"].as_str() {
-                crate::tmdb::download_image(poster, "w500");
+                let poster_str = poster.to_string();
+                tokio::spawn(async move {
+                    crate::tmdb::download_image(&poster_str, "w500").await;
+                });
             }
             if let Some(backdrop) = details["backdrop_path"].as_str() {
-                crate::tmdb::download_image(backdrop, "w1280");
+                let backdrop_str = backdrop.to_string();
+                tokio::spawn(async move {
+                    crate::tmdb::download_image(&backdrop_str, "w1280").await;
+                });
             }
 
-            let mut all_eps = Vec::new();
-            if valid_media_type == "TV" {
-                if let Some(seasons) = details["seasons"].as_array() {
-                    for season in seasons {
-                        if let Some(s_num) = season["season_number"].as_i64() {
-                            if s_num >= 0 {
-                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&settings.tmdb_api_key, &tmdb_id, s_num as u32) {
-                                    all_eps.extend(eps);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            let all_eps = eps_res;
 
             if let Ok(mut conn) = get_db_connection() {
                 if let Ok(tx) = conn.transaction() {
