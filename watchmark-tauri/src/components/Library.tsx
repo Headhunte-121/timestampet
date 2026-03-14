@@ -60,7 +60,8 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
   const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
-    asyncInvoke("get_library_data", { mediaType: type, sortBy, hideCompleted })
+    // Standard pagination starts at 0 for limit offsets
+    asyncInvoke("get_library_data", { mediaType: type, sortBy, hideCompleted, page: 0 })
       .then((res: any) => {
         if (res) setData(res);
       })

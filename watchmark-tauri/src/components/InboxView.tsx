@@ -68,7 +68,7 @@ export default function InboxView({ onMatch }: any) {
   const assignShow = async (tmdbId: string, mediaType: string) => {
     if (!selectedGroup) return;
     try {
-      await invokeWithTimeout("assign_unmatched_to_tracker", {
+      await asyncInvoke("assign_unmatched_to_tracker", {
         tmdbId,
         mediaType,
         groupKey: selectedGroup

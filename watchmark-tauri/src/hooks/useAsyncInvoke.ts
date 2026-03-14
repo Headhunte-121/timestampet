@@ -1,3 +1,5 @@
+/* WATCHMARK STANDARD PATTERN: All asynchronous data commands MUST implement requestId for cancellation support and pagination (page/limit) for UI performance. Follow this signature for all future connections to maintain Phase 1 & 2 integrity. */
+
 import { useRef, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { invokeWithTimeout } from '../utils/ipc';
@@ -18,7 +20,7 @@ export function useAsyncInvoke() {
 
     // The backend signature changed to expect request_id,
     // we only pass it to the ones we explicitly modified
-    const isCancelable = ['get_library_data', 'fetch_history', 'get_dashboard_data', 'perform_tmdb_search'].includes(cmd);
+    const isCancelable = ['get_library_data', 'fetch_history', 'get_dashboard_data', 'perform_tmdb_search', 'assign_unmatched_to_tracker'].includes(cmd);
 
     let enhancedArgs = { ...args };
     if (isCancelable) {
