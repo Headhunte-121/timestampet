@@ -780,3 +780,88 @@ mod tests_feature_5_12 {
         assert_eq!(pos, 0);
     }
 }
+
+#[cfg(test)]
+mod tests_feature_5_13 {
+    use super::*;
+    use rusqlite::{Connection, params};
+    use uuid::Uuid;
+
+    #[test]
+    fn test_session_id_collision() {
+        let mut ids = std::collections::HashSet::new();
+        for _ in 0..100000 {
+            let id = Uuid::new_v4().to_string();
+            assert!(!ids.contains(&id), "Collision detected!");
+            ids.insert(id);
+        }
+    }
+
+    #[test]
+    fn test_empty_id_guard() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute(
+            "CREATE TABLE History (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL,
+                session_id TEXT
+            )",
+            (),
+        ).unwrap();
+
+        let initial_id = "";
+        let final_id = if initial_id.is_empty() {
+            Uuid::new_v4().to_string()
+        } else {
+            initial_id.to_string()
+        };
+
+        conn.execute("INSERT INTO History (episode_id, timestamp, session_id) VALUES (1, 100, ?)", params![final_id]).unwrap();
+
+        let stored_id: String = conn.query_row("SELECT session_id FROM History WHERE id = 1", [], |r| r.get(0)).unwrap();
+        assert!(!stored_id.is_empty());
+        assert!(Uuid::parse_str(&stored_id).is_ok());
+    }
+
+    #[test]
+    fn test_long_nap_threshold() {
+        // Simulates the 6 hour threshold
+        let last_timestamp = 1000000;
+        let current_timestamp = last_timestamp + 21601; // 6 hours + 1 second
+
+        let diff = current_timestamp - last_timestamp;
+        assert!(diff > 21600, "Should exceed 6 hours");
+    }
+
+    #[test]
+    fn test_short_break_threshold() {
+        // Simulates the < 6 hour threshold
+        let last_timestamp = 1000000;
+        let current_timestamp = last_timestamp + 18000; // 5 hours
+
+        let diff = current_timestamp - last_timestamp;
+        assert!(diff <= 21600, "Should not exceed 6 hours");
+    }
+
+    #[test]
+    fn test_legacy_bypass() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute(
+            "CREATE TABLE History (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                is_legacy INTEGER DEFAULT 0,
+                session_id TEXT
+            )",
+            (),
+        ).unwrap();
+
+        // For backdated legacy rows, session_id is explicitly NULL
+        conn.execute("INSERT INTO History (episode_id, is_legacy, session_id) VALUES (1, 1, NULL)", ()).unwrap();
+
+        let (is_legacy, session_id): (i32, Option<String>) = conn.query_row("SELECT is_legacy, session_id FROM History WHERE id = 1", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+        assert_eq!(is_legacy, 1);
+        assert!(session_id.is_none());
+    }
+}

@@ -37,6 +37,18 @@ export default function History() {
     }
   };
 
+  const getVibeLabel = (date: Date) => {
+    const hour = date.getHours();
+    if (hour >= 5 && hour < 12) return "Morning";
+    if (hour >= 12 && hour < 17) return "Afternoon";
+    if (hour >= 17 && hour < 21) return "Evening";
+    return "Late Night";
+  };
+
+  const getDayName = (date: Date) => {
+    return date.toLocaleDateString("en-US", { weekday: "short" });
+  };
+
   return (
     <div className="p-12 pt-24">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Watch History</h1>
@@ -48,6 +60,18 @@ export default function History() {
           {history.map((group, i) => {
             const entry = group.main_entry;
             const isLegacy = entry.is_legacy === 1;
+
+            let bingeSubtitle = null;
+            if (group.type === "binge_block" && group.entries && group.entries.length > 0) {
+              const startTs = group.entries[group.entries.length - 1].timestamp;
+              const endTs = group.entries[0].timestamp;
+              const startDate = new Date(startTs * 1000);
+              const endDate = new Date(endTs * 1000);
+
+              if (startDate.toDateString() !== endDate.toDateString()) {
+                bingeSubtitle = `${getDayName(startDate)} ${getVibeLabel(startDate)} – ${getDayName(endDate)} ${getVibeLabel(endDate)}`;
+              }
+            }
 
             return (
               <div
@@ -71,7 +95,14 @@ export default function History() {
                     {entry.show_title}
                   </h3>
                   {group.type === "binge_block" ? (
-                    <p className="text-gray-400">Watched {group.episode_count} Episodes</p>
+                    <div>
+                      <p className="text-gray-400">Watched {group.episode_count} Episodes</p>
+                      {bingeSubtitle && (
+                        <p className="text-sm text-gray-500 font-medium italic mt-1">
+                          {bingeSubtitle}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-gray-400">
                       {entry.media_type === "TV"
