@@ -14,6 +14,9 @@ mod tests_feature_25_4 {
             settings_tx,
             db_queue: Arc::new(crate::task_queue::DbTaskQueue::new_for_tests()),
             is_maintenance_mode: AtomicBool::new(false),
+            stats_cache: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            read_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(4)),
+            cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
         };
 
         // Simulate that a maintenance mode is already active

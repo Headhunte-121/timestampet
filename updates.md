@@ -300,3 +300,10 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Elevated the `tauri_plugin_log` output verbosity explicitly to `log::LevelFilter::Debug` inside `main.rs` to ensure network diagnostics and SQLite traces populate seamlessly into local outputs.
 - Modified the file logging strategy targeting `app.log` inherently inside the `LogDir` instead of `watchmark.log`, enforcing strict Tauri OS-agnostic conventions.
 - Deployed structured `log::info!` lifecycle checkpoints spanning critical architectural boot components (`canary_check()`, `db::init_db()`, and the Tauri `setup` hook state management phase) mapping accurate stack execution progress locally for debugging initialization faults.
+
+## TODO 1.11 Asynchronous multi-threaded read operations
+- Created database indices on `History(timestamp DESC)` and `Media(title ASC)`.
+- Replaced direct backend execution of read queries with a dynamic Thread Pool managed by a global `tokio::sync::Semaphore` initialized to `available_parallelism() - 1`.
+- Added UUID `tokio_util::sync::CancellationToken` tracking in `AppState`.
+- Created a `useAsyncInvoke` hook in React that automatically aborts backend read tasks if the UI unmounts.
+- Created an in-memory `stats_cache` in the Rust backend to prevent expensive SQL operations on global stats. Write-through invalidation clears this cache upon status changes.

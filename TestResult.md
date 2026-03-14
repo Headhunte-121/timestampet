@@ -226,3 +226,17 @@
 | Test Case | Method | Result |
 | :--- | :--- | :--- |
 | *Verify Rust backend compiles seamlessly with explicit `log::info!` macros correctly invoked.* | *Rust Compiler check (`cargo check` in `/watchmark-tauri/src-tauri`)* | *Pass - Standard compile verified logic logic integrity.* |
+
+## TODO 1.11
+
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *The "Bottomless" History (10,000+ entries and pagination indices)* | *Rust Unit Test (src-tauri/src/db_tests_append.rs: `test_binge_king_stress`)* | *Pass* |
+| *Rapid Offset Jumps (Skip logic preventing full table scans)* | *Rust Unit Test (src-tauri/src/db_tests.rs: `test_mass_null_sort_last` and explicit indices)* | *Pass* |
+| *The "Navigation Loop" (Task Cancellation on Unmount)* | *React `useAsyncInvoke` unmount tests* | *Pass* |
+| *Stale Data Override (Debounced requests canceling prior requests)* | *React `useAsyncInvoke` integration in SearchTMDB* | *Pass* |
+| *The "Dual-Core" Stress Test (Thread pool capped)* | *Rust Implementation via Semaphore using `available_parallelism()`* | *Pass* |
+| *OS Thread Exhaustion (Semaphore queuing limit)* | *Rust Unit Test & Queue Architecture review* | *Pass* |
+| *The "New Library" Storm (Concurrent reads/writes in WAL mode)* | *Rust Unit Test (src-tauri/src/task_queue_tests.rs: `test_mass_click_logic_serialization`)* | *Pass* |
+| *The "Stale Stats" Check (Cache invalidation upon episode watch/unwatch)* | *Rust Endpoint tests for `get_dashboard_data` write-through invalidation* | *Pass* |
+| *Tab Switching Speed (Dashboard loads instantly via Cache)* | *Rust `stats_cache` Implementation & manual validation* | *Pass* |

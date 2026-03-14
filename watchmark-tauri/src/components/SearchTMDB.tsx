@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
-import { invokeWithTimeout } from "../utils/ipc";
+import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -8,13 +8,14 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const asyncInvoke = useAsyncInvoke();
 
   const performSearch = async () => {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const res: any = await invokeWithTimeout("perform_tmdb_search", { query });
-      setResults(res);
+      const res: any = await asyncInvoke("perform_tmdb_search", { query });
+      if (res) setResults(res);
     } catch (e) {
       toast.error("Search failed: " + e);
     } finally {
@@ -77,7 +78,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
               <button
                 onClick={() => {
                   setLoading(true);
-                  invokeWithTimeout("add_to_tracker", {
+                  asyncInvoke("add_to_tracker", {
                     tmdbId: item.tmdb_id,
                     mediaType: item.type,
                     archive: false
