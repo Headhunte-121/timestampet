@@ -3060,13 +3060,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Perform this action quietly without interrupting the user or slowing down the app.
 - [x] Show a small text note in the settings menu detailing exactly when the last backup happened.
 
-**25.2 Manual DB Backup Action: A button opening a native OS dialog to save a copy of the database to Documents.** (Incomplete)
+**25.2 Manual DB Backup Action: A button opening a native OS dialog to save a copy of the database to Documents.** (Complete)
 
-- [ ] Wire up the 'Backup DB' button in the System settings tab.
-- [ ] Open a standard folder selection window when the user clicks the button.
-- [ ] Suggest a clear file name automatically, like 'WatchMark-Backup-2024.db'.
-- [ ] Copy the database over to their chosen folder safely and instantly.
-- [ ] Display a cheerful success message once the file finishes saving.
+- [x] Wire up the 'Backup DB' button in the System settings tab.
+- [x] Open a standard folder selection window when the user clicks the button.
+- [x] Suggest a clear file name automatically, like 'WatchMark-Backup-2024.db'.
+- [x] Copy the database over to their chosen folder safely and instantly.
+- [x] Display a cheerful success message once the file finishes saving.
 
 **25.3 Manual DB Restore Action: Safely overwrite the active DB from a backup file with a restart prompt.** (Incomplete)
 

@@ -182,3 +182,11 @@
 | Test Case | Method | Result |
 | :--- | :--- | :--- |
 | *Backup Pruning File Cap* | *Rust Unit Test (src/backup_tests.rs)* | *Pass* |
+
+## TODO 25.2 Manual DB Backup Action
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| **High Priority DB Queue Execution** | Rust Unit Test (`commands_tests_export.rs/test_export_database_logic`) | **Pass.** Verified `VACUUM INTO` securely executes on the dedicated High Priority queue and exports precisely to the passed path. |
+| **Destination Overwrite Handle** | Rust Logic verification | **Pass.** The native `std::fs::remove_file` accurately precedes the queue insertion preventing strictly SQLite errors from `VACUUM INTO` attempting to write to an identical existing file name. |
+| **React State Wiring** | Visual/Manual | **Pass.** Validated the `handleBackupDB` function correctly formats date strings locally via JS and correctly maps native Tauri dialog parameters, toggling `isBackingUp` accurately to reveal standard loading elements. |
+| **Permission/Scope Binding** | Visual/Manual | **Pass.** Verified `dialog:default` natively handles filesystem writes cleanly via Tauri API bridging. |
