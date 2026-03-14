@@ -155,3 +155,18 @@
 | **The "Watch-Unwatch-Watch" Loop** | Backend `toggle_episode_status` Inspection | **Pass.** Safely mapped `last_position = 0` universally on ALL status updates regardless of toggling "Watched" or "Unwatched". |
 | **The "Scrubbing" Test** | VLC Polling Write-Throttling Logic | **Pass.** `vlc_heartbeat` tracks `last_written_time_seconds` and triggers commits explicitly upon jump > 30s or Paused, effectively throttling writes safely. |
 | **Rounding Error Check** | React Progress Bar Calculation | **Pass.** Handled mathematical division in `calculateProgress` using `Math.min(100, progress)` with a safe 0 bounds fallback enforcing a `minWidth: "2px"` CSS standard properly visualising any > 0 amount. |
+
+## TODO 5.13 session_id mapping column for grouping binges
+
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| **Statistically Impossible Collision** | Rust Unit Test (`db_tests.rs/test_session_id_collision`) | **Pass.** Generated 100,000 v4 UUIDs into a HashSet and verified exactly 0 collisions natively via the `uuid` crate. |
+| **Empty ID Guard** | Rust Unit Test (`db_tests.rs/test_empty_id_guard`) | **Pass.** Evaluated the exact path logic substituting an empty string assignment perfectly with a freshly generated valid `Uuid::new_v4().to_string()` prior to standard INSERT operations. |
+| **New Year’s Eve Binge** | React Frontend Scripting (`verify_feature_x.py`) | **Pass.** Simulated a JSON mock IPC return containing grouped session records spanning standard 24-hour midnight rollover boundaries natively validating the multi-date Vibe label generation (e.g., 'Sat Late Night – Sun Morning'). |
+| **Double-Date Header Guard** | React Frontend Grouping inspection | **Pass.** Binge blocks visually aggregate correctly under a single array iteration block preserving cohesive card structures without shattering under the unified `session_id` logic. |
+| **The "Long Nap" Test** | Rust Unit Test (`db_tests.rs/test_long_nap_threshold`) | **Pass.** Validated mathematical threshold logic accurately calculating elapsed seconds (> 21600s) enforcing a distinct break for timestamps exceeding 6-hours. |
+| **The "Short Break" Test** | Rust Unit Test (`db_tests.rs/test_short_break_threshold`) | **Pass.** Correctly evaluated elapsed 5 hours (18000s) allowing smooth inheritance of previous trailing valid session_ids matching expected continuous playback behavior. |
+| **Single-Episode "Binge"** | Backend grouping query inspection (`commands.rs`) | **Pass.** Array lengths strictly < 2 automatically map the `"type": "single"` JSON value circumventing standard Expandable Binge styling. |
+| **Show Interleaving** | UI logic inspection | **Pass.** Native `group_by` algorithms dynamically bundle and wrap differing SxxExx and separate Shows accurately based entirely on matching session hashes strictly prioritizing chronological mapping. |
+| **Bulk Import Collision** | Rust Unit Test (`db_tests.rs/test_legacy_bypass`) | **Pass.** Passed the QoL test enforcing exactly that `is_legacy` inserts explicitly pass `session_id = NULL` neutralizing automated active collision binding to live views. |
+| **Accidental Grouping Guard** | SQL Logic Verification | **Pass.** Enforced standard query clauses expressly ignoring boolean mappings explicitly (e.g. `AND is_legacy=0`) during historical trailing checks effectively walling off overlapping epoch ranges natively. |

@@ -232,3 +232,9 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **UI Progress Parity:** Enforced mathematical consistency in React computing progress percentage dynamically, complete with a persistent 2px fallback for extremely minor viewing slivers and an automated green success-shift when >90% watched.
 - **Auto-Complete Zone Logic:** Upgraded the heartbeat poller to ignore stale resume states globally inside the 10-second threshold bounds guaranteeing seamless auto-completion flows at file closure.
 - **Strict Manual Reset:** Upgraded API endpoints ensuring any toggled status change immediately forces `last_position = 0` explicitly blocking stuck memory on repeat viewings.
+
+### Update Feature 5.13: Binge-Block Session Grouping
+- **UUID Session Engine:** Integrated Rust's `uuid` crate generating secure v4 UUIDs passed to a persistent SQLite `session_id` string-mapping column tracking continuity naturally across multiple shows and application restarts.
+- **Smart Legacy Archival:** Ran an auto-migration ensuring prior existing unstructured History logs cleanly map as explicit `NULL` references, automatically funneling seamlessly into legacy/archived stateless UI blocks natively.
+- **Vibe Label Calculations:** Advanced React's timeline rendering intelligently calculating date ranges ("Morning, Afternoon, Evening, Late Night") resolving complex midnight boundary edge-case splits naturally.
+- **Temporal Grouping Rules:** Enforced rigid mathematical temporal logic enforcing < 6 hours as the core chaining rule, with Rust dynamically calculating trailing epochs to resurrect continuous sessions instantly on VLC spawn.

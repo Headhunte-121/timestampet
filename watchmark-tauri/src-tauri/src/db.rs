@@ -413,6 +413,13 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         tx.commit()?;
     }
 
+    if user_version < 11 {
+        let tx = conn.transaction()?;
+        let _ = tx.execute("UPDATE History SET session_id = NULL", ());
+        tx.execute("PRAGMA user_version = 11", ())?;
+        tx.commit()?;
+    }
+
     Ok(())
 }
 

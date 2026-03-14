@@ -262,30 +262,26 @@ pub async fn play_episode_cmd(
 
                 let mut rows = hist_stmt.query(params![media_id])?;
                 if let Some(row) = rows.next()? {
-                    let last_session_id: String = row.get(0).unwrap_or_default();
-                    let last_timestamp: String = row.get(1).unwrap_or_default();
+                    let last_session_id: Option<String> = row.get(0).unwrap_or_default();
+                    let last_timestamp: i64 = row.get(1).unwrap_or_default();
 
-                    // Parse timestamp and check if within 6 hours (21600 seconds)
-                    if let Ok(last_dt) =
-                        chrono::NaiveDateTime::parse_from_str(&last_timestamp, "%Y-%m-%d %H:%M:%S")
-                    {
-                        let last_dt_utc =
-                            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
-                                last_dt,
-                                chrono::Utc,
-                            );
-                        let now = chrono::Utc::now();
-                        if (now - last_dt_utc).num_seconds() < 21600 {
-                            session_id = last_session_id;
+                    let now = chrono::Utc::now().timestamp();
+                    if now - last_timestamp <= 21600 {
+                        if let Some(sid) = last_session_id {
+                            if !sid.is_empty() {
+                                session_id = sid;
+                            }
                         }
                     }
                 }
             }
 
+            let current_timestamp = chrono::Utc::now().timestamp();
+
             let _ = conn.execute(
                 "INSERT INTO History (episode_id, timestamp, session_id, is_legacy, start_time, pause_count, completion_ratio)
                     VALUES (?, ?, ?, 0, ?, 0, 0.0)",
-                params![episode_id, start_dt_str, session_id, start_dt_str],
+                params![episode_id, current_timestamp, session_id, start_dt_str],
             )?;
 
             let mut status = "Unwatched".to_string();
