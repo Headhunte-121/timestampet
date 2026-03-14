@@ -345,4 +345,14 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Addressed dead code warnings in `models::Stats` and `models::DashboardData` by adding `#[allow(dead_code)]` decorators.
 - Fixed test compilation failures by properly initializing `is_api_authorized` in `commands_tests_optimize` and `commands_tests_tmdb_auth`.
 
+## TODO 3.3
+- Implemented `search_media` with multi-search endpoint support in Rust.
+- Included pagination parameter `page` and wired it up via `perform_tmdb_search`.
+- Scraped control characters before fetching and natively let `reqwest` handle percent encoding of emojis and reserved characters.
+- Built strict filtering and mapping: extracting `known_for` arrays from `person` results, deduplicating via TMDB ID, and explicitly ignoring `collection` media types.
+- Revamped `SearchTMDB.tsx` utilizing a 500ms `useDebounce` hook to throttle API calls and minimize network load.
+- Added `IntersectionObserver` at the bottom of the grid for "Infinite Scroll" capability on massive result sets.
+- Distinctly badged mixed TV and Movie cards with custom Emerald/Blue borders and high-fidelity Lucide Icons.
+- Handled edge cases for date formatting per requested rules (e.g., displaying `2013-` for TV Shows vs just `2013` for Movies).
+- Attached extensive test suite ensuring same-name collisions, actor name flattening, and character encoding execute flawlessly.
 

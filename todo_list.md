@@ -240,13 +240,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test edge cases where the API key is valid but the TMDB account is rate-limited.
 - [x] Display clear instructions/links for users to obtain their own API key.
 
-**3.3 Multi-search API endpoint integration for mixed TV/Movie results.** (Incomplete)
+**3.3 Multi-search API endpoint integration for mixed TV/Movie results.** (Complete)
 
-- [ ] Ensure the UI visually distinguishes TV vs Movie results returned in the same payload.
-- [ ] Handle edge cases where the multi-search returns unexpected media types (e.g., 'Person').
-- [ ] Implement pagination support for broad search terms yielding hundreds of results.
-- [ ] Verify search string URL encoding prevents crashes on special characters.
-- [ ] Test response times and add debounce logic to the search input.
+- [x] Ensure the UI visually distinguishes TV vs Movie results returned in the same payload.
+- [x] Handle edge cases where the multi-search returns unexpected media types (e.g., 'Person').
+- [x] Implement pagination support for broad search terms yielding hundreds of results.
+- [x] Verify search string URL encoding prevents crashes on special characters.
+- [x] Test response times and add debounce logic to the search input.
 
 **3.4 Dedicated TV Show deep-data fetching.** (Incomplete)
 

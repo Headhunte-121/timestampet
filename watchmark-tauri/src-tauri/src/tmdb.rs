@@ -52,16 +52,21 @@ pub async fn validate_key(api_key: &str) -> Result<bool, AppError> {
     }
 }
 
-pub async fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, AppError> {
+use std::collections::HashSet;
+
+pub async fn search_media(api_key: &str, query: &str, page: u32) -> Result<Vec<Value>, AppError> {
+    // Strip non-printable control characters from the query
+    let safe_query: String = query.chars().filter(|c| !c.is_control()).collect();
+
     let url = format!("{}/search/multi", TMDB_API_BASE);
 
     let res: Value = NETWORK_MANAGER.external_client
         .get(&url)
         .query(&[
             ("api_key", api_key),
-            ("query", query),
+            ("query", safe_query.as_str()),
             ("language", "en-US"),
-            ("page", "1"),
+            ("page", &page.to_string()),
             ("include_adult", "false"),
         ])
         .send()
@@ -72,45 +77,70 @@ pub async fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, AppE
 
     let results = res["results"].as_array().unwrap_or(&vec![]).clone();
     let mut filtered = Vec::new();
+    let mut seen_ids = HashSet::new();
 
     for r in results {
         let media_type = r["media_type"].as_str().unwrap_or("");
-        if media_type == "tv" || media_type == "movie" {
+
+        let mut process_items = Vec::new();
+
+        if media_type == "person" {
+            if let Some(known_for) = r["known_for"].as_array() {
+                for item in known_for {
+                    process_items.push(item.clone());
+                }
+            }
+        } else if media_type == "tv" || media_type == "movie" {
+            process_items.push(r.clone());
+        }
+
+        for item in process_items {
+            let item_media_type = item["media_type"].as_str().unwrap_or("");
+            if item_media_type != "tv" && item_media_type != "movie" {
+                continue;
+            }
+
+            let tmdb_id = item["id"].as_i64().unwrap_or(0);
+            let dedup_key = format!("{}-{}", item_media_type, tmdb_id);
+            if !seen_ids.insert(dedup_key) {
+                continue; // Already processed this item
+            }
+
             let mut obj = serde_json::Map::new();
             obj.insert(
                 "tmdb_id".to_string(),
-                Value::String(r["id"].as_i64().unwrap_or(0).to_string()),
+                Value::String(tmdb_id.to_string()),
             );
             obj.insert(
                 "type".to_string(),
-                Value::String(if media_type == "tv" { "TV" } else { "Movie" }.to_string()),
+                Value::String(if item_media_type == "tv" { "TV" } else { "Movie" }.to_string()),
             );
 
-            let title = if media_type == "tv" {
-                r["name"].as_str()
+            let title = if item_media_type == "tv" {
+                item["name"].as_str()
             } else {
-                r["title"].as_str()
+                item["title"].as_str()
             }
             .unwrap_or("Unknown Title");
             obj.insert("title".to_string(), Value::String(title.to_string()));
 
             obj.insert(
                 "synopsis".to_string(),
-                Value::String(crate::sanitizer::sanitize_text(r["overview"].as_str().unwrap_or(""), "No overview available.")),
+                Value::String(crate::sanitizer::sanitize_text(item["overview"].as_str().unwrap_or(""), "No overview available.")),
             );
             obj.insert(
                 "poster_path".to_string(),
-                Value::String(r["poster_path"].as_str().unwrap_or("").to_string()),
+                Value::String(item["poster_path"].as_str().unwrap_or("").to_string()),
             );
             obj.insert(
                 "backdrop_path".to_string(),
-                Value::String(r["backdrop_path"].as_str().unwrap_or("").to_string()),
+                Value::String(item["backdrop_path"].as_str().unwrap_or("").to_string()),
             );
 
-            let release_date = if media_type == "tv" {
-                r["first_air_date"].as_str()
+            let release_date = if item_media_type == "tv" {
+                item["first_air_date"].as_str()
             } else {
-                r["release_date"].as_str()
+                item["release_date"].as_str()
             }
             .unwrap_or("");
 

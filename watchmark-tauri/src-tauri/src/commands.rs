@@ -1785,7 +1785,7 @@ pub async fn run_scan_directory(
 }
 
 #[tauri::command]
-pub async fn perform_tmdb_search(request_id: String, query: String, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+pub async fn perform_tmdb_search(request_id: String, query: String, page: u32, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
     if !state.is_api_authorized.load(Ordering::SeqCst) {
         return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
     }
@@ -1823,7 +1823,7 @@ pub async fn perform_tmdb_search(request_id: String, query: String, app: tauri::
             _ = token.cancelled() => {
                 Err(AppError::Custom("Search Task Cancelled".to_string()))
             }
-            res = crate::tmdb::search_media(&api_key, &query) => {
+            res = crate::tmdb::search_media(&api_key, &query, page) => {
                 match res {
                     Ok(results) => Ok(results),
                     Err(e) => {
