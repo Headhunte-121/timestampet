@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_history_leap_year_epoch() {
-        let mut conn = Connection::open_in_memory().unwrap();
+        let conn = Connection::open_in_memory().unwrap();
         // Just mock the History table
         conn.execute(
             "CREATE TABLE History (
@@ -463,7 +463,7 @@ mod feature_5_9_tests {
 
 #[cfg(test)]
 mod feature_5_6_tests {
-    use super::*;
+
     use rusqlite::Connection;
     use crate::scanner::{clean_anime_release_tags, is_too_generic};
 
@@ -595,7 +595,7 @@ mod feature_5_7_tests {
 
 #[cfg(test)]
 mod feature_5_7_tests_2 {
-    use rusqlite::Connection;
+
 
     #[test]
     fn test_tmdb_parsing_and_padding() {
@@ -768,8 +768,8 @@ mod feature_5_11_tests {
 }
 #[cfg(test)]
 mod tests_feature_5_12 {
-    use super::*;
-    use rusqlite::{Connection, params};
+
+    use rusqlite::Connection;
 
     #[test]
     fn test_fresh_library_zero_default() {
@@ -783,7 +783,7 @@ mod tests_feature_5_12 {
 
 #[cfg(test)]
 mod tests_feature_5_13 {
-    use super::*;
+
     use rusqlite::{Connection, params};
     use uuid::Uuid;
 

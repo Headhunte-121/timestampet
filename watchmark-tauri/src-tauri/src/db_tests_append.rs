@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests_feature_5_12 {
-    use super::*;
-    use rusqlite::{Connection, params};
+
+    use rusqlite::Connection;
 
     #[test]
     fn test_fresh_library_zero_default() {

@@ -3,7 +3,7 @@ mod tests_feature_25_2 {
     use std::fs;
     use crate::task_queue::DbTaskQueue;
     use std::sync::Arc;
-    use tauri::State;
+
 
     // We can't easily mock `tauri::State` perfectly without Tauri's test context,
     // but we can test the core logic. Since `export_database` takes `tauri::State`,
@@ -14,7 +14,7 @@ mod tests_feature_25_2 {
         let _ = fs::remove_dir_all(&temp_dir);
         fs::create_dir_all(&temp_dir).unwrap();
 
-        let db_queue = Arc::new(DbTaskQueue::new());
+        let db_queue = Arc::new(DbTaskQueue::new_for_tests());
         let target_path = temp_dir.join("export.db");
         let target_path_str = target_path.to_string_lossy().to_string();
 

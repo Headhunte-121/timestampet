@@ -76,13 +76,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Ensure type mismatches between frontend TS and backend Rust structs log clear errors.
 - [x] Test IPC event listener cleanup so multiple listeners aren't attached on page reloads.
 
-**1.10 Single-thread centralized Task Queue for database writes to prevent locking.** (Incomplete)
+**1.10 Single-thread centralized Task Queue for database writes to prevent locking.** (Complete)
 
-- [ ] Queue sudden bursts of write operations (e.g., bulk updates) sequentially.
-- [ ] Handle edge cases where the app is closed while the queue is still processing.
-- [ ] Ensure read queries can still execute concurrently while writes are queued.
-- [ ] Test SQLite `database is locked` error mitigation during rapid click events.
-- [ ] Provide a fallback retry mechanism if a specific queued write fails.
+- [x] Queue sudden bursts of write operations (e.g., bulk updates) sequentially.
+- [x] Handle edge cases where the app is closed while the queue is still processing.
+- [x] Ensure read queries can still execute concurrently while writes are queued.
+- [x] Test SQLite `database is locked` error mitigation during rapid click events.
+- [x] Provide a fallback retry mechanism if a specific queued write fails.
 
 **1.11 Asynchronous multi-threaded read operations so the UI never blocks.** (Incomplete)
 

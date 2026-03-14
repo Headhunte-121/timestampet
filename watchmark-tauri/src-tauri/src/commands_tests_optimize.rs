@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests_feature_25_4 {
-    use super::*;
+
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, RwLock};
     use tokio::sync::mpsc;
@@ -12,7 +12,7 @@ mod tests_feature_25_4 {
         let app_state = crate::commands::AppState {
             settings: Arc::new(RwLock::new(crate::models::Settings::default())),
             settings_tx,
-            db_queue: Arc::new(crate::task_queue::DbTaskQueue::new()),
+            db_queue: Arc::new(crate::task_queue::DbTaskQueue::new_for_tests()),
             is_maintenance_mode: AtomicBool::new(false),
         };
 

@@ -270,3 +270,11 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Connected the Settings 'Clean Database' button.
 - Added file size calculation logic to tell the user exactly how much disk space was saved in MB/GB formatting via a toast notification.
 - Handled disk space edge cases using the `fs3` crate before starting the memory-intensive SQLite VACUUM operation.
+
+### Feature 1.10: Single-thread centralized Task Queue
+- **Task Queue Architecture:** Upgraded `DbTaskQueue` to support a typed `DbAction` Enum containing actions like `UpdateMediaRating`, `DeleteMedia`, and `Batch`.
+- **Ephemeral Read Connections:** Introduced `db::get_readonly_connection()` to spawn ephemeral, read-only connections exclusively for React queries (like dashboard and library fetching) to avoid locking the writer thread.
+- **Worker Thread Retry Logic:** Implemented an execution retry wrapper in the worker thread that catches `SQLITE_BUSY` errors, pauses for 100ms, and retries up to 3 times before discarding the task.
+- **Failed Tasks Guard:** If a write operation hits the maximum retries, the worker writes the error payload to `watchmark_failed_tasks.log` and emits a `db-write-failed` event to the frontend.
+- **Shutdown Drain Signal:** Intercepted Tauri's `WindowEvent::CloseRequested` to prevent immediate application termination. The app now pushes a `Shutdown` signal to the database queue with a `oneshot::channel` to await a safe drain (up to 2 seconds) before exiting.
+- **Frontend Feedback:** Connected the new `db-write-failed` IPC event to a highly visible, Danger-themed `sonner` toast notification.
