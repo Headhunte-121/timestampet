@@ -211,3 +211,8 @@
 | Test Case | Method | Result |
 | :--- | :--- | :--- |
 | *Ensure Vite build works correctly with explicitly defined root without breaking bundle outputs* | *Vite React Build Test (`npm run build` in `/watchmark-tauri`)* | *Pass - Output successfully bundled frontend resources to `dist/` without module resolution errors.* |
+
+## TODO Bug Fix: Localhost IPv6 Binding Conflict
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Ensure Vite build works correctly with explicitly defined IPv4 binding* | *Vite React Build Test (`npm run build` in `/watchmark-tauri`)* | *Pass - Output successfully bundled frontend resources.* |

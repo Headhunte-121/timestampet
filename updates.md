@@ -287,3 +287,8 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - This was resolved by fixing a path misalignment issue in the Vite configuration. Although the `index.html` was correctly positioned at the project root (`watchmark-tauri/index.html`), Vite's default root behavior occasionally conflicts with Tauri v2's proxy expectations.
 - Added `root: "."` directly to `vite.config.ts`, explicitly forcing Vite to serve the root directory to Tauri without ambiguity.
 - Ensured `tauri.conf.json` strictly matched via `devUrl: http://localhost:1420` eliminating the possibility of older `devPath` schema conflicts causing the WebView misfire.
+
+### Bug Fix: Localhost IPv6 Binding Conflict
+- Fixed a bug where Tauri WebView2 on Windows 11 attempted to resolve `localhost` via IPv6 (`::1`), while the Vite dev server bound exclusively to IPv4 (`127.0.0.1`). This proxy mismatch resulted in raw HTTP headers and chunked streams rendering as plain text directly onto the main screen.
+- Configured Vite (`vite.config.ts`) to explicitly bind to `127.0.0.1` instead of `localhost`.
+- Configured Tauri (`tauri.conf.json`) to specifically target `http://127.0.0.1:1420`, strictly ensuring the underlying proxy handshakes succeed.
