@@ -321,3 +321,13 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **Two-Tier Timeout System:** Added a 5-second `connect_timeout` and a 15-second `timeout` to catch hanging sockets and prevent the UI from spinning infinitely during slow network conditions.
 - **Structured Error Mapping:** Extended the `AppError` enum to parse `NetworkTimeout`, `NetworkBlocked`, and `NetworkOffline` into specific React-friendly JSON objects (e.g., `{ "code": "TIMEOUT" }`), allowing the frontend to easily display localized feedback instead of generic errors.
 - **Dual-Client Loopback Bypass:** Implemented a `NetworkManager` in `src/network.rs` that maintains two isolated clients: `external_client` for secure, retrying TMDB requests and a lightweight `local_client` for low-latency, HTTP VLC Heartbeat polling on `127.0.0.1`.
+
+### Feature 3.2: On-the-fly TMDB API Key validation
+- Added Rust backend command `validate_tmdb_key` calling the `/3/configuration` endpoint.
+- Sanitized pasted keys to trim whitespaces and hidden zero-width characters.
+- Modified Settings UI (`SettingsView.tsx`) to debounce typing and dynamically render validation states (spinner, check, error cross, warning triangle).
+- Disabled saving logic globally if validation is pending or returned invalid.
+- Mapped HTTP 429 response strictly to a retry-after state UI warning.
+- Centralized auth state in Rust (`AppState::is_api_authorized`) and React (`useAppStore::isApiAuthorized`).
+- Globally halted all TMDB queries (sync, search) instantly upon a 401 unauthorized fetch and updated the Search and MediaDetails UI to explicitly prompt users for the key.
+- Addressed code review feedback: Made sure saving a valid key in Settings correctly restores the `isApiAuthorized` state back to `true`, and ensured `state.db_queue.clear()` is explicitly called upon an API key revocation (401 error) to clear pending sync metadata tasks.

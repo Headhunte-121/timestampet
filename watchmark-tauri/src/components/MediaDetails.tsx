@@ -7,10 +7,15 @@ import { useUiStore } from "../store/uiStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { toast } from "sonner";
 import { StarRating } from "./ui/StarRating";
+import { useAppStore } from "../store/useAppStore";
+import { cn } from "../App";
+import { RefreshCw } from "lucide-react";
 
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const { showConfirm, setProcessing } = useUiStore();
+  const { isApiAuthorized } = useAppStore();
   const [data, setData] = useState<any>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeSeason, setActiveSeason] = useState<number>(1);
   const [showFullSynopsis, setShowFullSynopsis] = useState<boolean>(false);
   const isAnimatingRef = useRef(false);
@@ -184,6 +189,39 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           </div>
 
           <div className="flex gap-4">
+            <button
+              onClick={async () => {
+                if (!isApiAuthorized) {
+                    toast.error("API Key required to refresh data.");
+                    return;
+                }
+                setIsRefreshing(true);
+                try {
+                  await asyncInvoke("add_to_tracker", {
+                    tmdbId: data.tmdb_id,
+                    mediaType: data.type,
+                    archive: false
+                  });
+                  const res: any = await asyncInvoke("get_media_details_db", { mediaId });
+                  if (res) setData(res);
+                  toast.success("Data Refreshed Successfully");
+                } catch (e) {
+                  toast.error(`Refresh Failed: ${e}`);
+                } finally {
+                  setIsRefreshing(false);
+                }
+              }}
+              disabled={isRefreshing || !isApiAuthorized}
+              title={!isApiAuthorized ? "API Key required" : "Refresh metadata from TMDB"}
+              className={cn(
+                "flex items-center gap-2 px-6 py-4 font-bold rounded-full backdrop-blur-md transition-all",
+                isRefreshing || !isApiAuthorized
+                  ? "bg-white/5 text-gray-500 cursor-not-allowed"
+                  : "bg-white/10 hover:bg-white/20 text-white hover:scale-105"
+              )}
+            >
+              <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} /> Refresh Data
+            </button>
             {data.is_unaired ? (
               <div className="flex items-center gap-2 px-8 py-4 bg-gray-700/50 text-gray-300 font-bold rounded-full backdrop-blur-md cursor-not-allowed">
                 <Clock className="w-5 h-5" /> 📅 Coming Soon

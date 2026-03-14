@@ -3,12 +3,15 @@ import { Search } from "lucide-react";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useAppStore } from "../store/useAppStore";
+import { cn } from "../App";
 
 export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const asyncInvoke = useAsyncInvoke();
+  const { isApiAuthorized } = useAppStore();
 
   const performSearch = async () => {
     if (!query.trim()) return;
@@ -27,21 +30,45 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
     <div className="p-12 pt-24">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Discover Media</h1>
 
+      {!isApiAuthorized && (
+          <div className="mb-12 max-w-2xl w-full bg-[#FF6B00]/10 border border-[#FF6B00]/20 rounded-xl p-8 text-center">
+              <h2 className="text-xl font-bold text-white mb-4">TMDB API Key Required</h2>
+              <p className="text-gray-300 mb-6 max-w-lg mx-auto">
+                  WatchMark uses the free TMDB service to provide high-quality posters, backdrops, and episode details. You need to connect your own free account.
+              </p>
+              <button
+                  onClick={async () => {
+                      try {
+                          const { open } = await import('@tauri-apps/plugin-shell');
+                          await open("https://www.themoviedb.org/settings/api");
+                      } catch (e) {
+                          console.error("Failed to open URL:", e);
+                      }
+                  }}
+                  className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl transition-colors"
+              >
+                  Get your free API key here
+              </button>
+          </div>
+      )}
+
       <div className="flex gap-4 mb-12 max-w-2xl">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className={cn("absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5", isApiAuthorized ? "text-gray-400" : "text-gray-600")} />
           <input
             type="text"
-            placeholder="Search TMDB for Shows or Movies..."
+            placeholder={isApiAuthorized ? "Search TMDB for Shows or Movies..." : "API Key Required"}
             value={query}
+            disabled={!isApiAuthorized}
+            title={!isApiAuthorized ? "API Key is required to search. Add it in Settings." : ""}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && performSearch()}
-            className="w-full bg-[#1F222A] text-white pl-12 pr-6 py-4 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00] transition-colors shadow-inner text-lg font-medium"
+            className="w-full bg-[#1F222A] text-white pl-12 pr-6 py-4 rounded-xl border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-inner font-medium text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
         <button
           onClick={performSearch}
-          disabled={loading}
+          disabled={loading || !isApiAuthorized}
           className="px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all hover:scale-105 shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:hover:scale-100"
         >
           {loading ? "Searching..." : "Search TMDB"}

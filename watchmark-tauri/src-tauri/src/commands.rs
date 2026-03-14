@@ -155,6 +155,7 @@ pub struct AppState {
     pub settings_tx: mpsc::Sender<Settings>,
     pub db_queue: Arc<DbTaskQueue>,
     pub is_maintenance_mode: AtomicBool,
+    pub is_api_authorized: AtomicBool,
     pub stats_cache: Arc<RwLock<Option<Value>>>,
     pub read_semaphore: Arc<tokio::sync::Semaphore>,
     pub cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
@@ -309,6 +310,57 @@ pub fn update_local_file(episode_id: i32, new_path: String) -> Result<(), AppErr
 }
 
 #[tauri::command]
+pub async fn validate_tmdb_key(key: String, state: tauri::State<'_, AppState>) -> Result<serde_json::Value, AppError> {
+    // Sanitize the key
+    let sanitized_key = key.trim().chars().filter(|c| c.is_alphanumeric()).collect::<String>();
+
+    if sanitized_key.is_empty() {
+        return Ok(serde_json::json!({
+            "success": false,
+            "sanitized_key": sanitized_key,
+            "error_msg": "API key cannot be empty."
+        }));
+    }
+
+    match crate::tmdb::validate_key(&sanitized_key).await {
+        Ok(true) => {
+            state.is_api_authorized.store(true, Ordering::SeqCst);
+            Ok(serde_json::json!({
+                "success": true,
+                "sanitized_key": sanitized_key,
+                "error_msg": None::<String>
+            }))
+        },
+        Ok(false) => {
+            state.is_api_authorized.store(false, Ordering::SeqCst);
+            Ok(serde_json::json!({
+                "success": false,
+                "sanitized_key": sanitized_key,
+                "error_msg": "Invalid API Key"
+            }))
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            if err_str.starts_with("RATE_LIMIT:") {
+                let parts: Vec<&str> = err_str.split(':').collect();
+                let retry_after = parts.get(1).unwrap_or(&"1").parse::<u64>().unwrap_or(1);
+
+                return Ok(serde_json::json!({
+                    "success": false,
+                    "sanitized_key": sanitized_key,
+                    "error_msg": format!("RATE_LIMIT:{}", retry_after)
+                }));
+            }
+
+            Ok(serde_json::json!({
+                "success": false,
+                "sanitized_key": sanitized_key,
+                "error_msg": format!("Network error: {}", err_str)
+            }))
+        }
+    }
+}
+
 pub async fn save_settings(
     settings: Settings,
     state: tauri::State<'_, AppState>,
@@ -623,7 +675,13 @@ pub async fn add_to_tracker(
     tmdb_id: String,
     media_type: String,
     archive: bool,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
+    if !state.is_api_authorized.load(Ordering::SeqCst) {
+        return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
+    }
+
     let settings = crate::settings::load_settings()
         .map_err(|e| AppError::Custom(e))?;
     if settings.tmdb_api_key.is_empty() {
@@ -631,7 +689,18 @@ pub async fn add_to_tracker(
     }
 
     let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
-    let details_res = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await;
+    let details_res = match crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await {
+        Ok(res) => Ok(res),
+        Err(e) => {
+            if let AppError::NetworkBlocked = e {
+                state.is_api_authorized.store(false, Ordering::SeqCst);
+                state.db_queue.clear();
+                let _ = app.emit("api-auth-failed", ());
+                return Err(AppError::Custom("API Key was revoked.".to_string()));
+            }
+            Err(e)
+        }
+    };
     let mut eps_res = Vec::new();
 
     if let Ok(details) = &details_res {
@@ -1715,7 +1784,11 @@ pub async fn run_scan_directory(
 }
 
 #[tauri::command]
-pub async fn perform_tmdb_search(request_id: String, query: String, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+pub async fn perform_tmdb_search(request_id: String, query: String, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+    if !state.is_api_authorized.load(Ordering::SeqCst) {
+        return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
+    }
+
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
     let token = CancellationToken::new();
@@ -1725,8 +1798,13 @@ pub async fn perform_tmdb_search(request_id: String, query: String, state: tauri
     }
 
     let cancel_tokens = state.cancel_tokens.clone();
+    let is_api_authorized = state.is_api_authorized.load(Ordering::SeqCst);
 
     let task = tokio::task::spawn(async move {
+        if !is_api_authorized {
+            return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
+        }
+
         let settings = crate::settings::load_settings()
             .map_err(|e| AppError::Custom(e))?;
         if settings.tmdb_api_key.is_empty() {
@@ -1734,7 +1812,18 @@ pub async fn perform_tmdb_search(request_id: String, query: String, state: tauri
                 "Missing TMDB API Key. Please add it in Settings.".to_string(),
             ));
         }
-        crate::tmdb::search_media(&settings.tmdb_api_key, &query).await
+
+        match crate::tmdb::search_media(&settings.tmdb_api_key, &query).await {
+            Ok(results) => Ok(results),
+            Err(e) => {
+                if let AppError::NetworkBlocked = e {
+                    state.is_api_authorized.store(false, Ordering::SeqCst);
+                    state.db_queue.clear();
+                    let _ = app.emit("api-auth-failed", ());
+                }
+                Err(e)
+            }
+        }
     });
 
     let result = match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
@@ -1756,8 +1845,13 @@ pub async fn assign_unmatched_to_tracker(
     tmdb_id: String,
     media_type: String,
     group_key: String,
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
+    if !state.is_api_authorized.load(Ordering::SeqCst) {
+        return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
+    }
+
     let cancel_tokens = state.cancel_tokens.clone();
 
     let settings = crate::settings::load_settings()
@@ -1767,7 +1861,18 @@ pub async fn assign_unmatched_to_tracker(
     }
 
     let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
-    let details_res = crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await;
+    let details_res = match crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await {
+        Ok(res) => Ok(res),
+        Err(e) => {
+            if let AppError::NetworkBlocked = e {
+                state.is_api_authorized.store(false, Ordering::SeqCst);
+                state.db_queue.clear();
+                let _ = app.emit("api-auth-failed", ());
+                return Err(AppError::Custom("API Key was revoked.".to_string()));
+            }
+            Err(e)
+        }
+    };
     let mut eps_res = Vec::new();
 
     if let Ok(details) = &details_res {
@@ -2145,6 +2250,10 @@ mod commands_tests_export;
 #[cfg(test)]
 #[path = "commands_tests_optimize.rs"]
 mod commands_tests_optimize;
+
+#[cfg(test)]
+#[path = "commands_tests_tmdb_auth.rs"]
+mod commands_tests_tmdb_auth;
 
 #[tauri::command]
 pub async fn update_media_rating(

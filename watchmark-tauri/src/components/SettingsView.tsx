@@ -10,9 +10,10 @@ import { invokeWithTimeout } from "../utils/ipc";
 import { AnimatePresence, motion } from "framer-motion";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Loader2, UploadCloud, Sparkles } from "lucide-react";
+import { Loader2, UploadCloud, Sparkles, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { documentDir } from '@tauri-apps/api/path';
 import { RestoreConfirmationModal } from "./ui/RestoreConfirmationModal";
+import { open as openUrl } from "@tauri-apps/plugin-shell";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,6 +30,9 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   const [activeTab, setActiveTab] = useState<SettingsTab>("General");
 
   const [initialSettings, setInitialSettings] = useState<any>(null);
+  const [validationState, setValidationState] = useState<'idle' | 'loading' | 'success' | 'error' | 'ratelimit'>('idle');
+  const [validationError, setValidationError] = useState<string>('');
+
   const [settings, setSettings] = useState<any>({
     vlc_path: "",
     tmdb_api_key: "",
@@ -65,12 +69,15 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
         toast.success("Settings saved successfully.");
         setInitialSettings(JSON.parse(JSON.stringify(settings)));
         setIsDirty(false);
+        if (validationState === 'success') {
+             useAppStore.getState().setApiAuthorized(true);
+        }
         return true;
     } catch (e) {
         toast.error("Error saving settings: " + e);
         return false;
     }
-  }, [settings, setIsDirty]);
+  }, [settings, setIsDirty, validationState]);
 
   useEffect(() => {
       // Because `setSaveCallback` is a React state setter taking a function,
@@ -125,6 +132,55 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
 
   const updateSetting = (key: string, value: any) => {
       setSettings((prev: any) => ({ ...prev, [key]: value }));
+      if (key === 'tmdb_api_key') {
+          setValidationState('idle');
+          setValidationError('');
+      }
+  };
+
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          if (settings.tmdb_api_key !== '' && settings.tmdb_api_key !== initialSettings?.tmdb_api_key) {
+              validateApiKey(settings.tmdb_api_key);
+          } else if (settings.tmdb_api_key === '') {
+              setValidationState('idle');
+          }
+      }, 500);
+
+      return () => clearTimeout(timer);
+  }, [settings.tmdb_api_key]);
+
+  const validateApiKey = async (keyToValidate: string) => {
+      setValidationState('loading');
+      setValidationError('');
+      try {
+          const res: any = await invoke("validate_tmdb_key", { key: keyToValidate });
+
+          if (res.sanitized_key !== keyToValidate) {
+              setSettings((prev: any) => ({ ...prev, tmdb_api_key: res.sanitized_key }));
+          }
+
+          if (res.success) {
+              setValidationState('success');
+          } else {
+              if (res.error_msg && res.error_msg.startsWith("RATE_LIMIT:")) {
+                  const retryAfter = parseInt(res.error_msg.split(":")[1]) || 1;
+                  setValidationState('ratelimit');
+                  setValidationError(`Key is valid, but TMDB is busy. Retrying in ${retryAfter} seconds.`);
+                  setTimeout(() => {
+                      if (settings.tmdb_api_key === res.sanitized_key) {
+                          validateApiKey(res.sanitized_key);
+                      }
+                  }, retryAfter * 1000);
+              } else {
+                  setValidationState('error');
+                  setValidationError(res.error_msg || "Invalid API Key");
+              }
+          }
+      } catch (e: any) {
+          setValidationState('error');
+          setValidationError(e.toString());
+      }
   };
 
   const runScan = async () => {
@@ -328,16 +384,60 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                     <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
                         <div>
                             <h3 className="text-sm font-bold text-white">TMDB API Key</h3>
-                            <p className="text-xs text-gray-500 mt-1">Required to fetch poster art and synopsis from TMDB.</p>
+                            <p className="text-xs text-gray-500 mt-1 mb-2">Required to fetch poster art and synopsis from TMDB.</p>
+                            {!settings.tmdb_api_key && (
+                                <div className="text-xs bg-[#FF6B00]/10 border border-[#FF6B00]/20 rounded-lg p-3 mt-2">
+                                    <p className="text-gray-300 mb-2" title="Why do I need this? TMDB is a free service used to provide the high-quality posters and details shown in the app.">
+                                        TMDB is a free service used to provide the high-quality posters and details shown in the app.
+                                    </p>
+                                    <button
+                                        onClick={() => openUrl("https://www.themoviedb.org/settings/api").catch(console.error)}
+                                        className="text-[#FF6B00] font-bold hover:underline"
+                                    >
+                                        Get your free API key here &rarr;
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <div>
-                            <input
-                                type="password"
-                                value={settings.tmdb_api_key}
-                                onChange={e => updateSetting('tmdb_api_key', e.target.value)}
-                                className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
-                                placeholder="ey..."
-                            />
+                            <div className="relative">
+                                <input
+                                    type="password"
+                                    value={settings.tmdb_api_key}
+                                    onChange={e => updateSetting('tmdb_api_key', e.target.value)}
+                                    className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none pr-12"
+                                    placeholder="ey..."
+                                />
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <AnimatePresence mode="wait">
+                                        {validationState === 'loading' && (
+                                            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                                                <Loader2 className="w-5 h-5 animate-spin text-[#FF6B00]" />
+                                            </motion.div>
+                                        )}
+                                        {validationState === 'success' && (
+                                            <motion.div key="success" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                                                <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                            </motion.div>
+                                        )}
+                                        {validationState === 'error' && (
+                                            <motion.div key="error" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                                                <XCircle className="w-5 h-5 text-red-500" />
+                                            </motion.div>
+                                        )}
+                                        {validationState === 'ratelimit' && (
+                                            <motion.div key="ratelimit" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                                                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+                            {validationError && (
+                                <p className={cn("text-xs mt-2", validationState === 'ratelimit' ? "text-yellow-500" : "text-red-500")}>
+                                    {validationError}
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -707,7 +807,13 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                           </button>
                           <button
                               onClick={saveSettings}
-                              className="px-8 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl shadow-[0_0_15px_rgba(255,107,0,0.5)] transition-colors"
+                              disabled={validationState === 'loading' || validationState === 'error'}
+                              className={cn(
+                                  "px-8 py-3 font-bold rounded-xl transition-colors",
+                                  validationState === 'loading' || validationState === 'error'
+                                    ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                                    : "bg-[#FF6B00] hover:bg-[#E66000] text-white shadow-[0_0_15px_rgba(255,107,0,0.5)]"
+                              )}
                           >
                               Save
                           </button>

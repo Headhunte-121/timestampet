@@ -37,7 +37,7 @@ function App() {
 
   // Refresh UI hook
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const { isCinemaMode, initialized, initializeSettings } = useAppStore();
+  const { isCinemaMode, initialized, initializeSettings, setApiAuthorized } = useAppStore();
 
   const isImporting = useTaskStore((state) => state.isImporting);
   const importProgress = useTaskStore((state) => state.progress);
@@ -94,10 +94,19 @@ function App() {
         );
     });
 
+    const unlistenApiFailed = listen("api-auth-failed", () => {
+        setApiAuthorized(false);
+        toast.error(
+            "API Key Unauthorized. All background metadata requests have been halted. Please check your Settings.",
+            { duration: 8000, style: { background: "#b71c1c", color: "#ffffff", border: "none" } }
+        );
+    });
+
     return () => {
       unlisten.then(fn => fn());
       unlistenProgress.then(fn => fn());
       unlistenDbFailed.then(fn => fn());
+      unlistenApiFailed.then(fn => fn());
     };
   }, []);
 
