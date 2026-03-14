@@ -95,8 +95,10 @@ fn canary_check() -> Result<(), std::io::Error> {
 }
 
 fn main() {
+    log::info!("Starting application: Running canary check...");
     if let Err(e) = canary_check() {
         let error_msg = format!("Fatal Error: Could not initialize application data directory.\n\nPermissions Required to write to: {:?}\n\nError details: {}", db::get_app_data_dir(), e);
+        log::error!("{}", error_msg);
         MessageDialog::new()
             .set_type(MessageType::Error)
             .set_title("WatchMark - Fatal Error")
@@ -105,9 +107,11 @@ fn main() {
             .unwrap();
         std::process::exit(1);
     }
+    log::info!("Canary check passed successfully.");
 
     if let Err(e) = db::ensure_directories() {
          let error_msg = format!("Fatal Error: Could not create nested application data directories.\n\nError details: {}", e);
+         log::error!("{}", error_msg);
          MessageDialog::new()
             .set_type(MessageType::Error)
             .set_title("WatchMark - Fatal Error")
@@ -120,7 +124,9 @@ fn main() {
     // Cold-Swap Database Restore Logic
     execute_cold_swap(&db::get_app_data_dir());
 
+    log::info!("Initializing SQLite database...");
     db::init_db().expect("Failed to initialize database");
+    log::info!("Database initialized successfully.");
 
     let initial_settings = match settings::load_settings() {
         Ok(s) => s,
@@ -143,7 +149,17 @@ fn main() {
     let app_backup_settings_arc = backup_settings_arc.clone();
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Debug)
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("app".into()),
+                    }),
+                ])
+                .build(),
+        )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -168,6 +184,7 @@ fn main() {
             }
         })
         .setup(move |app| {
+            log::info!("Tauri setup hook triggered. Initializing state...");
             let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new(app.handle().clone()));
 
             app.manage(commands::AppState {
@@ -176,6 +193,7 @@ fn main() {
                 db_queue: db_queue.clone(),
                 is_maintenance_mode: std::sync::atomic::AtomicBool::new(false),
             });
+            log::info!("AppState successfully managed by Tauri.");
 
             #[cfg(test)]
             crate::backup_tests_module_trigger();

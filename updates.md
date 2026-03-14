@@ -292,3 +292,11 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Fixed a bug where Tauri WebView2 on Windows 11 attempted to resolve `localhost` via IPv6 (`::1`), while the Vite dev server bound exclusively to IPv4 (`127.0.0.1`). This proxy mismatch resulted in raw HTTP headers and chunked streams rendering as plain text directly onto the main screen.
 - Configured Vite (`vite.config.ts`) to explicitly bind to `127.0.0.1` instead of `localhost`.
 - Configured Tauri (`tauri.conf.json`) to specifically target `http://127.0.0.1:1420`, strictly ensuring the underlying proxy handshakes succeed.
+
+### Update 1.2: Tauri Plugin Log Configuration
+- Upgraded the `tauri-plugin-log` integration in `main.rs` to instantiate dual targets during setup. It now logs robust application tracing implicitly to standard console output (`Stdout`) and persistently to the structured AppData `/logs` directory under `watchmark.log`, dramatically improving diagnostic resolution times for local environments.
+
+### Update 1.2.1: Tauri Plugin Log Output Verbosity & Tracing
+- Elevated the `tauri_plugin_log` output verbosity explicitly to `log::LevelFilter::Debug` inside `main.rs` to ensure network diagnostics and SQLite traces populate seamlessly into local outputs.
+- Modified the file logging strategy targeting `app.log` inherently inside the `LogDir` instead of `watchmark.log`, enforcing strict Tauri OS-agnostic conventions.
+- Deployed structured `log::info!` lifecycle checkpoints spanning critical architectural boot components (`canary_check()`, `db::init_db()`, and the Tauri `setup` hook state management phase) mapping accurate stack execution progress locally for debugging initialization faults.
