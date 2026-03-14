@@ -249,3 +249,9 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **Retention Logic**: Added automatic pruning feature to strictly retain only 3 recent backups in the data folder.
 - **Safeguards**: Employed `fs3` to enforce 10MB free disk space requirement before vacuums to prevent disk corruption.
 - **UI Updates**: Configured frontend `SettingsView` via IPC listener updates showing 'Last automated backup' status labels.
+
+### Feature 25.2: Manual DB Backup Action
+- **UI Component**: Converted 'Backup DB' button in the 'System' settings tab into an interactive `motion.button` tracking an `isBackingUp` state, rendering a `Loader2` spinning icon and transitioning into a `cursor-wait` state while actively executing.
+- **Dialog Wiring**: Wired Tauri's `@tauri-apps/plugin-dialog` to launch standard OS Save File dialogs utilizing `documentDir` as a fallback, pre-filling a structured suggestion (e.g., `WatchMark-Backup-YYYY-MM-DD.db`), restricted specifically to `.db` or `.sqlite` formats.
+- **High-Priority Atomic Copy**: Engineered an async `export_database` Rust command specifically pushing the SQLite `VACUUM INTO ?` SQL instruction exclusively into the `High Priority` DbTaskQueue, guaranteeing a pristine, non-corrupt snapshot.
+- **Overwrite Safety**: Included a strict OS `fs::remove_file` catch immediately preceding execution to prevent standard `VACUUM INTO` operations natively from crashing when presented with existing identically-named destination files.

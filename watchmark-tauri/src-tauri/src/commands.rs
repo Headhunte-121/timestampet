@@ -295,6 +295,36 @@ pub fn delete_media_cmd(
 }
 
 #[tauri::command]
+pub async fn export_database(
+    target_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
+    let target_path_buf = std::path::PathBuf::from(&target_path);
+
+    // Ensure we can use the file path (must remove if exists since VACUUM INTO fails otherwise)
+    if target_path_buf.exists() {
+        if let Err(e) = std::fs::remove_file(&target_path_buf) {
+            return Err(AppError::Custom(format!("Failed to remove existing file at destination: {}", e)));
+        }
+    }
+
+    let db_queue = state.db_queue.clone();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    db_queue.push_high_priority(move |conn| {
+        let sql = format!("VACUUM INTO '{}'", target_path_buf.to_string_lossy().replace("'", "''"));
+        let result = conn.execute(&sql, []).map_err(|e| AppError::Custom(format!("Database export failed: {}", e)));
+        let _ = tx.send(result);
+    });
+
+    match rx.await {
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err(AppError::Custom("Database worker dropped task".to_string())),
+    }
+}
+
+#[tauri::command]
 pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;
@@ -1747,6 +1777,10 @@ pub fn toggle_episode_status(episode_id: i32) -> Result<(), AppError> {
         Ok(())
     })
 }
+
+#[cfg(test)]
+#[path = "commands_tests_export.rs"]
+mod commands_tests_export;
 
 #[tauri::command]
 pub async fn update_media_rating(

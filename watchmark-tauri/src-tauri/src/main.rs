@@ -408,6 +408,7 @@ fn main() {
             commands::assign_unmatched_to_tracker,
             commands::get_media_history_count,
             commands::update_media_rating,
+            commands::export_database,
             vlc::play_episode_cmd,
         ])
         .run(tauri::generate_context!())

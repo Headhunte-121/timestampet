@@ -3,12 +3,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
 import { toast } from "sonner";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
 import { invokeWithTimeout } from "../utils/ipc";
 import { AnimatePresence, motion } from "framer-motion";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { Loader2 } from "lucide-react";
+import { documentDir } from '@tauri-apps/api/path';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -44,6 +46,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   const { isCinemaMode, setCinemaMode } = useAppStore();
   const [scanStatus, setScanStatus] = useState<string>("");
   const [backupStatus, setBackupStatus] = useState<{ status: string, error?: string, timestamp: number } | null>(null);
+  const [isBackingUp, setIsBackingUp] = useState(false);
   const isDirty = initialSettings && JSON.stringify(settings) !== JSON.stringify(initialSettings);
 
   useEffect(() => {
@@ -185,6 +188,41 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     } catch (e: any) {
         toast.error(`Error repairing paths: ${e}`);
     }
+  };
+
+  const handleBackupDB = async () => {
+      setIsBackingUp(true);
+      try {
+          const dateString = new Date().toISOString().split('T')[0];
+          const suggestedName = `WatchMark-Backup-${dateString}.db`;
+          let defaultPath = "";
+          try {
+              defaultPath = await documentDir();
+          } catch (e) {
+              console.warn("Failed to get document dir:", e);
+          }
+
+          const selected = await save({
+              title: "Export Database",
+              defaultPath: defaultPath ? `${defaultPath}/${suggestedName}` : suggestedName,
+              filters: [{ name: "SQLite Database", extensions: ["db", "sqlite"] }]
+          });
+
+          if (selected && typeof selected === 'string') {
+              await invoke("export_database", { targetPath: selected });
+              toast.success(`Database exported! Your media history is now safe in ${selected}`);
+          }
+      } catch (error: any) {
+          if (error?.toString().includes("reading 'invoke'") || error?.toString().includes("window.__TAURI_INTERNALS__")) {
+              console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
+          } else {
+              toast.error(`Export failed: ${error}`);
+          }
+      } finally {
+          setTimeout(() => {
+              setIsBackingUp(false);
+          }, 3000);
+      }
   };
 
   return (
@@ -421,12 +459,29 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                         </div>
                         <div>
                             <div className="flex gap-4">
-                                <button
-                                    onClick={() => toast.success("Database backup initiated.")}
-                                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
+                                <motion.button
+                                    whileTap={!isBackingUp ? { scale: 0.98 } : undefined}
+                                    onClick={handleBackupDB}
+                                    disabled={isBackingUp}
+                                    className={cn(
+                                        "px-6 py-3 font-bold rounded-xl transition-all flex items-center gap-2 relative overflow-hidden",
+                                        isBackingUp
+                                            ? "border border-[#FF6B00] text-[#FF6B00] cursor-wait bg-transparent"
+                                            : "border border-[#FF6B00] text-[#FF6B00] hover:bg-[#FF6B00] hover:text-white"
+                                    )}
                                 >
-                                    Backup DB
-                                </button>
+                                    {isBackingUp && (
+                                        <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_1.5s_infinite]" />
+                                    )}
+                                    {isBackingUp ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin text-[#FF6B00]" />
+                                            Backing Up...
+                                        </>
+                                    ) : (
+                                        "Backup DB"
+                                    )}
+                                </motion.button>
                                 <button
                                     onClick={() => toast.success("Database vacuum completed.")}
                                     className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
