@@ -151,19 +151,20 @@ fn main() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let state = window.state::<commands::AppState>();
-                let db_queue = state.db_queue.clone();
                 let app_handle = window.app_handle().clone();
+                if let Some(state) = app_handle.try_state::<commands::AppState>() {
+                    let db_queue = state.db_queue.clone();
 
-                api.prevent_close(); // Prevent immediate exit
-                let (tx, rx) = tokio::sync::oneshot::channel();
-                db_queue.shutdown(tx);
+                    api.prevent_close(); // Prevent immediate exit
+                    let (tx, rx) = tokio::sync::oneshot::channel();
+                    db_queue.shutdown(tx);
 
-                tauri::async_runtime::spawn(async move {
-                    // Wait for maximum 2 seconds for worker thread to drain
-                    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), rx).await;
-                    app_handle.exit(0);
-                });
+                    tauri::async_runtime::spawn(async move {
+                        // Wait for maximum 2 seconds for worker thread to drain
+                        let _ = tokio::time::timeout(std::time::Duration::from_secs(2), rx).await;
+                        app_handle.exit(0);
+                    });
+                }
             }
         })
         .setup(move |app| {

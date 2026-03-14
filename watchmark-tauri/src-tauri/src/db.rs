@@ -116,7 +116,7 @@ pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::
         let _ = conn.pragma_update(None, "synchronous", "NORMAL");
         let _ = conn.pragma_update(None, "temp_store", "MEMORY");
         let _ = conn.pragma_update(None, "foreign_keys", "ON");
-        let _ = conn.pragma_update(None, "busy_timeout", "5000"); // Feature 1.10 busy timeout
+        let _ = conn.pragma_update(None, "busy_timeout", 5000); // Feature 1.10 busy timeout
 
         let mutex = Mutex::new(conn);
         DB_CONNECTION
@@ -140,7 +140,7 @@ pub fn get_readonly_connection() -> Result<Connection, rusqlite::Error> {
     let _ = conn.pragma_update(None, "synchronous", "NORMAL");
     let _ = conn.pragma_update(None, "temp_store", "MEMORY");
     let _ = conn.pragma_update(None, "foreign_keys", "ON");
-    let _ = conn.pragma_update(None, "busy_timeout", "5000");
+    let _ = conn.pragma_update(None, "busy_timeout", 5000);
 
     Ok(conn)
 }
@@ -165,7 +165,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "temp_store", "MEMORY")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
-        conn.pragma_update(None, "busy_timeout", "5000")?;
+        conn.pragma_update(None, "busy_timeout", 5000)?;
 
         let _ = DB_CONNECTION.set(Mutex::new(conn));
     }
