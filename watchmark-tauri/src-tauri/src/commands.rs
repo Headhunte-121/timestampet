@@ -4,6 +4,7 @@ use crate::models::{HistoryEntry, Media, Settings, UnmatchedFile};
 use rusqlite::params;
 use serde_json::{json, Value};
 use std::sync::{Arc, RwLock};
+use tauri::Emitter;
 use chrono::{Local, TimeZone, NaiveDate, Datelike};
 
 fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value> {
@@ -143,9 +144,12 @@ mod tests_feature_5_8 {
     }
 }
 
+use crate::task_queue::DbTaskQueue;
+
 pub struct AppState {
     pub settings: Arc<RwLock<Settings>>,
     pub settings_tx: mpsc::Sender<Settings>,
+    pub db_queue: Arc<DbTaskQueue>,
 }
 
 #[tauri::command]
@@ -729,82 +733,84 @@ pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: b
 }
 
 #[tauri::command]
-pub async fn backdate_season(media_id: i32, season_num: u32, year: i32, month: u32) -> Result<(), AppError> {
+pub async fn archive_season(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    media_id: i32,
+    season_num: u32,
+    is_legacy: bool,
+    timestamp: Option<i64>,
+) -> Result<(), AppError> {
+    let db_queue = state.db_queue.clone();
+
     tokio::task::spawn_blocking(move || {
-        handle_panic(|| {
-            let mut conn = crate::db::get_db_connection()?;
-            let tx = conn.transaction()?;
-
-            // Validation: Ensure the year is not before the show aired.
-            // The prompt says "If a user tries to backdate a watch-log to a year before the show aired, the UI should show a warning"
-            // We'll enforce it here or return an error if it's invalid, although the UI could let them "Force Save"
-            // For now, we will perform the contextual spreading logic.
-
+        let app_clone1 = app.clone();
+        handle_panic(std::panic::AssertUnwindSafe(move || {
+            let app = app_clone1;
+            let conn = get_db_connection()?;
             let mut episode_ids = Vec::new();
-            let mut earliest_air_date_ts = None;
+
             {
-                // Fetch episodes to update
-                let mut stmt = tx.prepare("SELECT id, air_date FROM Episodes WHERE media_id = ? AND season_num = ? ORDER BY ep_num ASC")?;
+                let mut stmt = conn.prepare("SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? ORDER BY ep_num ASC")?;
                 let mut rows = stmt.query(params![media_id, season_num])?;
-
                 while let Ok(Some(row)) = rows.next() {
-                    let ep_id = row.get::<_, i32>(0).unwrap_or(0);
-                    let air_date = row.get::<_, Option<String>>(1).unwrap_or_default();
-                    episode_ids.push(ep_id);
-
-                    if let Some(date_str) = air_date {
-                        if !date_str.is_empty() {
-                            if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
-                                let ts = parsed_date.and_hms_opt(0, 0, 0).unwrap().and_local_timezone(chrono::Utc).unwrap().timestamp();
-                                if earliest_air_date_ts.is_none() || ts < earliest_air_date_ts.unwrap() {
-                                    earliest_air_date_ts = Some(ts);
-                                }
-                            }
-                        }
-                    }
+                    episode_ids.push(row.get::<_, i32>(0).unwrap_or(0));
                 }
             }
 
             if episode_ids.is_empty() {
-                return Err(AppError::Custom("No episodes found for this season.".to_string()));
+                return Ok(());
             }
 
-            // "Contextual Spreading: When spreading episodes across a month, Episode 1 is always assigned a date earlier than or equal to Episode 2."
-            let mut current_day = 1;
-            let days_in_month = chrono::NaiveDate::from_ymd_opt(
-                if month == 12 { year + 1 } else { year },
-                if month == 12 { 1 } else { month + 1 },
-                1
-            ).unwrap().signed_duration_since(chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap()).num_days() as u32;
+            let total_episodes = episode_ids.len();
+            let base_timestamp = timestamp.unwrap_or_else(|| chrono::Utc::now().timestamp());
+            let start_timestamp = if is_legacy {
+                use chrono::{DateTime, Utc, TimeZone, Datelike};
+                if let Some(dt) = Utc.timestamp_opt(base_timestamp, 0).single() {
+                    if let Some(first_of_month) = dt.with_day(1) {
+                        first_of_month.timestamp()
+                    } else {
+                        base_timestamp
+                    }
+                } else {
+                    base_timestamp
+                }
+            } else {
+                base_timestamp
+            };
 
-            let step = (days_in_month as f64 / episode_ids.len() as f64).floor() as u32;
-            let step = if step == 0 { 1 } else { step };
+            let _ = app.emit("history-import-progress", json!({ "progress": 0, "total": total_episodes, "isImporting": true }));
 
-            for (i, ep_id) in episode_ids.iter().enumerate() {
-                // Update status
-                let _ = tx.execute(
-                    "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1 WHERE id = ?",
-                    params![ep_id]
-                );
+            for (i, ep_id) in episode_ids.into_iter().enumerate() {
+                let current_ep_timestamp = start_timestamp + (i as i64 * 86400);
+                let app_clone = app.clone();
+                let current_idx = i + 1;
 
-                let day = (current_day + (i as u32 * step)).min(days_in_month);
-                let date = chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap();
-                let timestamp = date.and_hms_opt(12, 0, 0).unwrap().and_local_timezone(chrono::Utc).unwrap().timestamp();
+                db_queue.push_low_priority(move |conn| {
+                    let _ = conn.execute(
+                        "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1 WHERE id = ?",
+                        params![ep_id]
+                    );
 
-                // Floor check: If backdating before air_date, the user can force it via UI, but here we strictly insert what is requested.
-                // The prompt test "The Time Traveler Test: Attempt to backdate a 2024 show to 2010. Verify the system flags the chronological impossibility but allows the user to 'Force Save'"
-                // This means the Rust backend shouldn't block it, just the UI flags it.
+                    let session_id = uuid::Uuid::new_v4().to_string();
+                    let legacy_int = if is_legacy { 1 } else { 0 };
 
-                let _ = tx.execute(
-                    "INSERT INTO History (episode_id, timestamp, is_legacy, status) VALUES (?, ?, 1, 'Completed')",
-                    params![ep_id, timestamp]
-                );
+                    let _ = conn.execute(
+                        "INSERT INTO History (episode_id, timestamp, is_legacy, session_id, status) VALUES (?, ?, ?, ?, 'Completed')",
+                        params![ep_id, current_ep_timestamp, legacy_int, session_id]
+                    );
+
+                    let progress_percent = (current_idx as f64 / total_episodes as f64 * 100.0) as i32;
+                    let is_importing = current_idx < total_episodes;
+                    let _ = app_clone.emit("history-import-progress", json!({ "progress": progress_percent, "total": total_episodes, "isImporting": is_importing }));
+                });
             }
 
-            tx.commit()?;
-            Ok(())
-        })
-    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
+            Ok::<(), AppError>(())
+        }))
+    }).await.unwrap_or_else(|_| Err(AppError::Custom("Task panicked".to_string())))?;
+
+    Ok(())
 }
 
 #[tauri::command]

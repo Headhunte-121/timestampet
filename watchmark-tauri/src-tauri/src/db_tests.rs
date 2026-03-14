@@ -374,6 +374,94 @@ mod tests {
 }
 
 #[cfg(test)]
+mod feature_5_9_tests {
+    use rusqlite::Connection;
+
+    #[test]
+    fn test_is_legacy_default_0() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Since we are not running full init_db in this specific unit test framework easily,
+        // we'll simulate the table creation with the new schema.
+        conn.execute(
+            "CREATE TABLE Episodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                media_id INTEGER
+            )",
+            (),
+        ).unwrap();
+
+        conn.execute(
+            "CREATE TABLE History (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                is_legacy INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (episode_id) REFERENCES Episodes (id) ON DELETE CASCADE
+            )",
+            (),
+        ).unwrap();
+
+        conn.execute("INSERT INTO Episodes (media_id) VALUES (1)", ()).unwrap();
+
+        // Test 1: Implicit omission should default to 0
+        conn.execute("INSERT INTO History (episode_id) VALUES (1)", ()).unwrap();
+
+        let is_legacy: i32 = conn.query_row(
+            "SELECT is_legacy FROM History WHERE id = 1",
+            [],
+            |row: &rusqlite::Row| row.get(0)
+        ).unwrap();
+
+        assert_eq!(is_legacy, 0);
+
+        // Test 2: Direct SQL Injection should force failure if trying to set NULL,
+        // or ensure SQLite catches the NOT NULL constraint if we try to insert NULL.
+        let result = conn.execute("INSERT INTO History (episode_id, is_legacy) VALUES (1, NULL)", ());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_legacy_inline_date_edit_preservation() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute(
+            "CREATE TABLE Episodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                media_id INTEGER
+            )",
+            (),
+        ).unwrap();
+
+        conn.execute(
+            "CREATE TABLE History (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL,
+                is_legacy INTEGER NOT NULL DEFAULT 0
+            )",
+            (),
+        ).unwrap();
+
+        conn.execute("INSERT INTO Episodes (media_id) VALUES (1)", ()).unwrap();
+
+        // Insert a legacy row
+        conn.execute("INSERT INTO History (episode_id, timestamp, is_legacy) VALUES (1, 1000000, 1)", ()).unwrap();
+
+        // Simulate "Inline Date Edit" QoL update that tweaks the timestamp
+        conn.execute("UPDATE History SET timestamp = 2000000 WHERE id = 1", ()).unwrap();
+
+        // Verify the legacy flag is strictly preserved
+        let (ts, legacy): (i64, i32) = conn.query_row(
+            "SELECT timestamp, is_legacy FROM History WHERE id = 1",
+            [],
+            |row: &rusqlite::Row| Ok((row.get(0)?, row.get(1)?))
+        ).unwrap();
+
+        assert_eq!(ts, 2000000);
+        assert_eq!(legacy, 1);
+    }
+}
+
+#[cfg(test)]
 mod feature_5_6_tests {
     use super::*;
     use rusqlite::Connection;

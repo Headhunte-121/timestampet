@@ -365,6 +365,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
     if user_version < 7 {
         let tx = conn.transaction()?;
         let v7_migrations = vec![
+            "ALTER TABLE History ADD COLUMN is_legacy INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE Episodes ADD COLUMN is_air_date_manual BOOLEAN DEFAULT 0",
         ];
         for query in v7_migrations {
@@ -374,6 +375,8 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
                 }
             }
         }
+        // Ensure legacy rows that were added before are 0 by default if null
+        let _ = tx.execute("UPDATE History SET is_legacy = 0 WHERE is_legacy IS NULL", ());
         tx.execute("PRAGMA user_version = 7", ())?;
         tx.commit()?;
     }

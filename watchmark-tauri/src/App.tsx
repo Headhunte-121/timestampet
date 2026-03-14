@@ -5,6 +5,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { useAppStore } from "./store/useAppStore";
+import { useTaskStore } from "./store/useTaskStore";
 import Dashboard from "./components/Dashboard";
 import Library from "./components/Library";
 import SearchTMDB from "./components/SearchTMDB";
@@ -44,8 +45,19 @@ function App() {
       setRefreshTrigger(prev => prev + 1);
     });
 
+    const unlistenProgress = listen<{ progress: number; total: number; isImporting: boolean }>(
+      "history-import-progress",
+      (event) => {
+        useTaskStore.getState().setProgress(event.payload.progress, event.payload.total, event.payload.isImporting);
+        if (!event.payload.isImporting) {
+            setRefreshTrigger(prev => prev + 1);
+        }
+      }
+    );
+
     return () => {
       unlisten.then(fn => fn());
+      unlistenProgress.then(fn => fn());
     };
   }, []);
 
@@ -152,6 +164,23 @@ function App() {
       <main className="flex-1 flex flex-col relative overflow-hidden">
         <Toaster theme="dark" position="bottom-right" richColors />
         <Modal />
+
+        {/* Progress Bar (Global) */}
+        <div className="absolute top-0 left-0 w-full h-1 z-[100] pointer-events-none">
+          <AnimatePresence>
+            {useTaskStore((state) => state.isImporting) && (
+              <motion.div
+                initial={{ opacity: 0, scaleX: 0 }}
+                animate={{ opacity: 1, scaleX: useTaskStore((state) => state.total > 0 ? state.progress / 100 : 0) }}
+                exit={{ opacity: 0 }}
+                style={{ originX: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="h-full bg-[#FF6B00] shadow-[0_0_10px_#FF6B00]"
+              />
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Global Search Bar */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4 pointer-events-none">
           <div className="relative pointer-events-auto">

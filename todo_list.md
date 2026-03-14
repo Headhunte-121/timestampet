@@ -590,25 +590,25 @@ This document represents the complete functional blueprint and state of the Watc
 
 **5.8 air_date column for episode 'time capsule' comparisons.** (Complete)
 
--[x] Verify math operations (e.g., difference between watch date and air date) work accurately.
--[x] Handle edge cases where air date exists but time is unknown (assume midnight).
--[x] Ensure backdating logic can leverage this column for historical reconstruction.
--[x] Test updating this column gracefully without overwriting local manual changes.
--[x] Verify leap year air dates do not cause day-offset bugs.
+- [x] Verify math operations (e.g., difference between watch date and air date) work accurately.
+- [x] Handle edge cases where air date exists but time is unknown (assume midnight).
+- [x] Ensure backdating logic can leverage this column for historical reconstruction.
+- [x] Test updating this column gracefully without overwriting local manual changes.
+- [x] Verify leap year air dates do not cause day-offset bugs.
 
-**5.9 is_legacy boolean flag for handling archived/backdated history.** (Incomplete)
+**5.9 is_legacy boolean flag for handling archived/backdated history.** (Complete)
 
-- [ ] Ensure this flag strictly defaults to 0 (false) for real-time natural watching.
-- [ ] Handle edge cases where a legacy row is modified; does it stay legacy?
-- [ ] Verify the UI timeline parser bypasses expandable accordion logic for legacy items.
-- [ ] Test mass-insertion of 500 legacy rows ensuring database locks are avoided.
-- [ ] Ensure analytics/stats math still correctly counts legacy rows.
+- [x] Ensure this flag strictly defaults to 0 (false) for real-time natural watching.
+- [x] Handle edge cases where a legacy row is modified; does it stay legacy?
+- [x] Verify the UI timeline parser bypasses expandable accordion logic for legacy items.
+- [x] Test mass-insertion of 500 legacy rows ensuring database locks are avoided.
+- [x] Ensure analytics/stats math still correctly counts legacy rows.
 
-**5.10 user_rating integer column for 1-5 star personal scores.** (Incomplete)
+**5.10 user_rating integer column for 1-10 star personal scores.** (Incomplete)
 
-- [ ] Ensure constraints strictly restrict integers to between 0 and 5.
+- [ ] Ensure constraints strictly restrict integers to between 0 and 10.
 - [ ] Handle edge cases where null represents unrated versus 0 representing terrible.
-- [ ] Verify 'My Top Rated' sort logic places 5-star shows at the top and 0 at bottom.
+- [ ] Verify 'My Top Rated' sort logic places 10-star shows at the top and 0 at bottom.
 - [ ] Test rapid UI clicking of stars accurately reflects the final state in the DB.
 - [ ] Ensure this data is entirely independent from the TMDB `vote_average`.
 
