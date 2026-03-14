@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
+import { useTaskStore } from "../store/useTaskStore";
 import { toast } from "sonner";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
@@ -9,8 +10,9 @@ import { invokeWithTimeout } from "../utils/ipc";
 import { AnimatePresence, motion } from "framer-motion";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Loader2 } from "lucide-react";
+import { Loader2, UploadCloud } from "lucide-react";
 import { documentDir } from '@tauri-apps/api/path';
+import { RestoreConfirmationModal } from "./ui/RestoreConfirmationModal";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -44,9 +46,13 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   });
 
   const { isCinemaMode, setCinemaMode } = useAppStore();
+  const { isScanning, setScanning } = useTaskStore();
   const [scanStatus, setScanStatus] = useState<string>("");
-  const [backupStatus, setBackupStatus] = useState<{ status: string, error?: string, timestamp: number } | null>(null);
+  const [_, setBackupStatus] = useState<{ status: string, error?: string, timestamp: number } | null>(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [selectedRestoreFile, setSelectedRestoreFile] = useState<string | null>(null);
   const isDirty = initialSettings && JSON.stringify(settings) !== JSON.stringify(initialSettings);
 
   useEffect(() => {
@@ -130,15 +136,18 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
       });
       if (selected && typeof selected === 'string') {
         setScanStatus("Scan started...");
+        setScanning(true);
         // Ensure a generous timeout matching the backend (300 seconds)
         invokeWithTimeout<number>("run_scan_directory", { directory: selected }, 300000)
           .then((count: number) => {
             toast.success(`Scan complete. Found ${count} unmatched files.`);
             setScanStatus("");
+            setScanning(false);
           })
           .catch((e: any) => {
             toast.error("Error during scan: " + e);
             setScanStatus("");
+            setScanning(false);
           });
       }
     } catch (e: any) {
@@ -188,6 +197,42 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     } catch (e: any) {
         toast.error(`Error repairing paths: ${e}`);
     }
+  };
+
+  const handleImportBackup = async () => {
+      try {
+          const selected = await open({
+              multiple: false,
+              filters: [{
+                  name: 'Database Backup',
+                  extensions: ['db', 'sqlite', 'bak']
+              }],
+              title: "Select Database Backup to Restore"
+          });
+
+          if (selected && typeof selected === 'string') {
+              setSelectedRestoreFile(selected);
+              setShowRestoreModal(true);
+          }
+      } catch (e: any) {
+          toast.error("Error opening dialog: " + e);
+      }
+  };
+
+  const confirmRestore = async () => {
+      if (!selectedRestoreFile) return;
+      setIsRestoring(true);
+      try {
+          // Set a local storage flag so the frontend knows on boot that a restore just finished
+          localStorage.setItem('restore_success', 'true');
+          await invoke("prepare_restore", { backupPath: selectedRestoreFile });
+          // If successful, app will restart. If we reach here, restart didn't happen immediately but was triggered.
+      } catch (e: any) {
+          localStorage.removeItem('restore_success');
+          toast.error("Restore failed: " + e);
+          setIsRestoring(false);
+          setShowRestoreModal(false);
+      }
   };
 
   const handleBackupDB = async () => {
@@ -460,14 +505,14 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                         <div>
                             <div className="flex gap-4">
                                 <motion.button
-                                    whileTap={!isBackingUp ? { scale: 0.98 } : undefined}
+                                    whileTap={!isBackingUp && !isRestoring ? { scale: 0.98 } : undefined}
                                     onClick={handleBackupDB}
-                                    disabled={isBackingUp}
+                                    disabled={isBackingUp || isRestoring}
                                     className={cn(
                                         "px-6 py-3 font-bold rounded-xl transition-all flex items-center gap-2 relative overflow-hidden",
                                         isBackingUp
                                             ? "border border-[#FF6B00] text-[#FF6B00] cursor-wait bg-transparent"
-                                            : "border border-[#FF6B00] text-[#FF6B00] hover:bg-[#FF6B00] hover:text-white"
+                                            : "border border-[#FF6B00] text-[#FF6B00] hover:bg-[#FF6B00] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                     )}
                                 >
                                     {isBackingUp && (
@@ -482,9 +527,34 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                         "Backup DB"
                                     )}
                                 </motion.button>
+
+                                <div className="relative group">
+                                    <motion.button
+                                        whileTap={!isScanning && !isBackingUp && !isRestoring ? { scale: 0.98 } : undefined}
+                                        onClick={handleImportBackup}
+                                        disabled={isScanning || isBackingUp || isRestoring}
+                                        className={cn(
+                                            "px-6 py-3 font-bold rounded-xl transition-all flex items-center gap-2 relative overflow-hidden",
+                                            "border border-[#b71c1c] text-[#b71c1c]",
+                                            (isScanning || isBackingUp || isRestoring)
+                                                ? "opacity-50 cursor-not-allowed bg-transparent"
+                                                : "hover:bg-[#b71c1c] hover:text-white"
+                                        )}
+                                    >
+                                        <UploadCloud className="w-5 h-5" />
+                                        Import Backup
+                                    </motion.button>
+                                    {isScanning && (
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-black text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                            Cannot import while scanning
+                                        </div>
+                                    )}
+                                </div>
+
                                 <button
                                     onClick={() => toast.success("Database vacuum completed.")}
-                                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
+                                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+                                    disabled={isBackingUp || isRestoring}
                                 >
                                     Vacuum DB
                                 </button>
@@ -567,6 +637,13 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
             )}
         </div>
       </div>
+
+      <RestoreConfirmationModal
+        isOpen={showRestoreModal}
+        onConfirm={confirmRestore}
+        onCancel={() => { setShowRestoreModal(false); setSelectedRestoreFile(null); }}
+        isRestoring={isRestoring}
+      />
 
       {/* Floating Action Bar */}
       <AnimatePresence>
