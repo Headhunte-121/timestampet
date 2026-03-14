@@ -170,3 +170,10 @@
 | **Show Interleaving** | UI logic inspection | **Pass.** Native `group_by` algorithms dynamically bundle and wrap differing SxxExx and separate Shows accurately based entirely on matching session hashes strictly prioritizing chronological mapping. |
 | **Bulk Import Collision** | Rust Unit Test (`db_tests.rs/test_legacy_bypass`) | **Pass.** Passed the QoL test enforcing exactly that `is_legacy` inserts explicitly pass `session_id = NULL` neutralizing automated active collision binding to live views. |
 | **Accidental Grouping Guard** | SQL Logic Verification | **Pass.** Enforced standard query clauses expressly ignoring boolean mappings explicitly (e.g. `AND is_legacy=0`) during historical trailing checks effectively walling off overlapping epoch ranges natively. |
+
+## TODO 5.14 Multi-table cascading deletes (Pro Stability)
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| **Forgetful Connection Test** | Rust Unit Test (`db_tests_append.rs/test_forgetful_connection`) | **Pass.** Verified standard SQLite connections drop orphaned children without `PRAGMA foreign_keys = ON`. Verified setting it enables cascade, and explicitly verified `get_db_connection()` returns a strictly enabled `PRAGMA foreign_keys` setting globally. |
+| **Deep Tree Wipe & Orphan Audit** | Rust Unit Test (`db_tests_append.rs/test_deep_tree_wipe_and_orphan_audit`) | **Pass.** Inserted 200 episodes containing 400 nested History items. Asserted standard `DELETE FROM Media` strictly yields a raw verification audit count `0` for orphans against `episode_id`. |
+| **Binge King Stress Test** | Rust Unit Test (`db_tests_append.rs/test_binge_king_stress`) | **Pass.** Programmatically spawned 50,000 mocked History entries for a single show. Verified massive relational mass drop correctly evaluates rapidly (yielding 0 items in table) cleanly within a single atomic SQLite constraint boundary without deadlock. |

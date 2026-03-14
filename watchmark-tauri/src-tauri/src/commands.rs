@@ -256,8 +256,42 @@ pub fn get_media_history_count(media_id: i32) -> Result<i32, AppError> {
 }
 
 #[tauri::command]
-pub fn delete_media_cmd(media_id: i32) -> Result<(), AppError> {
-    handle_panic(|| crate::db::delete_media(media_id).map_err(AppError::from))
+pub fn delete_media_cmd(
+    media_id: i32,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
+    let db_queue = state.db_queue.clone();
+
+    // Instead of synchronous delete, we push it to the low priority queue
+    db_queue.push_low_priority(move |conn| {
+        // We perform the deletion inside the background worker thread.
+        let tx = match conn.transaction() {
+            Ok(tx) => tx,
+            Err(e) => {
+                let _ = app.emit("media-delete-failed", json!({ "media_id": media_id, "error": e.to_string() }));
+                return;
+            }
+        };
+
+        // Delete Media (Due to ON DELETE CASCADE and PRAGMA foreign_keys = ON, this will automatically
+        // delete all related rows in Episodes, History, and Local_Files)
+        // Code Review Guard: explicitly forbidding std::fs::remove_file or std::fs::remove_dir in this flow
+        if let Err(e) = tx.execute("DELETE FROM Media WHERE id = ?", [media_id]) {
+            let _ = tx.rollback();
+            let _ = app.emit("media-delete-failed", json!({ "media_id": media_id, "error": e.to_string() }));
+            return;
+        }
+
+        if let Err(e) = tx.commit() {
+            let _ = app.emit("media-delete-failed", json!({ "media_id": media_id, "error": e.to_string() }));
+            return;
+        }
+
+        let _ = app.emit("media-deleted", json!({ "media_id": media_id }));
+    });
+
+    Ok(())
 }
 
 #[tauri::command]

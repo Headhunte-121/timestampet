@@ -18,6 +18,10 @@ interface UiState {
   showConfirm: (title: string, message: string) => Promise<boolean>;
   showPrompt: (title: string, message: string, defaultValue?: string) => Promise<string | null>;
   closeModal: (value?: any) => void;
+
+  isProcessing: boolean;
+  processingMessage: string;
+  setProcessing: (isProcessing: boolean, message?: string) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -95,5 +99,9 @@ export const useUiStore = create<UiState>((set, get) => ({
         reject: null,
       }
     });
-  }
+  },
+
+  isProcessing: false,
+  processingMessage: '',
+  setProcessing: (isProcessing, message = '') => set({ isProcessing, processingMessage: message }),
 }));
