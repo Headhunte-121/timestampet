@@ -278,3 +278,5 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **Failed Tasks Guard:** If a write operation hits the maximum retries, the worker writes the error payload to `watchmark_failed_tasks.log` and emits a `db-write-failed` event to the frontend.
 - **Shutdown Drain Signal:** Intercepted Tauri's `WindowEvent::CloseRequested` to prevent immediate application termination. The app now pushes a `Shutdown` signal to the database queue with a `oneshot::channel` to await a safe drain (up to 2 seconds) before exiting.
 - **Frontend Feedback:** Connected the new `db-write-failed` IPC event to a highly visible, Danger-themed `sonner` toast notification.
+- **WebView Stabilization:** Addressed a Windows-specific WebView2 crash (where raw HTTP headers were dumped to the window output) by safely utilizing `try_state::<commands::AppState>()` inside early Tauri window lifecycle events, preventing unmanaged state panics.
+- **Locking Performance:** Upgraded SQLite `busy_timeout` PRAGMAs to strictly use numeric types rather than strings, resolving a 15-second initialization deadlock.
