@@ -1799,10 +1799,13 @@ pub async fn perform_tmdb_search(request_id: String, query: String, app: tauri::
     }
 
     let cancel_tokens = state.cancel_tokens.clone();
-    let is_api_authorized = state.is_api_authorized.load(Ordering::SeqCst);
 
+    let app_handle = app.clone();
     let task = tokio::task::spawn(async move {
-        if !is_api_authorized {
+        use tauri::Manager;
+        let inner_state = app_handle.state::<AppState>();
+
+        if !inner_state.is_api_authorized.load(Ordering::SeqCst) {
             return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
         }
 
@@ -1814,15 +1817,24 @@ pub async fn perform_tmdb_search(request_id: String, query: String, app: tauri::
             ));
         }
 
-        match crate::tmdb::search_media(&settings.tmdb_api_key, &query).await {
-            Ok(results) => Ok(results),
-            Err(e) => {
-                if let AppError::NetworkBlocked = e {
-                    state.is_api_authorized.store(false, Ordering::SeqCst);
-                    state.db_queue.clear();
-                    let _ = app.emit("api-auth-failed", ());
+        let api_key = settings.tmdb_api_key;
+
+        tokio::select! {
+            _ = token.cancelled() => {
+                Err(AppError::Custom("Search Task Cancelled".to_string()))
+            }
+            res = crate::tmdb::search_media(&api_key, &query) => {
+                match res {
+                    Ok(results) => Ok(results),
+                    Err(e) => {
+                        if let AppError::NetworkBlocked = e {
+                            inner_state.is_api_authorized.store(false, Ordering::SeqCst);
+                            inner_state.db_queue.clear();
+                            let _ = app_handle.emit("api-auth-failed", ());
+                        }
+                        Err(e)
+                    }
                 }
-                Err(e)
             }
         }
     });
