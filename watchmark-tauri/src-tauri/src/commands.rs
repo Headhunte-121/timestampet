@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use std::sync::{Arc, RwLock};
 use tauri::Emitter;
 use chrono::{Local, TimeZone, NaiveDate, Datelike};
+use tauri::Manager;
 
 fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value> {
     if air_date_str.is_empty() {
@@ -289,6 +290,62 @@ pub fn delete_media_cmd(
         }
 
         let _ = app.emit("media-deleted", json!({ "media_id": media_id }));
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn prepare_restore(
+    backup_path: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), AppError> {
+    let backup_path_buf = std::path::PathBuf::from(&backup_path);
+
+    if !backup_path_buf.exists() {
+        return Err(AppError::Custom("Backup file does not exist".to_string()));
+    }
+
+    // Pragma Check: verify it's a valid SQLite database
+    match rusqlite::Connection::open_with_flags(&backup_path_buf, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) {
+        Ok(conn) => {
+            let mut stmt = conn.prepare("PRAGMA integrity_check")
+                .map_err(|e| AppError::Custom(format!("Failed to prepare integrity check: {}", e)))?;
+            let mut rows = stmt.query([])
+                .map_err(|e| AppError::Custom(format!("Failed to execute integrity check: {}", e)))?;
+            if let Some(row) = rows.next().unwrap_or(None) {
+                let result: String = row.get(0).unwrap_or_default();
+                if result != "ok" {
+                    return Err(AppError::Custom("Backup file is not a valid SQLite database (integrity check failed)".to_string()));
+                }
+            } else {
+                 return Err(AppError::Custom("Backup file is not a valid SQLite database".to_string()));
+            }
+        }
+        Err(e) => {
+            return Err(AppError::Custom(format!("Failed to open backup file for validation. It may be locked by another program or corrupted: {}", e)));
+        }
+    }
+
+    // Prepare paths
+    let app_dir = crate::db::get_app_data_dir();
+    let db_dir = app_dir.join("db");
+    let pending_db_path = db_dir.join("watchmark.db.pending");
+    let trigger_file_path = app_dir.join(".restore_pending");
+
+    // Copy to pending path
+    std::fs::copy(&backup_path_buf, &pending_db_path)
+        .map_err(|e| AppError::Custom(format!("Failed to stage backup file (possibly out of space): {}", e)))?;
+
+    // Create trigger file
+    std::fs::write(&trigger_file_path, b"pending_restore")
+        .map_err(|e| AppError::Custom(format!("Failed to write restore trigger flag: {}", e)))?;
+
+    // Delay restart slightly to allow the frontend to receive the success response
+    // and prevent throwing an IPC error that triggers the catch block
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        app_handle.restart();
     });
 
     Ok(())

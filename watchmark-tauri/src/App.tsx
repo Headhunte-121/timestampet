@@ -7,6 +7,7 @@ import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { useAppStore } from "./store/useAppStore";
 import { useTaskStore } from "./store/useTaskStore";
 import Dashboard from "./components/Dashboard";
+import { toast } from "sonner";
 import Library from "./components/Library";
 import SearchTMDB from "./components/SearchTMDB";
 import History from "./components/History";
@@ -43,6 +44,31 @@ function App() {
 
   useEffect(() => {
     initializeSettings();
+
+    // Check for successful restore flag
+    if (localStorage.getItem('restore_success') === 'true') {
+        localStorage.removeItem('restore_success');
+
+        // Fetch fresh stats to show in the toast
+        import("@tauri-apps/api/core").then(({ invoke }) => {
+            Promise.all([
+                invoke("get_library_data"),
+                invoke("get_media_history_count")
+            ]).then(([library, historyCount]: [any, any]) => {
+                const totalShows = library?.tv_shows?.length || 0;
+                const totalMovies = library?.movies?.length || 0;
+                const totalItems = totalShows + totalMovies;
+                const hCount = typeof historyCount === 'number' ? historyCount : 0;
+
+                toast.success(`Library Restored! ${totalItems} shows and ${hCount} history entries recovered.`, { duration: 5000 });
+                setRefreshTrigger(prev => prev + 1);
+            }).catch(e => {
+                console.error("Failed to fetch restored stats:", e);
+                toast.success("Library Restored Successfully!");
+                setRefreshTrigger(prev => prev + 1);
+            });
+        }).catch(e => console.error("Failed to import invoke:", e));
+    }
   }, [initializeSettings]);
 
   useEffect(() => {

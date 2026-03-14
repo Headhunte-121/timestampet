@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
 import { invokeWithTimeout } from "../utils/ipc";
 import { invoke } from "@tauri-apps/api/core";
+import { useTaskStore } from "../store/useTaskStore";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -13,6 +14,7 @@ export default function InboxView({ onMatch }: any) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { setScanning } = useTaskStore();
 
   useEffect(() => {
     fetchUnmatched();
@@ -99,9 +101,14 @@ export default function InboxView({ onMatch }: any) {
       });
 
       if (selected && typeof selected === 'string') {
-        const res = await invoke("run_scan_directory", { directory: selected });
-        toast.success(`Found ${res} new unmatched files.`);
-        fetchUnmatched();
+        setScanning(true);
+        try {
+            const res = await invokeWithTimeout<number>("run_scan_directory", { directory: selected }, 300000);
+            toast.success(`Found ${res} new unmatched files.`);
+            fetchUnmatched();
+        } finally {
+            setScanning(false);
+        }
       }
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
