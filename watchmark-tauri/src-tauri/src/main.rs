@@ -423,24 +423,25 @@ fn main() {
             let safe_path = std::path::PathBuf::from(&decoded_path);
 
             tokio::spawn(async move {
-                // Determine the allowed directory (the user's app data directory or specific library folders).
-                // For a robust implementation, this would pull from the `db` or `settings`.
-                // For now, we restrict this strictly to paths that exist and are absolute,
-                // BUT we also add a canonicalization check to ensure they are real files and don't traverse.
-
                 if !decoded_path.contains("..") && safe_path.is_absolute() {
                     if let Ok(real_path) = std::fs::canonicalize(&safe_path) {
-                        // In a fully locked down app, we would verify `real_path` starts with
-                        // one of the configured library root paths or the app data path.
-                        // Since WatchMark plays arbitrary local files the user adds, it needs
-                        // access to potentially any drive. We rely on the `is_absolute` and
-                        // `canonicalize` to at least ensure it's a direct, valid file path.
-
                         if real_path.is_file() {
                             if let Ok(data) = tokio::fs::read(&real_path).await {
+
+                                // Guess mime type to prevent Windows WebView2 from raw-dumping HTTP headers
+                                let mime_type = match real_path.extension().and_then(|e| e.to_str()) {
+                                    Some("png") => "image/png",
+                                    Some("jpg") | Some("jpeg") => "image/jpeg",
+                                    Some("webp") => "image/webp",
+                                    Some("mp4") => "video/mp4",
+                                    Some("mkv") => "video/x-matroska",
+                                    _ => "application/octet-stream",
+                                };
+
                                 responder.respond(
                                     http::Response::builder()
                                         .header("Access-Control-Allow-Origin", "*")
+                                        .header("Content-Type", mime_type)
                                         .body(data)
                                         .unwrap(),
                                 );

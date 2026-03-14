@@ -279,4 +279,5 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **Shutdown Drain Signal:** Intercepted Tauri's `WindowEvent::CloseRequested` to prevent immediate application termination. The app now pushes a `Shutdown` signal to the database queue with a `oneshot::channel` to await a safe drain (up to 2 seconds) before exiting.
 - **Frontend Feedback:** Connected the new `db-write-failed` IPC event to a highly visible, Danger-themed `sonner` toast notification.
 - **WebView Stabilization:** Addressed a Windows-specific WebView2 crash (where raw HTTP headers were dumped to the window output) by safely utilizing `try_state::<commands::AppState>()` inside early Tauri window lifecycle events, preventing unmanaged state panics.
+- **Custom Protocol Hardening:** Injected strict dynamic MIME type headers (`Content-Type`) into the `watchmark://` custom URI scheme responder, preventing WebView2 from occasionally corrupting the document DOM stream by interpreting raw binary chunks as text.
 - **Locking Performance:** Upgraded SQLite `busy_timeout` PRAGMAs to strictly use numeric types rather than strings, resolving a 15-second initialization deadlock.

@@ -89,10 +89,7 @@ function App() {
 
     const unlistenDbFailed = listen("db-write-failed", () => {
         toast.error(
-            <div>
-                <strong>Database Sync Issue</strong>
-                <p>A change failed to save after 3 attempts. Your data is safe, but this action needs a retry.</p>
-            </div>,
+            "Database Sync Issue: A change failed to save after 3 attempts. Your data is safe, but this action needs a retry.",
             { duration: 8000, style: { background: "#b71c1c", color: "#ffffff", border: "none" } }
         );
     });
