@@ -1025,7 +1025,7 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Verify the pill is absolutely positioned specifically in the top right corner (`top-2 right-2`).
 - [ ] Ensure it correctly evaluates the `user_rating` column, completely ignoring the TMDB `vote_average`.
 - [ ] Handle edge cases where the value is 0 or null (the pill must completely vanish).
-- [ ] Test the text formatting strictly outputs a string like '★ 4' or '★ 5/5'.
+- [ ] Test the text formatting strictly outputs a string like '★ 8' or '★ 10/10'.
 - [ ] Ensure the background is a translucent black to remain visible on bright white posters.
 
 **9.6 Always-on Bottom-Left Original Release Year pill.** (Incomplete)
@@ -1094,7 +1094,7 @@ This document represents the complete functional blueprint and state of the Watc
 
 **9.14 Sort logic: 'My Top Rated' (user_rating DESC).** (Incomplete)
 
-- [ ] Verify shows strictly grouped by their exact integer (e.g., all 5-stars together).
+- [ ] Verify shows strictly grouped by their exact integer (e.g., all 10-stars together).
 - [ ] Ensure the secondary constraint automatically sorts the grouped items alphabetically or by ID.
 - [ ] Handle edge cases where 0-star (unrated) shows are strictly relegated to the absolute bottom.
 - [ ] Test rapid UI updates ensuring a newly rated show leaps to the top instantly.
@@ -1224,7 +1224,7 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test UI distinction clearly identifying 'Global Rating' vs 'My Rating'.
 - [ ] Ensure font sizes are extremely legible to quickly glance at numbers.
 
-**11.5 Interactive 5-star clicking component for user ratings.** (Incomplete)
+**11.5 Interactive 10-point star clicking component for user ratings.** (Incomplete)
 
 - [ ] Verify hover states exactly fill the hovered star and strictly all stars preceding it.
 - [ ] Ensure clicking instantly triggers the queue to push a UI update into SQLite.
