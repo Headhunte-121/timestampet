@@ -388,6 +388,13 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         tx.commit()?;
     }
 
+    if user_version < 9 {
+        let tx = conn.transaction()?;
+        tx.execute("CREATE INDEX IF NOT EXISTS idx_media_tmdb_rating ON Media(vote_average)", ())?;
+        tx.execute("PRAGMA user_version = 9", ())?;
+        tx.commit()?;
+    }
+
     Ok(())
 }
 
