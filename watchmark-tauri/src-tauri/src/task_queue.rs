@@ -280,4 +280,15 @@ impl DbTaskQueue {
     pub fn shutdown(&self, tx: oneshot::Sender<()>) {
         let _ = self.high_priority_tx.send(DbTask::Shutdown(tx));
     }
+
+    /// Note: std::sync::mpsc::Sender does not have a `try_recv` or `clear` method.
+    /// Since the channels are unbounded and we only hold the Senders,
+    /// we cannot truly "clear" them from this side.
+    /// To implement a "clear", we would need to store the Receivers, or use an AtomicBool flag
+    /// that the worker checks before executing, or change to a different channel type (like crossbeam).
+    /// For now, since the worker itself will fast-fail if the global auth flag is false,
+    /// we can safely implement this as a no-op or just log it.
+    pub fn clear(&self) {
+        log::info!("Queue clear requested. Tasks will automatically fast-fail via global auth flag interceptors.");
+    }
 }

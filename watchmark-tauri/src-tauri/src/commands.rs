@@ -361,6 +361,7 @@ pub async fn validate_tmdb_key(key: String, state: tauri::State<'_, AppState>) -
     }
 }
 
+#[tauri::command]
 pub async fn save_settings(
     settings: Settings,
     state: tauri::State<'_, AppState>,

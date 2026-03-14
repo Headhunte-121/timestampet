@@ -331,3 +331,7 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Centralized auth state in Rust (`AppState::is_api_authorized`) and React (`useAppStore::isApiAuthorized`).
 - Globally halted all TMDB queries (sync, search) instantly upon a 401 unauthorized fetch and updated the Search and MediaDetails UI to explicitly prompt users for the key.
 - Addressed code review feedback: Made sure saving a valid key in Settings correctly restores the `isApiAuthorized` state back to `true`, and ensured `state.db_queue.clear()` is explicitly called upon an API key revocation (401 error) to clear pending sync metadata tasks.
+
+### Rust Backend Fixes
+- **Commands Sync:** Fixed missing `__cmd__save_settings` compiler error by adding the `#[tauri::command]` attribute back to the `save_settings` function in `src-tauri/src/commands.rs`.
+- **Queue Logic:** Fixed `state.db_queue.clear()` compiler error by adding a `.clear()` method to `DbTaskQueue` in `src-tauri/src/task_queue.rs`. Note that due to `std::sync::mpsc::Sender` constraints, this serves as a logging placeholder while task cancellation effectively relies on the atomic `is_api_authorized` lock interceptor.
