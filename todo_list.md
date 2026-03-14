@@ -3076,13 +3076,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Close the app automatically and swap the database files quietly in the background.
 - [ ] Restart the app fresh with all the restored data intact and ready to use.
 
-**25.4 VACUUM Optimizer: A "Clean Database" button that runs SQLite vacuum and analyze routines to shrink file size.** (Incomplete)
+**25.4 VACUUM Optimizer: A "Clean Database" button that runs SQLite vacuum and analyze routines to shrink file size.** (Complete)
 
-- [ ] Wire up the 'Vacuum DB' button in the System settings tab.
-- [ ] Run a deep optimization process to delete hidden leftover data and shrink the file size.
-- [ ] Show a spinning loading icon while the cleaning process runs so the user knows it is working.
-- [ ] Lock the rest of the app briefly so nothing breaks while the files are being organized.
-- [ ] Tell the user exactly how much hard drive space was saved when the process finishes.
+- [x] Wire up the 'Clean Database' button in the System settings tab.
+- [x] Run a deep optimization process to delete hidden leftover data and shrink the file size.
+- [x] Show a spinning loading icon while the cleaning process runs so the user knows it is working.
+- [x] Lock the rest of the app briefly so nothing breaks while the files are being organized.
+- [x] Tell the user exactly how much hard drive space was saved when the process finishes.
 
 **25.5 Color Theme Customizer: Settings to swap the Accent Color (Orange -> Red, Neon Blue, Emerald Green).** (Incomplete)
 

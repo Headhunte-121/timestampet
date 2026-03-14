@@ -194,3 +194,8 @@
 | `commands::restore_tests::test_valid_sqlite_staging` | Pass | Rust | Validates actual staging logic and flag creation. |
 | `commands::restore_tests::test_cold_swap_execution` | Pass | Rust | Tests renaming logic and fallback cleanup during cold swap. |
 | `commands::restore_tests::test_cold_swap_missing_pending_cleanup` | Pass | Rust | Simulates missing pending DB to ensure trigger is cleaned but main DB is untouched. |
+
+## TODO 25.4
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| Verify optimization blocks when maintenance mode is active | Rust Unit Test (src-tauri/src/commands_tests_optimize.rs) | Pass |

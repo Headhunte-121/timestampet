@@ -17,6 +17,7 @@ import MediaDetails from "./components/MediaDetails";
 import { Toaster } from "sonner";
 import { Modal } from "./components/ui/Modal";
 import { ProcessingModal } from "./components/ui/ProcessingModal";
+import { OptimizationModal } from "./components/ui/OptimizationModal";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -196,6 +197,7 @@ function App() {
         <Toaster theme="dark" position="bottom-right" richColors />
         <Modal />
         <ProcessingModal />
+        <OptimizationModal />
 
         {/* Progress Bar (Global) */}
         <div className="absolute top-0 left-0 w-full h-1 z-[100] pointer-events-none">

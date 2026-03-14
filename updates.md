@@ -262,3 +262,11 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - The Tauri Boot Sequence (`main.rs`) now checks for this trigger before initializing `rusqlite` and renames the files (`.old`, `.pending` -> `watchmark.db`) to ensure atomicity.
 - Included an extensive React UI "Danger Zone" block with a "Type RESTORE" confirmation modal. Added safety interlocks in `useTaskStore` (`isScanning`, `isBackingUp`) to prevent the user from performing a restore while database writes are active.
 - Integrated `localStorage` persistence before restart to guarantee a celebratory notification is emitted upon boot.
+
+### TODO 25.4
+- Implemented `optimize_database` command in Rust that runs `VACUUM` and `ANALYZE`.
+- Implemented `is_maintenance_mode` lock via `AtomicBool` in `AppState` to prevent UI collisions during optimizations.
+- Built a `OptimizationModal` using Framer Motion with a pulsing logo to block UI interactions while the process runs.
+- Connected the Settings 'Clean Database' button.
+- Added file size calculation logic to tell the user exactly how much disk space was saved in MB/GB formatting via a toast notification.
+- Handled disk space edge cases using the `fs3` crate before starting the memory-intensive SQLite VACUUM operation.
