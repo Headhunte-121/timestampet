@@ -6,6 +6,7 @@ import { formatWindowsPath } from "../utils/pathUtils";
 import { invokeWithTimeout } from "../utils/ipc";
 import { invoke } from "@tauri-apps/api/core";
 import { useTaskStore } from "../store/useTaskStore";
+import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -15,6 +16,7 @@ export default function InboxView({ onMatch }: any) {
   const [isSearching, setIsSearching] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { setScanning } = useTaskStore();
+  const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
     fetchUnmatched();
@@ -50,8 +52,8 @@ export default function InboxView({ onMatch }: any) {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const res: any = await invokeWithTimeout("perform_tmdb_search", { query: searchQuery });
-      setSearchResults(res);
+      const res: any = await asyncInvoke("perform_tmdb_search", { query: searchQuery });
+      if (res) setSearchResults(res);
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'")) {
         console.warn("Tauri invoke missing.");

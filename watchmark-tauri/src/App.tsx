@@ -18,6 +18,7 @@ import { Toaster } from "sonner";
 import { Modal } from "./components/ui/Modal";
 import { ProcessingModal } from "./components/ui/ProcessingModal";
 import { OptimizationModal } from "./components/ui/OptimizationModal";
+import { useAsyncInvoke } from "./hooks/useAsyncInvoke";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,6 +30,7 @@ function App() {
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const asyncInvoke = useAsyncInvoke();
 
   // Settings Navigation Guard
   const [isSettingsDirty, setIsSettingsDirty] = useState(false);
@@ -53,7 +55,7 @@ function App() {
         // Fetch fresh stats to show in the toast
         import("@tauri-apps/api/core").then(({ invoke }) => {
             Promise.all([
-                invoke("get_library_data"),
+                asyncInvoke("get_library_data"),
                 invoke("get_media_history_count")
             ]).then(([library, historyCount]: [any, any]) => {
                 const totalShows = library?.tv_shows?.length || 0;
