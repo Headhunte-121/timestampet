@@ -1,10 +1,10 @@
-use reqwest::blocking::Client;
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use crate::db::get_app_data_dir;
+use crate::network::NETWORK_MANAGER;
+use crate::error::AppError;
 
 const TMDB_API_BASE: &str = "https://api.themoviedb.org/3";
 
@@ -16,11 +16,10 @@ pub fn get_poster_cache_dir() -> PathBuf {
     dir
 }
 
-pub fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-    let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
+pub async fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, AppError> {
     let url = format!("{}/search/multi", TMDB_API_BASE);
 
-    let res: Value = client
+    let res: Value = NETWORK_MANAGER.external_client
         .get(&url)
         .query(&[
             ("api_key", api_key),
@@ -29,8 +28,11 @@ pub fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, Box<dyn st
             ("page", "1"),
             ("include_adult", "false"),
         ])
-        .send()?
-        .json()?;
+        .send()
+        .await
+        .map_err(crate::network::NetworkManager::handle_error)?
+        .json()
+        .await?;
 
     let results = res["results"].as_array().unwrap_or(&vec![]).clone();
     let mut filtered = Vec::new();
@@ -98,20 +100,22 @@ pub fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, Box<dyn st
     Ok(filtered)
 }
 
-pub fn get_media_details(
+pub async fn get_media_details(
     api_key: &str,
     tmdb_id: &str,
     media_type: &str,
-) -> Result<Value, Box<dyn std::error::Error>> {
+) -> Result<Value, AppError> {
     let endpoint = if media_type == "TV" { "tv" } else { "movie" };
     let url = format!("{}/{}/{}", TMDB_API_BASE, endpoint, tmdb_id);
 
-    let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
-    let r: Value = client
+    let r: Value = NETWORK_MANAGER.external_client
         .get(&url)
         .query(&[("api_key", api_key), ("language", "en-US")])
-        .send()?
-        .json()?;
+        .send()
+        .await
+        .map_err(crate::network::NetworkManager::handle_error)?
+        .json()
+        .await?;
 
     let mut obj = serde_json::Map::new();
     obj.insert(
@@ -215,18 +219,20 @@ pub fn get_media_details(
     Ok(Value::Object(obj))
 }
 
-pub fn get_tv_season_episodes(
+pub async fn get_tv_season_episodes(
     api_key: &str,
     tmdb_id: &str,
     season_num: u32,
-) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Value>, AppError> {
     let url = format!("{}/tv/{}/season/{}", TMDB_API_BASE, tmdb_id, season_num);
-    let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
-    let r: Value = client
+    let r: Value = NETWORK_MANAGER.external_client
         .get(&url)
         .query(&[("api_key", api_key), ("language", "en-US")])
-        .send()?
-        .json()?;
+        .send()
+        .await
+        .map_err(crate::network::NetworkManager::handle_error)?
+        .json()
+        .await?;
 
     let episodes = r["episodes"].as_array().unwrap_or(&vec![]).clone();
     let mut formatted = Vec::new();
@@ -280,7 +286,7 @@ pub fn get_tv_season_episodes(
     Ok(formatted)
 }
 
-pub fn download_image(image_path: &str, size: &str) -> Option<String> {
+pub async fn download_image(image_path: &str, size: &str) -> Option<String> {
     if image_path.is_empty() {
         return None;
     }
@@ -296,15 +302,12 @@ pub fn download_image(image_path: &str, size: &str) -> Option<String> {
     }
 
     let url = format!("https://image.tmdb.org/t/p/{}/{}", size, clean_path);
-    let client = Client::builder()
-        .timeout(Duration::from_secs(15))
-        .build()
-        .ok()?;
 
-    if let Ok(mut response) = client.get(&url).send() {
+    if let Ok(response) = NETWORK_MANAGER.external_client.get(&url).send().await {
         if response.status().is_success() {
-            if let Ok(mut file) = std::fs::File::create(&local_path) {
-                if let Ok(_) = response.copy_to(&mut file) {
+            if let Ok(bytes) = response.bytes().await {
+                // Use blocking file IO inside async (or switch to tokio::fs, but since this isn't high concurrency, std::fs is okay here or we can use tokio::fs)
+                if let Ok(_) = tokio::fs::write(&local_path, &bytes).await {
                     return Some(local_path.to_string_lossy().to_string());
                 }
             }

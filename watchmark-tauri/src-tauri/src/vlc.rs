@@ -1,4 +1,3 @@
-use reqwest::Client;
 use rusqlite::params;
 use serde_json::Value;
 use std::time::Duration;
@@ -7,6 +6,7 @@ use tokio::process::{Child, Command};
 
 use crate::db::get_db_connection;
 use crate::error::AppError;
+use crate::network::NETWORK_MANAGER;
 
 #[derive(Clone, serde::Serialize)]
 struct RefreshPayload {
@@ -28,16 +28,14 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Option<C
     cmd.spawn().ok()
 }
 
-pub async fn get_vlc_status(client: &Client) -> Option<Value> {
-    let res = client
+pub async fn get_vlc_status() -> Option<Value> {
+    if let Ok(res) = NETWORK_MANAGER.local_client
         .get("http://127.0.0.1:8080/requests/status.json")
         .basic_auth("", Some("watchmark"))
         .send()
         .await
-        .ok()?;
-
-    if res.status().is_success() {
-        if let Ok(json) = res.json::<Value>().await {
+    {
+        if let Ok(json) = res.json().await {
             return Some(json);
         }
     }
@@ -78,15 +76,10 @@ pub async fn vlc_heartbeat(
         }
     }
 
-    let client = match Client::builder().timeout(Duration::from_secs(2)).build() {
-        Ok(c) => c,
-        Err(_) => return, // If we can't even build the client, abort heartbeat.
-    };
-
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                if let Some(status) = get_vlc_status(&client).await {
+                if let Some(status) = get_vlc_status().await {
                     consecutive_failures = 0;
 
                     let length = status["length"].as_f64().unwrap_or(0.0);

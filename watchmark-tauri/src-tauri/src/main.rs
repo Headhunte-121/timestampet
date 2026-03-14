@@ -13,6 +13,7 @@ mod vlc;
 pub mod task_queue;
 mod backup;
 mod sanitizer;
+pub mod network;
 
 #[cfg(test)]
 #[path = "sanitizer_tests.rs"]

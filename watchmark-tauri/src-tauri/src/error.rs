@@ -23,6 +23,15 @@ pub enum AppError {
 
     #[error("{0}")]
     Custom(String),
+
+    #[error("Network Timeout")]
+    NetworkTimeout,
+
+    #[error("Network Blocked (Firewall/Forbidden)")]
+    NetworkBlocked,
+
+    #[error("Network Offline")]
+    NetworkOffline,
 }
 
 // Serialize the error to send to the frontend
@@ -31,17 +40,52 @@ impl Serialize for AppError {
     where
         S: Serializer,
     {
-        let message = match self {
-            AppError::DbError(e) => format!("Database error: {}", e),
-            AppError::NetworkError(e) => format!("Network error: {}", e),
-            AppError::IoError(e) => format!("IO error: {}", e),
-            AppError::JsonError(e) => format!("Data Mismatch/Parse Error: {}", e),
-            AppError::Panic(ref msg) => format!("Critical Panic: {}", msg),
-            AppError::Fatal(ref msg) => format!("Fatal Error: {}", msg),
-            AppError::Custom(ref msg) => msg.to_string(),
-        };
+        use serde::ser::SerializeStruct;
 
-        serializer.serialize_str(&message)
+        match self {
+            AppError::NetworkTimeout => {
+                let mut state = serializer.serialize_struct("AppError", 3)?;
+                state.serialize_field("type", "NetworkError")?;
+                state.serialize_field("code", "TIMEOUT")?;
+                state.serialize_field("message", "The connection timed out.")?;
+                state.end()
+            }
+            AppError::NetworkBlocked => {
+                let mut state = serializer.serialize_struct("AppError", 3)?;
+                state.serialize_field("type", "NetworkError")?;
+                state.serialize_field("code", "BLOCKED")?;
+                state.serialize_field("message", "Network Access Blocked. Please check your Windows Firewall settings.")?;
+                state.end()
+            }
+            AppError::NetworkOffline => {
+                let mut state = serializer.serialize_struct("AppError", 3)?;
+                state.serialize_field("type", "NetworkError")?;
+                state.serialize_field("code", "OFFLINE")?;
+                state.serialize_field("message", "You are currently offline.")?;
+                state.end()
+            }
+            _ => {
+                let message = match self {
+                    AppError::DbError(e) => format!("Database error: {}", e),
+                    AppError::NetworkError(e) => format!("Network error: {}", e),
+                    AppError::IoError(e) => format!("IO error: {}", e),
+                    AppError::JsonError(e) => format!("Data Mismatch/Parse Error: {}", e),
+                    AppError::Panic(ref msg) => format!("Critical Panic: {}", msg),
+                    AppError::Fatal(ref msg) => format!("Fatal Error: {}", msg),
+                    AppError::Custom(ref msg) => msg.to_string(),
+                    _ => unreachable!(),
+                };
+
+                // For backward compatibility with existing errors that are just strings,
+                // we can return an object or just string. Based on user's instruction,
+                // we're modifying the new ones to be objects, and the old ones could
+                // either stay as strings or be wrapped in an object.
+                // Since Tauri automatically serializes `Result::Err` as the JSON payload,
+                // React normally expects a string or object.
+                // Let's return the string for backwards compatibility.
+                serializer.serialize_str(&message)
+            }
+        }
     }
 }
 
