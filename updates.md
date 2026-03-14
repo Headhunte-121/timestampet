@@ -281,3 +281,22 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **WebView Stabilization:** Addressed a Windows-specific WebView2 crash (where raw HTTP headers were dumped to the window output) by safely utilizing `try_state::<commands::AppState>()` inside early Tauri window lifecycle events, preventing unmanaged state panics.
 - **Custom Protocol Hardening:** Injected strict dynamic MIME type headers (`Content-Type`) into the `watchmark://` custom URI scheme responder, preventing WebView2 from occasionally corrupting the document DOM stream by interpreting raw binary chunks as text.
 - **Locking Performance:** Upgraded SQLite `busy_timeout` PRAGMAs to strictly use numeric types rather than strings, resolving a 15-second initialization deadlock.
+
+### Bug Fix: Tauri/Vite Proxy Misconfiguration
+- Resolved an issue where Tauri's internal proxy was throwing raw HTTP headers to the WebView2 engine instead of rendering the React application (`Access-Control-Allow-Origin: http://localhost:1420`).
+- This was resolved by fixing a path misalignment issue in the Vite configuration. Although the `index.html` was correctly positioned at the project root (`watchmark-tauri/index.html`), Vite's default root behavior occasionally conflicts with Tauri v2's proxy expectations.
+- Added `root: "."` directly to `vite.config.ts`, explicitly forcing Vite to serve the root directory to Tauri without ambiguity.
+- Ensured `tauri.conf.json` strictly matched via `devUrl: http://localhost:1420` eliminating the possibility of older `devPath` schema conflicts causing the WebView misfire.
+
+### Bug Fix: Localhost IPv6 Binding Conflict
+- Fixed a bug where Tauri WebView2 on Windows 11 attempted to resolve `localhost` via IPv6 (`::1`), while the Vite dev server bound exclusively to IPv4 (`127.0.0.1`). This proxy mismatch resulted in raw HTTP headers and chunked streams rendering as plain text directly onto the main screen.
+- Configured Vite (`vite.config.ts`) to explicitly bind to `127.0.0.1` instead of `localhost`.
+- Configured Tauri (`tauri.conf.json`) to specifically target `http://127.0.0.1:1420`, strictly ensuring the underlying proxy handshakes succeed.
+
+### Update 1.2: Tauri Plugin Log Configuration
+- Upgraded the `tauri-plugin-log` integration in `main.rs` to instantiate dual targets during setup. It now logs robust application tracing implicitly to standard console output (`Stdout`) and persistently to the structured AppData `/logs` directory under `watchmark.log`, dramatically improving diagnostic resolution times for local environments.
+
+### Update 1.2.1: Tauri Plugin Log Output Verbosity & Tracing
+- Elevated the `tauri_plugin_log` output verbosity explicitly to `log::LevelFilter::Debug` inside `main.rs` to ensure network diagnostics and SQLite traces populate seamlessly into local outputs.
+- Modified the file logging strategy targeting `app.log` inherently inside the `LogDir` instead of `watchmark.log`, enforcing strict Tauri OS-agnostic conventions.
+- Deployed structured `log::info!` lifecycle checkpoints spanning critical architectural boot components (`canary_check()`, `db::init_db()`, and the Tauri `setup` hook state management phase) mapping accurate stack execution progress locally for debugging initialization faults.

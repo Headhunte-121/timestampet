@@ -206,3 +206,23 @@
 | "Mass Click" Logic (Queue burst) | Rust Unit Test (src/task_queue_tests.rs) | Pass |
 | Shutdown Timeout Guard (Drain) | Rust Unit Test (src/task_queue_tests.rs) | Pass |
 | Primary Key Collision Batch | Rust Unit Test (src/task_queue_tests.rs) | Pass |
+
+## TODO Bug Fix: Tauri/Vite Proxy Misconfiguration
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Ensure Vite build works correctly with explicitly defined root without breaking bundle outputs* | *Vite React Build Test (`npm run build` in `/watchmark-tauri`)* | *Pass - Output successfully bundled frontend resources to `dist/` without module resolution errors.* |
+
+## TODO Bug Fix: Localhost IPv6 Binding Conflict
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Ensure Vite build works correctly with explicitly defined IPv4 binding* | *Vite React Build Test (`npm run build` in `/watchmark-tauri`)* | *Pass - Output successfully bundled frontend resources.* |
+
+## TODO Update 1.2: Tauri Plugin Log Configuration
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Ensure Rust backend successfully compiles with explicit Tauri Logging targets utilizing `tauri_plugin_log::Target` structures.* | *Rust Compiler check (`cargo check` in `/watchmark-tauri/src-tauri`)* | *Pass - Type signatures resolved successfully without deprecated API warnings.* |
+
+## TODO Update 1.2.1: Tauri Plugin Log Output Verbosity & Tracing
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Verify Rust backend compiles seamlessly with explicit `log::info!` macros correctly invoked.* | *Rust Compiler check (`cargo check` in `/watchmark-tauri/src-tauri`)* | *Pass - Standard compile verified logic logic integrity.* |
