@@ -308,6 +308,7 @@ fn main() {
             commands::add_to_tracker,
             commands::mark_season_watched,
             commands::archive_season,
+            commands::toggle_episode_status,
             commands::get_dashboard_data,
             commands::get_library_data,
             commands::clear_unmatched_files,

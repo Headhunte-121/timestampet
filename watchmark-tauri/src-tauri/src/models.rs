@@ -165,7 +165,7 @@ pub struct Episode {
     pub runtime: i32,
     pub still_path: String,
     pub watch_count: i32,
-    pub last_position: i32,
+    pub last_position: u32,
     pub status: String,
     pub file_path: Option<String>,
     pub overview: String,

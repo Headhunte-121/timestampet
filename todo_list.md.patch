@@ -1,0 +1,15 @@
+<<<<<<< SEARCH
+Feature 5.12: Resume Playback (last_position integer column)
+- [ ] Ensure default value is strictly 0 on episode insertion.
+- [ ] Handle edge cases where last_position exceeds the stored total runtime.
+- [ ] Verify this column resets strictly to 0 if the episode is manually marked complete.
+- [ ] Test updating this value rapidly via the background VLC HTTP poller.
+- [ ] Ensure UI progress bars calculate width based on (last_position / runtime) * 100.
+=======
+Feature 5.12: Resume Playback (last_position integer column)
+- [x] Ensure default value is strictly 0 on episode insertion.
+- [x] Handle edge cases where last_position exceeds the stored total runtime.
+- [x] Verify this column resets strictly to 0 if the episode is manually marked complete.
+- [x] Test updating this value rapidly via the background VLC HTTP poller.
+- [x] Ensure UI progress bars calculate width based on (last_position / runtime) * 100.
+>>>>>>> REPLACE

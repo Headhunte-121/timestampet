@@ -707,9 +707,9 @@ pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: b
                 }
             }
 
-            // Update status
+            // Update status and reset last_position
             let _ = tx.execute(
-                "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1 WHERE media_id = ? AND season_num = ? AND status != 'Completed'",
+                "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1, last_position = 0 WHERE media_id = ? AND season_num = ? AND status != 'Completed'",
                 params![media_id, season_num]
             );
 
@@ -788,7 +788,7 @@ pub async fn archive_season(
 
                 db_queue.push_low_priority(move |conn| {
                     let _ = conn.execute(
-                        "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1 WHERE id = ?",
+                        "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1, last_position = 0 WHERE id = ?",
                         params![ep_id]
                     );
 
@@ -1666,6 +1666,52 @@ pub async fn assign_unmatched_to_tracker(
         Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
         Err(_) => Err(AppError::Custom("Task Timed Out".to_string())),
     }
+}
+
+#[tauri::command]
+pub fn toggle_episode_status(episode_id: i32) -> Result<(), AppError> {
+    handle_panic(|| {
+        let conn = get_db_connection()?;
+
+        // Fetch current status
+        let mut current_status = "Unwatched".to_string();
+        {
+            let mut stmt = conn.prepare("SELECT status FROM Episodes WHERE id = ?")?;
+            let mut rows = stmt.query(params![episode_id])?;
+            if let Some(row) = rows.next()? {
+                current_status = row.get::<_, Option<String>>(0)?.unwrap_or("Unwatched".to_string());
+            }
+        }
+
+        if current_status == "Completed" {
+            // Unwatch
+            // Watch_count doesn't decrement for safety in case of rewatches, but last_position strictly resets
+            conn.execute(
+                "UPDATE Episodes SET status = 'Unwatched', last_position = 0 WHERE id = ?",
+                params![episode_id]
+            )?;
+            // Remove recent history
+            // Just delete the most recent completion for this episode
+            conn.execute(
+                "DELETE FROM History WHERE id = (SELECT id FROM History WHERE episode_id = ? ORDER BY timestamp DESC LIMIT 1)",
+                params![episode_id]
+            )?;
+        } else {
+            // Watch
+            conn.execute(
+                "UPDATE Episodes SET status = 'Completed', watch_count = watch_count + 1, last_position = 0 WHERE id = ?",
+                params![episode_id]
+            )?;
+            let session_id = uuid::Uuid::new_v4().to_string();
+            let current_timestamp = chrono::Utc::now().timestamp();
+            conn.execute(
+                "INSERT INTO History (episode_id, timestamp, is_legacy, session_id, status, completion_ratio) VALUES (?, ?, 0, ?, 'Completed', 1.0)",
+                params![episode_id, current_timestamp, session_id]
+            )?;
+        }
+
+        Ok(())
+    })
 }
 
 #[tauri::command]

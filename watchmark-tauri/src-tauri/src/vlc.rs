@@ -57,9 +57,26 @@ pub async fn vlc_heartbeat(
     let mut was_paused: bool = false;
     let mut consecutive_failures: i32 = 0;
 
+    // Track state for throttling writes
+    let mut last_written_time_seconds: f64 = 0.0;
+    let mut last_flush_time = std::time::Instant::now();
+
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     // The first tick completes immediately, we skip it so we wait 5s first.
     interval.tick().await;
+
+    // Fetch the stored runtime in minutes
+    let mut stored_runtime_minutes = 0.0;
+    if let Ok(conn) = get_db_connection() {
+        if let Ok(mut stmt) = conn.prepare("SELECT runtime FROM Episodes WHERE id=?") {
+            if let Ok(mut rows) = stmt.query(params![episode_id]) {
+                if let Ok(Some(row)) = rows.next() {
+                    let runtime: i32 = row.get(0).unwrap_or(0);
+                    stored_runtime_minutes = runtime as f64;
+                }
+            }
+        }
+    }
 
     let client = match Client::builder().timeout(Duration::from_secs(2)).build() {
         Ok(c) => c,
@@ -81,25 +98,47 @@ pub async fn vlc_heartbeat(
                             high_water_mark = pos;
                         }
 
+                        // Logical clamping based on stored runtime if available
+                        let clamped_time = if stored_runtime_minutes > 0.0 {
+                            let max_seconds = stored_runtime_minutes * 60.0;
+                            if time > max_seconds {
+                                max_seconds
+                            } else {
+                                time
+                            }
+                        } else {
+                            time
+                        };
+
                         let state = status["state"].as_str().unwrap_or("");
                         let is_paused = state == "paused";
 
                         if is_paused && !was_paused {
                             pause_count += 1;
                         }
+
+                        let time_jumped = (clamped_time - last_written_time_seconds).abs() > 30.0;
+                        let time_to_flush = last_flush_time.elapsed() >= Duration::from_secs(300);
+
+                        // Trigger a write if paused, significant jump, or 5-min flush
+                        let should_commit = (is_paused && !was_paused) || time_jumped || time_to_flush;
                         was_paused = is_paused;
+                        last_time_seconds = clamped_time;
 
-                        last_time_seconds = time;
+                        if should_commit {
+                            last_written_time_seconds = clamped_time;
+                            last_flush_time = std::time::Instant::now();
 
-                        if let Ok(conn) = get_db_connection() {
-                            let _ = conn.execute(
-                                "UPDATE Episodes SET last_position=? WHERE id=?",
-                                params![last_time_seconds as i32, episode_id],
-                            );
-                            let _ = conn.execute(
-                                "UPDATE History SET completion_ratio=?, pause_count=? WHERE episode_id=? AND timestamp=? AND session_id=?",
-                                params![high_water_mark, pause_count, episode_id, start_dt_str, session_id],
-                            );
+                            if let Ok(conn) = get_db_connection() {
+                                let _ = conn.execute(
+                                    "UPDATE Episodes SET last_position=? WHERE id=?",
+                                    params![last_time_seconds as i32, episode_id],
+                                );
+                                let _ = conn.execute(
+                                    "UPDATE History SET completion_ratio=?, pause_count=? WHERE episode_id=? AND timestamp=? AND session_id=?",
+                                    params![high_water_mark, pause_count, episode_id, start_dt_str, session_id],
+                                );
+                            }
                         }
                     }
                 } else {
@@ -121,7 +160,23 @@ pub async fn vlc_heartbeat(
     let end_dt_str = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
     if let Ok(conn) = get_db_connection() {
-        if high_water_mark > 0.90 {
+        // Retrieve final runtime in case it wasn't fetched earlier or was updated
+        let mut final_runtime_minutes = stored_runtime_minutes;
+        if final_runtime_minutes == 0.0 {
+            if let Ok(mut stmt) = conn.prepare("SELECT runtime FROM Episodes WHERE id=?") {
+                if let Ok(mut rows) = stmt.query(params![episode_id]) {
+                    if let Ok(Some(row)) = rows.next() {
+                        let runtime: i32 = row.get(0).unwrap_or(0);
+                        final_runtime_minutes = runtime as f64;
+                    }
+                }
+            }
+        }
+
+        let final_runtime_seconds = final_runtime_minutes * 60.0;
+        let is_within_10s = final_runtime_seconds > 0.0 && (final_runtime_seconds - last_time_seconds) <= 10.0;
+
+        if high_water_mark > 0.90 || is_within_10s {
             let _ = conn.execute(
                 "UPDATE Episodes SET watch_count = watch_count + 1, status = 'Completed', last_position = 0 WHERE id = ?",
                 params![episode_id],
