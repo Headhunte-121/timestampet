@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { motion } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Lock } from "lucide-react";
 import { useUiStore } from "../store/uiStore";
@@ -7,7 +8,7 @@ import { toast } from "sonner";
 import { StarRating } from "./ui/StarRating";
 
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
-  const { showConfirm } = useUiStore();
+  const { showConfirm, setProcessing } = useUiStore();
   const [data, setData] = useState<any>(null);
   const [activeSeason, setActiveSeason] = useState<number>(1);
   const [showFullSynopsis, setShowFullSynopsis] = useState<boolean>(false);
@@ -19,6 +20,29 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
   }, []);
+
+  useEffect(() => {
+    const unlistenDelete = listen("media-deleted", (event: any) => {
+      if (event.payload.media_id === mediaId) {
+        setProcessing(false);
+        toast.success("Media removed successfully.");
+        onBack();
+      }
+    });
+
+    const unlistenDeleteFailed = listen("media-delete-failed", (event: any) => {
+      if (event.payload.media_id === mediaId) {
+        setProcessing(false);
+        toast.error(`Failed to delete media: ${event.payload.error}`);
+        isAnimatingRef.current = false;
+      }
+    });
+
+    return () => {
+      unlistenDelete.then((f) => f());
+      unlistenDeleteFailed.then((f) => f());
+    };
+  }, [mediaId, onBack, setProcessing]);
 
   useEffect(() => {
     invoke("get_media_details_db", { mediaId })
@@ -191,15 +215,14 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                   const confirmDelete = await showConfirm("Remove Media", warningMessage);
                   if (confirmDelete) {
                     isAnimatingRef.current = true;
+                    setProcessing(true, `Removing ${data?.title || 'Show'} from Library...`);
                     try {
-                      // Block UI until backend completes safely
+                      // We push this to the background queue, and wait for the event listener to transition back
                       await invoke("delete_media_cmd", { mediaId });
-                      // Once database cleanup is confirmed, transition safely back
-                      toast.success("Media removed successfully.");
-                      onBack();
                     } catch (e) {
-                      console.error("Failed to delete media:", e);
-                      toast.error("Failed to delete media.");
+                      setProcessing(false);
+                      console.error("Failed to enqueue delete media task:", e);
+                      toast.error("Failed to start deletion.");
                       isAnimatingRef.current = false;
                     }
                   }
