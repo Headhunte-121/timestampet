@@ -66,6 +66,7 @@ fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value>
         "total_days": total_days
     }))
 }
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc;
 
 #[cfg(test)]
@@ -151,6 +152,70 @@ pub struct AppState {
     pub settings: Arc<RwLock<Settings>>,
     pub settings_tx: mpsc::Sender<Settings>,
     pub db_queue: Arc<DbTaskQueue>,
+    pub is_maintenance_mode: AtomicBool,
+}
+
+#[tauri::command]
+pub async fn optimize_database(
+    state: tauri::State<'_, AppState>,
+) -> Result<(u64, u64), AppError> {
+    if state.is_maintenance_mode.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        return Err(AppError::Custom("System Busy: Maintenance mode is already active.".to_string()));
+    }
+
+    let db_path = crate::db::get_db_path();
+
+    // Size Calculation Before
+    let old_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0);
+
+    // Disk Space Check: VACUUM essentially creates a copy of the database. Check if there's enough free space.
+    // Ensure we check the parent directory of the db
+    if let Some(parent) = db_path.parent() {
+        if let Ok(space) = fs3::available_space(parent) {
+            if space < old_size {
+                state.is_maintenance_mode.store(false, Ordering::SeqCst);
+                return Err(AppError::Custom("Optimization failed: Not enough disk space to re-index.".to_string()));
+            }
+        }
+    }
+
+    let db_queue = state.db_queue.clone();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    db_queue.push_high_priority(move |conn| {
+        // Run VACUUM and ANALYZE
+        let result = (|| -> Result<(), rusqlite::Error> {
+            conn.execute_batch(
+                "VACUUM;
+                 ANALYZE;",
+            )?;
+            Ok(())
+        })();
+
+        let _ = tx.send(result);
+    });
+
+    let res = rx.await;
+    state.is_maintenance_mode.store(false, Ordering::SeqCst);
+
+    match res {
+        Ok(Ok(_)) => {
+            // Size Calculation After
+            let new_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0);
+            let saved_bytes = old_size.saturating_sub(new_size);
+
+            let percentage = if old_size > 0 {
+                ((saved_bytes as f64 / old_size as f64) * 100.0).round() as u64
+            } else {
+                0
+            };
+
+            log::info!("Database optimization complete. Reclaimed {} bytes ({}%).", saved_bytes, percentage);
+            Ok((saved_bytes, percentage))
+        }
+        Ok(Err(e)) => Err(AppError::Custom(format!("Database optimization failed: {}", e))),
+        Err(_) => Err(AppError::Custom("Database worker dropped task".to_string())),
+    }
 }
 
 #[tauri::command]
@@ -1445,7 +1510,12 @@ pub async fn fetch_history(page: Option<u32>, page_size: Option<u32>) -> Result<
 pub async fn run_scan_directory(
     app_handle: tauri::AppHandle,
     directory: String,
+    state: tauri::State<'_, AppState>,
 ) -> Result<i32, AppError> {
+    if state.is_maintenance_mode.load(Ordering::SeqCst) {
+        return Err(AppError::Custom("System Busy: Maintenance mode is currently active.".to_string()));
+    }
+
     let task = tokio::task::spawn_blocking(move || {
         handle_panic(std::panic::AssertUnwindSafe(|| {
             let mut conn = get_db_connection()?;
@@ -1847,6 +1917,10 @@ pub fn toggle_episode_status(episode_id: i32) -> Result<(), AppError> {
 #[cfg(test)]
 #[path = "commands_tests_export.rs"]
 mod commands_tests_export;
+
+#[cfg(test)]
+#[path = "commands_tests_optimize.rs"]
+mod commands_tests_optimize;
 
 #[tauri::command]
 pub async fn update_media_rating(

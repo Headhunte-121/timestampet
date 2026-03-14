@@ -217,7 +217,12 @@ pub async fn play_episode_cmd(
     episode_id: i32,
     file_path: String,
     last_position: i32,
+    state: tauri::State<'_, crate::commands::AppState>,
 ) -> Result<(), AppError> {
+    if state.is_maintenance_mode.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err(AppError::Custom("System Busy: Maintenance mode is currently active.".to_string()));
+    }
+
     let settings = crate::settings::load_settings().unwrap_or_default();
     if settings.vlc_path.is_empty() {
         return Err(AppError::Custom(

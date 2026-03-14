@@ -10,7 +10,7 @@ import { invokeWithTimeout } from "../utils/ipc";
 import { AnimatePresence, motion } from "framer-motion";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Loader2, UploadCloud } from "lucide-react";
+import { Loader2, UploadCloud, Sparkles } from "lucide-react";
 import { documentDir } from '@tauri-apps/api/path';
 import { RestoreConfirmationModal } from "./ui/RestoreConfirmationModal";
 
@@ -46,7 +46,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   });
 
   const { isCinemaMode, setCinemaMode } = useAppStore();
-  const { isScanning, setScanning } = useTaskStore();
+  const { isScanning, setScanning, isOptimizing, setOptimizing } = useTaskStore();
   const [scanStatus, setScanStatus] = useState<string>("");
   const [_, setBackupStatus] = useState<{ status: string, error?: string, timestamp: number } | null>(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -267,6 +267,30 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
           setTimeout(() => {
               setIsBackingUp(false);
           }, 3000);
+      }
+  };
+
+  const formatBytes = (bytes: number): string => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleOptimizeDB = async () => {
+      setOptimizing(true);
+      try {
+          const [savedBytes, percentage]: [number, number] = await invoke("optimize_database");
+          if (savedBytes > 0) {
+             toast.success(`Optimization Complete! Database is now ${percentage}% smaller. ${formatBytes(savedBytes)} reclaimed.`);
+          } else {
+             toast.success("Database is already fully optimized.");
+          }
+      } catch (error: any) {
+          toast.error(`${error}`);
+      } finally {
+          setOptimizing(false);
       }
   };
 
@@ -530,9 +554,9 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
 
                                 <div className="relative group">
                                     <motion.button
-                                        whileTap={!isScanning && !isBackingUp && !isRestoring ? { scale: 0.98 } : undefined}
+                                        whileTap={!isScanning && !isBackingUp && !isRestoring && !isOptimizing ? { scale: 0.98 } : undefined}
                                         onClick={handleImportBackup}
-                                        disabled={isScanning || isBackingUp || isRestoring}
+                                        disabled={isScanning || isBackingUp || isRestoring || isOptimizing}
                                         className={cn(
                                             "px-6 py-3 font-bold rounded-xl transition-all flex items-center gap-2 relative overflow-hidden",
                                             "border border-[#b71c1c] text-[#b71c1c]",
@@ -551,13 +575,30 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                     )}
                                 </div>
 
-                                <button
-                                    onClick={() => toast.success("Database vacuum completed.")}
-                                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
-                                    disabled={isBackingUp || isRestoring}
-                                >
-                                    Vacuum DB
-                                </button>
+                                <div className="relative group">
+                                    <motion.button
+                                        whileTap={!isBackingUp && !isRestoring && !isOptimizing ? { scale: 0.98 } : undefined}
+                                        onClick={handleOptimizeDB}
+                                        disabled={isBackingUp || isRestoring || isOptimizing}
+                                        className={cn(
+                                            "px-6 py-3 font-bold rounded-xl transition-all flex items-center gap-2",
+                                            "border border-gray-600 text-gray-300 hover:border-[#FF6B00] hover:text-[#FF6B00]",
+                                            (isBackingUp || isRestoring || isOptimizing) ? "opacity-50 cursor-not-allowed" : ""
+                                        )}
+                                    >
+                                        {isOptimizing ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin text-[#FF6B00]" />
+                                                Cleaning...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="w-5 h-5" />
+                                                Clean Database
+                                            </>
+                                        )}
+                                    </motion.button>
+                                </div>
                             </div>
                             <div className="mt-3 text-sm font-medium">
                                 {settings.last_backup_timestamp === 0 && settings.last_backup_status !== "error" && (

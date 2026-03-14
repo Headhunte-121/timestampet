@@ -145,6 +145,7 @@ fn main() {
             settings: app_backup_settings_arc,
             settings_tx,
             db_queue: db_queue.clone(),
+            is_maintenance_mode: std::sync::atomic::AtomicBool::new(false),
         })
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
@@ -335,7 +336,8 @@ fn main() {
                                         let app_handle = app.clone();
 
                                         tokio::spawn(async move {
-                                            if let Err(e) = crate::vlc::play_episode_cmd(app_handle.clone(), ep_id, file_path, last_position).await {
+                                            let state = app_handle.state::<commands::AppState>();
+                                            if let Err(e) = crate::vlc::play_episode_cmd(app_handle.clone(), ep_id, file_path, last_position, state).await {
                                                 let _ = app_handle.notification()
                                                     .builder()
                                                     .title("WatchMark")
@@ -434,6 +436,7 @@ fn main() {
             });
         })
         .invoke_handler(tauri::generate_handler![
+            commands::optimize_database,
             commands::repair_paths,
             commands::remove_local_link,
             commands::validate_and_hash_file,
