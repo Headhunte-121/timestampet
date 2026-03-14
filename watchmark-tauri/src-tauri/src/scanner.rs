@@ -142,7 +142,9 @@ pub fn scan_directory(
 
     // Windows Long Path Support: Ensure the root directory uses \\?\ prefix if absolute
     let root_path = std::path::PathBuf::from(sanitized_dir);
-    let scan_path = root_path.clone();
+
+    #[allow(unused_mut)]
+    let mut scan_path = root_path.clone();
 
     #[cfg(windows)]
     {
