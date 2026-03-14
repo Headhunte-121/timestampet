@@ -12,6 +12,7 @@ Whenever you finish implementing a specific task (referred to dynamically as `[T
 ### 2. Update the Master To-Do List
 * Locate the current `[TASK_ID]` in the master To-Do list.
 * Mark all completed sub-tasks as done (change `[ ]` to `[x]`).
+* only update the metiond todo not others
 
 ### 3. Update the Progress Log (`update.md`)
 * Open `update.md`.
