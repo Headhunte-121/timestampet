@@ -43,6 +43,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
 
   const { isCinemaMode, setCinemaMode } = useAppStore();
   const [scanStatus, setScanStatus] = useState<string>("");
+  const [backupStatus, setBackupStatus] = useState<{ status: string, error?: string, timestamp: number } | null>(null);
   const isDirty = initialSettings && JSON.stringify(settings) !== JSON.stringify(initialSettings);
 
   useEffect(() => {
@@ -80,15 +81,28 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
       })
       .catch(console.error);
 
-    const unlisten = listen("scan-match-batch", (event: any) => {
+    const unlistenScan = listen("scan-match-batch", (event: any) => {
       const batch = event.payload.files;
       if (batch && batch.length > 0) {
         setScanStatus(`Scanned ${batch.length} files in latest batch...`);
       }
     });
 
+    const unlistenBackup = listen("backup-finished", (event: any) => {
+      const payload = event.payload;
+      setBackupStatus(payload);
+      if (payload.status === "success") {
+          setSettings((prev: any) => ({ ...prev, last_backup_timestamp: payload.timestamp, last_backup_status: payload.status, last_backup_error: "" }));
+          setInitialSettings((prev: any) => ({ ...prev, last_backup_timestamp: payload.timestamp, last_backup_status: payload.status, last_backup_error: "" }));
+      } else {
+          setSettings((prev: any) => ({ ...prev, last_backup_status: payload.status, last_backup_error: payload.error }));
+          setInitialSettings((prev: any) => ({ ...prev, last_backup_status: payload.status, last_backup_error: payload.error }));
+      }
+    });
+
     return () => {
-      unlisten.then(f => f());
+      unlistenScan.then(f => f());
+      unlistenBackup.then(f => f());
     };
   }, []);
 
@@ -405,19 +419,38 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                             <h3 className="text-sm font-bold text-white">Database Maintenance</h3>
                             <p className="text-xs text-gray-500 mt-1">Optimize and backup SQLite database.</p>
                         </div>
-                        <div className="flex gap-4">
-                            <button
-                                onClick={() => toast.success("Database backup initiated.")}
-                                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
-                            >
-                                Backup DB
-                            </button>
-                            <button
-                                onClick={() => toast.success("Database vacuum completed.")}
-                                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
-                            >
-                                Vacuum DB
-                            </button>
+                        <div>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => toast.success("Database backup initiated.")}
+                                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
+                                >
+                                    Backup DB
+                                </button>
+                                <button
+                                    onClick={() => toast.success("Database vacuum completed.")}
+                                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
+                                >
+                                    Vacuum DB
+                                </button>
+                            </div>
+                            <div className="mt-3 text-sm font-medium">
+                                {settings.last_backup_timestamp === 0 && settings.last_backup_status !== "error" && (
+                                    <span className="text-gray-400">Backup status: Pending first run</span>
+                                )}
+                                {settings.last_backup_timestamp > 0 && settings.last_backup_status !== "error" && (
+                                    <span className="text-gray-400">Last automated backup: {new Date(settings.last_backup_timestamp * 1000).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                                )}
+                                {settings.last_backup_status === "error" && (
+                                    <span className="text-[#EF4444] flex items-center gap-1">
+                                        <span className="font-bold">(!)</span>
+                                        {settings.last_backup_timestamp > 0 ?
+                                            `Last successful: ${new Date(settings.last_backup_timestamp * 1000).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} | `
+                                            : ""}
+                                        Backup failed. Retrying soon.
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
 

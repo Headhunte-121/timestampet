@@ -3054,11 +3054,11 @@ This document represents the complete functional blueprint and state of the Watc
 
 **25.1 Automated SQLite Backups: The Rust backend copies watchmark.db to watchmark.bak every 24 hours.** (Incomplete)
 
-- [ ] Build a silent background task that runs once a day while the app is open.
-- [ ] Create a safe copy of the main database file and store it in the same hidden folder.
-- [ ] Keep only the three most recent backup files to save hard drive space.
-- [ ] Perform this action quietly without interrupting the user or slowing down the app.
-- [ ] Show a small text note in the settings menu detailing exactly when the last backup happened.
+- [x] Build a silent background task that runs once a day while the app is open.
+- [x] Create a safe copy of the main database file and store it in the same hidden folder.
+- [x] Keep only the three most recent backup files to save hard drive space.
+- [x] Perform this action quietly without interrupting the user or slowing down the app.
+- [x] Show a small text note in the settings menu detailing exactly when the last backup happened.
 
 **25.2 Manual DB Backup Action: A button opening a native OS dialog to save a copy of the database to Documents.** (Incomplete)
 

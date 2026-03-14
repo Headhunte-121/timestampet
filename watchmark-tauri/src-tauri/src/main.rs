@@ -11,6 +11,14 @@ mod settings;
 mod tmdb;
 mod vlc;
 pub mod task_queue;
+mod backup;
+
+#[cfg(test)]
+#[path = "backup_tests.rs"]
+mod backup_tests;
+
+#[cfg(test)]
+fn backup_tests_module_trigger() {}
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -80,9 +88,13 @@ fn main() {
 
     let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new());
 
+    // Spawn Background Backup Task
+    let backup_settings_arc = std::sync::Arc::new(std::sync::RwLock::new(initial_settings.clone()));
+    let app_backup_settings_arc = backup_settings_arc.clone();
+
     tauri::Builder::default()
         .manage(commands::AppState {
-            settings: std::sync::Arc::new(std::sync::RwLock::new(initial_settings)),
+            settings: app_backup_settings_arc,
             settings_tx,
             db_queue: db_queue.clone(),
         })
@@ -93,6 +105,83 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
+            #[cfg(test)]
+            crate::backup_tests_module_trigger();
+
+            let app_handle_for_backup = app.handle().clone();
+
+            // Background Backup Task
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    let mut should_backup = false;
+                    let current_ts = chrono::Utc::now().timestamp();
+                    {
+                        if let Ok(settings) = backup_settings_arc.read() {
+                            // 24 hours = 86400 seconds
+                            if current_ts - settings.last_backup_timestamp > 86400 || settings.last_backup_timestamp == 0 {
+                                should_backup = true;
+                            }
+                        }
+                    }
+
+                    if should_backup {
+                        // Offload blocking backup task to a dedicated thread with low priority feel
+                        let _app_h = app_handle_for_backup.clone();
+                        let backup_res = tokio::task::spawn_blocking(move || {
+                            crate::backup::perform_backup()
+                        }).await;
+
+                        match backup_res {
+                            Ok(Ok(_)) => {
+                                log::info!("Automatic database backup successful.");
+                                let mut next_settings = None;
+                                {
+                                    if let Ok(mut settings) = backup_settings_arc.write() {
+                                        settings.last_backup_timestamp = current_ts;
+                                        settings.last_backup_status = "success".to_string();
+                                        settings.last_backup_error = "".to_string();
+                                        next_settings = Some(settings.clone());
+                                    }
+                                }
+                                if let Some(updated_settings) = next_settings {
+                                    let _ = crate::settings::save_settings(&updated_settings);
+                                    let _ = app_handle_for_backup.emit("backup-finished", serde_json::json!({
+                                        "status": "success",
+                                        "timestamp": current_ts
+                                    }));
+                                }
+                            }
+                            Ok(Err(e)) => {
+                                log::error!("Automatic database backup failed: {}", e);
+                                let fail_ts = chrono::Utc::now().timestamp();
+                                let mut next_settings = None;
+                                {
+                                    if let Ok(mut settings) = backup_settings_arc.write() {
+                                        settings.last_backup_status = "error".to_string();
+                                        settings.last_backup_error = e.to_string();
+                                        next_settings = Some(settings.clone());
+                                    }
+                                }
+                                if let Some(updated_settings) = next_settings {
+                                    let _ = crate::settings::save_settings(&updated_settings);
+                                }
+                                let _ = app_handle_for_backup.emit("backup-finished", serde_json::json!({
+                                    "status": "error",
+                                    "error": e.to_string(),
+                                    "timestamp": fail_ts
+                                }));
+                            }
+                            Err(_) => {
+                                log::error!("Backup task panicked or timed out.");
+                            }
+                        }
+                    }
+
+                    // Sleep for 1 hour before checking again
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+                }
+            });
+
             // Spawn debouncer task for saving settings inside Tauri's managed tokio runtime
             tauri::async_runtime::spawn(async move {
                 let mut last_settings: Option<models::Settings> = None;

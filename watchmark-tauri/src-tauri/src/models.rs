@@ -244,6 +244,12 @@ pub struct Settings {
     pub auto_scan_on_boot: bool,
     #[serde(default = "default_logging_level")]
     pub logging_level: String,
+    #[serde(default = "default_last_backup_timestamp")]
+    pub last_backup_timestamp: i64,
+    #[serde(default = "default_last_backup_status")]
+    pub last_backup_status: String,
+    #[serde(default = "default_last_backup_error")]
+    pub last_backup_error: String,
 }
 
 fn default_width() -> i32 { 1280 }
@@ -256,6 +262,9 @@ fn default_binge_grouping_hours() -> i32 { 6 }
 fn default_auto_resume() -> bool { true }
 fn default_auto_scan_on_boot() -> bool { false }
 fn default_logging_level() -> String { "Info".to_string() }
+fn default_last_backup_timestamp() -> i64 { 0 }
+fn default_last_backup_status() -> String { "".to_string() }
+fn default_last_backup_error() -> String { "".to_string() }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -273,6 +282,9 @@ impl Default for Settings {
             auto_resume: default_auto_resume(),
             auto_scan_on_boot: default_auto_scan_on_boot(),
             logging_level: default_logging_level(),
+            last_backup_timestamp: default_last_backup_timestamp(),
+            last_backup_status: default_last_backup_status(),
+            last_backup_error: default_last_backup_error(),
         }
     }
 }

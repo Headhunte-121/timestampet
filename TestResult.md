@@ -177,3 +177,8 @@
 | **Forgetful Connection Test** | Rust Unit Test (`db_tests_append.rs/test_forgetful_connection`) | **Pass.** Verified standard SQLite connections drop orphaned children without `PRAGMA foreign_keys = ON`. Verified setting it enables cascade, and explicitly verified `get_db_connection()` returns a strictly enabled `PRAGMA foreign_keys` setting globally. |
 | **Deep Tree Wipe & Orphan Audit** | Rust Unit Test (`db_tests_append.rs/test_deep_tree_wipe_and_orphan_audit`) | **Pass.** Inserted 200 episodes containing 400 nested History items. Asserted standard `DELETE FROM Media` strictly yields a raw verification audit count `0` for orphans against `episode_id`. |
 | **Binge King Stress Test** | Rust Unit Test (`db_tests_append.rs/test_binge_king_stress`) | **Pass.** Programmatically spawned 50,000 mocked History entries for a single show. Verified massive relational mass drop correctly evaluates rapidly (yielding 0 items in table) cleanly within a single atomic SQLite constraint boundary without deadlock. |
+
+## TODO 25.1
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Backup Pruning File Cap* | *Rust Unit Test (src/backup_tests.rs)* | *Pass* |
