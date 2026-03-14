@@ -200,7 +200,8 @@ pub fn get_media_details(
     );
 
     if let Some(vote) = r["vote_average"].as_f64() {
-        if let Some(num) = serde_json::Number::from_f64(vote) {
+        let rounded_vote = (vote * 10.0).round() / 10.0;
+        if let Some(num) = serde_json::Number::from_f64(rounded_vote) {
             obj.insert("vote_average".to_string(), Value::Number(num));
         } else {
             obj.insert(

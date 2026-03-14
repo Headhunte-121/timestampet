@@ -1077,6 +1077,7 @@ pub async fn get_library_data(
                 "Release Year" => " ORDER BY CASE WHEN m.release_date IS NULL OR m.release_date = '' THEN 1 ELSE 0 END, m.release_date DESC",
                 "My Top Rated" => " ORDER BY m.user_rating DESC NULLS LAST, m.title ASC",
                 "Sort by Last Watched" => " ORDER BY last_watched DESC NULLS LAST, m.id DESC",
+                "Sort by TMDB Rating" => " ORDER BY m.vote_average DESC NULLS LAST, m.title ASC",
                 _ => " ORDER BY m.id DESC",
             };
 

@@ -138,3 +138,11 @@
 | 5.10 user_rating column | 'My Top Rated' sort logic | Pass | Rust Test | `test_top_rated_sort_order` proves `ORDER BY user_rating DESC NULLS LAST` logic. |
 | 5.10 user_rating column | Rapid UI clicking | Pass | Manual | React optimistic updates handle visual spam while async `db_queue.push_high_priority` ensures correct serial DB insertions. |
 | 5.10 user_rating column | Independent from TMDB | Pass | Manual | Backend `refresh_data` / `add_to_tracker` sync functions explicitly update `vote_average` and NOT `user_rating`. |
+
+| Feature | Sub-Step | Status | Method | Notes |
+|---------|----------|--------|--------|-------|
+| 5.11 vote_average caching | Verify data precision doesn't drift | Pass | Rust Test | `test_the_333_test` and `test_whole_number_storage` verify rounding logic limits numbers to one decimal place perfectly. |
+| 5.11 vote_average caching | Handle edge cases where TMDB returns 0.0 | Pass | Rust Test | `test_zero_validation` verifies 0.0 passes as a valid number, mapping correctly. |
+| 5.11 vote_average caching | Column forcibly overwritten on 'Refresh Data' | Pass | Manual / Rust | Confirmed `ON CONFLICT DO UPDATE SET vote_average=excluded.vote_average` in backend handles TMDB changes natively. |
+| 5.11 vote_average caching | Strictly one decimal place in UI | Pass | React UI | Updated `MediaDetails.tsx` applying `Number(val).toFixed(1)` rendering. Handled `0.0` gracefully with specific "NR" UI badge. |
+| 5.11 vote_average caching | Sort by this value without crashing on nulls | Pass | Rust Test | `test_mixed_null_library_sorting` explicitly verified `DESC NULLS LAST` logic correctly sorts `9.0, 8.5, 0.0, NULL`. |

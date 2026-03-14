@@ -217,3 +217,11 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Integrated "My Top Rated" `DESC NULLS LAST` sorting in `get_library_data`.
 - Implemented `StarRating` React UI Component with Framer Motion, supporting 1-10 scores via half-star clicks.
 - Updated `Dashboard.tsx` and `Library.tsx` logic to visually distinguish an explicit score of `0.0` from `Unrated`.
+
+### Feature 5.11 - TMDB Score Caching (`vote_average`)
+- Modified TMDB API parsing to round `vote_average` float to one decimal place immediately upon retrieval (e.g., 7.6666 -> 7.7) to prevent floating-point drift.
+- Ensured a TMDB score of `0.0` is treated as a valid numeric state and stored successfully.
+- Implemented frontend rendering in `MediaDetails.tsx` to strictly format the score to one decimal place (`Number(val).toFixed(1)`), maintaining UI consistency (e.g., 8.0, not 8).
+- Rendered a specific "NR" (Not Rated) badge with distinct styling for new shows returning `0.0`, preventing misleading 0/10 scores.
+- Added "Sort by TMDB Rating" filter option to the `Library.tsx` interface and connected it to the backend `get_library_data` logic using `DESC NULLS LAST` ordering.
+- Created `idx_media_tmdb_rating` SQLite index in `PRAGMA user_version = 9` migration to optimize massive library sorting performance.

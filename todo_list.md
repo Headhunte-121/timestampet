@@ -612,13 +612,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test rapid UI clicking of stars accurately reflects the final state in the DB.
 - [x] Ensure this data is entirely independent from the TMDB `vote_average`.
 
-**5.11 vote_average float column for TMDB score caching.** (Incomplete)
+**5.11 vote_average float column for TMDB score caching.** (Complete)
 
-- [ ] Verify data precision does not drift (e.g., 8.5 does not become 8.5000001).
-- [ ] Handle edge cases where TMDB returns a 0.0 for a brand new show.
-- [ ] Ensure this column is forcibly overwritten every time the user clicks 'Refresh Data'.
-- [ ] Test formatting to strictly one decimal place when returned to the UI.
-- [ ] Ensure queries can sort by this value without crashing on nulls.
+- [x] Verify data precision does not drift (e.g., 8.5 does not become 8.5000001).
+- [x] Handle edge cases where TMDB returns a 0.0 for a brand new show.
+- [x] Ensure this column is forcibly overwritten every time the user clicks 'Refresh Data'.
+- [x] Test formatting to strictly one decimal place when returned to the UI.
+- [x] Ensure queries can sort by this value without crashing on nulls.
 
 **5.12 last_position integer column for sub-episode pause tracking.** (Incomplete)
 

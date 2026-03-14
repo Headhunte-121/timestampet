@@ -104,8 +104,16 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               {data.type}
             </span>
             <span className="text-gray-300">Aired: {data.release_date ? (data.is_exact_date ? data.release_date : data.release_date.substring(0, 4)) : "Unknown"}</span>
-            <span className="flex items-center gap-1 text-[#F5C518] bg-black/50 px-3 py-1 rounded-md">
-              <Star className="w-4 h-4 fill-current" /> {data.vote_average.toFixed(1)} / 10
+            <span className="flex items-center gap-1 text-[#F5C518] bg-black/50 px-3 py-1 rounded-full min-w-[70px] justify-center text-center">
+              {data.vote_average === null || data.vote_average === undefined ? (
+                <span className="font-bold text-gray-400 tracking-widest text-[10px] px-1">NO DATA</span>
+              ) : data.vote_average === 0 ? (
+                <span className="font-bold text-gray-400 tracking-widest text-[10px] px-1">NR</span>
+              ) : (
+                <>
+                  <Star className="w-4 h-4 fill-current" /> {Number(data.vote_average).toFixed(1)}
+                </>
+              )}
             </span>
 
             <div className="flex items-center gap-2 bg-black/50 px-3 py-1 rounded-md">

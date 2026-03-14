@@ -64,7 +64,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
       .catch(console.error);
   }, [type, sortBy, hideCompleted, refreshTrigger]);
 
-  const sortOptions = ["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated"];
+  const sortOptions = ["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated", "Sort by TMDB Rating"];
 
   const filteredData = data.filter(item =>
     !searchQuery ||
