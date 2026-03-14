@@ -255,6 +255,12 @@
 | **Orphaned Local File** | Rust Unit Test (`sanitizer_tests.rs/test_orphaned_local_file`) | **Pass.** Validated deeply nested deserialization guarantees graceful defaults (like `""` for files) over missing rows. |
 | **TMDB "Special" Season** | Rust Unit Test (`sanitizer_tests.rs/test_tmdb_special_season`) | **Pass.** Mapped missing metadata dynamically generating secure defaults rather than dropping the season object during nested serialization. |
 
+## TODO 3.3
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Frontend Pagination argument missing bug* | *Milestone QA / React Component Build Check* | *Initial Result: FAIL. The `InboxView` component failed to compile/run because the `page` argument added to the `perform_tmdb_search` Rust command was missing from the React payload.* |
+| *Frontend Pagination argument missing bug (fixed)* | *React Component Build Check* | *Pass. Added `page: 1` explicitly to the `InboxView` component payload.* |
+
 ## TODO 3.1 Secure HTTP requests via Rust reqwest (Ultra-Stable Network Engine)
 
 | Test Case | Method | Result |

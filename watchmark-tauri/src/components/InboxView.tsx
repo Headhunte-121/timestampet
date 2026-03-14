@@ -52,7 +52,7 @@ export default function InboxView({ onMatch }: any) {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const res: any = await asyncInvoke("perform_tmdb_search", { query: searchQuery });
+      const res: any = await asyncInvoke("perform_tmdb_search", { query: searchQuery, page: 1 });
       if (res) setSearchResults(res);
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'")) {
