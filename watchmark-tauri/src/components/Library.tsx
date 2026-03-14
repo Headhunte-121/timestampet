@@ -150,7 +150,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               </p>
 
               <div className="flex items-center gap-1 text-[#FF6B00] text-sm font-bold mb-1">
-                 <Star className="w-4 h-4 fill-current" /> {item.user_rating > 0 ? `${item.user_rating}/5` : 'Unrated'}
+                 {item.user_rating === 0 ? <span className="font-bold">0.0</span> : <Star className="w-4 h-4 fill-current" />} {item.user_rating !== null ? `${(item.user_rating / 2).toFixed(1)}/5` : 'Unrated'}
               </div>
 
               <p className="text-xs text-gray-400 line-clamp-3">
@@ -160,7 +160,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
 
             {/* Static badges */}
             <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-bold text-[#FF6B00] shadow-md group-hover:opacity-0 transition-opacity flex items-center gap-1">
-              ★ {item.user_rating > 0 ? `${item.user_rating}/5` : 'Unrated'}
+              {item.user_rating === 0 ? '0.0' : '★'} {item.user_rating !== null ? `${(item.user_rating / 2).toFixed(1)}/5` : 'Unrated'}
             </div>
 
             <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] font-bold text-gray-300 shadow-md group-hover:opacity-0 transition-opacity uppercase tracking-wider">

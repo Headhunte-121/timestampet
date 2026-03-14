@@ -142,7 +142,7 @@ pub struct Media {
     pub total_episodes: i32,
     pub status: String,
     pub vote_average: f64,
-    pub user_rating: i32,
+    pub user_rating: Option<i32>,
     pub release_date: String,
     pub is_exact_date: bool,
 
