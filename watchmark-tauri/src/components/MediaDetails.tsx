@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Lock } from "lucide-react";
 import { useUiStore } from "../store/uiStore";
 import { toast } from "sonner";
+import { StarRating } from "./ui/StarRating";
 
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const { showConfirm } = useUiStore();
@@ -106,6 +107,26 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <span className="flex items-center gap-1 text-[#F5C518] bg-black/50 px-3 py-1 rounded-md">
               <Star className="w-4 h-4 fill-current" /> {data.vote_average.toFixed(1)} / 10
             </span>
+
+            <div className="flex items-center gap-2 bg-black/50 px-3 py-1 rounded-md">
+              {data.user_rating === 0 && (
+                <span className="text-orange-500 font-bold bg-white/10 px-2 py-0.5 rounded text-xs mr-2">
+                  0.0
+                </span>
+              )}
+              <span className="text-gray-400 mr-2 text-xs">My Rating:</span>
+              <StarRating
+                rating={data.user_rating}
+                onChange={(rating) => {
+                  setData((prev: any) => ({ ...prev, user_rating: rating }));
+                  invoke("update_media_rating", { mediaId: data.id, rating })
+                    .catch((err) => {
+                      console.error("Failed to update rating:", err);
+                      toast.error("Failed to update rating");
+                    });
+                }}
+              />
+            </div>
           </div>
 
           <div className="mb-8">

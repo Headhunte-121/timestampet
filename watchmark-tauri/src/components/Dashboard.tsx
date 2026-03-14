@@ -26,7 +26,7 @@ interface Media {
   title: string | null;
   poster_path: string | null;
   backdrop_path: string | null;
-  user_rating: number;
+  user_rating: number | null;
   total_episodes: number;
   completed_eps: number;
   media_type: string;
@@ -293,7 +293,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   </div>
 
                   <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-bold text-[#FF6B00] shadow-md flex items-center gap-1">
-                    ★ {media.user_rating > 0 ? media.user_rating.toFixed(1) : 'Unrated'}
+                    {media.user_rating === 0 ? '0.0' : '★'} {media.user_rating !== null ? (media.user_rating / 2).toFixed(1) : 'Unrated'}
                   </div>
 
                   {media.total_episodes > 0 && (

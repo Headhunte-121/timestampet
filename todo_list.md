@@ -604,13 +604,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test mass-insertion of 500 legacy rows ensuring database locks are avoided.
 - [x] Ensure analytics/stats math still correctly counts legacy rows.
 
-**5.10 user_rating integer column for 1-10 star personal scores.** (Incomplete)
+**5.10 user_rating integer column for 1-10 star personal scores.** (Complete)
 
-- [ ] Ensure constraints strictly restrict integers to between 0 and 10.
-- [ ] Handle edge cases where null represents unrated versus 0 representing terrible.
-- [ ] Verify 'My Top Rated' sort logic places 10-star shows at the top and 0 at bottom.
-- [ ] Test rapid UI clicking of stars accurately reflects the final state in the DB.
-- [ ] Ensure this data is entirely independent from the TMDB `vote_average`.
+- [x] Ensure constraints strictly restrict integers to between 0 and 10.
+- [x] Handle edge cases where null represents unrated versus 0 representing terrible.
+- [x] Verify 'My Top Rated' sort logic places 10-star shows at the top and 0 at bottom.
+- [x] Test rapid UI clicking of stars accurately reflects the final state in the DB.
+- [x] Ensure this data is entirely independent from the TMDB `vote_average`.
 
 **5.11 vote_average float column for TMDB score caching.** (Incomplete)
 

@@ -626,3 +626,60 @@ mod feature_5_7_tests_2 {
         assert_eq!(is_exact_valid, true);
     }
 }
+
+#[cfg(test)]
+mod feature_5_10_tests {
+    use rusqlite::Connection;
+
+    fn setup_test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+
+        conn.execute(
+            "CREATE TABLE Media (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tmdb_id TEXT UNIQUE,
+                \"title\" TEXT,
+                user_rating INTEGER CHECK(user_rating >= 0 AND user_rating <= 10) DEFAULT NULL
+            )",
+            (),
+        ).unwrap();
+
+        conn
+    }
+
+    #[test]
+    fn test_rating_bounds() {
+        let conn = setup_test_db();
+
+        // valid inputs
+        assert!(conn.execute("INSERT INTO Media (tmdb_id, user_rating) VALUES ('1', 0)", ()).is_ok());
+        assert!(conn.execute("INSERT INTO Media (tmdb_id, user_rating) VALUES ('2', 10)", ()).is_ok());
+        assert!(conn.execute("INSERT INTO Media (tmdb_id, user_rating) VALUES ('3', 5)", ()).is_ok());
+        assert!(conn.execute("INSERT INTO Media (tmdb_id, user_rating) VALUES ('4', NULL)", ()).is_ok());
+
+        // invalid inputs
+        assert!(conn.execute("INSERT INTO Media (tmdb_id, user_rating) VALUES ('5', -1)", ()).is_err(), "Negative values should fail");
+        assert!(conn.execute("INSERT INTO Media (tmdb_id, user_rating) VALUES ('6', 11)", ()).is_err(), "Values > 10 should fail");
+    }
+
+    #[test]
+    fn test_top_rated_sort_order() {
+        let conn = setup_test_db();
+
+        conn.execute("INSERT INTO Media (tmdb_id, title, user_rating) VALUES ('1', 'Masterpiece', 10)", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, user_rating) VALUES ('2', 'Terrible', 0)", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, user_rating) VALUES ('3', 'Average', 5)", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, user_rating) VALUES ('4', 'Unrated B', NULL)", ()).unwrap();
+        conn.execute("INSERT INTO Media (tmdb_id, title, user_rating) VALUES ('5', 'Unrated A', NULL)", ()).unwrap();
+
+        let mut stmt = conn.prepare("SELECT title FROM Media ORDER BY user_rating DESC NULLS LAST, title ASC").unwrap();
+        let rows: Vec<String> = stmt.query_map([], |row| row.get(0)).unwrap().filter_map(Result::ok).collect();
+
+        assert_eq!(rows.len(), 5);
+        assert_eq!(rows[0], "Masterpiece");
+        assert_eq!(rows[1], "Average");
+        assert_eq!(rows[2], "Terrible");
+        assert_eq!(rows[3], "Unrated A");
+        assert_eq!(rows[4], "Unrated B");
+    }
+}

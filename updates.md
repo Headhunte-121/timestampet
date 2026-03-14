@@ -209,4 +209,11 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Engineered a background Task Queue (`task_queue.rs`) utilizing `std::sync::mpsc` channels to seamlessly perform low-priority mass insertions of 500+ legacy rows.
 - Refactored `archive_season` to automatically backdate and spread legacy imports 24 hours apart, starting from the 1st of the month, successfully escaping database `is locked` deadlocks.
 - Verified analytics counting stats directly query the database seamlessly ignoring `is_legacy`, so lifetime "Total Episodes Watched" dynamically integrates archives natively.
-- 
+-
+### Feature 5.10 - User Rating Integration
+- Implemented `user_rating` column in SQLite `Media` table with `CHECK(user_rating >= 0 AND user_rating <= 10)` constraint.
+- Setup DB migration `PRAGMA user_version = 8` to update legacy rows (from `0` to `NULL`).
+- Created `update_media_rating` Rust command.
+- Integrated "My Top Rated" `DESC NULLS LAST` sorting in `get_library_data`.
+- Implemented `StarRating` React UI Component with Framer Motion, supporting 1-10 scores via half-star clicks.
+- Updated `Dashboard.tsx` and `Library.tsx` logic to visually distinguish an explicit score of `0.0` from `Unrated`.

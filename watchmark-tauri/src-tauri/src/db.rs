@@ -163,7 +163,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             total_episodes INTEGER,
             status TEXT,
             vote_average REAL DEFAULT 0.0,
-            user_rating INTEGER DEFAULT 0,
+            user_rating INTEGER CHECK(user_rating >= 0 AND user_rating <= 10) DEFAULT NULL,
             release_date TEXT,
             is_exact_date BOOLEAN DEFAULT 1,
             UNIQUE(tmdb_id, \"type\")
@@ -378,6 +378,13 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         // Ensure legacy rows that were added before are 0 by default if null
         let _ = tx.execute("UPDATE History SET is_legacy = 0 WHERE is_legacy IS NULL", ());
         tx.execute("PRAGMA user_version = 7", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 8 {
+        let tx = conn.transaction()?;
+        let _ = tx.execute("UPDATE Media SET user_rating = NULL WHERE user_rating = 0", ());
+        tx.execute("PRAGMA user_version = 8", ())?;
         tx.commit()?;
     }
 

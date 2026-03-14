@@ -293,7 +293,7 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                     "total_episodes": row.get::<_, Option<i32>>(7).unwrap_or_default().unwrap_or(0),
                     "status": row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
                     "vote_average": row.get::<_, Option<f64>>(9).unwrap_or_default().unwrap_or(0.0),
-                    "user_rating": row.get::<_, Option<i32>>(10).unwrap_or_default().unwrap_or(0),
+                    "user_rating": row.get::<_, Option<i32>>(10).unwrap_or_default(),
                     "release_date": release_date,
                     "is_exact_date": row.get::<_, Option<bool>>(12).unwrap_or_default().unwrap_or(true),
                     "is_unaired": is_unaired,
@@ -1075,7 +1075,7 @@ pub async fn get_library_data(
             let order_by = match sort_by.as_str() {
                 "Alphabetical (A-Z)" => " ORDER BY m.title ASC",
                 "Release Year" => " ORDER BY CASE WHEN m.release_date IS NULL OR m.release_date = '' THEN 1 ELSE 0 END, m.release_date DESC",
-                "My Top Rated" => " ORDER BY m.user_rating DESC, m.id DESC",
+                "My Top Rated" => " ORDER BY m.user_rating DESC NULLS LAST, m.title ASC",
                 "Sort by Last Watched" => " ORDER BY last_watched DESC NULLS LAST, m.id DESC",
                 _ => " ORDER BY m.id DESC",
             };
@@ -1665,4 +1665,31 @@ pub async fn assign_unmatched_to_tracker(
         Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
         Err(_) => Err(AppError::Custom("Task Timed Out".to_string())),
     }
+}
+
+#[tauri::command]
+pub async fn update_media_rating(
+    state: tauri::State<'_, AppState>,
+    media_id: i32,
+    rating: Option<i32>,
+) -> Result<(), AppError> {
+    if let Some(r) = rating {
+        if r < 0 || r > 10 {
+            let error_msg = format!("Validation Error: rating {} is out of bounds (0-10)", r);
+            log::error!("{}", error_msg);
+            return Err(AppError::Custom(error_msg));
+        }
+    }
+
+    let db_queue = state.db_queue.clone();
+    db_queue.push_high_priority(move |conn| {
+        if let Err(e) = conn.execute(
+            "UPDATE Media SET user_rating = ? WHERE id = ?",
+            params![rating, media_id],
+        ) {
+            log::error!("Failed to update user_rating for media {}: {}", media_id, e);
+        }
+    });
+
+    Ok(())
 }
