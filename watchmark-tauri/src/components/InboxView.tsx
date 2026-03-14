@@ -290,7 +290,7 @@ export default function InboxView({ onMatch }: any) {
                       <div className="p-4">
                         <h3 className="text-white font-bold text-sm truncate">{item.title}</h3>
                         <p className="text-xs text-[#FF6B00] font-bold uppercase mt-1">
-                          {item.type} • <span className="text-gray-500">{item.release_date?.substring(0, 4) || "Unknown"}</span>
+                          {item.type} • <span className="text-gray-500">{item.is_date_known ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-gray-400">TBD</span>}</span>
                         </p>
                       </div>
                     </div>

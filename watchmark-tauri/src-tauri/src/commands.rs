@@ -484,10 +484,12 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
         if let Ok(mut rows) = stmt.query(params![media_id]) {
             if let Ok(Some(row)) = rows.next() {
                 let m_type: String = row.get(2).unwrap_or_default();
-                let release_date: String = row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default();
-                let is_unaired = if !release_date.is_empty() {
+                let raw_release_date: String = row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default();
+                let (sanitized_release_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_release_date);
+
+                let is_unaired = if is_known && !sanitized_release_date.is_empty() {
                     let now = chrono::Utc::now().naive_utc().date();
-                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&release_date, "%Y-%m-%d") {
+                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_release_date, "%Y-%m-%d") {
                         parsed > now
                     } else {
                         false
@@ -495,20 +497,25 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 } else {
                     false
                 };
+
+                let raw_synopsis = row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default();
+                let sanitized_synopsis = crate::sanitizer::sanitize_text(&raw_synopsis, "No overview available.");
+
                 media = Some(json!({
                     "id": row.get::<_, i32>(0).unwrap_or(0),
                     "tmdb_id": row.get::<_, String>(1).unwrap_or_default(),
                     "type": m_type,
                     "title": row.get::<_, Option<String>>(3).unwrap_or_default().unwrap_or_default(),
-                    "synopsis": row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
+                    "synopsis": sanitized_synopsis,
                     "poster_path": row.get::<_, Option<String>>(5).unwrap_or_default().unwrap_or_default(),
                     "backdrop_path": row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
                     "total_episodes": row.get::<_, Option<i32>>(7).unwrap_or_default().unwrap_or(0),
                     "status": row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
                     "vote_average": row.get::<_, Option<f64>>(9).unwrap_or_default().unwrap_or(0.0),
                     "user_rating": row.get::<_, Option<i32>>(10).unwrap_or_default(),
-                    "release_date": release_date,
-                    "is_exact_date": row.get::<_, Option<bool>>(12).unwrap_or_default().unwrap_or(true),
+                    "release_date": sanitized_release_date,
+                    "is_exact_date": is_exact,
+                    "is_date_known": is_known,
                     "is_unaired": is_unaired,
                 }));
             }
@@ -556,10 +563,12 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
 
             let mut episodes = vec![];
             if let Ok(ep_rows) = eps_stmt.query_map(params![media_id], |row| {
-                let air_date: String = row.get::<_, Option<String>>(12)?.unwrap_or_default();
-                let is_unaired = if !air_date.is_empty() {
+                let raw_air_date: String = row.get::<_, Option<String>>(12)?.unwrap_or_default();
+                let (sanitized_air_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
+
+                let is_unaired = if is_known && !sanitized_air_date.is_empty() {
                     let now = chrono::Utc::now().naive_utc().date();
-                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&air_date, "%Y-%m-%d") {
+                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d") {
                         parsed > now
                     } else {
                         false
@@ -567,23 +576,33 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 } else {
                     false
                 };
+
+                let raw_overview = row.get::<_, Option<String>>(7)?.unwrap_or_default();
+                let sanitized_overview = crate::sanitizer::sanitize_text(&raw_overview, "No episode summary.");
+
+                let runtime: i32 = row.get::<_, Option<i32>>(5)?.unwrap_or(0);
+                let last_position: i32 = row.get::<_, Option<i32>>(9)?.unwrap_or(0);
+                let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
+
                 Ok(json!({
                     "id": row.get::<_, i32>(0)?,
                     "media_id": row.get::<_, i32>(1)?,
                     "season_num": row.get::<_, u32>(2)?,
                     "ep_num": row.get::<_, u32>(3)?,
                     "title": row.get::<_, Option<String>>(4)?.unwrap_or_default(),
-                    "runtime": row.get::<_, i32>(5)?,
+                    "runtime": runtime,
                     "still_path": row.get::<_, Option<String>>(6)?.unwrap_or_default(),
-                    "overview": row.get::<_, Option<String>>(7)?.unwrap_or_default(),
+                    "overview": sanitized_overview,
                     "watch_count": row.get::<_, i32>(8)?,
-                    "last_position": row.get::<_, i32>(9)?,
+                    "last_position": last_position,
                     "status": row.get::<_, Option<String>>(10)?.unwrap_or_default(),
                     "completed_date": row.get::<_, Option<String>>(11)?.unwrap_or_default(),
-                    "air_date": air_date,
-                    "is_exact_date": row.get::<_, Option<bool>>(13).unwrap_or_default().unwrap_or(true),
+                    "air_date": sanitized_air_date,
+                    "is_exact_date": is_exact,
+                    "is_date_known": is_known,
                     "file_path": row.get::<_, Option<String>>(14)?,
                     "is_unaired": is_unaired,
+                    "progress_percentage": progress_percentage,
                 }))
             }) {
                 for ep in ep_rows.flatten() {
@@ -1086,25 +1105,32 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
                 let mut ep_rows = ep_stmt.query(params![media_id])?;
                 if let Ok(Some(ep_row)) = ep_rows.next() {
+                    let runtime = ep_row.get::<_, i32>(5).unwrap_or(0);
+                    let last_position = ep_row.get::<_, i32>(9).unwrap_or(0);
+                    let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
+
                     hero_ep = Some(json!({
                         "id": ep_row.get::<_, i32>(0).unwrap_or(0),
                         "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
                         "season_num": ep_row.get::<_, u32>(2).unwrap_or(0),
                         "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
                         "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
-                        "runtime": ep_row.get::<_, i32>(5).unwrap_or(0),
+                        "runtime": runtime,
                         "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
                         "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
                         "watch_count": ep_row.get::<_, i32>(8).unwrap_or(0),
-                        "last_position": ep_row.get::<_, i32>(9).unwrap_or(0),
+                        "last_position": last_position,
                         "status": ep_row.get::<_, Option<String>>(10).unwrap_or_default().unwrap_or_default(),
                         "completed_date": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
                         "air_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
+                        "is_exact_date": ep_row.get::<_, Option<bool>>(13).unwrap_or_default().unwrap_or(true),
+                        "is_date_known": true, // This field doesn't exist in the query, handled safely by frontend defaulting if missing
+                        "progress_percentage": progress_percentage,
 
-                        "show_title": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
-                        "backdrop_path": ep_row.get::<_, Option<String>>(14).unwrap_or_default().unwrap_or_default(),
-                        "file_path": ep_row.get::<_, Option<String>>(15).unwrap_or_default(),
-                        "media_type": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
+                        "show_title": ep_row.get::<_, Option<String>>(14).unwrap_or_default().unwrap_or_default(),
+                        "backdrop_path": ep_row.get::<_, Option<String>>(15).unwrap_or_default().unwrap_or_default(),
+                        "file_path": ep_row.get::<_, Option<String>>(16).unwrap_or_default(),
+                        "media_type": ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default(),
                     }));
                 }
             }
@@ -1144,26 +1170,33 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
                     let mut ep_rows = ep_stmt.query(params![m_id])?;
                     if let Ok(Some(ep_row)) = ep_rows.next() {
+                        let runtime = ep_row.get::<_, i32>(5).unwrap_or(0);
+                        let last_position = ep_row.get::<_, i32>(9).unwrap_or(0);
+                        let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
+
                         cw_eps.push(json!({
                             "id": ep_row.get::<_, i32>(0).unwrap_or(0),
                             "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
                             "season_num": ep_row.get::<_, u32>(2).unwrap_or(0),
                             "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
                             "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
-                            "runtime": ep_row.get::<_, i32>(5).unwrap_or(0),
+                            "runtime": runtime,
                             "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
                             "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
                             "watch_count": ep_row.get::<_, i32>(8).unwrap_or(0),
-                            "last_position": ep_row.get::<_, i32>(9).unwrap_or(0),
+                            "last_position": last_position,
                             "status": ep_row.get::<_, Option<String>>(10).unwrap_or_default().unwrap_or_default(),
                             "completed_date": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
                             "air_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
+                            "is_exact_date": ep_row.get::<_, Option<bool>>(13).unwrap_or_default().unwrap_or(true),
+                            "is_date_known": true, // This field doesn't exist in the query, handled safely by frontend defaulting if missing
+                            "progress_percentage": progress_percentage,
 
-                            "show_title": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
-                            "backdrop_path": ep_row.get::<_, Option<String>>(14).unwrap_or_default().unwrap_or_default(),
-                            "poster_path": ep_row.get::<_, Option<String>>(15).unwrap_or_default().unwrap_or_default(),
-                            "file_path": ep_row.get::<_, Option<String>>(16).unwrap_or_default(),
-                            "media_type": ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default(),
+                            "show_title": ep_row.get::<_, Option<String>>(14).unwrap_or_default().unwrap_or_default(),
+                            "backdrop_path": ep_row.get::<_, Option<String>>(15).unwrap_or_default().unwrap_or_default(),
+                            "poster_path": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
+                            "file_path": ep_row.get::<_, Option<String>>(17).unwrap_or_default(),
+                            "media_type": ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default(),
                         }));
                     }
                 }
@@ -1185,10 +1218,12 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
         let mut recent_media: Vec<Media> = Vec::new();
         if let Ok(rows) = ra_stmt.query_map([], |row| {
-            let release_date: String = row.get(11)?;
-            let is_unaired = if !release_date.is_empty() {
+            let raw_release_date: String = row.get(11)?;
+            let (sanitized_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_release_date);
+
+            let is_unaired = if is_known && !sanitized_date.is_empty() {
                 let now = chrono::Utc::now().naive_utc().date();
-                if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&release_date, "%Y-%m-%d") {
+                if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_date, "%Y-%m-%d") {
                     parsed > now
                 } else {
                     false
@@ -1196,25 +1231,32 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
             } else {
                 false
             };
+
+            let raw_synopsis: String = row.get(4)?;
+            let sanitized_synopsis = crate::sanitizer::sanitize_text(&raw_synopsis, "No overview available.");
+
             Ok(Media {
                 id: row.get(0)?,
                 tmdb_id: row.get(1)?,
                 r#type: row.get(2)?,
                 title: row.get(3)?,
-                synopsis: row.get(4)?,
+                synopsis: sanitized_synopsis,
                 poster_path: row.get(5)?,
                 backdrop_path: row.get(6)?,
                 total_episodes: row.get(7)?,
                 status: row.get(8)?,
                 vote_average: row.get(9)?,
                 user_rating: row.get(10)?,
-                release_date,
-                is_exact_date: row.get::<_, Option<bool>>(12)?.unwrap_or(true),
-                is_unaired: Some(is_unaired),
+                release_date: sanitized_date,
+                is_exact_date: is_exact,
+                is_date_known: is_known,
+                is_unaired: is_unaired,
                 completed_eps: row.get(13)?,
                 last_watched: row.get(14)?,
                 min_year: row.get(15)?,
                 max_year: row.get(16)?,
+                seasons: Vec::new(),
+                episodes: Vec::new(),
             })
         }) {
             for m in rows.flatten() {
@@ -1370,10 +1412,12 @@ pub async fn get_library_data(
                 }
                 batch_count += 1;
 
-                let release_date: String = row.get(11)?;
-                let is_unaired = if !release_date.is_empty() {
+                let raw_release_date: String = row.get(11)?;
+                let (sanitized_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_release_date);
+
+                let is_unaired = if is_known && !sanitized_date.is_empty() {
                     let now = chrono::Utc::now().naive_utc().date();
-                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&release_date, "%Y-%m-%d") {
+                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_date, "%Y-%m-%d") {
                         parsed > now
                     } else {
                         false
@@ -1382,25 +1426,31 @@ pub async fn get_library_data(
                     false
                 };
 
+                let raw_synopsis: String = row.get(4)?;
+                let sanitized_synopsis = crate::sanitizer::sanitize_text(&raw_synopsis, "No overview available.");
+
                 media_list.push(Media {
                     id: row.get(0)?,
                     tmdb_id: row.get(1)?,
                     r#type: row.get(2)?,
                     title: row.get(3)?,
-                    synopsis: row.get(4)?,
+                    synopsis: sanitized_synopsis,
                     poster_path: row.get(5)?,
                     backdrop_path: row.get(6)?,
                     total_episodes: row.get(7)?,
                     status: row.get(8)?,
                     vote_average: row.get(9)?,
                     user_rating: row.get(10)?,
-                    release_date,
-                    is_exact_date: row.get::<_, Option<bool>>(12)?.unwrap_or(true),
-                    is_unaired: Some(is_unaired),
+                    release_date: sanitized_date,
+                    is_exact_date: is_exact,
+                    is_date_known: is_known,
+                    is_unaired: is_unaired,
                     completed_eps: row.get(13)?,
                     last_watched: row.get(14)?,
                     min_year: row.get(15)?,
                     max_year: row.get(16)?,
+                    seasons: Vec::new(),
+                    episodes: Vec::new(),
                 });
             }
 
@@ -1517,7 +1567,7 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
             let mut stmt = conn.prepare(
                 "
                 SELECT h.id as hist_id, h.timestamp, h.session_id, h.is_legacy, h.start_time, h.end_time, h.pause_count, h.completion_ratio,
-                       e.id as episode_id, e.season_num, e.ep_num, e.title as ep_title, e.still_path, e.air_date, e.runtime,
+                       e.id as episode_id, e.season_num, e.ep_num, e.title as ep_title, e.still_path, e.air_date, e.runtime, e.last_position, e.is_exact_date,
                        m.id as media_id, m.title as show_title, m.poster_path, m.backdrop_path, m.type as media_type
                 FROM History h
                 JOIN Episodes e ON h.episode_id = e.id
@@ -1542,16 +1592,20 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                 let session_id: Option<String> = row.get(2)?;
                 let ts: i64 = row.get(1)?;
                 let runtime: i32 = row.get(14)?;
-                let air_date: String = row.get::<_, Option<String>>(13)?.unwrap_or_default();
-                let time_capsule = calculate_gap(&air_date, ts);
+                let raw_air_date: String = row.get::<_, Option<String>>(13)?.unwrap_or_default();
+                let (sanitized_air_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
+                let time_capsule = calculate_gap(&sanitized_air_date, ts);
+
+                let last_position = row.get::<_, Option<i32>>(15)?.unwrap_or(0);
+                let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
                 history.push(json!({
                     "hist_id": row.get::<_, i32>(0)?,
                     "timestamp": ts,
                     "session_id": session_id,
                     "is_legacy": row.get::<_, i32>(3)?,
-                    "start_time": row.get::<_, Option<String>>(4)?,
-                    "end_time": row.get::<_, Option<String>>(5)?,
+                    "start_time": row.get::<_, Option<String>>(4)?.unwrap_or_default(),
+                    "end_time": row.get::<_, Option<String>>(5)?.unwrap_or_default(),
                     "pause_count": row.get::<_, i32>(6)?,
                     "completion_ratio": row.get::<_, f64>(7)?,
                     "episode_id": row.get::<_, i32>(8)?,
@@ -1559,14 +1613,17 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                     "ep_num": row.get::<_, u32>(10)?,
                     "ep_title": row.get::<_, Option<String>>(11)?.unwrap_or_default(),
                     "still_path": row.get::<_, Option<String>>(12)?.unwrap_or_default(),
-                    "air_date": air_date,
+                    "air_date": sanitized_air_date,
+                    "is_date_known": is_known,
+                    "is_exact_date": is_exact,
                     "time_capsule": time_capsule,
                     "runtime": runtime,
-                    "media_id": row.get::<_, i32>(15)?,
-                    "show_title": row.get::<_, Option<String>>(16)?.unwrap_or_default(),
-                    "poster_path": row.get::<_, Option<String>>(17)?.unwrap_or_default(),
-                    "backdrop_path": row.get::<_, Option<String>>(18)?.unwrap_or_default(),
-                    "media_type": row.get::<_, Option<String>>(19)?.unwrap_or_default(),
+                    "progress_percentage": progress_percentage,
+                    "media_id": row.get::<_, i32>(18)?,
+                    "show_title": row.get::<_, Option<String>>(19)?.unwrap_or_default(),
+                    "poster_path": row.get::<_, Option<String>>(20)?.unwrap_or_default(),
+                    "backdrop_path": row.get::<_, Option<String>>(21)?.unwrap_or_default(),
+                    "media_type": row.get::<_, Option<String>>(22)?.unwrap_or_default(),
                 }));
             }
 

@@ -307,3 +307,10 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Added UUID `tokio_util::sync::CancellationToken` tracking in `AppState`.
 - Created a `useAsyncInvoke` hook in React that automatically aborts backend read tasks if the UI unmounts.
 - Created an in-memory `stats_cache` in the Rust backend to prevent expensive SQL operations on global stats. Write-through invalidation clears this cache upon status changes.
+
+### Update Feature 1.12: Strict NoneType/null data sanitization layer in Rust
+- **Date Sanitization (`sanitizer::sanitize_date`)**: Built a robust Rust parser to strictly format `YYYY` to `YYYY-01-01` ensuring layout consistency. Invalid or `null` strings fallback immediately to `0000-00-00` safely.
+- **Frontend TS Overhaul**: Refactored arrays out of optional chaining (`?`) directly into guaranteed instances (`[]`), integrating `is_date_known` dynamically into `TBD` rendering overlays.
+- **Whitespace Scrubbing (`sanitizer::sanitize_text`)**: Engineered Regex scrubbers intercepting RAW HTML tags (`<p></p>`) and blank lines specifically replacing them seamlessly with `"No overview available"` fallbacks, guaranteeing layout grid heights remain stable.
+- **Numeric Division Safety (`sanitizer::calculate_progress_percentage`)**: Intercepted missing/`0` runtime values explicitly routing them to `1` behind the scenes, outputting pre-calculated `progress_percentage` floats without passing `NaN` or `Infinity` payloads over the IPC.
+- **Guaranteed Collections**: Validated strict `Vec::new()` and `#[serde(default)]` struct attributes over all nested serialization routines (`Media`, `Episode`, `HistoryEntry`) so React arrays `.map()` execute gracefully without exceptions on First-Boot empty DB configurations.

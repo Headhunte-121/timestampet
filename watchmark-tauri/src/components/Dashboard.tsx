@@ -9,28 +9,31 @@ import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 interface Episode {
   id: number;
   media_id: number;
-  show_title: string | null;
-  title: string | null;
+  show_title: string;
+  title: string;
   season_num: number;
   ep_num: number;
-  backdrop_path: string | null;
-  still_path: string | null;
-  file_path: string | null;
+  backdrop_path: string;
+  still_path: string;
+  file_path: string;
   status: string;
   last_position: number;
   runtime: number; // in minutes
   media_type: string;
+  is_date_known: boolean;
+  progress_percentage: number;
 }
 
 interface Media {
   id: number;
-  title: string | null;
-  poster_path: string | null;
-  backdrop_path: string | null;
-  user_rating: number | null;
+  title: string;
+  poster_path: string;
+  backdrop_path: string;
+  user_rating: number | null; // rating stays nullable because not everything is rated
   total_episodes: number;
   completed_eps: number;
   media_type: string;
+  is_date_known: boolean;
 }
 
 interface Stats {

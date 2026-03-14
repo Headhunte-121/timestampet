@@ -58,7 +58,7 @@ pub fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, Box<dyn st
 
             obj.insert(
                 "synopsis".to_string(),
-                Value::String(r["overview"].as_str().unwrap_or("").to_string()),
+                Value::String(crate::sanitizer::sanitize_text(r["overview"].as_str().unwrap_or(""), "No overview available.")),
             );
             obj.insert(
                 "poster_path".to_string(),
@@ -76,13 +76,7 @@ pub fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, Box<dyn st
             }
             .unwrap_or("");
 
-            let (final_date, is_exact) = if release_date.len() == 4 {
-                (format!("{}-01-01", release_date), false)
-            } else if release_date.is_empty() {
-                ("".to_string(), false)
-            } else {
-                (release_date.to_string(), true)
-            };
+            let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(release_date);
 
             obj.insert(
                 "release_date".to_string(),
@@ -91,6 +85,10 @@ pub fn search_media(api_key: &str, query: &str) -> Result<Vec<Value>, Box<dyn st
             obj.insert(
                 "is_exact_date".to_string(),
                 Value::Bool(is_exact),
+            );
+            obj.insert(
+                "is_date_known".to_string(),
+                Value::Bool(is_known),
             );
 
             filtered.push(Value::Object(obj));
@@ -132,7 +130,7 @@ pub fn get_media_details(
 
     obj.insert(
         "synopsis".to_string(),
-        Value::String(r["overview"].as_str().unwrap_or("").to_string()),
+        Value::String(crate::sanitizer::sanitize_text(r["overview"].as_str().unwrap_or(""), "No overview available.")),
     );
     obj.insert(
         "poster_path".to_string(),
@@ -152,13 +150,8 @@ pub fn get_media_details(
         );
         obj.insert("seasons".to_string(), r["seasons"].clone());
         let air_date = r["first_air_date"].as_str().unwrap_or("");
-        let (final_date, is_exact) = if air_date.len() == 4 {
-            (format!("{}-01-01", air_date), false)
-        } else if air_date.is_empty() {
-            ("".to_string(), false)
-        } else {
-            (air_date.to_string(), true)
-        };
+        let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(air_date);
+
         obj.insert(
             "release_date".to_string(),
             Value::String(final_date),
@@ -166,6 +159,10 @@ pub fn get_media_details(
         obj.insert(
             "is_exact_date".to_string(),
             Value::Bool(is_exact),
+        );
+        obj.insert(
+            "is_date_known".to_string(),
+            Value::Bool(is_known),
         );
     } else {
         obj.insert(
@@ -177,13 +174,8 @@ pub fn get_media_details(
             Value::Number(serde_json::Number::from(r["runtime"].as_i64().unwrap_or(0))),
         );
         let rel_date = r["release_date"].as_str().unwrap_or("");
-        let (final_date, is_exact) = if rel_date.len() == 4 {
-            (format!("{}-01-01", rel_date), false)
-        } else if rel_date.is_empty() {
-            ("".to_string(), false)
-        } else {
-            (rel_date.to_string(), true)
-        };
+        let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(rel_date);
+
         obj.insert(
             "release_date".to_string(),
             Value::String(final_date),
@@ -191,6 +183,10 @@ pub fn get_media_details(
         obj.insert(
             "is_exact_date".to_string(),
             Value::Bool(is_exact),
+        );
+        obj.insert(
+            "is_date_known".to_string(),
+            Value::Bool(is_known),
         );
     }
 
@@ -254,7 +250,7 @@ pub fn get_tv_season_episodes(
         );
         obj.insert(
             "overview".to_string(),
-            Value::String(tmdb_ep.overview.unwrap_or("".to_string())),
+            Value::String(crate::sanitizer::sanitize_text(&tmdb_ep.overview.unwrap_or("".to_string()), "No episode summary.")),
         );
         obj.insert(
             "runtime".to_string(),
@@ -265,13 +261,7 @@ pub fn get_tv_season_episodes(
             Value::String(tmdb_ep.still_path.unwrap_or("".to_string())),
         );
         let raw_air_date = tmdb_ep.air_date.unwrap_or("".to_string());
-        let (final_date, is_exact) = if raw_air_date.len() == 4 {
-            (format!("{}-01-01", raw_air_date), false)
-        } else if raw_air_date.is_empty() {
-            ("".to_string(), false)
-        } else {
-            (raw_air_date, true)
-        };
+        let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
         obj.insert(
             "air_date".to_string(),
             Value::String(final_date),
@@ -279,6 +269,10 @@ pub fn get_tv_season_episodes(
         obj.insert(
             "is_exact_date".to_string(),
             Value::Bool(is_exact),
+        );
+        obj.insert(
+            "is_date_known".to_string(),
+            Value::Bool(is_known),
         );
         formatted.push(Value::Object(obj));
     }

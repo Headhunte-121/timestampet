@@ -130,7 +130,7 @@ impl MediaType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Media {
     pub id: i32,
     pub tmdb_id: String,
@@ -145,17 +145,28 @@ pub struct Media {
     pub user_rating: Option<i32>,
     pub release_date: String,
     pub is_exact_date: bool,
+    #[serde(default)]
+    pub is_date_known: bool,
 
     // Virtual fields
-    pub is_unaired: Option<bool>,
-    pub completed_eps: Option<i32>,
-    pub last_watched: Option<String>,
-    pub min_year: Option<String>,
-    pub max_year: Option<String>,
+    #[serde(default)]
+    pub is_unaired: bool,
+    #[serde(default)]
+    pub completed_eps: i32,
+    #[serde(default)]
+    pub last_watched: String,
+    #[serde(default)]
+    pub min_year: String,
+    #[serde(default)]
+    pub max_year: String,
+    #[serde(default)]
+    pub seasons: Vec<u32>,
+    #[serde(default)]
+    pub episodes: Vec<Episode>,
 }
 
 #[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Episode {
     pub id: i32,
     pub media_id: i32,
@@ -167,27 +178,41 @@ pub struct Episode {
     pub watch_count: i32,
     pub last_position: u32,
     pub status: String,
-    pub file_path: Option<String>,
+    #[serde(default)]
+    pub file_path: String,
     pub overview: String,
     pub air_date: String,
     pub is_exact_date: bool,
+    #[serde(default)]
+    pub is_date_known: bool,
+    #[serde(default)]
+    pub progress_percentage: f64,
 
     // Virtual fields joined
-    pub is_unaired: Option<bool>,
-    pub show_title: Option<String>,
-    pub backdrop_path: Option<String>,
-    pub media_type: Option<String>,
+    #[serde(default)]
+    pub is_unaired: bool,
+    #[serde(default)]
+    pub show_title: String,
+    #[serde(default)]
+    pub backdrop_path: String,
+    #[serde(default)]
+    pub media_type: String,
+    #[serde(default)]
+    pub poster_path: String,
 }
 
 #[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct HistoryEntry {
     pub hist_id: i32,
-    pub timestamp: String,
-    pub session_id: Option<String>,
+    pub timestamp: i64,
+    #[serde(default)]
+    pub session_id: String,
     pub is_legacy: i32,
-    pub start_time: Option<String>,
-    pub end_time: Option<String>,
+    #[serde(default)]
+    pub start_time: String,
+    #[serde(default)]
+    pub end_time: String,
     pub pause_count: i32,
     pub completion_ratio: f64,
 
@@ -199,6 +224,12 @@ pub struct HistoryEntry {
     pub still_path: String,
     pub air_date: String,
     pub is_exact_date: bool,
+    #[serde(default)]
+    pub is_date_known: bool,
+    #[serde(default)]
+    pub runtime: i32,
+    #[serde(default)]
+    pub progress_percentage: f64,
 
     // Joined media data
     pub media_id: i32,
@@ -206,6 +237,26 @@ pub struct HistoryEntry {
     pub poster_path: String,
     pub backdrop_path: String,
     pub media_type: String,
+    #[serde(default)]
+    pub time_capsule: Option<serde_json::Value>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct Stats {
+    pub eps_watched: i32,
+    pub hrs_watched: i32,
+    pub shows_completed: i32,
+    pub avg_rating: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct DashboardData {
+    pub hero_ep: Option<Episode>,
+    #[serde(default)]
+    pub cw_eps: Vec<Episode>,
+    #[serde(default)]
+    pub recent_media: Vec<Media>,
+    pub stats: Stats,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
