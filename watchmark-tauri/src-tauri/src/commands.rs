@@ -2611,8 +2611,9 @@ pub async fn assign_unmatched_to_tracker(
 
                                 match crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
                                     Ok(eps) => {
-                                    let _ = tokio::task::spawn_blocking(move || {
+                                    let res = tokio::task::spawn_blocking(move || {
                                         handle_panic(|| {
+                                            let mut inserted_eps = Vec::new();
                                             if let Ok(mut conn) = get_db_connection() {
                                                 if let Ok(tx) = conn.transaction() {
                                                     for ep in eps {
@@ -2689,13 +2690,71 @@ pub async fn assign_unmatched_to_tracker(
                                                                 ]
                                                             );
                                                         }
+
+                                                        if let Some(path) = if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) } {
+                                                            if let Ok(mut stmt) = tx.prepare("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?") {
+                                                                if let Ok(mut rows) = stmt.query(params![media_id, season_num, ep_num]) {
+                                                                    if let Ok(Some(row)) = rows.next() {
+                                                                        let ep_id: i32 = row.get(0).unwrap_or(0);
+                                                                        inserted_eps.push((ep_id, path.to_string()));
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                     let _ = tx.commit();
                                                 }
                                             }
-                                            Ok::<(), AppError>(())
+                                            Ok::<Vec<(i32, String)>, AppError>(inserted_eps)
                                         })
                                     }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+                                    if let Ok(inserted_eps) = res {
+                                        if !inserted_eps.is_empty() {
+                                            // "Lazy Discovery" architecture: Priority active-season vs background idle downloading
+                                            let is_active_season = index == 0;
+                                            let token_clone = token.clone();
+
+                                            let download_future = async move {
+                                                for chunk in inserted_eps.chunks(20) {
+                                                    if token_clone.is_cancelled() {
+                                                        break;
+                                                    }
+
+                                                    let mut tasks = Vec::new();
+                                                    for (ep_id, path) in chunk {
+                                                        let path_clone = path.clone();
+                                                        let ep_id_clone = *ep_id;
+                                                        tasks.push(tokio::spawn(async move {
+                                                            crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
+                                                        }));
+                                                    }
+
+                                                    for t in tasks {
+                                                        let _ = t.await;
+                                                    }
+
+                                                    if token_clone.is_cancelled() {
+                                                        break;
+                                                    }
+                                                    // Slower background rate limit for non-active seasons
+                                                    if is_active_season {
+                                                        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                                                    } else {
+                                                        tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+                                                    }
+                                                }
+                                            };
+
+                                            if is_active_season {
+                                                // Await inline for the active season
+                                                download_future.await;
+                                            } else {
+                                                // Spawn background task for idle seasons
+                                                tokio::spawn(download_future);
+                                            }
+                                        }
+                                    }
                                     }
                                     Err(AppError::Custom(err)) if err == "NOT_FOUND" => {
                                         log::warn!("Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
@@ -2864,7 +2923,7 @@ pub async fn assign_unmatched_to_tracker(
                                         media_id,
                                         inner_clone["title"].as_str().unwrap_or("Unknown Title"),
                                         inner_clone["runtime"].as_i64().unwrap_or(0) as i32,
-                                        inner_clone["backdrop_path"].as_str().unwrap_or(""),
+                                        if inner_clone["backdrop_path"].as_str().unwrap_or("").is_empty() { None } else { Some(inner_clone["backdrop_path"].as_str().unwrap_or("")) },
                                         synopsis,
                                         ep_status,
                                         ep_watch_count,
@@ -2883,7 +2942,7 @@ pub async fn assign_unmatched_to_tracker(
                                         media_id,
                                         inner_clone["title"].as_str().unwrap_or("Unknown Title"),
                                         inner_clone["runtime"].as_i64().unwrap_or(0) as i32,
-                                        inner_clone["backdrop_path"].as_str().unwrap_or(""),
+                                        if inner_clone["backdrop_path"].as_str().unwrap_or("").is_empty() { None } else { Some(inner_clone["backdrop_path"].as_str().unwrap_or("")) },
                                         synopsis,
                                         ep_status,
                                         ep_watch_count

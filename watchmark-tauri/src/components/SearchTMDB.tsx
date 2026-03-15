@@ -1,3 +1,4 @@
+import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Tv, Clapperboard } from "lucide-react";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
@@ -161,7 +162,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
             </div>
 
             <SafeImage
-              srcPath={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : ""}
+              srcPath={item.poster_path ? formatImagePath(item.poster_path, "w500") : ""}
               type="poster"
               title={item.title}
               altText={item.title}

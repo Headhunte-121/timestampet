@@ -1,3 +1,4 @@
+import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
@@ -242,8 +243,8 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                 >
                   <div className="w-full h-[180px] relative overflow-hidden bg-black/40">
                     <SafeImage
-                      srcPath={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : ""}
-                      fallbackSrcPath={ep.backdrop_path ? `https://image.tmdb.org/t/p/w1280${ep.backdrop_path}` : PLACEHOLDER_BACKDROP}
+                      srcPath={ep.still_path ? formatImagePath(ep.still_path, "w500") : ""}
+                      fallbackSrcPath={ep.backdrop_path ? formatImagePath(ep.backdrop_path, "w1280") : PLACEHOLDER_BACKDROP}
                       type="still"
                       episodeNumber={ep.ep_num}
                       title={ep.show_title || "Unknown Show"}
@@ -304,7 +305,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           <motion.div layout className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
             <AnimatePresence mode="popLayout">
             {filteredRecent.map((media) => {
-              const imgUrl = media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : PLACEHOLDER_POSTER;
+              const imgUrl = media.poster_path ? formatImagePath(media.poster_path, "w500") : PLACEHOLDER_POSTER;
 
               return (
                 <motion.div

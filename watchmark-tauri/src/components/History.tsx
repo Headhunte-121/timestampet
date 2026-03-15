@@ -1,3 +1,4 @@
+import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
@@ -90,7 +91,7 @@ export default function History() {
                   </div>
                 )}
                 <SafeImage
-                  srcPath={entry.poster_path ? `https://image.tmdb.org/t/p/w500${entry.poster_path}` : ""}
+                  srcPath={entry.poster_path ? formatImagePath(entry.poster_path, "w500") : ""}
                   type="poster"
                   title={entry.show_title}
                   altText={entry.show_title}

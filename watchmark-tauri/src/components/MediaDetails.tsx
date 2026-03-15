@@ -1,3 +1,4 @@
+import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -125,7 +126,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           className="relative w-64 shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10 aspect-[2/3]"
         >
           <SafeImage
-            srcPath={data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : ""}
+            srcPath={data.poster_path ? formatImagePath(data.poster_path, "w500") : ""}
             type="poster"
             altText="Poster"
             title={data.title}
@@ -347,8 +348,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
              >
                <div className="w-40 aspect-video bg-black/40 rounded-lg overflow-hidden shrink-0 relative mr-6">
                  <SafeImage
-                    srcPath={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : ""}
-                    fallbackSrcPath={data.backdrop_path ? `https://image.tmdb.org/t/p/w1280${data.backdrop_path}` : ""}
+                    srcPath={ep.still_path ? formatImagePath(ep.still_path, "w500") : ""}
+                    fallbackSrcPath={data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : ""}
                     type="still"
                     episodeNumber={ep.ep_num}
                     altText={ep.title}

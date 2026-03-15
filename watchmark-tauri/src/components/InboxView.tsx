@@ -1,3 +1,4 @@
+import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { FolderSearch, Search, X } from "lucide-react";
 import { toast } from "sonner";
@@ -292,7 +293,7 @@ export default function InboxView({ onMatch }: any) {
                           </div>
                         )}
                         <SafeImage
-                          srcPath={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : ""}
+                          srcPath={item.poster_path ? formatImagePath(item.poster_path, "w500") : ""}
                           type="poster"
                           altText={item.title}
                           title={item.title}
