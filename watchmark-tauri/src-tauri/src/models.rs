@@ -151,6 +151,8 @@ pub struct Media {
     pub genres: String,
     #[serde(default)]
     pub networks: String,
+    pub collection_id: Option<i32>,
+    pub collection_name: Option<String>,
 
     // Virtual fields
     #[serde(default)]

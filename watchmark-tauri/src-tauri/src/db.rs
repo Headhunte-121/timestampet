@@ -189,6 +189,8 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             is_exact_date BOOLEAN DEFAULT 1,
             genres TEXT DEFAULT '',
             networks TEXT DEFAULT '',
+            collection_id INTEGER,
+            collection_name TEXT,
             UNIQUE(tmdb_id, \"type\")
         )",
         (),
@@ -467,6 +469,23 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             }
         }
         tx.execute("PRAGMA user_version = 13", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 14 {
+        let tx = conn.transaction()?;
+        let v14_migrations = vec![
+            "ALTER TABLE Media ADD COLUMN collection_id INTEGER",
+            "ALTER TABLE Media ADD COLUMN collection_name TEXT",
+        ];
+        for query in v14_migrations {
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(crate::error::AppError::DbError(e));
+                }
+            }
+        }
+        tx.execute("PRAGMA user_version = 14", ())?;
         tx.commit()?;
     }
 
