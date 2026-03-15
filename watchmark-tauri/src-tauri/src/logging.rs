@@ -66,6 +66,8 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
 
     let (reload_filter, reload_handle) = reload::Layer::new(filter);
 
+    let span_events = fmt::format::FmtSpan::CLOSE;
+
     let subscriber = tracing_subscriber::registry()
         .with(reload_filter)
         .with(
@@ -74,6 +76,7 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
                 .with_target(true)
                 .with_thread_ids(false)
                 .with_thread_names(false)
+                .with_span_events(span_events.clone())
         )
         .with(
             fmt::layer()
@@ -82,6 +85,7 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
                 .with_ansi(false)
                 .with_thread_ids(true)
                 .with_thread_names(true)
+                .with_span_events(span_events.clone())
         );
 
     // If this fails, it might mean another subscriber was already set. We can ignore in tests,
