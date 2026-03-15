@@ -98,8 +98,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         )}
         <div className="absolute inset-0">
           <SafeImage
-            srcPath={data.backdrop_path || ""}
-            fallbackSrcPath={data.backdrop_fallback}
+            srcPath={data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : ""}
+            fallbackSrcPath={data.backdrop_fallback ? formatImagePath(data.backdrop_fallback, "w1280") : undefined}
             type="backdrop"
             altText="Backdrop"
             className="w-full h-full object-cover opacity-60"

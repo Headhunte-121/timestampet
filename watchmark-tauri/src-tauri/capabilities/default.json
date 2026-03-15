@@ -21,25 +21,26 @@
     "fs:allow-appdata-write",
     "fs:allow-applocaldata-read",
     "fs:allow-applocaldata-write",
-    "fs:allow-exists",
     "fs:allow-mkdir",
     {
       "identifier": "fs:allow-read",
       "allow": [
         { "path": "$APPDATA/WatchMark/**" },
-        { "path": "$APP_DATA/WatchMark/**" },
-        { "path": "$APP_DATA/**" },
         { "path": "**/*.mkv" },
         { "path": "**/*.mp4" },
         { "path": "**/*.avi" }
       ]
     },
     {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        { "path": "$APPDATA/WatchMark/**" }
+      ]
+    },
+    {
       "identifier": "fs:allow-write",
       "allow": [
-        { "path": "$APPDATA/WatchMark/**" },
-        { "path": "$APP_DATA/WatchMark/**" },
-        { "path": "$APP_DATA/**" }
+        { "path": "$APPDATA/WatchMark/**" }
       ]
     }
   ]
