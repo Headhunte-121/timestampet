@@ -106,10 +106,12 @@ pub fn build_filter_string(global_level: &str, module_logs: &HashMap<String, Str
         _ => "info".to_string(),
     };
 
-    // We only want to restrict our crate globally, but we could also just set global level
-    // However, usually it's better to explicitly scope our app crate to the global level,
-    // and let other dependencies stay at 'warn' or 'error' to prevent log spam.
+    // Apply global level to both possible crate names
+    directives.push(format!("watchmark_tauri={}", g_level));
     directives.push(format!("watchmark_tauri_lib={}", g_level));
+
+    // As a fallback for any other uncaught internal modules, we also set the global default
+    directives.push(format!("{}", g_level));
 
     // Silence reqwest, html5ever, rustls, etc. by default unless specified
     directives.push("reqwest=warn".to_string());
