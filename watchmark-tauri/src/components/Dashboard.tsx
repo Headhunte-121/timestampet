@@ -134,8 +134,14 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {data.hero_ep ? (
         <div className="relative aspect-video w-full max-h-[450px] rounded-2xl overflow-hidden group">
           <SafeImage
-            srcPath={(data.hero_ep as any).still_path || data.hero_ep.backdrop_path || ""}
-            fallbackSrcPath={(data.hero_ep as any).backdrop_fallback || undefined}
+            srcPath={
+              (data.hero_ep as any).still_path
+                ? formatImagePath((data.hero_ep as any).still_path, "w1280")
+                : data.hero_ep.backdrop_path
+                ? formatImagePath(data.hero_ep.backdrop_path, "w1280")
+                : ""
+            }
+            fallbackSrcPath={(data.hero_ep as any).backdrop_fallback ? formatImagePath((data.hero_ep as any).backdrop_fallback, "w1280") : undefined}
             type="backdrop"
             altText="Hero Backdrop"
             isFallbackImage={(data.hero_ep as any).is_fallback_image}
@@ -244,7 +250,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   <div className="w-full h-[180px] relative overflow-hidden bg-black/40">
                     <SafeImage
                       srcPath={ep.still_path ? formatImagePath(ep.still_path, "w500") : ""}
-                      fallbackSrcPath={ep.backdrop_path ? formatImagePath(ep.backdrop_path, "w1280") : PLACEHOLDER_BACKDROP}
+                      fallbackSrcPath={ep.backdrop_path ? formatImagePath(ep.backdrop_path, "w500") : PLACEHOLDER_BACKDROP}
                       type="still"
                       episodeNumber={ep.ep_num}
                       title={ep.show_title || "Unknown Show"}

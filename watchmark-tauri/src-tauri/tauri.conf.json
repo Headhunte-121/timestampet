@@ -32,9 +32,11 @@
     "security": {
       "csp": null,
       "assetProtocol": {
+        "enable": true,
         "scope": [
           "$APP_LOCAL_DATA/**",
-          "$APP_DATA/**"
+          "$APP_DATA/**",
+          "$APPDATA/WatchMark/**"
         ]
       }
     }
