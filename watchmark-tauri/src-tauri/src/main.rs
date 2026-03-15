@@ -453,30 +453,116 @@ fn main() {
 
             let safe_path = std::path::PathBuf::from(&decoded_path);
 
+            // Clone request headers before moving them into the task
+            let range_header = request.headers().get("Range").and_then(|h| h.to_str().ok().map(|s| s.to_string()));
+
             tokio::spawn(async move {
                 if !decoded_path.contains("..") && safe_path.is_absolute() {
                     if let Ok(real_path) = std::fs::canonicalize(&safe_path) {
                         if real_path.is_file() {
-                            if let Ok(data) = tokio::fs::read(&real_path).await {
+                            let mime_type = match real_path.extension().and_then(|e| e.to_str()) {
+                                Some("png") => "image/png",
+                                Some("jpg") | Some("jpeg") => "image/jpeg",
+                                Some("webp") => "image/webp",
+                                Some("mp4") => "video/mp4",
+                                Some("mkv") => "video/x-matroska",
+                                _ => "application/octet-stream",
+                            };
 
-                                // Guess mime type to prevent Windows WebView2 from raw-dumping HTTP headers
-                                let mime_type = match real_path.extension().and_then(|e| e.to_str()) {
-                                    Some("png") => "image/png",
-                                    Some("jpg") | Some("jpeg") => "image/jpeg",
-                                    Some("webp") => "image/webp",
-                                    Some("mp4") => "video/mp4",
-                                    Some("mkv") => "video/x-matroska",
-                                    _ => "application/octet-stream",
-                                };
+                            if let Ok(metadata) = tokio::fs::metadata(&real_path).await {
+                                let file_size = metadata.len();
+                                use std::io::SeekFrom;
+                                use tokio::io::AsyncSeekExt;
+                                use tokio::io::AsyncReadExt;
 
-                                responder.respond(
-                                    http::Response::builder()
-                                        .header("Access-Control-Allow-Origin", "*")
-                                        .header("Content-Type", mime_type)
-                                        .body(data)
-                                        .unwrap(),
-                                );
-                                return;
+                                if let Some(range_str) = range_header {
+                                    // Parse Range header (e.g., "bytes=0-1023")
+                                    let range_str = range_str.trim_start_matches("bytes=");
+                                    let mut parts = range_str.split('-');
+                                    let start_str = parts.next().unwrap_or("");
+                                    let end_str = parts.next().unwrap_or("");
+
+                                    let start = if start_str.is_empty() { 0 } else { start_str.parse::<u64>().unwrap_or(0) };
+
+                                    // Default read chunk size is 1MB to keep memory footprint low
+                                    let max_chunk_size = 1024 * 1024;
+                                    let mut end = if end_str.is_empty() {
+                                        std::cmp::min(start + max_chunk_size - 1, file_size - 1)
+                                    } else {
+                                        end_str.parse::<u64>().unwrap_or(file_size - 1)
+                                    };
+
+                                    if start >= file_size {
+                                        responder.respond(
+                                            http::Response::builder()
+                                                .status(416) // Range Not Satisfiable
+                                                .header("Content-Range", format!("bytes */{}", file_size))
+                                                .body(Vec::new())
+                                                .unwrap(),
+                                        );
+                                        return;
+                                    }
+
+                                    // Enforce max chunk size to prevent memory exhaustion on large requested ranges
+                                    if end - start + 1 > max_chunk_size {
+                                        end = start + max_chunk_size - 1;
+                                    }
+
+                                    // Ensure end doesn't exceed file boundaries
+                                    end = std::cmp::min(end, file_size - 1);
+                                    let chunk_size = end - start + 1;
+
+                                    if let Ok(mut file) = tokio::fs::File::open(&real_path).await {
+                                        if file.seek(SeekFrom::Start(start)).await.is_ok() {
+                                            let mut buffer = vec![0; chunk_size as usize];
+                                            if let Ok(bytes_read) = file.read_exact(&mut buffer).await {
+                                                // Shrink buffer if we read less than expected (shouldn't happen with read_exact on local file but safe)
+                                                buffer.truncate(bytes_read);
+
+                                                responder.respond(
+                                                    http::Response::builder()
+                                                        .status(206) // Partial Content
+                                                        .header("Access-Control-Allow-Origin", "*")
+                                                        .header("Content-Type", mime_type)
+                                                        .header("Accept-Ranges", "bytes")
+                                                        .header("Content-Range", format!("bytes {}-{}/{}", start, start + bytes_read as u64 - 1, file_size))
+                                                        .header("Content-Length", bytes_read.to_string())
+                                                        .body(buffer)
+                                                        .unwrap(),
+                                                );
+                                                return;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // No Range request: Return the file. For 2GB video files this is still bad,
+                                    // but typical for images. However, to keep memory low, we can limit even 200 OK
+                                    // responses to 10MB chunks if needed. But for standard compatibility, if the client
+                                    // doesn't request a range, we should stream it. `responder.respond` accepts `Vec<u8>`.
+                                    // If we read the whole file here, we still blow RAM. Let's just limit max 200 OK read to 30MB.
+                                    // BUT, we can just send the first chunk and add `Accept-Ranges: bytes`.
+                                    // For images, they are small. For videos, HTML5 ALWAYS sends Range.
+
+                                    let limit = std::cmp::min(file_size, 1024 * 1024 * 30); // Max 30MB
+
+                                    if let Ok(mut file) = tokio::fs::File::open(&real_path).await {
+                                        let mut buffer = vec![0; limit as usize];
+                                        if let Ok(bytes_read) = file.read(&mut buffer).await {
+                                            buffer.truncate(bytes_read);
+                                            responder.respond(
+                                                http::Response::builder()
+                                                    .status(200)
+                                                    .header("Access-Control-Allow-Origin", "*")
+                                                    .header("Content-Type", mime_type)
+                                                    .header("Accept-Ranges", "bytes")
+                                                    .header("Content-Length", file_size.to_string())
+                                                    .body(buffer)
+                                                    .unwrap(),
+                                            );
+                                            return;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
