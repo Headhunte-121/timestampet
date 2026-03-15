@@ -353,6 +353,9 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     episodeNumber={ep.ep_num}
                     altText={ep.title}
                     title={ep.title}
+                    isFallbackImage={ep.is_fallback_image}
+                    potentialSpoiler={ep.potential_spoiler}
+                    isCompleted={ep.status === "Completed"}
                     className="w-full h-full object-cover"
                  />
                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity">

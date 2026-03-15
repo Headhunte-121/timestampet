@@ -214,6 +214,10 @@ pub struct Episode {
     pub media_type: String,
     #[serde(default)]
     pub poster_path: String,
+    #[serde(default)]
+    pub is_fallback_image: bool,
+    #[serde(default)]
+    pub potential_spoiler: bool,
 }
 
 #[allow(dead_code)]
@@ -254,6 +258,10 @@ pub struct HistoryEntry {
     pub media_type: String,
     #[serde(default)]
     pub time_capsule: Option<serde_json::Value>,
+    #[serde(default)]
+    pub is_fallback_image: bool,
+    #[serde(default)]
+    pub potential_spoiler: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
