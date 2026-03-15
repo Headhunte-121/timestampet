@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { LayoutDashboard, Tv, Film, Search, Inbox, Clock, Settings } from "lucide-react";
+import { LayoutDashboard, Tv, Film, Search, Inbox, Clock, Settings, Menu } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
@@ -185,22 +185,58 @@ function App() {
       setPendingNavigation(null);
   };
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   return (
     <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
     <div className="h-screen overflow-hidden flex bg-cinema-black text-white selection:bg-brand-orange/30">
+
+      {/* Mobile Scrim */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Glassy Sidebar */}
-      <aside className={cn("flex-none w-64 flex flex-col bg-surface-gray/80 border-r border-white/5 z-50 transform-gpu will-change-transform motion-reduce:bg-surface-gray motion-reduce:backdrop-blur-none", isCinemaMode && "backdrop-blur-xl")}>
-        <div className="p-6">
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <span className="text-[#FF6B00]">▶</span> WatchMark
-          </h1>
+      <aside
+        className={cn(
+          "fixed lg:relative z-50 h-full flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0",
+          "w-64 min-w-[256px] max-w-[256px]",
+          "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5",
+          "hover:scrollbar-default scrollbar-hide",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="h-16 flex-shrink-0 flex items-center justify-center py-8">
+          <button
+            onClick={() => {
+              handleNav("dashboard");
+              setIsMobileMenuOpen(false);
+              document.querySelector('main > div.flex-1')?.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="focus:outline-none"
+          >
+            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <svg viewBox="0 0 32 32" className="w-8 h-8 drop-shadow-[0_0_8px_rgba(255,107,0,0.4)]">
+                <path d="M10 6L26 16L10 26V6Z" fill="#FF6B00" />
+              </svg>
+              WatchMark
+            </h1>
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1">
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide hover:scrollbar-default">
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => handleNav(item.id)}
+              onClick={() => { handleNav(item.id); setIsMobileMenuOpen(false); }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden",
                 currentView === item.id && !selectedMediaId
@@ -217,9 +253,9 @@ function App() {
           ))}
         </nav>
 
-        <div className="p-4 mt-auto">
+        <div className="p-4 mt-auto shrink-0">
           <button
-            onClick={() => handleNav("settings")}
+            onClick={() => { handleNav("settings"); setIsMobileMenuOpen(false); }}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden",
               currentView === "settings" && !selectedMediaId
@@ -237,7 +273,7 @@ function App() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col relative overflow-hidden">
+      <main className="flex-1 flex flex-col relative overflow-hidden min-w-0">
         <Toaster theme="dark" position="bottom-right" richColors />
         <Modal />
         <ProcessingModal />
@@ -263,26 +299,84 @@ function App() {
         </div>
 
         {Object.keys(activeSyncs).length > 0 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-[#FF6B00]/20 backdrop-blur-md border border-[#FF6B00]/50 text-[#FF6B00] text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-orange-500/20 whitespace-nowrap animate-pulse">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-[#FF6B00]/20 backdrop-blur-md border border-[#FF6B00]/50 text-[#FF6B00] text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-orange-500/20 whitespace-nowrap animate-pulse mt-16">
             Syncing {Object.keys(activeSyncs).filter(k => !k.startsWith('tmdb_')).length} item{Object.keys(activeSyncs).filter(k => !k.startsWith('tmdb_')).length !== 1 ? "s" : ""}...
           </div>
         )}
 
-        {/* Global Search Bar */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4 pointer-events-none">
-          <div className="relative pointer-events-auto">
-            <Icon icon={Search} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Quick Search..."
-              value={globalSearchQuery}
-              onChange={(e) => setGlobalSearchQuery(e.target.value)}
-              className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-3 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-2xl text-sm font-medium"
-            />
+        {/* Top Global Navigation Bar */}
+        <header className="absolute top-0 left-0 right-0 z-40 h-16 flex-shrink-0 flex items-center justify-between px-4 transition-colors duration-300 bg-transparent hover:bg-[#0D0F14]/80 hover:backdrop-blur-md border-b border-white/5">
+          <div className="flex items-center">
+            {/* Hamburger Menu for Mobile */}
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 mr-2 text-white/70 hover:text-white lg:hidden focus:outline-none"
+            >
+              <Icon icon={Menu} className="w-6 h-6" />
+            </button>
+            {selectedMediaId && (
+              <button
+                onClick={() => handleNav(currentView)}
+                className="ml-8 px-4 py-2 text-sm font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-2"
+              >
+                ← Back
+              </button>
+            )}
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto relative">
+          {/* Quick Search Pill */}
+          <div className="flex-1 max-w-xl px-4 mx-auto hidden md:block">
+            <div className="relative">
+              <Icon icon={Search} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Quick Search..."
+                value={globalSearchQuery}
+                onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center mr-8 gap-4">
+            <button
+              onClick={() => handleNav("settings")}
+              className="p-2 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors focus:outline-none"
+            >
+              <Icon icon={Settings} className="w-5 h-5" />
+            </button>
+          </div>
+        </header>
+
+        <div
+          className="flex-1 overflow-y-auto relative"
+          onScroll={(e) => {
+            const target = e.currentTarget;
+            const header = target.previousElementSibling;
+            if (header && target.scrollTop > 10) {
+              header.classList.add('bg-[#0D0F14]/80', 'backdrop-blur-md');
+              header.classList.remove('bg-transparent');
+            } else if (header) {
+              header.classList.remove('bg-[#0D0F14]/80', 'backdrop-blur-md');
+              header.classList.add('bg-transparent');
+            }
+          }}
+        >
+
+          {/* Mobile search bar if needed, shown conditionally or stacked */}
+          <div className="md:hidden p-4 mt-16">
+             <div className="relative">
+              <Icon icon={Search} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Quick Search..."
+                value={globalSearchQuery}
+                onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-medium"
+              />
+            </div>
+          </div>
+
           <AnimatePresence mode="wait">
             {selectedMediaId ? (
               <motion.div
@@ -291,7 +385,7 @@ function App() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={isCinemaMode ? { opacity: 0, scale: 0.98 } : { opacity: 0 }}
                 transition={isCinemaMode ? { duration: 0.2 } : { duration: 0 }}
-                className="h-full w-full"
+                className="h-full w-full pt-16"
               >
                 <MediaDetails
                   mediaId={selectedMediaId}
@@ -306,7 +400,7 @@ function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={isCinemaMode ? { opacity: 0, y: -10 } : { opacity: 0 }}
                 transition={isCinemaMode ? { duration: 0.2 } : { duration: 0 }}
-                className="h-full w-full"
+                className="h-full w-full pt-16 md:pt-0"
               >
                 {currentView === "dashboard" && <Dashboard onMediaSelect={(id: number) => handleNav("dashboard", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
                 {currentView === "tv" && <Library type="TV" onMediaSelect={(id: number) => handleNav("tv", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
