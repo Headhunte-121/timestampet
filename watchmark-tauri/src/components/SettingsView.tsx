@@ -375,7 +375,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                         "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden",
                         activeTab === tab
                             ? "text-white bg-[#1F222A]"
-                            : "text-gray-400 hover:text-white hover:bg-white/5"
+                            : "text-muted hover:text-white hover:bg-white/5"
                     )}
                 >
                     {activeTab === tab && (
@@ -521,7 +521,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                      onClick={() => updateSetting('language', lang)}
                                      className={cn(
                                          "px-4 py-2 rounded-full text-sm font-bold transition-colors",
-                                         settings.language === lang ? "bg-[#FF6B00] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"
+                                         settings.language === lang ? "bg-[#FF6B00] text-white" : "bg-white/5 text-muted hover:bg-white/10"
                                      )}
                                  >
                                      {lang}
@@ -602,7 +602,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                             >
                                 Run Scan
                             </button>
-                            {scanStatus && <div className="text-gray-400 text-sm mt-2">{scanStatus}</div>}
+                            {scanStatus && <div className="text-muted text-sm mt-2">{scanStatus}</div>}
                         </div>
                     </div>
 
@@ -652,7 +652,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                          }}
                                          className={cn(
                                              "px-4 py-2 rounded-full text-sm font-bold transition-colors capitalize",
-                                             settings.global_log_level === level ? "bg-[#FF6B00] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"
+                                             settings.global_log_level === level ? "bg-[#FF6B00] text-white" : "bg-white/5 text-muted hover:bg-white/10"
                                          )}
                                      >
                                          {level}
@@ -744,10 +744,10 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                             </div>
                             <div className="mt-3 text-sm font-medium">
                                 {settings.last_backup_timestamp === 0 && settings.last_backup_status !== "error" && (
-                                    <span className="text-gray-400">Backup status: Pending first run</span>
+                                    <span className="text-muted">Backup status: Pending first run</span>
                                 )}
                                 {settings.last_backup_timestamp > 0 && settings.last_backup_status !== "error" && (
-                                    <span className="text-gray-400">Last automated backup: {new Date(settings.last_backup_timestamp * 1000).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                                    <span className="text-muted">Last automated backup: {new Date(settings.last_backup_timestamp * 1000).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                                 )}
                                 {settings.last_backup_status === "error" && (
                                     <span className="text-[#EF4444] flex items-center gap-1">
@@ -834,7 +834,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                 }, {})
                             ).map(([groupName, modules]: any) => (
                                 <div key={groupName} className="bg-black/30 rounded-xl p-4 border border-white/5">
-                                    <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider border-b border-white/10 pb-2">
+                                    <h4 className="text-xs font-bold text-muted mb-4 uppercase tracking-wider border-b border-white/10 pb-2">
                                         {groupName.replace(/_/g, ' ')}
                                     </h4>
                                     <div className="flex flex-col gap-3">
@@ -857,7 +857,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                                                         "px-3 py-1 text-xs font-bold rounded-md transition-all capitalize",
                                                                         isActive
                                                                             ? (level === 'error' ? "bg-red-500 text-white" : level === 'warn' ? "bg-yellow-600 text-white" : level === 'off' ? "bg-gray-700 text-white" : "bg-[#FF6B00] text-white")
-                                                                            : "text-gray-400 hover:text-white hover:bg-white/10"
+                                                                            : "text-muted hover:text-white hover:bg-white/10"
                                                                     )}
                                                                 >
                                                                     {level === 'error' ? 'Err' : level === 'warn' ? 'Wrn' : level === 'info' ? 'Inf' : level === 'debug' ? 'Dbg' : 'Off'}
@@ -910,7 +910,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                               className={cn(
                                   "px-8 py-3 font-bold rounded-xl transition-colors",
                                   validationState === 'loading' || validationState === 'error'
-                                    ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                                    ? "bg-gray-600 text-muted cursor-not-allowed"
                                     : "bg-[#FF6B00] hover:bg-[#E66000] text-white shadow-[0_0_15px_rgba(255,107,0,0.5)]"
                               )}
                           >
