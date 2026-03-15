@@ -140,3 +140,20 @@ pub fn set_levels(global_level: &str, module_logs: &HashMap<String, String>) -> 
         Err("Tracing engine not initialized".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_filter_string() {
+        let mut modules = HashMap::new();
+        modules.insert("watchmark_tauri_lib::db".to_string(), "debug".to_string());
+
+        let filter = build_filter_string("info", &modules);
+        assert!(filter.contains("watchmark_tauri=info"));
+        assert!(filter.contains("watchmark_tauri_lib=info"));
+        assert!(filter.contains("info"));
+        assert!(filter.contains("watchmark_tauri_lib::db=debug"));
+    }
+}
