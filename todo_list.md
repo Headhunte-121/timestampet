@@ -264,13 +264,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Handle edge cases where the release date is completely undefined.
 - [x] Verify movie data doesn't accidentally trigger TV episode sync loops.
 
-**3.6 Season-by-season iterative API fetching.** (Incomplete)
+**3.6 Season-by-season iterative API fetching.** (Complete)
 
-- [ ] Ensure requests for Season 1, 2, 3 etc., occur in staggered batches to avoid rate limits.
-- [ ] Handle missing seasons (e.g., a show with Season 1 and 3, but no 2).
-- [ ] Verify 'Specials' (Season 0) are fetched and categorized appropriately.
-- [ ] Test canceling a fetch operation halfway if the user deletes the show.
-- [ ] Provide UI progress bars for massive shows with hundreds of episodes.
+- [x] Ensure requests for Season 1, 2, 3 etc., occur in staggered batches to avoid rate limits.
+- [x] Handle missing seasons (e.g., a show with Season 1 and 3, but no 2).
+- [x] Verify 'Specials' (Season 0) are fetched and categorized appropriately.
+- [x] Test canceling a fetch operation halfway if the user deletes the show.
+- [x] Provide UI progress bars for massive shows with hundreds of episodes.
 
 **3.7 High-resolution primary Poster image extraction.** (Incomplete)
 

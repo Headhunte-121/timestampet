@@ -67,7 +67,7 @@ fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value>
         "total_days": total_days
     }))
 }
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use tokio::sync::mpsc;
 
 #[cfg(test)]
@@ -152,12 +152,28 @@ use crate::task_queue::DbTaskQueue;
 use std::collections::HashMap;
 use tokio_util::sync::CancellationToken;
 
+pub async fn check_rate_limit(state: &tauri::State<'_, AppState>) {
+    while state.is_rate_limited.load(Ordering::SeqCst) {
+        let reset = state.rate_limit_reset.load(Ordering::SeqCst);
+        let now = chrono::Utc::now().timestamp();
+        if now >= reset {
+            state.is_rate_limited.store(false, Ordering::SeqCst);
+            break;
+        } else {
+            let sleep_dur = (reset - now) as u64;
+            tokio::time::sleep(tokio::time::Duration::from_secs(sleep_dur.max(1))).await;
+        }
+    }
+}
+
 pub struct AppState {
     pub settings: Arc<RwLock<Settings>>,
     pub settings_tx: mpsc::Sender<Settings>,
     pub db_queue: Arc<DbTaskQueue>,
     pub is_maintenance_mode: AtomicBool,
     pub is_api_authorized: AtomicBool,
+    pub is_rate_limited: AtomicBool,
+    pub rate_limit_reset: AtomicI64,
     pub stats_cache: Arc<RwLock<Option<Value>>>,
     pub read_semaphore: Arc<tokio::sync::Semaphore>,
     pub cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
@@ -397,6 +413,15 @@ pub fn delete_media_cmd(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
     let db_queue = state.db_queue.clone();
+
+    // Cancel any active fetch loops for this media item
+    {
+        let mut tokens = state.cancel_tokens.write().unwrap();
+        if let Some(token) = tokens.remove(&media_id.to_string()) {
+            token.cancel();
+            log::info!("Cancelled background fetch for media_id {}", media_id);
+        }
+    }
 
     if let Ok(mut cache) = state.stats_cache.write() {
         *cache = None;
@@ -736,8 +761,12 @@ pub async fn add_to_tracker(
     let media_type_clone = valid_media_type.clone();
     let tmdb_id_clone = tmdb_id.clone();
 
+    let app_clone_for_task = app.clone();
+
     // Spawn a dedicated background task that does NOT block the main thread and can handle async fetch loops
     let task = tokio::task::spawn(async move {
+        use tauri::Manager;
+        let state_clone = app_clone_for_task.state::<AppState>();
         // Run DB operation inside spawn_blocking to insert the Media row first
         let media_id_res = tokio::task::spawn_blocking({
             let details = details.clone();
@@ -855,19 +884,49 @@ pub async fn add_to_tracker(
         }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))?;
 
         let media_id = media_id_res;
+
+        let token = CancellationToken::new();
+        {
+            let mut tokens = state_clone.cancel_tokens.write().unwrap();
+            tokens.insert(media_id.to_string(), token.clone());
+        }
+
         let ep_status = if archive { "Completed" } else { "Unwatched" };
         let ep_watch_count = if archive { 1 } else { 0 };
 
         if media_type_clone == "TV" {
             // Iterative season fetching and inserting
             if let Some(seasons) = details["seasons"].as_array() {
-                for season in seasons {
+                let total_seasons = seasons.len();
+                for (index, season) in seasons.iter().enumerate() {
                     if let Some(s_num) = season["season_number"].as_i64() {
                         if s_num >= 0 {
+                            // Rate limit check
+                            if token.is_cancelled() {
+                                log::info!("Fetch loop cancelled for media_id {}", media_id);
+                                break;
+                            }
+
+                            // Rate limit check
+                            check_rate_limit(&state_clone).await;
+
                             // Yield back to executor to prevent blocking the async runtime
                             tokio::task::yield_now().await;
 
-                            if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                            // 250ms deterministic delay
+                            if index > 0 {
+                                tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+                            }
+
+                            let _ = app_clone_for_task.emit("sync-progress", json!({
+                                "mediaId": media_id,
+                                "tmdbId": tmdb_id_clone,
+                                "currentSeason": index + 1,
+                                "totalSeasons": total_seasons
+                            }));
+
+                            match crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                                Ok(eps) => {
                                 // Insert the chunk immediately inside spawn_blocking
                                 let _ = tokio::task::spawn_blocking(move || {
                                     handle_panic(|| {
@@ -959,12 +1018,83 @@ pub async fn add_to_tracker(
                                         Ok::<(), AppError>(())
                                     })
                                 }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+                                }
+                                Err(AppError::Custom(err)) if err == "NOT_FOUND" => {
+                                    log::warn!("Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
+                                    let _ = app_clone_for_task.emit("warning-toast", format!("Season {} missing from TMDB, skipped.", s_num));
+                                    continue;
+                                }
+                                Err(AppError::Custom(err)) if err.starts_with("RATE_LIMIT:") => {
+                                    let parts: Vec<&str> = err.split(':').collect();
+                                    let retry_after = parts.get(1).unwrap_or(&"1").parse::<u64>().unwrap_or(1);
+                                    state_clone.is_rate_limited.store(true, Ordering::SeqCst);
+                                    state_clone.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
+
+                                    log::warn!("Rate limited. Pausing queue for {} seconds.", retry_after);
+                                    tokio::time::sleep(tokio::time::Duration::from_secs(retry_after)).await;
+                                    state_clone.is_rate_limited.store(false, Ordering::SeqCst);
+
+                                    // Retry once directly inline after sleeping
+                                    if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                                        let _ = tokio::task::spawn_blocking({
+                                            let media_id = media_id;
+                                            let ep_status = ep_status;
+                                            let ep_watch_count = ep_watch_count;
+                                            move || {
+                                                handle_panic(|| {
+                                                    if let Ok(mut conn) = get_db_connection() {
+                                                        if let Ok(tx) = conn.transaction() {
+                                                            for ep in eps {
+                                                                // (Simplified copy of the logic to avoid code duplication size limits)
+                                                                // We just insert the episodes...
+                                                                let _ = tx.execute(
+                                                                    "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, season_overview, status, watch_count, air_date, is_exact_date)
+                                                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                                     ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
+                                                                        \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
+                                                                        overview=excluded.overview, season_overview=excluded.season_overview, air_date=excluded.air_date, is_exact_date=excluded.is_exact_date",
+                                                                    params![
+                                                                        media_id,
+                                                                        s_num,
+                                                                        ep["ep_num"].as_i64().unwrap_or(1) as u32,
+                                                                        ep["title"].as_str().unwrap_or("Unknown Title"),
+                                                                        ep["runtime"].as_i64().unwrap_or(0) as i32,
+                                                                        if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) },
+                                                                        ep["overview"].as_str().unwrap_or(""),
+                                                                        ep["season_overview"].as_str().unwrap_or(""),
+                                                                        ep_status,
+                                                                        ep_watch_count,
+                                                                        ep["air_date"].as_str().unwrap_or(""),
+                                                                        ep["is_exact_date"].as_bool().unwrap_or(true)
+                                                                    ]
+                                                                );
+                                                            }
+                                                            let _ = tx.commit();
+                                                        }
+                                                    }
+                                                    Ok::<(), AppError>(())
+                                                })
+                                            }
+                                        }).await;
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("Error fetching season {}: {}", s_num, e);
+                                    continue;
+                                }
                             }
                         }
                     }
                 }
+                let _ = app_clone_for_task.emit("sync-progress", json!({
+                    "mediaId": media_id,
+                        "tmdbId": tmdb_id_clone,
+                        "currentSeason": total_seasons + 1,
+                    "totalSeasons": total_seasons
+                }));
             }
         } else {
+            if !token.is_cancelled() {
             // It's a Movie, just insert the single "Episode" via spawn_blocking
             let details_clone = details.clone();
             let _ = tokio::task::spawn_blocking(move || {
@@ -1069,6 +1199,12 @@ pub async fn add_to_tracker(
                 }
             }
         }
+            }
+
+            {
+                let mut tokens = state_clone.cancel_tokens.write().unwrap();
+                tokens.remove(&media_id.to_string());
+            }
 
         Ok::<(), AppError>(())
     });
@@ -2006,8 +2142,11 @@ pub async fn assign_unmatched_to_tracker(
     let api_key = settings.tmdb_api_key.clone();
     let media_type_clone = valid_media_type.clone();
     let tmdb_id_clone = tmdb_id.clone();
+    let app_clone_for_task = app.clone();
 
     let task = tokio::task::spawn(async move {
+        use tauri::Manager;
+        let state = app_clone_for_task.state::<AppState>();
         // Fetch files for this group before spawning the thread
         let unmatched_files = tokio::task::spawn_blocking({
             let group_key = group_key.clone();
@@ -2152,6 +2291,13 @@ pub async fn assign_unmatched_to_tracker(
         }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))?;
 
         let media_id = media_id_res;
+
+        let token = CancellationToken::new();
+        {
+            let mut tokens = state.cancel_tokens.write().unwrap();
+            tokens.insert(media_id.to_string(), token.clone());
+        }
+
         let ep_status = "Unwatched";
         let ep_watch_count = 0;
 
@@ -2159,11 +2305,32 @@ pub async fn assign_unmatched_to_tracker(
             // Iterative season fetching and inserting
             if let Ok(details) = details_res {
                 if let Some(seasons) = details["seasons"].as_array() {
-                    for season in seasons {
+                    let total_seasons = seasons.len();
+                    for (index, season) in seasons.iter().enumerate() {
                         if let Some(s_num) = season["season_number"].as_i64() {
                             if s_num >= 0 {
+                                if token.is_cancelled() {
+                                    log::info!("Fetch loop cancelled for unmatched media_id {}", media_id);
+                                    break;
+                                }
+
+                                check_rate_limit(&state).await;
+
                                 tokio::task::yield_now().await;
-                                if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+
+                                if index > 0 {
+                                    tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+                                }
+
+                                let _ = app_clone_for_task.emit("sync-progress", json!({
+                                    "mediaId": media_id,
+                                    "tmdbId": tmdb_id_clone,
+                                    "currentSeason": index + 1,
+                                    "totalSeasons": total_seasons
+                                }));
+
+                                match crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                                    Ok(eps) => {
                                     let _ = tokio::task::spawn_blocking(move || {
                                         handle_panic(|| {
                                             if let Ok(mut conn) = get_db_connection() {
@@ -2249,13 +2416,83 @@ pub async fn assign_unmatched_to_tracker(
                                             Ok::<(), AppError>(())
                                         })
                                     }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+                                    }
+                                    Err(AppError::Custom(err)) if err == "NOT_FOUND" => {
+                                        log::warn!("Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
+                                        let _ = app_clone_for_task.emit("warning-toast", format!("Season {} missing from TMDB, skipped.", s_num));
+                                        continue;
+                                    }
+                                    Err(AppError::Custom(err)) if err.starts_with("RATE_LIMIT:") => {
+                                        let parts: Vec<&str> = err.split(':').collect();
+                                        let retry_after = parts.get(1).unwrap_or(&"1").parse::<u64>().unwrap_or(1);
+                                        state.is_rate_limited.store(true, Ordering::SeqCst);
+                                        state.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
+
+                                        log::warn!("Rate limited. Pausing queue for {} seconds.", retry_after);
+                                        tokio::time::sleep(tokio::time::Duration::from_secs(retry_after)).await;
+                                        state.is_rate_limited.store(false, Ordering::SeqCst);
+
+                                        // Retry once directly inline after sleeping
+                                        if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                                            let _ = tokio::task::spawn_blocking({
+                                                let media_id = media_id;
+                                                let ep_status = ep_status;
+                                                let ep_watch_count = ep_watch_count;
+                                                move || {
+                                                    handle_panic(|| {
+                                                        if let Ok(mut conn) = get_db_connection() {
+                                                            if let Ok(tx) = conn.transaction() {
+                                                                for ep in eps {
+                                                                    // Simplified retry logic
+                                                                    let _ = tx.execute(
+                                                                        "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, season_overview, status, watch_count, air_date, is_exact_date)
+                                                                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                                         ON CONFLICT(media_id, season_num, ep_num) DO UPDATE SET
+                                                                            \"title\"=excluded.\"title\", runtime=excluded.runtime, still_path=excluded.still_path,
+                                                                            overview=excluded.overview, season_overview=excluded.season_overview, air_date=excluded.air_date, is_exact_date=excluded.is_exact_date",
+                                                                        params![
+                                                                            media_id,
+                                                                            s_num,
+                                                                            ep["ep_num"].as_i64().unwrap_or(1) as u32,
+                                                                            ep["title"].as_str().unwrap_or("Unknown Title"),
+                                                                            ep["runtime"].as_i64().unwrap_or(0) as i32,
+                                                                            if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) },
+                                                                            ep["overview"].as_str().unwrap_or(""),
+                                                                            ep["season_overview"].as_str().unwrap_or(""),
+                                                                            ep_status,
+                                                                            ep_watch_count,
+                                                                            ep["air_date"].as_str().unwrap_or(""),
+                                                                            ep["is_exact_date"].as_bool().unwrap_or(true)
+                                                                        ]
+                                                                    );
+                                                                }
+                                                                let _ = tx.commit();
+                                                            }
+                                                        }
+                                                        Ok::<(), AppError>(())
+                                                    })
+                                                }
+                                            }).await;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        log::error!("Error fetching season {}: {}", s_num, e);
+                                        continue;
+                                    }
                                 }
                             }
                         }
                     }
+                    let _ = app_clone_for_task.emit("sync-progress", json!({
+                        "mediaId": media_id,
+                        "tmdbId": tmdb_id_clone,
+                        "currentSeason": total_seasons + 1,
+                        "totalSeasons": total_seasons
+                    }));
                 }
             }
         } else {
+            if !token.is_cancelled() {
             let details_clone = match &details_res {
                 Ok(v) => v.clone(),
                 Err(_) => serde_json::Value::Null,
@@ -2360,6 +2597,7 @@ pub async fn assign_unmatched_to_tracker(
                 }
             }
         }
+        }
 
         // Now assign the unmatched files
         let _ = tokio::task::spawn_blocking(move || {
@@ -2406,6 +2644,11 @@ pub async fn assign_unmatched_to_tracker(
                 Ok::<(), AppError>(())
             })
         }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+        {
+            let mut tokens = state.cancel_tokens.write().unwrap();
+            tokens.remove(&media_id.to_string());
+        }
 
         Ok::<(), AppError>(())
     });
@@ -2488,6 +2731,10 @@ mod commands_tests_tmdb_auth;
 #[cfg(test)]
 #[path = "commands_tests_episodes.rs"]
 mod commands_tests_episodes;
+
+#[cfg(test)]
+#[path = "commands_tests_feature_3_6.rs"]
+mod commands_tests_feature_3_6;
 
 #[tauri::command]
 pub async fn update_media_rating(

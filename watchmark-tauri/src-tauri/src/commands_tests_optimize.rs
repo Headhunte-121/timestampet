@@ -15,6 +15,8 @@ mod tests_feature_25_4 {
             db_queue: Arc::new(crate::task_queue::DbTaskQueue::new_for_tests()),
             is_maintenance_mode: AtomicBool::new(false),
             is_api_authorized: AtomicBool::new(true),
+        is_rate_limited: std::sync::atomic::AtomicBool::new(false),
+        rate_limit_reset: std::sync::atomic::AtomicI64::new(0),
             stats_cache: std::sync::Arc::new(std::sync::RwLock::new(None)),
             read_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(4)),
             cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),

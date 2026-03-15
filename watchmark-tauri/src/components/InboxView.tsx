@@ -8,6 +8,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTaskStore } from "../store/useTaskStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
+import { motion } from "framer-motion";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -16,7 +17,7 @@ export default function InboxView({ onMatch }: any) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { setScanning } = useTaskStore();
+  const { setScanning, activeSyncs } = useTaskStore();
   const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
@@ -281,6 +282,15 @@ export default function InboxView({ onMatch }: any) {
                   {searchResults.map((item, i) => (
                     <div key={i} className="bg-[#1F222A] rounded-xl overflow-hidden group border border-white/5 shadow-xl">
                       <div className="aspect-[2/3] relative">
+                        {activeSyncs[`tmdb_${item.tmdb_id}`] !== undefined && (
+                          <div className="absolute top-0 left-0 w-full h-1 z-50 bg-black/50">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${activeSyncs[`tmdb_${item.tmdb_id}`]}%` }}
+                              className="h-full bg-[#FF6B00] shadow-[0_0_10px_#FF6B00]"
+                            />
+                          </div>
+                        )}
                         <SafeImage
                           srcPath={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : ""}
                           type="poster"

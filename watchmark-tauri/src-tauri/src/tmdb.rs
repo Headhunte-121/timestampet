@@ -183,14 +183,33 @@ pub async fn get_media_details(
     let endpoint = if media_type == "TV" { "tv" } else { "movie" };
     let url = format!("{}/{}/{}", TMDB_API_BASE, endpoint, tmdb_id);
 
-    let r: Value = NETWORK_MANAGER.external_client
+    let res = NETWORK_MANAGER.external_client
         .get(&url)
         .query(&[("api_key", api_key), ("language", "en-US")])
         .send()
-        .await
-        .map_err(crate::network::NetworkManager::handle_error)?
-        .json()
-        .await?;
+        .await;
+
+    let response = match res {
+        Ok(r) => {
+            if r.status() == reqwest::StatusCode::NOT_FOUND {
+                return Err(AppError::Custom("NOT_FOUND".to_string()));
+            } else if r.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                let mut retry_after = 1;
+                if let Some(val) = r.headers().get("Retry-After") {
+                    if let Ok(str_val) = val.to_str() {
+                        if let Ok(secs) = str_val.parse::<u64>() {
+                            retry_after = secs;
+                        }
+                    }
+                }
+                return Err(AppError::Custom(format!("RATE_LIMIT:{}", retry_after)));
+            }
+            r
+        }
+        Err(e) => return Err(crate::network::NetworkManager::handle_error(e)),
+    };
+
+    let r: Value = response.json().await?;
 
     let mut obj = serde_json::Map::new();
     obj.insert(
@@ -356,14 +375,33 @@ pub async fn get_tv_season_episodes(
     season_num: u32,
 ) -> Result<Vec<Value>, AppError> {
     let url = format!("{}/tv/{}/season/{}", TMDB_API_BASE, tmdb_id, season_num);
-    let r: Value = NETWORK_MANAGER.external_client
+    let res = NETWORK_MANAGER.external_client
         .get(&url)
         .query(&[("api_key", api_key), ("language", "en-US")])
         .send()
-        .await
-        .map_err(crate::network::NetworkManager::handle_error)?
-        .json()
-        .await?;
+        .await;
+
+    let response = match res {
+        Ok(r) => {
+            if r.status() == reqwest::StatusCode::NOT_FOUND {
+                return Err(AppError::Custom("NOT_FOUND".to_string()));
+            } else if r.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                let mut retry_after = 1; // Default to 1 second
+                if let Some(val) = r.headers().get("Retry-After") {
+                    if let Ok(str_val) = val.to_str() {
+                        if let Ok(secs) = str_val.parse::<u64>() {
+                            retry_after = secs;
+                        }
+                    }
+                }
+                return Err(AppError::Custom(format!("RATE_LIMIT:{}", retry_after)));
+            }
+            r
+        }
+        Err(e) => return Err(crate::network::NetworkManager::handle_error(e)),
+    };
+
+    let r: Value = response.json().await?;
 
     let season_overview = crate::sanitizer::sanitize_text(
         r["overview"].as_str().unwrap_or(""),

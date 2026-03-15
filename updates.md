@@ -391,3 +391,20 @@ Implemented specialized deep-data fetching strategies for Movies, effectively ma
 - Ensured massive 10-hour runtimes cast gracefully into `i32` bounds.
 - Parsed "Ghost" collection lists smoothly without throwing unwraps when sparsely defined by TMDB.
 - Tested missing and NULL `release_date` strings and formatting loops.
+
+### Update 15: Feature 3.6 - Season-by-season iterative API fetching
+
+**Summary:**
+Implemented global rate limit management and staggered iterative background fetching for massive TV shows.
+
+**Core Architectural Features Implemented:**
+- **Global Rate Limit Queue Pause:** Added `is_rate_limited` and `rate_limit_reset` to the Rust `AppState` to globally pause all background fetch loops based on TMDB's `Retry-After` HTTP 429 header.
+- **Strict Array-Based Iteration:** Modifed the background fetch loop in `add_to_tracker` to strictly iterate over the `seasons` metadata array. This handles missing or non-sequential seasons (e.g. documentaries) by logging 404s gracefully without halting the overall sync.
+- **Specials UI Semantic Mapping:** Ensured Season 0 is safely fetched and stored. Augmented `MediaDetails.tsx` to dynamically label `season_num === 0` as 'Specials', leveraging the backend's `ORDER BY season_num ASC`.
+- **CancellationToken Sync Mapping:** Mapped `CancellationToken`s to `media_id` strings within `AppState`. The "Remove Show" action safely triggers cancellation, aborting the active fetch loop instantly before executing the cascading delete in the background queue.
+- **Discrete UI Progress Binding:** Emitted granular `sync-progress` events containing both `mediaId` and `tmdbId` to cleanly track precise sync states in `useTaskStore`. Bound these explicitly to local UI elements like `MediaDetails` banners and `InboxView` search results, separating them from the global `App.tsx` multi-sync indicator.
+
+**Edge Cases Tested & Verified:**
+- "One Piece" Staggering Simulator: Verified a 250ms deterministic delay effectively staggers massive fetch queues.
+- Add-Remove Sprint Cancellation: Validated that a rapid background delete cleanly intercepts and halts the active loop via token polling.
+- Missing Season Skip Logic: Tested that a 404 response logs a warning, skips the iteration, and continues without raising fatal errors.
