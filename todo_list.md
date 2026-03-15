@@ -256,13 +256,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test data fetching for shows with 50+ seasons (e.g., Soap Operas).
 - [x] Handle missing poster/backdrop URLs gracefully.
 
-**3.5 Dedicated Movie deep-data fetching.** (Incomplete)
+**3.5 Dedicated Movie deep-data fetching.** (Complete)
 
-- [ ] Map movie specific data (like total runtime) accurately to the database.
-- [ ] Ensure movie collections/franchises are handled visually if applicable.
-- [ ] Test fetching data for extremely obscure or newly announced movies.
-- [ ] Handle edge cases where the release date is completely undefined.
-- [ ] Verify movie data doesn't accidentally trigger TV episode sync loops.
+- [x] Map movie specific data (like total runtime) accurately to the database.
+- [x] Ensure movie collections/franchises are handled visually if applicable.
+- [x] Test fetching data for extremely obscure or newly announced movies.
+- [x] Handle edge cases where the release date is completely undefined.
+- [x] Verify movie data doesn't accidentally trigger TV episode sync loops.
 
 **3.6 Season-by-season iterative API fetching.** (Incomplete)
 

@@ -144,7 +144,11 @@ pub async fn search_media(api_key: &str, query: &str, page: u32) -> Result<Vec<V
             }
             .unwrap_or("");
 
-            let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(release_date);
+            let (final_date, is_exact, is_known) = if item_media_type != "tv" && release_date.is_empty() {
+                ("0000-00-00".to_string(), false, false)
+            } else {
+                crate::sanitizer::sanitize_date(release_date)
+            };
 
             obj.insert(
                 "release_date".to_string(),
@@ -259,17 +263,29 @@ pub async fn get_media_details(
             "is_date_known".to_string(),
             Value::Bool(is_known),
         );
+        obj.insert("collection_id".to_string(), Value::Null);
+        obj.insert("collection_name".to_string(), Value::Null);
     } else {
         obj.insert(
             "total_episodes".to_string(),
             Value::Number(serde_json::Number::from(1)),
         );
+
+        let runtime_val = match serde_json::from_value::<crate::models::TmdbEpisode>(r.clone()) {
+            Ok(ep) => ep.runtime,
+            Err(_) => r["runtime"].as_i64().unwrap_or(0) as i32,
+        };
         obj.insert(
             "runtime".to_string(),
-            Value::Number(serde_json::Number::from(r["runtime"].as_i64().unwrap_or(0))),
+            Value::Number(serde_json::Number::from(runtime_val)),
         );
+
         let rel_date = r["release_date"].as_str().unwrap_or("");
-        let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(rel_date);
+        let (final_date, is_exact, is_known) = if rel_date.is_empty() {
+            ("0000-00-00".to_string(), false, false)
+        } else {
+            crate::sanitizer::sanitize_date(rel_date)
+        };
 
         obj.insert(
             "release_date".to_string(),
@@ -283,6 +299,20 @@ pub async fn get_media_details(
             "is_date_known".to_string(),
             Value::Bool(is_known),
         );
+
+        if let Some(collection) = r["belongs_to_collection"].as_object() {
+            obj.insert(
+                "collection_id".to_string(),
+                Value::Number(serde_json::Number::from(collection["id"].as_i64().unwrap_or(0))),
+            );
+            obj.insert(
+                "collection_name".to_string(),
+                Value::String(collection["name"].as_str().unwrap_or("").to_string()),
+            );
+        } else {
+            obj.insert("collection_id".to_string(), Value::Null);
+            obj.insert("collection_name".to_string(), Value::Null);
+        }
     }
 
     obj.insert(
@@ -386,6 +416,20 @@ pub async fn get_tv_season_episodes(
     Ok(formatted)
 }
 
+pub async fn get_collection_details(api_key: &str, collection_id: i32) -> Result<Value, AppError> {
+    let url = format!("{}/collection/{}", TMDB_API_BASE, collection_id);
+    let r: Value = NETWORK_MANAGER.external_client
+        .get(&url)
+        .query(&[("api_key", api_key), ("language", "en-US")])
+        .send()
+        .await
+        .map_err(crate::network::NetworkManager::handle_error)?
+        .json()
+        .await?;
+
+    Ok(r)
+}
+
 pub async fn download_image(image_path: &str, size: &str) -> Option<String> {
     if image_path.is_empty() {
         return None;
@@ -420,3 +464,7 @@ pub async fn download_image(image_path: &str, size: &str) -> Option<String> {
 #[cfg(test)]
 #[path = "tmdb_tests_3_4.rs"]
 mod tmdb_tests_3_4;
+
+#[cfg(test)]
+#[path = "tmdb_tests_3_5.rs"]
+mod tmdb_tests_3_5;

@@ -306,3 +306,13 @@
 | Test Case | Method | Result |
 | :--- | :--- | :--- |
 | *Verify `genres` and `networks` index padding correctly fetches metadata and prevents backend panic crashes* | *Rust Unit Test (`test_strictness_index_fix`)* | *Pass* |
+
+## Feature 3.5: Dedicated Movie Deep-Data Fetching
+
+| Test Case Name | Result | Description |
+|---|---|---|
+| `test_movie_zero_runtime` | **PASS** | Validated that a movie fetching a `runtime: 0` explicitly falls back safely and correctly maps to the SQLite `i32` column without panicking. |
+| `test_movie_massive_runtime` | **PASS** | Verified that a 10-hour movie (e.g. `runtime: 600`) seamlessly maps into the database `Episodes.runtime` field without overflowing. |
+| `test_missing_overview_fallback` | **PASS** | Tested the "Strict Sanitization Layer", proving that an empty or missing synopsis is firmly overwritten by the Rust backend with `"No overview available."`. |
+| `test_tbd_release_date_formatting` | **PASS** | Ensured that an empty release date returned by TMDB correctly parses as `"0000-00-00"` in the frontend DTO layer while leaving the SQLite schema explicitly free to track `NULLS LAST` sorting. |
+| `test_ghost_collection` | **PASS** | Successfully parsed a sparse `belongs_to_collection` JSON object gracefully without triggering unwraps, accurately storing the `collection_id` and `collection_name`. |

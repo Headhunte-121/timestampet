@@ -540,9 +540,13 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
             if let Ok(Some(row)) = rows.next() {
                 let m_type: String = row.get(2).unwrap_or_default();
                 let raw_release_date: String = row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default();
-                let (sanitized_release_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_release_date);
+                let (sanitized_release_date, is_exact, is_known) = if raw_release_date.is_empty() && m_type != "TV" {
+                    ("0000-00-00".to_string(), false, false)
+                } else {
+                    crate::sanitizer::sanitize_date(&raw_release_date)
+                };
 
-                let is_unaired = if is_known && !sanitized_release_date.is_empty() {
+                let is_unaired = if is_known && !sanitized_release_date.is_empty() && sanitized_release_date != "0000-00-00" {
                     let now = chrono::Utc::now().naive_utc().date();
                     if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_release_date, "%Y-%m-%d") {
                         parsed > now
@@ -555,6 +559,20 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
 
                 let raw_synopsis = row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default();
                 let sanitized_synopsis = crate::sanitizer::sanitize_text(&raw_synopsis, "No overview available.");
+
+                let collection_id = row.get::<_, Option<i32>>(15).unwrap_or_default();
+                let mut collection_parts = serde_json::Value::Null;
+
+                if let Some(c_id) = collection_id {
+                    if let Ok(mut c_stmt) = conn.prepare("SELECT parts FROM Collections WHERE id=?") {
+                        if let Ok(mut c_rows) = c_stmt.query(params![c_id]) {
+                            if let Ok(Some(c_row)) = c_rows.next() {
+                                let parts_str: String = c_row.get(0).unwrap_or_else(|_| "[]".to_string());
+                                collection_parts = serde_json::from_str(&parts_str).unwrap_or(serde_json::Value::Null);
+                            }
+                        }
+                    }
+                }
 
                 media = Some(json!({
                     "id": row.get::<_, i32>(0).unwrap_or(0),
@@ -572,6 +590,9 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                     "is_exact_date": is_exact,
                     "is_date_known": is_known,
                     "is_unaired": is_unaired,
+                    "collection_id": collection_id,
+                    "collection_name": row.get::<_, Option<String>>(16).unwrap_or_default(),
+                    "collection_parts": collection_parts,
                 }));
             }
         }
@@ -756,7 +777,7 @@ pub async fn add_to_tracker(
 
                             let media_id = if let Some(id) = existing_id {
                                 let _ = tx.execute(
-                                    "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?, genres = ?, networks = ?
+                                    "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?, genres = ?, networks = ?, collection_id = ?, collection_name = ?
                                      WHERE id = ?",
                                     params![
                                         details["title"].as_str().unwrap_or("Unknown Title"),
@@ -765,23 +786,25 @@ pub async fn add_to_tracker(
                                         details["backdrop_path"].as_str().unwrap_or(""),
                                         details["total_episodes"].as_i64().unwrap_or(1) as i32,
                                         details["vote_average"].as_f64().unwrap_or(0.0),
-                                        details["release_date"].as_str().unwrap_or(""),
+                                        if details["release_date"].as_str().unwrap_or("") == "0000-00-00" { None } else { Some(details["release_date"].as_str().unwrap_or("")) },
                                         details["is_exact_date"].as_bool().unwrap_or(true),
                                         details["genres"].as_str().unwrap_or(""),
                                         details["networks"].as_str().unwrap_or(""),
+                                        details["collection_id"].as_i64().map(|id| id as i32),
+                                        details["collection_name"].as_str(),
                                         id
                                     ]
                                 );
                                 id
                             } else {
                                 let _ = tx.execute(
-                                    "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date, genres, networks)
-                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date, genres, networks, collection_id, collection_name)
+                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                      ON CONFLICT(tmdb_id, \"type\") DO UPDATE SET
                                         \"title\"=excluded.\"title\", synopsis=excluded.synopsis, poster_path=excluded.poster_path,
                                         backdrop_path=excluded.backdrop_path, total_episodes=excluded.total_episodes,
                                         vote_average=excluded.vote_average, release_date=excluded.release_date, is_exact_date=excluded.is_exact_date,
-                                        genres=excluded.genres, networks=excluded.networks",
+                                        genres=excluded.genres, networks=excluded.networks, collection_id=excluded.collection_id, collection_name=excluded.collection_name",
                                     params![
                                         tmdb_id_clone,
                                         valid_media_type,
@@ -792,10 +815,12 @@ pub async fn add_to_tracker(
                                         details["total_episodes"].as_i64().unwrap_or(1) as i32,
                                         details["status"].as_str().unwrap_or("Plan to Watch"),
                                         details["vote_average"].as_f64().unwrap_or(0.0),
-                                        details["release_date"].as_str().unwrap_or(""),
+                                        if details["release_date"].as_str().unwrap_or("") == "0000-00-00" { None } else { Some(details["release_date"].as_str().unwrap_or("")) },
                                         details["is_exact_date"].as_bool().unwrap_or(true),
                                         details["genres"].as_str().unwrap_or(""),
-                                        details["networks"].as_str().unwrap_or("")
+                                        details["networks"].as_str().unwrap_or(""),
+                                        details["collection_id"].as_i64().map(|id| id as i32),
+                                        details["collection_name"].as_str()
                                     ]
                                 );
 
@@ -1009,6 +1034,34 @@ pub async fn add_to_tracker(
                     Ok::<(), AppError>(())
                 })
             }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+            if let Some(c_id) = details.get("collection_id").and_then(|v| v.as_i64()) {
+                tokio::task::yield_now().await;
+                if let Ok(col) = crate::tmdb::get_collection_details(&api_key, c_id as i32).await {
+                    let _ = tokio::task::spawn_blocking(move || {
+                        handle_panic(|| {
+                            if let Ok(mut conn) = get_db_connection() {
+                                let parts_str = col.get("parts").map(|p| p.to_string()).unwrap_or_else(|| "[]".to_string());
+                                let _ = conn.execute(
+                                    "INSERT INTO Collections (id, name, overview, poster_path, backdrop_path, parts)
+                                     VALUES (?, ?, ?, ?, ?, ?)
+                                     ON CONFLICT(id) DO UPDATE SET
+                                     name=excluded.name, overview=excluded.overview, poster_path=excluded.poster_path, backdrop_path=excluded.backdrop_path, parts=excluded.parts",
+                                    params![
+                                        c_id as i32,
+                                        col.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown Collection"),
+                                        crate::sanitizer::sanitize_text(col.get("overview").and_then(|v| v.as_str()).unwrap_or(""), "No overview available."),
+                                        col.get("poster_path").and_then(|v| v.as_str()).unwrap_or(""),
+                                        col.get("backdrop_path").and_then(|v| v.as_str()).unwrap_or(""),
+                                        parts_str
+                                    ]
+                                );
+                            }
+                            Ok::<(), AppError>(())
+                        })
+                    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+                }
+            }
         }
 
         Ok::<(), AppError>(())
@@ -1320,10 +1373,15 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
         let mut recent_media: Vec<Media> = Vec::new();
         if let Ok(rows) = ra_stmt.query_map([], |row| {
-            let raw_release_date: String = row.get(11)?;
-            let (sanitized_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_release_date);
+            let m_type: String = row.get(2)?;
+            let raw_release_date: String = row.get::<_, Option<String>>(11)?.unwrap_or_default();
+            let (sanitized_date, is_exact, is_known) = if raw_release_date.is_empty() && m_type != "TV" {
+                ("0000-00-00".to_string(), false, false)
+            } else {
+                crate::sanitizer::sanitize_date(&raw_release_date)
+            };
 
-            let is_unaired = if is_known && !sanitized_date.is_empty() {
+            let is_unaired = if is_known && !sanitized_date.is_empty() && sanitized_date != "0000-00-00" {
                 let now = chrono::Utc::now().naive_utc().date();
                 if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_date, "%Y-%m-%d") {
                     parsed > now
@@ -1359,6 +1417,9 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                 last_watched: row.get(16)?,
                 min_year: row.get(17)?,
                 max_year: row.get(18)?,
+                collection_id: None,
+                collection_name: None,
+                collection_parts: None,
                 seasons: Vec::new(),
                 episodes: Vec::new(),
             })
@@ -1524,10 +1585,15 @@ pub async fn get_library_data(
                 }
                 batch_count += 1;
 
-                let raw_release_date: String = row.get(11)?;
-                let (sanitized_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_release_date);
+                let m_type: String = row.get(2)?;
+                let raw_release_date: String = row.get::<_, Option<String>>(11)?.unwrap_or_default();
+                let (sanitized_date, is_exact, is_known) = if raw_release_date.is_empty() && m_type != "TV" {
+                    ("0000-00-00".to_string(), false, false)
+                } else {
+                    crate::sanitizer::sanitize_date(&raw_release_date)
+                };
 
-                let is_unaired = if is_known && !sanitized_date.is_empty() {
+                let is_unaired = if is_known && !sanitized_date.is_empty() && sanitized_date != "0000-00-00" {
                     let now = chrono::Utc::now().naive_utc().date();
                     if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_date, "%Y-%m-%d") {
                         parsed > now
@@ -1563,6 +1629,9 @@ pub async fn get_library_data(
                     last_watched: row.get(16)?,
                     min_year: row.get(17)?,
                     max_year: row.get(18)?,
+                    collection_id: None,
+                    collection_name: None,
+                    collection_parts: None,
                     seasons: Vec::new(),
                     episodes: Vec::new(),
                 });
@@ -2000,7 +2069,7 @@ pub async fn assign_unmatched_to_tracker(
 
                     let media_id = if let Some(id) = existing_id {
                         let _ = tx.execute(
-                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?
+                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?, collection_id = ?, collection_name = ?
                              WHERE id = ?",
                             params![
                                 details["title"].as_str().unwrap_or("Unknown Title"),
@@ -2009,20 +2078,23 @@ pub async fn assign_unmatched_to_tracker(
                                 details["backdrop_path"].as_str().unwrap_or(""),
                                 details["total_episodes"].as_i64().unwrap_or(1) as i32,
                                 details["vote_average"].as_f64().unwrap_or(0.0),
-                                details["release_date"].as_str().unwrap_or(""),
+                                if details["release_date"].as_str().unwrap_or("") == "0000-00-00" { None } else { Some(details["release_date"].as_str().unwrap_or("")) },
                                 details["is_exact_date"].as_bool().unwrap_or(true),
+                                details["collection_id"].as_i64().map(|id| id as i32),
+                                details["collection_name"].as_str(),
                                 id
                             ]
                         );
                         id
                     } else {
                         let _ = tx.execute(
-                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date, collection_id, collection_name)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON CONFLICT(tmdb_id, \"type\") DO UPDATE SET
                                 \"title\"=excluded.\"title\", synopsis=excluded.synopsis, poster_path=excluded.poster_path,
                                 backdrop_path=excluded.backdrop_path, total_episodes=excluded.total_episodes,
-                                vote_average=excluded.vote_average, release_date=excluded.release_date, is_exact_date=excluded.is_exact_date",
+                                vote_average=excluded.vote_average, release_date=excluded.release_date, is_exact_date=excluded.is_exact_date,
+                                collection_id=excluded.collection_id, collection_name=excluded.collection_name",
                             params![
                                 tmdb_id,
                                 valid_media_type,
@@ -2033,8 +2105,10 @@ pub async fn assign_unmatched_to_tracker(
                                 details["total_episodes"].as_i64().unwrap_or(1) as i32,
                                 details["status"].as_str().unwrap_or("Plan to Watch"),
                                 details["vote_average"].as_f64().unwrap_or(0.0),
-                                details["release_date"].as_str().unwrap_or(""),
-                                details["is_exact_date"].as_bool().unwrap_or(true)
+                                if details["release_date"].as_str().unwrap_or("") == "0000-00-00" { None } else { Some(details["release_date"].as_str().unwrap_or("")) },
+                                details["is_exact_date"].as_bool().unwrap_or(true),
+                                details["collection_id"].as_i64().map(|id| id as i32),
+                                details["collection_name"].as_str()
                             ]
                         );
 
@@ -2174,6 +2248,7 @@ pub async fn assign_unmatched_to_tracker(
                 Ok(v) => v.clone(),
                 Err(_) => serde_json::Value::Null,
             };
+            let inner_clone = details_clone.clone();
             let _ = tokio::task::spawn_blocking(move || {
                 handle_panic(|| {
                     if let Ok(mut conn) = get_db_connection() {
@@ -2189,14 +2264,14 @@ pub async fn assign_unmatched_to_tracker(
                                     }
                                 }
                             }
-                            let new_air_date = details_clone["release_date"].as_str().unwrap_or("");
+                            let new_air_date = inner_clone["release_date"].as_str().unwrap_or("");
                             let valid_air_date = if new_air_date.to_uppercase() == "TBD" || (new_air_date.len() > 0 && NaiveDate::parse_from_str(new_air_date, "%Y-%m-%d").is_err() && new_air_date.len() != 4) {
                                 should_update_air_date = false;
                                 ""
                             } else {
                                 new_air_date
                             };
-                            let mut synopsis = details_clone["synopsis"].as_str().unwrap_or("").to_string();
+                            let mut synopsis = inner_clone["synopsis"].as_str().unwrap_or("").to_string();
                             if synopsis.chars().count() > 10000 {
                                 synopsis = synopsis.chars().take(10000).collect::<String>();
                                 synopsis.push_str("...");
@@ -2210,14 +2285,14 @@ pub async fn assign_unmatched_to_tracker(
                                         overview=excluded.overview, air_date=excluded.air_date, is_exact_date=excluded.is_exact_date",
                                     params![
                                         media_id,
-                                        details_clone["title"].as_str().unwrap_or("Unknown Title"),
-                                        details_clone["runtime"].as_i64().unwrap_or(0) as i32,
-                                        details_clone["backdrop_path"].as_str().unwrap_or(""),
+                                        inner_clone["title"].as_str().unwrap_or("Unknown Title"),
+                                        inner_clone["runtime"].as_i64().unwrap_or(0) as i32,
+                                        inner_clone["backdrop_path"].as_str().unwrap_or(""),
                                         synopsis,
                                         ep_status,
                                         ep_watch_count,
                                         valid_air_date,
-                                        details_clone["is_exact_date"].as_bool().unwrap_or(true)
+                                        inner_clone["is_exact_date"].as_bool().unwrap_or(true)
                                     ]
                                 );
                             } else {
@@ -2229,9 +2304,9 @@ pub async fn assign_unmatched_to_tracker(
                                         overview=excluded.overview",
                                     params![
                                         media_id,
-                                        details_clone["title"].as_str().unwrap_or("Unknown Title"),
-                                        details_clone["runtime"].as_i64().unwrap_or(0) as i32,
-                                        details_clone["backdrop_path"].as_str().unwrap_or(""),
+                                        inner_clone["title"].as_str().unwrap_or("Unknown Title"),
+                                        inner_clone["runtime"].as_i64().unwrap_or(0) as i32,
+                                        inner_clone["backdrop_path"].as_str().unwrap_or(""),
                                         synopsis,
                                         ep_status,
                                         ep_watch_count
@@ -2244,6 +2319,34 @@ pub async fn assign_unmatched_to_tracker(
                     Ok::<(), AppError>(())
                 })
         }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))?;
+
+            if let Some(c_id) = details_clone.get("collection_id").and_then(|v| v.as_i64()) {
+                tokio::task::yield_now().await;
+                if let Ok(col) = crate::tmdb::get_collection_details(&api_key, c_id as i32).await {
+                    let _ = tokio::task::spawn_blocking(move || {
+                        handle_panic(|| {
+                            if let Ok(mut conn) = get_db_connection() {
+                                let parts_str = col.get("parts").map(|p| p.to_string()).unwrap_or_else(|| "[]".to_string());
+                                let _ = conn.execute(
+                                    "INSERT INTO Collections (id, name, overview, poster_path, backdrop_path, parts)
+                                     VALUES (?, ?, ?, ?, ?, ?)
+                                     ON CONFLICT(id) DO UPDATE SET
+                                     name=excluded.name, overview=excluded.overview, poster_path=excluded.poster_path, backdrop_path=excluded.backdrop_path, parts=excluded.parts",
+                                    params![
+                                        c_id as i32,
+                                        col.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown Collection"),
+                                        crate::sanitizer::sanitize_text(col.get("overview").and_then(|v| v.as_str()).unwrap_or(""), "No overview available."),
+                                        col.get("poster_path").and_then(|v| v.as_str()).unwrap_or(""),
+                                        col.get("backdrop_path").and_then(|v| v.as_str()).unwrap_or(""),
+                                        parts_str
+                                    ]
+                                );
+                            }
+                            Ok::<(), AppError>(())
+                        })
+                    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+                }
+            }
         }
 
         // Now assign the unmatched files
