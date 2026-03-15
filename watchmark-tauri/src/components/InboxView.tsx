@@ -1,3 +1,4 @@
+import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { FolderSearch, Search, X } from "lucide-react";
@@ -165,7 +166,7 @@ export default function InboxView({ onMatch }: any) {
         </div>
       </div>
 
-      <p className="text-gray-400 mb-8">You have {Object.keys(grouped).length} unrecognized series on your hard drive.</p>
+      <p className="text-muted mb-8">You have {Object.keys(grouped).length} unrecognized series on your hard drive.</p>
 
       {Object.keys(grouped).length === 0 ? (
         <div className="flex items-center justify-center flex-1">
@@ -203,7 +204,7 @@ export default function InboxView({ onMatch }: any) {
             {!selectedGroup ? (
               <div className="flex flex-col items-center justify-center text-center h-full">
                 <h2 className="text-2xl font-bold mb-4 text-white">Select a group to triage</h2>
-                <p className="text-gray-400 max-w-md">
+                <p className="text-muted max-w-md">
                   Groups are generated automatically from filenames. Select one to assign it to a TMDB show.
                 </p>
               </div>
@@ -212,7 +213,7 @@ export default function InboxView({ onMatch }: any) {
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h2 className="text-2xl font-bold text-white mb-1">Group: {selectedGroup}</h2>
-                    <p className="text-gray-400 text-sm">{grouped[selectedGroup]?.length || 0} files</p>
+                    <p className="text-muted text-sm">{grouped[selectedGroup]?.length || 0} files</p>
                   </div>
                   <button
                     onClick={openSearchModal}
@@ -253,9 +254,9 @@ export default function InboxView({ onMatch }: any) {
               </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                className="p-2 text-muted hover:text-white hover:bg-white/10 rounded-full transition-colors"
               >
-                <X className="w-5 h-5" />
+                <Icon icon={X} className="w-5 h-5" />
               </button>
             </div>
 
@@ -326,7 +327,7 @@ export default function InboxView({ onMatch }: any) {
                       <div className="p-4">
                         <h3 className="text-white font-bold text-sm truncate">{item.title}</h3>
                         <p className="text-xs text-[#FF6B00] font-bold uppercase mt-1">
-                          {item.type} • <span className="text-gray-500">{item.is_date_known ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-gray-400">TBD</span>}</span>
+                          {item.type} • <span className="text-gray-500">{item.is_date_known ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
                         </p>
                       </div>
                     </div>

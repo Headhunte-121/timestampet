@@ -21,7 +21,7 @@ export function ProcessingModal() {
           >
             <div className="w-16 h-16 border-4 border-[#FF6B00] border-t-transparent rounded-full animate-spin mb-6" />
             <h2 className="text-xl font-bold text-white mb-2">Processing...</h2>
-            <p className="text-gray-400">{processingMessage}</p>
+            <p className="text-muted">{processingMessage}</p>
           </motion.div>
         </motion.div>
       )}

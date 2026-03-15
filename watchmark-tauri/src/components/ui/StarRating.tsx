@@ -1,3 +1,4 @@
+import { Icon } from "./Icon";
 import { useState, MouseEvent } from "react";
 import { Star } from "lucide-react";
 import { cn } from "../../utils/cn";
@@ -62,7 +63,7 @@ export function StarRating({ rating, onChange }: StarRatingProps) {
                 className="absolute inset-0 overflow-hidden"
                 style={{ width: isHalf ? "50%" : "100%" }}
               >
-                <Star className="w-6 h-6 text-orange-500 fill-orange-500" strokeWidth={1.5} />
+                <Icon icon={Star} className="w-6 h-6 text-orange-500 fill-orange-500" strokeWidth={1.5} />
               </div>
             )}
           </div>

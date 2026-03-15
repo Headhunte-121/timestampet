@@ -62,7 +62,7 @@ export function RestoreConfirmationModal({
               <span className="text-[#EF4444]">⚠️</span> Overwrite Current Library?
             </h2>
 
-            <p className="text-gray-400 mb-8 text-lg">
+            <p className="text-muted mb-8 text-lg">
               This will permanently delete your current watch history and ratings. This action cannot be undone.
             </p>
 

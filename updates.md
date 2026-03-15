@@ -416,3 +416,19 @@ Implemented global rate limit management and staggered iterative background fetc
 - **Gradient Fallback (Tertiary):** Updated SQLite schema (`PRAGMA user_version = 16`) to include a `backdrop_fallback` column. If both backdrops and posters are missing from TMDB, the DTO passes `fallback_type: "gradient"` to the React UI.
 - **Eviction-Based Image Buffer:** Modified `SafeImage.tsx` to handle `asset://` object URLs for backdrops. Added a `useEffect` cleanup hook that explicitly calls `URL.revokeObjectURL` and sets the image source to null upon component unmount, strictly adhering to the 30MB RAM target during deep library navigation.
 - **Cinematic Skeleton Loading:** Upgraded the `SafeImage` backdrop renderer with a z-index stack: a pulsing `#1F222A` to `#2A2D35` gradient bottom layer, overlaid with a `framer-motion` image that smoothly fades in (600ms ease-in-out) via the `onLoad` event to eliminate jarring layout snaps.
+
+### Feature 16.13: Boot-Time Filesystem Guard
+* Implemented `filesystem_guard.rs` with `boot_time_guard` for checking and verifying all necessary application directories.
+* Moved `logging::init_tracing()` to the start of `main.rs` to allow filesystem errors to be logged early.
+* Relocated `db::init_db()` into the Tauri `.setup()` hook explicitly so it only initializes after the filesystem is confirmed to be healthy.
+* Removed deprecated `canary_check()` and `ensure_directories()` logic to avoid redundancies and potential race conditions.
+* Configured `boot_time_guard` to perform idempotent directory creation and active probe writing to confirm disk write permissions.
+* Connected `tauri_plugin_dialog` so a fatal GUI message is displayed bypassing the React frontend if filesystem integrity tests fail.
+
+### Part 6 UI Styling and Layout
+* **6.1 Pure #0D0F14 deep cinematic background color**: Updated `index.html` to inject #0D0F14 background class `bg-[#0D0F14]` strictly. Verified `tauri.conf.json` background_color parameter matches. Added `.hero-wrapper` for ultra-wide monitor support.
+* **6.2 Translucent #1F222A surface cards**: Built global `.surface-card` CSS utility class in `index.css` applying `#1F222A` with `#2A2D35` solid borders and dynamic hover/nested states transitioning to `#252830`. Added pulsing `.skeleton-loader` animation alternating between these hex values.
+* **6.3 Vibrant #FF6B00 (VLC Orange) global accent**: Added `.btn-primary` and `.active-glow` for strict hover states mapping to `#FF8533` and ensuring appropriate drop-shadows. Verified text inside these elements defaults to `#FFFFFF`.
+* **6.7 Modern Inter sans-serif font family integration**: Added `.tabular-nums` class and confirmed standard anti-aliasing behavior in `index.css`. Tailwind is already configured correctly for the `Inter` font stack.
+* **6.10 Custom thin, dark styled scrollbars**: Upgraded `::-webkit-scrollbar` with a 6px layout. Implemented `rgba(42, 45, 53, 0.4)` pseudo-opacity on the thumb track so it blends over the `#0D0F14` background cleanly, transitioning to the primary orange `#FF6B00` on hover.
+* **6.11 Lucide-React high-fidelity vector icon integration**: Created centralized `Icon.tsx` component wrapper for all Lucide-React icons that strictly sets `strokeWidth=1.5` and `aria-hidden=true` to maintain globally consistent crisp stroke weights. Added `mix-blend-mode: multiply` edge case fallback to `img` CSS rules.

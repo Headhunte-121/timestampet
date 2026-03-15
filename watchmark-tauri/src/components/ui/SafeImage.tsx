@@ -106,7 +106,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
             {title || altText || 'Unknown Title'}
           </span>
           {year && (
-            <span className="text-gray-400 font-bold drop-shadow-md text-xs mt-2">
+            <span className="text-muted font-bold drop-shadow-md text-xs mt-2">
               {year}
             </span>
           )}
