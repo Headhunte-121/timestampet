@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { motion } from 'framer-motion';
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   srcPath: string;
@@ -18,6 +19,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     if (fallbackSrcPath) {
@@ -40,18 +42,38 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
       return;
     }
 
+    let urlToRevoke: string | null = null;
+
     // Try to parse the source path. If it's a local path, use convertFileSrc.
     // If it's already an HTTP URL (e.g. from TMDB directly), use it as is.
     try {
       if (srcPath.startsWith('http://') || srcPath.startsWith('https://')) {
         setImgSrc(srcPath);
       } else {
-        setImgSrc(convertFileSrc(srcPath));
+        const fileUrl = convertFileSrc(srcPath);
+        setImgSrc(fileUrl);
+        urlToRevoke = fileUrl;
       }
     } catch {
       setHasError(true);
     }
-  }, [srcPath]);
+
+    // High-resolution backdrop memory eviction
+    return () => {
+      if (type === 'backdrop' && urlToRevoke && urlToRevoke.startsWith('asset://')) {
+        setImgSrc(null);
+        URL.revokeObjectURL(urlToRevoke);
+      }
+    };
+  }, [srcPath, type]);
+
+  if (type === 'backdrop' && (fallbackSrcPath === 'gradient' || hasError || !imgSrc)) {
+    return (
+      <div className={`relative bg-gradient-to-tr from-[#0D0F14] to-[#1F222A] overflow-hidden ${className || ''}`}>
+        <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1280&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay"></div>
+      </div>
+    );
+  }
 
   if (hasError || !imgSrc) {
     if (type === 'poster') {
@@ -110,6 +132,24 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
         </div>
       );
     }
+  }
+
+  if (type === 'backdrop') {
+    return (
+      <div className={`relative overflow-hidden z-0 bg-gradient-to-tr from-[#1F222A] to-[#2A2D35] animate-pulse ${className || ''}`}>
+        <motion.img
+          src={imgSrc!}
+          alt={altText}
+          className={`absolute inset-0 w-full h-full object-cover z-10`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isLoaded ? 1 : 0 }}
+          transition={{ duration: 0.6, ease: "easeInOut" }}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+          {...rest as any}
+        />
+      </div>
+    );
   }
 
   return (

@@ -555,7 +555,15 @@ pub async fn export_database(
 }
 
 #[tauri::command]
-pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
+pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
+    let mut backdrop_size = "w1280".to_string();
+    if let Ok(Some(monitor)) = app.primary_monitor() {
+        if monitor.scale_factor() > 1.0 {
+            backdrop_size = "original".to_string();
+        }
+    }
+    let high_performance_mode = state.settings.read().unwrap().high_performance_mode;
+
     handle_panic(|| {
         let conn = crate::db::get_readonly_connection()?;
 
@@ -607,7 +615,10 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                     "title": row.get::<_, Option<String>>(3).unwrap_or_default().unwrap_or_default(),
                     "synopsis": sanitized_synopsis,
                     "poster_path": row.get::<_, Option<String>>(5).unwrap_or_default().unwrap_or_default(),
-                    "backdrop_path": row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
+                    "backdrop_path": (|| {
+                        let raw = row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default();
+                        crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
+                    })(),
                     "total_episodes": row.get::<_, Option<i32>>(7).unwrap_or_default().unwrap_or(0),
                     "status": row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
                     "vote_average": row.get::<_, Option<f64>>(9).unwrap_or_default().unwrap_or(0.0),
@@ -764,6 +775,17 @@ pub async fn add_to_tracker(
 
     let app_clone_for_task = app.clone();
 
+    // Detect High-DPI displays dynamically for backdrop high-resolution support
+    let mut backdrop_size = "w1280".to_string();
+    if let Ok(Some(monitor)) = app.primary_monitor() {
+        if monitor.scale_factor() > 1.0 {
+            backdrop_size = "original".to_string();
+        }
+    }
+    let image_config = crate::tmdb::ImageConfig {
+        backdrop_size,
+    };
+
     // Spawn a dedicated background task that does NOT block the main thread and can handle async fetch loops
     let task = tokio::task::spawn(async move {
         use tauri::Manager;
@@ -802,10 +824,11 @@ pub async fn add_to_tracker(
                         if !backdrop.trim().is_empty() {
                             let backdrop_str = backdrop.to_string();
                             let failed_queue = failed_syncs_clone.clone();
+                            let size = image_config.backdrop_size.clone();
                             tokio::spawn(async move {
-                                if crate::tmdb::download_image(&backdrop_str, "w1280", high_performance_mode).await.is_none() {
+                                if crate::tmdb::download_image(&backdrop_str, &size, high_performance_mode).await.is_none() {
                                     if let Ok(mut queue) = failed_queue.write() {
-                                        queue.insert((backdrop_str, "w1280".to_string()));
+                                        queue.insert((backdrop_str, size.clone()));
                                     }
                                 }
                             });
@@ -827,7 +850,7 @@ pub async fn add_to_tracker(
 
                             let media_id = if let Some(id) = existing_id {
                                 let _ = tx.execute(
-                                    "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?, genres = ?, networks = ?, collection_id = ?, collection_name = ?
+                                    "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?, genres = ?, networks = ?, collection_id = ?, collection_name = ?, backdrop_fallback = ?
                                      WHERE id = ?",
                                     params![
                                         details["title"].as_str().unwrap_or("Unknown Title"),
@@ -842,19 +865,20 @@ pub async fn add_to_tracker(
                                         details["networks"].as_str().unwrap_or(""),
                                         details["collection_id"].as_i64().map(|id| id as i32),
                                         details["collection_name"].as_str(),
+                                        if details["fallback_type"].as_str().unwrap_or("").is_empty() { None } else { Some(details["fallback_type"].as_str().unwrap_or("")) },
                                         id
                                     ]
                                 );
                                 id
                             } else {
                                 let _ = tx.execute(
-                                    "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date, genres, networks, collection_id, collection_name)
-                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date, genres, networks, collection_id, collection_name, backdrop_fallback)
+                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                      ON CONFLICT(tmdb_id, \"type\") DO UPDATE SET
                                         \"title\"=excluded.\"title\", synopsis=excluded.synopsis, poster_path=excluded.poster_path,
                                         backdrop_path=excluded.backdrop_path, total_episodes=excluded.total_episodes,
                                         vote_average=excluded.vote_average, release_date=excluded.release_date, is_exact_date=excluded.is_exact_date,
-                                        genres=excluded.genres, networks=excluded.networks, collection_id=excluded.collection_id, collection_name=excluded.collection_name",
+                                        genres=excluded.genres, networks=excluded.networks, collection_id=excluded.collection_id, collection_name=excluded.collection_name, backdrop_fallback=excluded.backdrop_fallback",
                                     params![
                                         tmdb_id_clone,
                                         valid_media_type,
@@ -870,7 +894,8 @@ pub async fn add_to_tracker(
                                         details["genres"].as_str().unwrap_or(""),
                                         details["networks"].as_str().unwrap_or(""),
                                         details["collection_id"].as_i64().map(|id| id as i32),
-                                        details["collection_name"].as_str()
+                                        details["collection_name"].as_str(),
+                                        if details["fallback_type"].as_str().unwrap_or("").is_empty() { None } else { Some(details["fallback_type"].as_str().unwrap_or("")) }
                                     ]
                                 );
 
@@ -1368,7 +1393,7 @@ pub async fn archive_season(
 }
 
 #[tauri::command]
-pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
+pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
     let token = CancellationToken::new();
@@ -1379,6 +1404,15 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
     let cancel_tokens = state.cancel_tokens.clone();
     let stats_cache = state.stats_cache.clone();
+
+    let mut backdrop_size = "w1280".to_string();
+    if let Ok(Some(monitor)) = app.primary_monitor() {
+        if monitor.scale_factor() > 1.0 {
+            backdrop_size = "original".to_string();
+        }
+    }
+
+    let high_performance_mode = state.settings.read().unwrap().high_performance_mode;
 
     let result = tokio::task::spawn_blocking(move || {
         handle_panic(std::panic::AssertUnwindSafe(|| {
@@ -1446,7 +1480,10 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                         "progress_percentage": progress_percentage,
 
                         "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
-                        "backdrop_path": ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default(),
+                        "backdrop_path": (|| {
+                            let raw = ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default();
+                            crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
+                        })(),
                         "file_path": ep_row.get::<_, Option<String>>(18).unwrap_or_default(),
                         "media_type": ep_row.get::<_, Option<String>>(19).unwrap_or_default().unwrap_or_default(),
                     }));
@@ -1515,7 +1552,10 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                             "progress_percentage": progress_percentage,
 
                             "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
-                            "backdrop_path": ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default(),
+                            "backdrop_path": (|| {
+                                let raw = ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default();
+                                crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
+                            })(),
                             "poster_path": ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default(),
                             "file_path": ep_row.get::<_, Option<String>>(19).unwrap_or_default(),
                             "media_type": ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default(),
@@ -1569,7 +1609,10 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                 title: row.get(3)?,
                 synopsis: sanitized_synopsis,
                 poster_path: row.get(5)?,
-                backdrop_path: row.get(6)?,
+                backdrop_path: (|| {
+                    let raw: String = row.get(6)?;
+                    Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw))
+                })()?,
                 total_episodes: row.get(7)?,
                 status: row.get(8)?,
                 vote_average: row.get(9)?,
@@ -1582,10 +1625,11 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                 is_unaired: is_unaired,
                 collection_id: row.get::<_, Option<i32>>(15)?,
                 collection_name: row.get::<_, Option<String>>(16)?,
-                completed_eps: row.get::<_, Option<i32>>(17)?.unwrap_or(0),
-                last_watched: row.get::<_, Option<String>>(18)?.unwrap_or_default(),
-                min_year: row.get::<_, Option<String>>(19)?.unwrap_or_default(),
-                max_year: row.get::<_, Option<String>>(20)?.unwrap_or_default(),
+                backdrop_fallback: row.get::<_, Option<String>>(17)?,
+                completed_eps: row.get::<_, Option<i32>>(18)?.unwrap_or(0),
+                last_watched: row.get::<_, Option<String>>(19)?.unwrap_or_default(),
+                min_year: row.get::<_, Option<String>>(20)?.unwrap_or_default(),
+                max_year: row.get::<_, Option<String>>(21)?.unwrap_or_default(),
                 collection_parts: None,
                 seasons: Vec::new(),
                 episodes: Vec::new(),
@@ -1674,6 +1718,7 @@ pub async fn get_library_data(
     sort_by: String,
     hide_completed: bool,
     page: Option<u32>,
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Media>, AppError> {
     let _permit = state.read_semaphore.acquire().await.unwrap();
@@ -1686,6 +1731,14 @@ pub async fn get_library_data(
 
     let cancel_tokens = state.cancel_tokens.clone();
     let _stats_cache = state.stats_cache.clone();
+
+    let mut backdrop_size = "w1280".to_string();
+    if let Ok(Some(monitor)) = app.primary_monitor() {
+        if monitor.scale_factor() > 1.0 {
+            backdrop_size = "original".to_string();
+        }
+    }
+    let high_performance_mode = state.settings.read().unwrap().high_performance_mode;
 
     let result = tokio::task::spawn_blocking(move || {
         handle_panic(std::panic::AssertUnwindSafe(|| {
@@ -1781,7 +1834,10 @@ pub async fn get_library_data(
                     title: row.get(3)?,
                     synopsis: sanitized_synopsis,
                     poster_path: row.get(5)?,
-                    backdrop_path: row.get(6)?,
+                    backdrop_path: (|| {
+                        let raw: String = row.get(6)?;
+                        Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw))
+                    })()?,
                     total_episodes: row.get(7)?,
                     status: row.get(8)?,
                     vote_average: row.get(9)?,
@@ -1794,10 +1850,11 @@ pub async fn get_library_data(
                     is_unaired: is_unaired,
                     collection_id: row.get::<_, Option<i32>>(15)?,
                     collection_name: row.get::<_, Option<String>>(16)?,
-                    completed_eps: row.get::<_, Option<i32>>(17)?.unwrap_or(0),
-                    last_watched: row.get::<_, Option<i64>>(18)?.map(|v| v.to_string()).unwrap_or_default(),
-                    min_year: row.get::<_, Option<String>>(19)?.unwrap_or_default(),
-                    max_year: row.get::<_, Option<String>>(20)?.unwrap_or_default(),
+                    backdrop_fallback: row.get::<_, Option<String>>(17)?,
+                    completed_eps: row.get::<_, Option<i32>>(18)?.unwrap_or(0),
+                    last_watched: row.get::<_, Option<i64>>(19)?.map(|v| v.to_string()).unwrap_or_default(),
+                    min_year: row.get::<_, Option<String>>(20)?.unwrap_or_default(),
+                    max_year: row.get::<_, Option<String>>(21)?.unwrap_or_default(),
                     collection_parts: None,
                     seasons: Vec::new(),
                     episodes: Vec::new(),
@@ -2163,6 +2220,17 @@ pub async fn assign_unmatched_to_tracker(
     let tmdb_id_clone = tmdb_id.clone();
     let app_clone_for_task = app.clone();
 
+    // Detect High-DPI displays dynamically for backdrop high-resolution support
+    let mut backdrop_size = "w1280".to_string();
+    if let Ok(Some(monitor)) = app.primary_monitor() {
+        if monitor.scale_factor() > 1.0 {
+            backdrop_size = "original".to_string();
+        }
+    }
+    let image_config = crate::tmdb::ImageConfig {
+        backdrop_size,
+    };
+
     let task = tokio::task::spawn(async move {
         use tauri::Manager;
         let state = app_clone_for_task.state::<AppState>();
@@ -2229,10 +2297,11 @@ pub async fn assign_unmatched_to_tracker(
                 let backdrop_str = backdrop.to_string();
                 if !backdrop_str.is_empty() {
                     let failed_queue = failed_syncs_clone.clone();
+                    let size = image_config.backdrop_size.clone();
                     tokio::spawn(async move {
-                        if crate::tmdb::download_image(&backdrop_str, "w1280", high_performance_mode).await.is_none() {
+                        if crate::tmdb::download_image(&backdrop_str, &size, high_performance_mode).await.is_none() {
                             if let Ok(mut queue) = failed_queue.write() {
-                                queue.insert((backdrop_str, "w1280".to_string()));
+                                queue.insert((backdrop_str, size.clone()));
                             }
                         }
                     });
@@ -2254,7 +2323,7 @@ pub async fn assign_unmatched_to_tracker(
 
                     let media_id = if let Some(id) = existing_id {
                         let _ = tx.execute(
-                            "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?, collection_id = ?, collection_name = ?
+                                    "UPDATE Media SET \"title\" = ?, synopsis = ?, poster_path = ?, backdrop_path = ?, total_episodes = ?, vote_average = ?, release_date = ?, is_exact_date = ?, collection_id = ?, collection_name = ?, backdrop_fallback = ?
                              WHERE id = ?",
                             params![
                                 details["title"].as_str().unwrap_or("Unknown Title"),
@@ -2267,19 +2336,20 @@ pub async fn assign_unmatched_to_tracker(
                                 details["is_exact_date"].as_bool().unwrap_or(true),
                                 details["collection_id"].as_i64().map(|id| id as i32),
                                 details["collection_name"].as_str(),
+                                        if details["fallback_type"].as_str().unwrap_or("").is_empty() { None } else { Some(details["fallback_type"].as_str().unwrap_or("")) },
                                 id
                             ]
                         );
                         id
                     } else {
                         let _ = tx.execute(
-                            "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date, collection_id, collection_name)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    "INSERT INTO Media (tmdb_id, \"type\", \"title\", synopsis, poster_path, backdrop_path, total_episodes, status, vote_average, release_date, is_exact_date, collection_id, collection_name, backdrop_fallback)
+                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON CONFLICT(tmdb_id, \"type\") DO UPDATE SET
                                 \"title\"=excluded.\"title\", synopsis=excluded.synopsis, poster_path=excluded.poster_path,
                                 backdrop_path=excluded.backdrop_path, total_episodes=excluded.total_episodes,
                                 vote_average=excluded.vote_average, release_date=excluded.release_date, is_exact_date=excluded.is_exact_date,
-                                collection_id=excluded.collection_id, collection_name=excluded.collection_name",
+                                        collection_id=excluded.collection_id, collection_name=excluded.collection_name, backdrop_fallback=excluded.backdrop_fallback",
                             params![
                                 tmdb_id,
                                 valid_media_type,
@@ -2293,7 +2363,8 @@ pub async fn assign_unmatched_to_tracker(
                                 if details["release_date"].as_str().unwrap_or("") == "0000-00-00" { None } else { Some(details["release_date"].as_str().unwrap_or("")) },
                                 details["is_exact_date"].as_bool().unwrap_or(true),
                                 details["collection_id"].as_i64().map(|id| id as i32),
-                                details["collection_name"].as_str()
+                                        details["collection_name"].as_str(),
+                                        if details["fallback_type"].as_str().unwrap_or("").is_empty() { None } else { Some(details["fallback_type"].as_str().unwrap_or("")) }
                             ]
                         );
 

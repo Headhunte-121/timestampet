@@ -97,7 +97,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         )}
         <div className="absolute inset-0">
           <SafeImage
-            srcPath={data.backdrop_path ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` : ""}
+            srcPath={data.backdrop_path || ""}
+            fallbackSrcPath={data.backdrop_fallback}
             type="backdrop"
             altText="Backdrop"
             className="w-full h-full object-cover opacity-60"
