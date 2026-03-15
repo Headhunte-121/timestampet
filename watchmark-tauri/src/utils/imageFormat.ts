@@ -33,13 +33,16 @@ export function formatImagePath(path: string | null | undefined, size: string = 
   const isUnixPath = path.startsWith('/') && path.indexOf('/', 1) !== -1;
 
   if (isWindowsPath || isUnixPath) {
-    // Normalize backslashes to forward slashes for Tauri v2 Windows compatibility
-    // This prevents 403 Forbidden errors caused by double-encoded '%5C' in URI schemes.
-    const normalizedPath = path.replace(/\\/g, '/');
-    console.log("LOG 2: NORMALIZED PATH", normalizedPath);
+    // 1. Remove the Windows Verbatim prefix if present
+    let cleanPath = path.replace(/^\\\\\?\\/, "");
 
-    // It's a local cached file, use Tauri's custom protocol
-    const finalUrl = convertFileSrc(normalizedPath);
+    // 2. Force ALL backslashes to forward slashes for URI compatibility
+    // This prevents 403 Forbidden errors caused by double-encoded '%5C' in URI schemes.
+    cleanPath = cleanPath.replace(/\\/g, '/');
+    console.log("LOG 2: NORMALIZED PATH", cleanPath);
+
+    // 3. Convert to Tauri Asset URL
+    const finalUrl = convertFileSrc(cleanPath);
     console.log("LOG 3: FINAL URL", finalUrl);
     return finalUrl;
   }
