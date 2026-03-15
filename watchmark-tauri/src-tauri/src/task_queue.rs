@@ -149,7 +149,7 @@ impl DbTaskQueue {
                 Err(e) => {
                     if attempt >= max_retries {
                         // Max retries hit
-                        tracing::error!("Database action failed after 3 attempts: {}", e);
+                        tracing::error!("[DB] 🚨 Database action failed after 3 attempts: {}", e);
 
                         // Emit global failure event if possible. Since we don't always have app_handle here,
                         // we'd need to thread it through if we wanted a global toast from the backend for raw actions.
@@ -294,6 +294,6 @@ impl DbTaskQueue {
     /// For now, since the worker itself will fast-fail if the global auth flag is false,
     /// we can safely implement this as a no-op or just log it.
     pub fn clear(&self) {
-        tracing::info!("Queue clear requested. Tasks will automatically fast-fail via global auth flag interceptors.");
+        tracing::info!("[QUEUE] 🛑 Queue clear requested. Tasks will automatically fast-fail.");
     }
 }

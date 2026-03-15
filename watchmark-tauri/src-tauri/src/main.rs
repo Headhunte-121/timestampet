@@ -106,7 +106,7 @@ fn main() {
     // Initialize Tracing Engine First
     logging::init_tracing(&initial_settings.global_log_level, &initial_settings.module_logs);
 
-    tracing::info!(action = "boot", "Starting application WatchMark...");
+    tracing::info!(action = "boot", "[APP] 🚀 Starting application WatchMark...");
 
     // Cold-Swap Database Restore Logic
     execute_cold_swap(&app_dir);
@@ -144,14 +144,14 @@ fn main() {
             }
         })
         .setup(move |app| {
-            tracing::info!("Tauri setup hook triggered. Initializing state...");
+            tracing::info!("[APP] 🚀 Tauri setup hook triggered. Initializing state...");
 
             // 1. Boot-Time Filesystem Guard
             let app_data_dir = db::get_app_data_dir();
             filesystem_guard::execute_guard_and_exit_on_failure(app, &app_data_dir);
 
             // 2. Initialize Database after filesystem is vouched for
-            tracing::info!(action = "init_db", "Initializing SQLite database...");
+            tracing::info!(action = "init_db", "[DB] 🗄️ Initializing SQLite database...");
             if let Err(e) = db::init_db() {
                 // Critical DB failure
                 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
@@ -162,7 +162,7 @@ fn main() {
                     .blocking_show();
                 std::process::exit(1);
             }
-            tracing::info!(action = "init_db_success", "Database initialized successfully.");
+            tracing::info!(action = "init_db_success", "[DB] ✨ Database initialized successfully.");
 
             let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new(app.handle().clone()));
 
@@ -184,7 +184,7 @@ fn main() {
                 cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
                 failed_image_syncs: failed_image_sync_queue.clone(),
             });
-            tracing::info!("AppState successfully managed by Tauri. Thread pool restricted to {}", pool_size);
+            tracing::info!("[APP] ⚙️ AppState successfully managed by Tauri. Thread pool restricted to {}", pool_size);
 
             #[cfg(test)]
             crate::backup_tests_module_trigger();
@@ -214,7 +214,7 @@ fn main() {
 
                         match backup_res {
                             Ok(Ok(_)) => {
-                                tracing::info!("Automatic database backup successful.");
+                                tracing::info!("[BACKUP] ✅ Automatic database backup successful.");
                                 let mut next_settings = None;
                                 {
                                     if let Ok(mut settings) = backup_settings_arc.write() {
@@ -233,7 +233,7 @@ fn main() {
                                 }
                             }
                             Ok(Err(e)) => {
-                                tracing::error!("Automatic database backup failed: {}", e);
+                                tracing::error!("[BACKUP] 🚨 Automatic database backup failed: {}", e);
                                 let fail_ts = chrono::Utc::now().timestamp();
                                 let mut next_settings = None;
                                 {
@@ -307,7 +307,7 @@ fn main() {
                                 if let Err(e) = crate::settings::save_settings(&settings) {
                                     tracing::error!("Failed to save debounced settings: {}", e);
                                 } else {
-                                    tracing::info!("Settings successfully saved to disk.");
+                                    tracing::info!("[APP] ⚙️ Settings successfully saved to disk.");
                                 }
                             }
                         }
@@ -611,6 +611,7 @@ fn main() {
             commands::update_media_rating,
             commands::export_database,
             commands::prepare_restore,
+            commands::frontend_log,
             vlc::play_episode_cmd,
         ])
         .run(tauri::generate_context!())
