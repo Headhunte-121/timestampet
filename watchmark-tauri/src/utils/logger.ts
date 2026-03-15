@@ -39,5 +39,8 @@ export const logger = {
     inboxEdit: (oldQuery: string, newQuery: string) => console.log(`[INBOX] ⌨️ User manually edited the search query from '${oldQuery}' to '${newQuery}'.`),
     inboxMatch: (tmdbId: string | number) => console.log(`[INBOX] 🖱️ User clicked '1-Click Match' for TMDB ID: ${tmdbId}.`),
     inboxSuccess: (count: number, showName: string) => console.log(`[INBOX] ✅ Successfully linked ${count} local files to '${showName}'. Removing from Inbox.`),
-    inboxIgnore: (msg: string) => console.log(`[INBOX] 🗑️ User clicked 'Ignore'. Blacklisting folder path: ${msg}.`)
+    inboxIgnore: (msg: string) => console.log(`[INBOX] 🗑️ User clicked 'Ignore'. Blacklisting folder path: ${msg}.`),
+
+    // 7. General Debug
+    debug: (msg: string) => console.log(`[DEBUG] 🐛 ${msg}`)
 };

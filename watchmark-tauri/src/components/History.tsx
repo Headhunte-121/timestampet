@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
@@ -38,6 +39,7 @@ export default function History() {
 
   const handleLoadMore = () => {
     if (!loading && hasMore) {
+      logger.click(`'Load More' History (Page ${page + 1})`);
       loadHistory(page + 1);
     }
   };

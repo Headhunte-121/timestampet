@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -79,7 +80,10 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                 }}
                 whileHover={isCinemaMode ? { scale: 1.05, y: -5 } : {}}
                 className="relative w-full aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group shadow-xl transform-gpu"
-                onClick={() => onMediaSelect(item.id)}
+                onClick={() => {
+                    logger.click(`Library Item: ${item.title} (Media ID: ${item.id})`);
+                    onMediaSelect(item.id);
+                }}
               >
             <div className="absolute inset-0 w-full h-full">
               <SafeImage
