@@ -128,14 +128,19 @@ pub async fn search_media(api_key: &str, query: &str, page: u32) -> Result<Vec<V
                 "synopsis".to_string(),
                 Value::String(crate::sanitizer::sanitize_text(item["overview"].as_str().unwrap_or(""), "No overview available.")),
             );
-            obj.insert(
-                "poster_path".to_string(),
-                Value::String(item["poster_path"].as_str().unwrap_or("").to_string()),
-            );
-            obj.insert(
-                "backdrop_path".to_string(),
-                Value::String(item["backdrop_path"].as_str().unwrap_or("").to_string()),
-            );
+            let poster = item["poster_path"].as_str().unwrap_or("");
+            if poster.is_empty() {
+                obj.insert("poster_path".to_string(), Value::Null);
+            } else {
+                obj.insert("poster_path".to_string(), Value::String(poster.to_string()));
+            }
+
+            let backdrop = item["backdrop_path"].as_str().unwrap_or("");
+            if backdrop.is_empty() {
+                obj.insert("backdrop_path".to_string(), Value::Null);
+            } else {
+                obj.insert("backdrop_path".to_string(), Value::String(backdrop.to_string()));
+            }
 
             let release_date = if item_media_type == "tv" {
                 item["first_air_date"].as_str()
@@ -206,14 +211,19 @@ pub async fn get_media_details(
         "synopsis".to_string(),
         Value::String(crate::sanitizer::sanitize_text(r["overview"].as_str().unwrap_or(""), "No overview available.")),
     );
-    obj.insert(
-        "poster_path".to_string(),
-        Value::String(r["poster_path"].as_str().unwrap_or("").to_string()),
-    );
-    obj.insert(
-        "backdrop_path".to_string(),
-        Value::String(r["backdrop_path"].as_str().unwrap_or("").to_string()),
-    );
+    let poster = r["poster_path"].as_str().unwrap_or("");
+    if poster.is_empty() {
+        obj.insert("poster_path".to_string(), Value::Null);
+    } else {
+        obj.insert("poster_path".to_string(), Value::String(poster.to_string()));
+    }
+
+    let backdrop = r["backdrop_path"].as_str().unwrap_or("");
+    if backdrop.is_empty() {
+        obj.insert("backdrop_path".to_string(), Value::Null);
+    } else {
+        obj.insert("backdrop_path".to_string(), Value::String(backdrop.to_string()));
+    }
 
     // Flatten genres
     let genres = r["genres"]
@@ -392,10 +402,12 @@ pub async fn get_tv_season_episodes(
             "runtime".to_string(),
             Value::Number(serde_json::Number::from(tmdb_ep.runtime)),
         );
-        obj.insert(
-            "still_path".to_string(),
-            Value::String(tmdb_ep.still_path.unwrap_or("".to_string())),
-        );
+        let still = tmdb_ep.still_path.unwrap_or("".to_string());
+        if still.is_empty() {
+            obj.insert("still_path".to_string(), Value::Null);
+        } else {
+            obj.insert("still_path".to_string(), Value::String(still));
+        }
         let raw_air_date = tmdb_ep.air_date.unwrap_or("".to_string());
         let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
         obj.insert(
