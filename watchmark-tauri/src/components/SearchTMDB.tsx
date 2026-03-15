@@ -112,7 +112,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
                           const { open } = await import('@tauri-apps/plugin-shell');
                           await open("https://www.themoviedb.org/settings/api");
                       } catch (e) {
-                          console.error("Failed to open URL:", e);
+                          logger.error("Failed to open URL", e);
                       }
                   }}
                   className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl transition-colors"

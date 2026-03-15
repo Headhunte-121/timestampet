@@ -22,7 +22,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
       .then((res: any) => {
         if (res) setData(res);
       })
-      .catch(console.error);
+      .catch(e => logger.error("Failed to fetch library data", e));
   }, [type, sortBy, hideCompleted, refreshTrigger, asyncInvoke]);
 
   const sortOptions = ["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated", "Sort by TMDB Rating"];
