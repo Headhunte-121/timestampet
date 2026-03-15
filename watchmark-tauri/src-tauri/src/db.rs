@@ -486,6 +486,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
 
     if user_version < 14 {
         let tx = conn.transaction()?;
+
         let v14_migrations = vec![
             "ALTER TABLE Media ADD COLUMN collection_id INTEGER",
             "ALTER TABLE Media ADD COLUMN collection_name TEXT",
@@ -497,6 +498,43 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
                 }
             }
         }
+
+        // To enforce the composite UNIQUE constraint on existing DBs, we must recreate the table
+        tx.execute(
+            "CREATE TABLE IF NOT EXISTS Media_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tmdb_id TEXT,
+                \"type\" TEXT NOT NULL DEFAULT 'TV',
+                \"title\" TEXT,
+                synopsis TEXT,
+                poster_path TEXT,
+                backdrop_path TEXT,
+                total_episodes INTEGER,
+                status TEXT,
+                vote_average REAL DEFAULT 0.0,
+                user_rating INTEGER CHECK(user_rating >= 0 AND user_rating <= 10) DEFAULT NULL,
+                release_date TEXT,
+                is_exact_date BOOLEAN DEFAULT 1,
+                genres TEXT DEFAULT '',
+                networks TEXT DEFAULT '',
+                collection_id INTEGER,
+                collection_name TEXT,
+                UNIQUE(tmdb_id, \"type\")
+            )",
+            (),
+        )?;
+
+        // Use INSERT OR IGNORE to handle cases where there are already duplicate tmdb_id + type
+        tx.execute(
+            "INSERT OR IGNORE INTO Media_new SELECT * FROM Media",
+            (),
+        )?;
+
+        tx.execute("DROP TABLE Media", ())?;
+        tx.execute("ALTER TABLE Media_new RENAME TO Media", ())?;
+        tx.execute("CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)", ())?;
+        tx.execute("CREATE INDEX IF NOT EXISTS idx_media_tmdb_rating ON Media(vote_average)", ())?;
+
         tx.execute("PRAGMA user_version = 14", ())?;
         tx.commit()?;
     }
