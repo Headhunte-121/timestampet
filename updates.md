@@ -432,3 +432,15 @@ Implemented global rate limit management and staggered iterative background fetc
 * **6.7 Modern Inter sans-serif font family integration**: Added `.tabular-nums` class and confirmed standard anti-aliasing behavior in `index.css`. Tailwind is already configured correctly for the `Inter` font stack.
 * **6.10 Custom thin, dark styled scrollbars**: Upgraded `::-webkit-scrollbar` with a 6px layout. Implemented `rgba(42, 45, 53, 0.4)` pseudo-opacity on the thumb track so it blends over the `#0D0F14` background cleanly, transitioning to the primary orange `#FF6B00` on hover.
 * **6.11 Lucide-React high-fidelity vector icon integration**: Created centralized `Icon.tsx` component wrapper for all Lucide-React icons that strictly sets `strokeWidth=1.5` and `aria-hidden=true` to maintain globally consistent crisp stroke weights. Added `mix-blend-mode: multiply` edge case fallback to `img` CSS rules.
+
+### Update: Frontend Plain-English Logging Blueprint Implementation
+
+**Summary:**
+Implemented a centralized, plain-English logging blueprint for the React frontend to replace all messy `console.log` statements with clear, story-like outputs categorizing user actions, navigation, IPC communication, state changes, and errors.
+
+**Core Features Implemented:**
+- **Centralized Logger Utility (`src/utils/logger.ts`):** Created a lightweight module that exports specific logging functions (e.g., `app`, `navTo`, `click`, `ipcSend`, `error`) prefixed with distinct tags and emojis (e.g., `[ACTION] 🖱️`, `[IPC: SUCCESS] ✨`).
+- **Native Browser Method Mapping:** Mapped `[ACTION]` and `[NAV]` logs to `console.info()`, `[ERROR]` to `console.error()`, and all other standard events to `console.log()`.
+- **Smart Payload Handling:** Enforced strict plain-text strings for all standard logs to prevent console clutter. Only the `logger.error` function natively appends the raw error object for debugging stack traces.
+- **Automatic IPC Logging:** Integrated the logger directly into the `useAsyncInvoke` hook. The hook now automatically triggers `logger.ipcSend` on call, `logger.ipcCancel` on unmount/abort, and `logger.ipcSuccess` upon resolution, ensuring 100% logging coverage for backend communication without repetitive component code.
+- **Global Log Purge:** Systematically removed all pre-existing raw `console.*` statements across `src/components`, `src/store`, and `src/utils`, replacing them with appropriate `logger.*` functions to guarantee a continuous, clean script of frontend activity.
