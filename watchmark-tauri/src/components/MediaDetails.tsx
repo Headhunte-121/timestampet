@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect, useRef } from "react";
@@ -178,10 +179,12 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               <StarRating
                 rating={data.user_rating}
                 onChange={(rating) => {
+                  logger.click(`'Rating' changed to ${rating} stars`);
                   setData((prev: any) => ({ ...prev, user_rating: rating }));
+                  logger.ipcSend("update_media_rating", `Rating ${rating}`);
                   invoke("update_media_rating", { mediaId: data.id, rating })
-                    .catch((err) => {
-                      console.error("Failed to update rating:", err);
+                    .catch((err: any) => {
+                      logger.error("Rating Update Failed", err);
                       toast.error("Failed to update rating");
                     });
                 }}
@@ -230,6 +233,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     toast.error("API Key required to refresh data.");
                     return;
                 }
+                logger.click(`'Refresh Data' for '${data.title}'`);
                 setIsRefreshing(true);
                 try {
                   await asyncInvoke("add_to_tracker", {
@@ -238,9 +242,13 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     archive: false
                   });
                   const res: any = await asyncInvoke("get_media_details_db", { mediaId });
-                  if (res) setData(res);
+                  if (res) {
+                      setData(res);
+                      logger.ipcSuccess(`Metadata Refreshed from TMDB for '${data.title}'.`);
+                  }
                   toast.success("Data Refreshed Successfully");
-                } catch (e) {
+                } catch (e: any) {
+                  logger.error("Metadata Refresh Failed", e);
                   toast.error(`Refresh Failed: ${e}`);
                 } finally {
                   setIsRefreshing(false);
@@ -262,17 +270,25 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                 <Clock className="w-5 h-5" /> 📅 Coming Soon
               </div>
             ) : (
-              <button className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all shadow-lg shadow-orange-500/20 hover:scale-105">
+              <button
+                onClick={() => toast.success("Play Next algorithm is not implemented yet. Scroll down to play an episode.")}
+                className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all shadow-lg shadow-orange-500/20 hover:scale-105"
+              >
+               
                 <Icon icon={Play} fill="currentColor" /> Play Next
               </button>
             )}
             <button
               onClick={async () => {
+                logger.click(`'Mark Season Watched' for Season ${activeSeason}`);
+                logger.ipcSend("mark_season_watched", `Season ${activeSeason}`);
                 try {
                   await invoke("mark_season_watched", { mediaId, seasonNum: activeSeason, archiveMode: false });
+                  logger.ipcSuccess(`Marked Season ${activeSeason} as Watched.`);
                   asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
                   toast.success(`Marked Season ${activeSeason} as Watched`);
-                } catch (e) {
+                } catch (e: any) {
+                  logger.error("Mark Season Watched Failed", e);
                   toast.error(`Failed: ${e}`);
                 }
               }}
@@ -282,6 +298,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <button
               onClick={async () => {
                 if (isAnimatingRef.current) return;
+                logger.click(`'Remove from Library' for '${data.title}'`);
                 try {
                   const historyCount = await invoke<number>("get_media_history_count", { mediaId });
                   let warningMessage = "Are you sure you want to remove this show? This action cannot be undone.";
@@ -296,15 +313,18 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     try {
                       // We push this to the background queue, and wait for the event listener to transition back
                       await invoke("delete_media_cmd", { mediaId });
-                    } catch (e) {
+                      logger.ipcSuccess(`'${data.title}' removal task enqueued.`);
+                    } catch (e: any) {
                       setProcessing(false);
-                      console.error("Failed to enqueue delete media task:", e);
+                      logger.error("Failed to enqueue delete media task", e);
                       toast.error("Failed to start deletion.");
                       isAnimatingRef.current = false;
                     }
+                  } else {
+                      logger.action(`User cancelled 'Remove Show'`);
                   }
-                } catch (e) {
-                  console.error("Failed to get history count:", e);
+                } catch (e: any) {
+                  logger.error("Failed to get history count", e);
                   toast.error("Failed to check media history.");
                 }
               }}
@@ -374,10 +394,12 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     ) : (
                       <button
                         onClick={async () => {
+                          logger.click(`'Play' on Episode S${ep.season_num}E${ep.ep_num}`);
                           if (ep.file_path) {
                             try {
                                 const validation: any = await invoke("validate_and_hash_file", { episodeId: ep.id, filePath: ep.file_path });
                                 if (validation.status === "missing" || validation.status === "corrupted") {
+                                    logger.error("Playback Failed", `File is ${validation.status}`);
                                     toast.error(`File is ${validation.status}.`, {
                                         action: {
                                             label: "Locate",
@@ -453,10 +475,14 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     <button
                       onClick={async (e) => {
                         e.stopPropagation();
+                        logger.click(`'Toggle Status' on Episode S${ep.season_num}E${ep.ep_num}`);
+                        logger.ipcSend("toggle_episode_status", `Episode ${ep.id}`);
                         try {
                           await invoke("toggle_episode_status", { episodeId: ep.id });
+                          logger.ipcSuccess(`Episode status toggled.`);
                           asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
-                        } catch (err) {
+                        } catch (err: any) {
+                          logger.error("Episode Toggle Failed", err);
                           toast.error(`Failed to update status: ${err}`);
                         }
                       }}
@@ -490,11 +516,14 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           <button
             className="w-full text-left px-4 py-2 hover:bg-white/10 text-red-400 text-sm flex items-center gap-2"
             onClick={async () => {
+              logger.click(`'Unlink Local File' context menu for Episode ${contextMenu.epId}`);
               try {
                 await invoke("remove_local_link", { episodeId: contextMenu.epId });
+                logger.ipcSuccess(`Local link removed from Episode ${contextMenu.epId}.`);
                 toast.success("Local link removed.");
                 asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
-              } catch (e) {
+              } catch (e: any) {
+                logger.error("Remove Link Failed", e);
                 toast.error(`Failed to remove link: ${e}`);
               }
             }}

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { invokeWithTimeout } from '../utils/ipc';
+import { logger } from '../utils/logger';
 
 export function useAsyncInvoke() {
   const isMounted = useRef(true);
@@ -27,13 +28,29 @@ export function useAsyncInvoke() {
       enhancedArgs = { ...args, requestId: request_id };
     }
 
+    // Generate context string for better logging
+    const contextStr = Object.keys(args).length > 0
+      ? JSON.stringify(args).substring(0, 50) + (JSON.stringify(args).length > 50 ? '...' : '')
+      : 'no args';
+
+    logger.ipcSend(cmd, contextStr, isCancelable ? request_id : undefined);
+
     try {
       const result = await invokeWithTimeout<T>(cmd, enhancedArgs, timeoutMs);
+
       if (isMounted.current) {
+        if (Array.isArray(result)) {
+            logger.ipcSuccess(`Received ${result.length} items from '${cmd}'.`);
+        } else if (result && typeof result === 'object') {
+            logger.ipcSuccess(`Received data object from '${cmd}'.`);
+        } else {
+            logger.ipcSuccess(`'${cmd}' completed successfully.`);
+        }
         return result;
       } else {
         // Unmounted before promise resolved
         if (isCancelable) {
+            logger.ipcCancel(request_id, "User left the page");
             invoke('cancel_task', { requestId: request_id }).catch(console.error);
         }
         return null; // Silently discard
@@ -42,10 +59,14 @@ export function useAsyncInvoke() {
       // If unmounted, we don't care about the error bubbling up to state either
       if (!isMounted.current) {
         if (isCancelable) {
+          logger.ipcCancel(request_id, "User left the page during failure");
           invoke('cancel_task', { requestId: request_id }).catch(console.error);
         }
         return null;
       }
+
+      const errorStr = e && typeof e === 'object' && e.message ? e.message : String(e);
+      logger.error(`Command '${cmd}' failed`, errorStr);
       throw e;
     }
   }, []);

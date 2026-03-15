@@ -2,6 +2,7 @@ import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Tv, Clapperboard } from "lucide-react";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
+import { logger } from "../utils/logger";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAppStore } from "../store/useAppStore";
@@ -40,6 +41,13 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
         setResults([]);
         return;
     }
+
+    if (pageNum === 1) {
+        logger.input(`Search Bar for '${searchQuery}'`);
+    } else {
+        logger.action(`Scrolling for more results (Page ${pageNum})`);
+    }
+
     setLoading(true);
     try {
       const res: any = await asyncInvoke("perform_tmdb_search", { query: searchQuery, page: pageNum });
@@ -56,8 +64,10 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
         }
         setHasMore(res.length > 0);
       }
-    } catch (e) {
-      toast.error("Search failed: " + e);
+    } catch (e: any) {
+      const errStr = typeof e === 'object' && e.message ? e.message : String(e);
+      logger.error("TMDB Search Failed", errStr);
+      toast.error("Search failed: " + errStr);
     } finally {
       setLoading(false);
     }
@@ -177,16 +187,20 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
 
               <button
                 onClick={() => {
+                  logger.click(`'+ Add to Tracker' for '${item.title}'`);
                   setLoading(true);
                   asyncInvoke("add_to_tracker", {
                     tmdbId: item.tmdb_id,
                     mediaType: item.type,
                     archive: false
                   }).then(() => {
+                    logger.ipcSuccess(`'${item.title}' added successfully.`);
                     toast.success("Added to Tracker!");
                     setLoading(false);
                   }).catch((e: any) => {
-                    toast.error("Error: " + e);
+                    const errStr = typeof e === 'object' && e.message ? e.message : String(e);
+                    logger.error("Add to Tracker Failed", errStr);
+                    toast.error("Error: " + errStr);
                     setLoading(false);
                   });
                 }}

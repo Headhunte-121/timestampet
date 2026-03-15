@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
+import { logger } from '../utils/logger';
 
 interface AppState {
   isCinemaMode: boolean;
@@ -24,6 +25,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (get().initialized) return;
     try {
       const settings: any = await invoke('get_settings');
+      logger.settings("Loaded user settings from backend.");
       // If the backend has a value, use it. If not, fallback to true but check reduced motion.
       let mode = true;
       if (settings && typeof settings.cinema_mode === 'boolean') {

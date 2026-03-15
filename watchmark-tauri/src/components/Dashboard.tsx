@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
@@ -171,11 +172,18 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             <div className="flex items-center gap-4">
               <button
                 onClick={() => {
+                  logger.click(`'Resume' on Hero (${data.hero_ep!.show_title} S${data.hero_ep!.season_num}E${data.hero_ep!.ep_num})`);
+                  logger.ipcSend("play_episode_cmd", `Episode ${data.hero_ep!.id}`);
                   invoke("play_episode_cmd", {
                     episodeId: data.hero_ep!.id,
                     filePath: data.hero_ep!.file_path,
                     lastPosition: data.hero_ep!.last_position,
-                  }).catch(alert);
+                  }).then(() => {
+                    logger.ipcSuccess("VLC successfully launched. Waiting for heartbeat...");
+                  }).catch(e => {
+                    logger.error("VLC Launch Failed", e);
+                    alert(e);
+                  });
                 }}
                 disabled={!data.hero_ep.file_path}
                 className={`flex items-center gap-2 px-8 py-3 rounded-lg font-bold transition-all duration-300 ${
@@ -193,7 +201,10 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                 )}
               </button>
               <button
-                onClick={() => onMediaSelect(data.hero_ep!.media_id)}
+                onClick={() => {
+                    logger.click(`'More Info' for Hero (${data.hero_ep!.show_title})`);
+                    onMediaSelect(data.hero_ep!.media_id);
+                }}
                 className="px-8 py-3 rounded-lg font-bold bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all duration-300 hover:scale-105"
               >
                 More Info
@@ -247,7 +258,10 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   animate={{ opacity: 1, scale: 1 }}
                   exit={isCinemaMode ? { opacity: 0, scale: 0.9, width: 0, marginLeft: -24 } : { opacity: 0 }}
                   transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}
-                  onClick={() => onMediaSelect(ep.media_id)}
+                  onClick={() => {
+                      logger.click(`Continue Watching: ${ep.show_title} (Media ID: ${ep.media_id})`);
+                      onMediaSelect(ep.media_id);
+                  }}
                   whileHover={isCinemaMode ? { scale: 1.02 } : {}}
                   className="flex-none min-w-[320px] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative transform-gpu"
                 >
@@ -269,11 +283,18 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        logger.click(`Play on CW item (${ep.show_title} S${ep.season_num}E${ep.ep_num})`);
+                        logger.ipcSend("play_episode_cmd", `Episode ${ep.id}`);
                         invoke("play_episode_cmd", {
                           episodeId: ep.id,
                           filePath: ep.file_path,
                           lastPosition: ep.last_position,
-                        }).catch(alert);
+                        }).then(() => {
+                           logger.ipcSuccess("VLC successfully launched. Waiting for heartbeat...");
+                        }).catch(err => {
+                           logger.error("VLC Launch Failed", err);
+                           alert(err);
+                        });
                       }}
                       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-[#FF6B00] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 z-20 hover:bg-[#E66000]"
                     >
@@ -325,7 +346,10 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   animate={{ opacity: 1, scale: 1 }}
                   exit={isCinemaMode ? { opacity: 0, scale: 0.9, width: 0, marginLeft: -16 } : { opacity: 0 }}
                   transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}
-                  onClick={() => onMediaSelect(media.id)}
+                  onClick={() => {
+                      logger.click(`Recent Additions: ${media.title} (Media ID: ${media.id})`);
+                      onMediaSelect(media.id);
+                  }}
                   whileHover={isCinemaMode ? { scale: 1.05, zIndex: 10 } : {}}
                   className="relative flex-none w-[140px] md:w-[160px] lg:w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-shadow duration-300 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A] transform-gpu"
                 >
