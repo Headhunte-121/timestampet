@@ -81,3 +81,28 @@ pub fn calculate_progress_percentage(last_position: i32, runtime: i32) -> f64 {
         progress
     }
 }
+
+pub fn verify_image_header(path: &std::path::Path) -> bool {
+    use std::io::Read;
+    let mut file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+
+    let mut buffer = [0u8; 8];
+    if file.read_exact(&mut buffer).is_err() {
+        return false;
+    }
+
+    // JPEG magic bytes: FF D8 FF
+    if buffer[0] == 0xFF && buffer[1] == 0xD8 && buffer[2] == 0xFF {
+        return true;
+    }
+
+    // PNG magic bytes: 89 50 4E 47
+    if buffer[0] == 0x89 && buffer[1] == 0x50 && buffer[2] == 0x4E && buffer[3] == 0x47 {
+        return true;
+    }
+
+    false
+}

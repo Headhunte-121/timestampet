@@ -1,7 +1,7 @@
 use crate::network::NetworkManager;
 use crate::error::AppError;
 use reqwest_middleware::Error as MiddlewareError;
-use reqwest::{Client, Error as ReqwestError};
+use reqwest::Error as ReqwestError;
 
 #[tokio::test]
 async fn test_https_enforcement() {

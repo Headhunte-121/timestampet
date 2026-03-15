@@ -1,17 +1,16 @@
 use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use tokio::sync::mpsc;
 use std::collections::HashMap;
-use serde_json::Value;
 
-use crate::commands::{validate_tmdb_key, AppState};
+use crate::commands::AppState;
 use crate::models::Settings;
 
 #[tokio::test]
 async fn test_feature_3_2_api_key_sanitization() {
     let settings = Arc::new(RwLock::new(Settings::default()));
     let (tx, _rx) = mpsc::channel(1);
-    let state = AppState {
+    let _state = AppState {
         settings,
         settings_tx: tx,
         db_queue: Arc::new(crate::task_queue::DbTaskQueue::new_for_tests()),
@@ -22,6 +21,7 @@ async fn test_feature_3_2_api_key_sanitization() {
         stats_cache: Arc::new(RwLock::new(None)),
         read_semaphore: Arc::new(tokio::sync::Semaphore::new(10)),
         cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
+        failed_image_syncs: Arc::new(RwLock::new(std::collections::HashSet::new())),
     };
 
     // Note: since validate_tmdb_key requires State, which requires tauri runtime injection,

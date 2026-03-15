@@ -9,9 +9,12 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   title?: string;
   fallbackSrcPath?: string;
   episodeNumber?: number;
+  releaseDate?: string;
+  isDateKnown?: boolean;
+  isExactDate?: boolean;
 }
 
-export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, className, title, fallbackSrcPath, episodeNumber, ...rest }) => {
+export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, className, title, fallbackSrcPath, episodeNumber, releaseDate, isDateKnown, isExactDate, ...rest }) => {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
@@ -52,13 +55,22 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
 
   if (hasError || !imgSrc) {
     if (type === 'poster') {
+      const year = isDateKnown
+        ? (isExactDate ? (releaseDate ? releaseDate.substring(0, 4) : '') : releaseDate)
+        : 'TBD';
+
       return (
         <div
-          className={`flex items-center justify-center bg-gradient-to-tr from-[#0D0F14] to-[#1F222A] border border-[#2A2D35] text-center p-4 rounded-xl ${className || ''}`}
+          className={`flex flex-col items-center justify-center bg-gradient-to-tr from-[#0D0F14] to-[#1F222A] border border-[#2A2D35] text-center p-4 rounded-xl ${className || ''}`}
         >
           <span className="text-white font-bold drop-shadow-md text-sm md:text-base leading-tight break-words">
             {title || altText || 'Unknown Title'}
           </span>
+          {year && (
+            <span className="text-gray-400 font-bold drop-shadow-md text-xs mt-2">
+              {year}
+            </span>
+          )}
         </div>
       );
     } else if (type === 'still') {

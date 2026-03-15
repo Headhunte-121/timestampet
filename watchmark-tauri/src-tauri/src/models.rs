@@ -314,6 +314,8 @@ pub struct Settings {
     pub last_backup_status: String,
     #[serde(default = "default_last_backup_error")]
     pub last_backup_error: String,
+    #[serde(default = "default_high_performance_mode")]
+    pub high_performance_mode: bool,
 }
 
 fn default_width() -> i32 { 1280 }
@@ -329,6 +331,7 @@ fn default_logging_level() -> String { "Info".to_string() }
 fn default_last_backup_timestamp() -> i64 { 0 }
 fn default_last_backup_status() -> String { "".to_string() }
 fn default_last_backup_error() -> String { "".to_string() }
+fn default_high_performance_mode() -> bool { false }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -349,6 +352,7 @@ impl Default for Settings {
             last_backup_timestamp: default_last_backup_timestamp(),
             last_backup_status: default_last_backup_status(),
             last_backup_error: default_last_backup_error(),
+            high_performance_mode: default_high_performance_mode(),
         }
     }
 }

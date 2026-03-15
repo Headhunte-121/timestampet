@@ -41,6 +41,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     x: 100,
     y: 100,
     cinema_mode: true,
+    high_performance_mode: false,
     language: "en-US",
     auto_complete_threshold: 90,
     binge_grouping_hours: 6,
@@ -474,6 +475,24 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                         setCinemaMode(e.target.checked);
                                         updateSetting('cinema_mode', e.target.checked);
                                     }}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FF6B00]"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">High Performance Mode</h3>
+                            <p className="text-xs text-gray-500 mt-1">Reduces initial load times by fetching smaller image sizes (e.g., w342 instead of w500).</p>
+                        </div>
+                        <div className="flex items-center h-full">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.high_performance_mode}
+                                    onChange={(e) => updateSetting('high_performance_mode', e.target.checked)}
                                     className="sr-only peer"
                                 />
                                 <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FF6B00]"></div>

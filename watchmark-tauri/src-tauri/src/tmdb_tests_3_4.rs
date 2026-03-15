@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests_feature_3_4 {
-    use crate::models::{Media, Episode, TmdbEpisode};
     use serde_json::json;
+    use crate::models::Media;
 
     #[test]
     fn test_type_mismatch_recovery() {
