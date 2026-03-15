@@ -25,8 +25,9 @@
     {
       "identifier": "fs:allow-read",
       "allow": [
-        { "path": "$APP_LOCAL_DATA/WatchMark/**" },
-        { "path": "$APPDATA/WatchMark/**" },
+        { "path": "$APP_LOCAL_DATA/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "C:\\Users\\**" },
         { "path": "**/*.mkv" },
         { "path": "**/*.mp4" },
         { "path": "**/*.avi" }
@@ -35,15 +36,16 @@
     {
       "identifier": "fs:allow-exists",
       "allow": [
-        { "path": "$APP_LOCAL_DATA/WatchMark/**" },
-        { "path": "$APPDATA/WatchMark/**" }
+        { "path": "$APP_LOCAL_DATA/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "C:\\Users\\**" }
       ]
     },
     {
       "identifier": "fs:allow-write",
       "allow": [
-        { "path": "$APP_LOCAL_DATA/WatchMark/**" },
-        { "path": "$APPDATA/WatchMark/**" }
+        { "path": "$APP_LOCAL_DATA/**" },
+        { "path": "$APPDATA/**" }
       ]
     }
   ]
