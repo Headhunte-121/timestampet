@@ -39,5 +39,15 @@ Whenever you finish implementing a specific task (referred to dynamically as `[T
 * Only run `cargo check` or `cargo test` to verify types and tests.
 * If testing is required, only run the specific test related to the change (e.g., `cargo test test_name`).
 
+
+### 7. Requirement Reconciliation & Integrity Audit
+Before submitting a Pull Request or marking a task as complete, you must perform a mandatory "Integrity Audit" to ensure zero feature loss and total compliance:
+
+*   **Cross-Reference Requirements:** Re-read the original user prompt line-by-line. Cross-reference every explicit instruction, "edge case," and "detailed plan" item against your implemented code. You are strictly prohibited from omitting any requested logic or skipping verification steps.
+*   **Audit for Regression:** Review all changes to ensure that new logic does not inadvertently remove or break features established in previous commits. If you refactor a function, you must carry over all existing functionality into the new implementation.
+*   **Enforce Project Standards:** Ensure all new and modified logic adheres to the established architectural patterns of the project (e.g., specific argument requirements, naming conventions, and error handling protocols).
+*   **Self-Correction:** If the audit reveals any missing requirements or inconsistent patterns, you must resolve them immediately before finalizing the documentation in `update.md` or `TestResult.md`.
+
+
 **Execution Trigger:** 
 Always perform these steps automatically before finalizing a commit or marking a prompt as fully complete. Do not ask for permission to do this; it is mandatory for every update.
