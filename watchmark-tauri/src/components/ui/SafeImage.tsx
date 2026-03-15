@@ -64,7 +64,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
     // Try to parse the source path. If it's a local path, use convertFileSrc.
     // If it's already an HTTP URL (e.g. from TMDB directly), use it as is.
     try {
-      if (srcPath.startsWith('http://') || srcPath.startsWith('https://')) {
+      if (srcPath.startsWith('http://') || srcPath.startsWith('https://') || srcPath.startsWith('asset.localhost') || srcPath.startsWith('asset://')) {
         setImgSrc(srcPath);
       } else {
         const fileUrl = convertFileSrc(srcPath);

@@ -311,8 +311,6 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           <motion.div layout className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
             <AnimatePresence mode="popLayout">
             {filteredRecent.map((media) => {
-              const imgUrl = media.poster_path ? formatImagePath(media.poster_path, "w500") : PLACEHOLDER_POSTER;
-
               return (
                 <motion.div
                   key={media.id}
@@ -325,9 +323,12 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   whileHover={isCinemaMode ? { scale: 1.05, zIndex: 10 } : {}}
                   className="relative flex-none w-[140px] md:w-[160px] lg:w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-shadow duration-300 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A] transform-gpu"
                 >
-                  <img
-                    src={imgUrl}
-                    alt={media.title || "Unknown Title"}
+                  <SafeImage
+                    srcPath={media.poster_path ? formatImagePath(media.poster_path, "w500") : ""}
+                    fallbackSrcPath={PLACEHOLDER_POSTER}
+                    type="poster"
+                    altText={media.title || "Unknown Title"}
+                    title={media.title}
                     className="w-full h-full object-cover"
                   />
 

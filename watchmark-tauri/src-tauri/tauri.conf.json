@@ -30,7 +30,7 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self' tauri: asset: localhost:*; img-src 'self' asset: https: data: localhost:*;",
       "assetProtocol": {
         "enable": true,
         "scope": [

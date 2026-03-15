@@ -17,6 +17,11 @@ export function formatImagePath(path: string | null | undefined, size: string = 
     return '';
   }
 
+  // Double Conversion Protection
+  if (path.startsWith('asset.localhost') || path.startsWith('http') || path.startsWith('asset://')) {
+    return path;
+  }
+
   // Check if it's an absolute local path
   // Windows: starts with a drive letter (e.g., C:\ or C:/) or a network share (\\)
   // Unix/Linux/macOS: starts with / and contains another / (to distinguish from TMDB paths like /xyz.jpg)
