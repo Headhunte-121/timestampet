@@ -186,7 +186,7 @@ pub struct AppState {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub fn cancel_task(request_id: String, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
     let mut tokens = state.cancel_tokens.write().unwrap();
     if let Some(token) = tokens.remove(&request_id) {
@@ -196,7 +196,7 @@ pub fn cancel_task(request_id: String, state: tauri::State<'_, AppState>) -> Res
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub async fn optimize_database(
     state: tauri::State<'_, AppState>,
 ) -> Result<(u64, u64), AppError> {
@@ -260,14 +260,14 @@ pub async fn optimize_database(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, AppError> {
     let settings = state.settings.read().unwrap();
     Ok(settings.clone())
 }
 
 #[tauri::command]
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 pub fn repair_paths(old_root: String, new_root: String) -> Result<i32, AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;
@@ -280,7 +280,7 @@ pub fn repair_paths(old_root: String, new_root: String) -> Result<i32, AppError>
 }
 
 #[tauri::command]
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 pub fn remove_local_link(episode_id: i32) -> Result<(), AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;
@@ -290,7 +290,7 @@ pub fn remove_local_link(episode_id: i32) -> Result<(), AppError> {
 }
 
 #[tauri::command]
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 pub async fn validate_and_hash_file(episode_id: i32, file_path: String) -> Result<Value, AppError> {
     let task = tokio::task::spawn_blocking(move || {
         handle_panic(|| {
@@ -327,7 +327,7 @@ pub async fn validate_and_hash_file(episode_id: i32, file_path: String) -> Resul
 }
 
 #[tauri::command]
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 pub fn update_local_file(episode_id: i32, new_path: String) -> Result<(), AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;
@@ -341,7 +341,7 @@ pub fn update_local_file(episode_id: i32, new_path: String) -> Result<(), AppErr
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub async fn validate_tmdb_key(key: String, state: tauri::State<'_, AppState>) -> Result<serde_json::Value, AppError> {
     // Sanitize the key
     let sanitized_key = key.trim().chars().filter(|c| c.is_alphanumeric()).collect::<String>();
@@ -394,7 +394,7 @@ pub async fn validate_tmdb_key(key: String, state: tauri::State<'_, AppState>) -
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(settings, state))]
 pub async fn save_settings(
     settings: Settings,
     state: tauri::State<'_, AppState>,
@@ -413,7 +413,7 @@ pub async fn save_settings(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub async fn update_log_settings(
     global_level: String,
     module_settings: HashMap<String, String>,
@@ -445,7 +445,7 @@ pub async fn update_log_settings(
 }
 
 #[tauri::command]
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 pub async fn get_available_modules() -> Result<HashMap<String, String>, AppError> {
     let mut map = HashMap::new();
 
@@ -462,7 +462,7 @@ pub async fn get_available_modules() -> Result<HashMap<String, String>, AppError
 }
 
 #[tauri::command]
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 pub fn get_media_history_count(media_id: i32) -> Result<i32, AppError> {
     handle_panic(|| {
         let conn = crate::db::get_readonly_connection()?;
@@ -476,7 +476,7 @@ pub fn get_media_history_count(media_id: i32) -> Result<i32, AppError> {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app, state))]
 pub fn delete_media_cmd(
     media_id: i32,
     app: tauri::AppHandle,
@@ -574,7 +574,7 @@ pub fn validate_and_stage_restore(backup_path: &std::path::Path, app_dir: &std::
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(app_handle))]
+#[tracing::instrument(level = "debug", skip(app_handle))]
 pub async fn prepare_restore(
     backup_path: String,
     app_handle: tauri::AppHandle,
@@ -595,7 +595,7 @@ pub async fn prepare_restore(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub async fn export_database(
     target_path: String,
     state: tauri::State<'_, AppState>,
@@ -626,7 +626,7 @@ pub async fn export_database(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app, state))]
 pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
     let mut backdrop_size = "w1280".to_string();
     if let Ok(Some(monitor)) = app.primary_monitor() {
@@ -837,7 +837,7 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app, state))]
 pub async fn add_to_tracker(
     tmdb_id: String,
     media_type: String,
@@ -1461,7 +1461,7 @@ pub async fn add_to_tracker(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: bool, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
     if let Ok(mut cache) = state.stats_cache.write() {
         *cache = None;
@@ -1509,7 +1509,7 @@ pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: b
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app, state))]
 pub async fn archive_season(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
@@ -1595,7 +1595,7 @@ pub async fn archive_season(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app, state))]
 pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
@@ -1957,7 +1957,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app, state))]
 pub async fn get_library_data(
     request_id: String,
     media_type: String,
@@ -2124,7 +2124,7 @@ pub async fn get_library_data(
 }
 
 #[tauri::command]
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 pub fn clear_unmatched_files() -> Result<(), AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;
@@ -2135,7 +2135,7 @@ pub fn clear_unmatched_files() -> Result<(), AppError> {
 }
 
 #[tauri::command]
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
     handle_panic(|| {
         // Must use read_write since it auto-prunes
@@ -2206,7 +2206,7 @@ pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Option<u32>, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
@@ -2371,7 +2371,7 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app_handle, state))]
 pub async fn run_scan_directory(
     app_handle: tauri::AppHandle,
     directory: String,
@@ -2396,7 +2396,7 @@ pub async fn run_scan_directory(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app, state))]
 pub async fn perform_tmdb_search(request_id: String, query: String, page: Option<u32>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
     if !state.is_api_authorized.load(Ordering::SeqCst) {
         return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
@@ -2467,7 +2467,7 @@ pub async fn perform_tmdb_search(request_id: String, query: String, page: Option
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(app, state))]
 pub async fn assign_unmatched_to_tracker(
     request_id: String,
     tmdb_id: String,
@@ -3166,7 +3166,7 @@ pub async fn assign_unmatched_to_tracker(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub fn toggle_episode_status(episode_id: i32, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
     handle_panic(std::panic::AssertUnwindSafe(|| {
         let conn = get_db_connection()?;
@@ -3237,7 +3237,7 @@ mod commands_tests_episodes;
 mod commands_tests_feature_3_6;
 
 #[tauri::command]
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(level = "debug", skip(state))]
 pub async fn update_media_rating(
     state: tauri::State<'_, AppState>,
     media_id: i32,

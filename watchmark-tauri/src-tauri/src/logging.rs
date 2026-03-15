@@ -76,7 +76,7 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
                 .with_target(true)
                 .with_thread_ids(false)
                 .with_thread_names(false)
-                .with_span_events(span_events.clone())
+                .compact() // Cleaner English-focused terminal output
         )
         .with(
             fmt::layer()
@@ -85,7 +85,7 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
                 .with_ansi(false)
                 .with_thread_ids(true)
                 .with_thread_names(true)
-                .with_span_events(span_events.clone())
+                .with_span_events(span_events) // Keep full detailed metrics for file logging
         );
 
     // If this fails, it might mean another subscriber was already set. We can ignore in tests,
