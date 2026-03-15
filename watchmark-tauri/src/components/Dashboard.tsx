@@ -237,7 +237,6 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
 
               const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
               const fallbackUrl = ep.backdrop_path ? formatImagePath(ep.backdrop_path, "w500") : PLACEHOLDER_BACKDROP;
-              console.log(`Show Title: ${ep.show_title || "Unknown Show"} | Image URL being used: ${stillUrl || fallbackUrl}`);
 
               return (
                 <motion.div
@@ -316,7 +315,6 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             <AnimatePresence mode="popLayout">
             {filteredRecent.map((media) => {
               const posterUrl = media.poster_path ? formatImagePath(media.poster_path, "w500") : "";
-              console.log(`Show Title: ${media.title || "Unknown Title"} | Image URL being used: ${posterUrl}`);
 
               return (
                 <motion.div

@@ -338,7 +338,6 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => {
              const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
              const fallbackUrl = data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : "";
-             console.log(`Show Title: ${ep.title || "Unknown Episode"} | Image URL being used: ${stillUrl || fallbackUrl}`);
              return (
                <div
                  key={ep.id}
