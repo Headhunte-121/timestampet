@@ -1776,7 +1776,7 @@ pub async fn get_library_data(
                     collection_id: row.get::<_, Option<i32>>(15)?,
                     collection_name: row.get::<_, Option<String>>(16)?,
                     completed_eps: row.get::<_, Option<i32>>(17)?.unwrap_or(0),
-                    last_watched: row.get::<_, Option<String>>(18)?.unwrap_or_default(),
+                    last_watched: row.get::<_, Option<i64>>(18)?.map(|v| v.to_string()).unwrap_or_default(),
                     min_year: row.get::<_, Option<String>>(19)?.unwrap_or_default(),
                     max_year: row.get::<_, Option<String>>(20)?.unwrap_or_default(),
                     collection_parts: None,
