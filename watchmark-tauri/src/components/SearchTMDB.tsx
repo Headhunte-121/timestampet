@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAppStore } from "../store/useAppStore";
 import { cn } from "../App";
+import { SafeImage } from "./ui/SafeImage";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -159,17 +160,13 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
               )}
             </div>
 
-            {item.poster_path ? (
-              <img
-                src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
-                alt={item.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center p-4 text-center text-gray-500 font-bold bg-[#15171e]">
-                {item.title}
-              </div>
-            )}
+            <SafeImage
+              srcPath={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : ""}
+              type="poster"
+              title={item.title}
+              altText={item.title}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            />
 
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 z-20">
               <h3 className="text-white font-bold leading-tight mb-1 line-clamp-2">{item.title}</h3>

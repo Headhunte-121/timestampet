@@ -290,3 +290,15 @@
 | Ensure `cargo test` passes and `AppState` mock instances compile | Rust Unit Tests (`cargo test`) | Pass |
 | Ensure `is_api_authorized` and `db_queue` mutation compiles safely in a `'static` background thread | Rust Compiler Check | Pass |
 | Ensure unused code warnings for `models.rs` and other warnings are addressed | Rust Compiler Warnings | Pass |
+
+## TODO [Feature 3.4]
+| Test Case | Method | Result |
+| :--- | :--- | :--- |
+| *Type Mismatch Recovery (String ID)* | *Rust Unit Test (src/tmdb_tests_3_4.rs)* | *Pass* |
+| *Column Parity Check* | *Rust Unit Test (src/tmdb_tests_3_4.rs)* | *Pass* |
+| *The "Silent" Japanese Import (Empty English Overview)* | *Rust Unit Test (src/tmdb_tests_3_4.rs)* | *Pass* |
+| *Spaces-Only Synopsis Check* | *Rust Unit Test (src/tmdb_tests_3_4.rs)* | *Pass* |
+| *Massive Genre List Flattening* | *Rust Unit Test (src/tmdb_tests_3_4.rs)* | *Pass* |
+| *Empty Metadata Array Flattening* | *Rust Unit Test (src/tmdb_tests_3_4.rs)* | *Pass* |
+| *Daily Show Stress Test (RAM limits)* | *Rust Unit Test (src/tmdb_tests_3_4.rs)* | *Pass* |
+| *Recursive API Loop Handling* | *Rust Unit Test (src/tmdb_tests_3_4.rs)* | *Pass* |

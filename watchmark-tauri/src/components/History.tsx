@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
+import { SafeImage } from "./ui/SafeImage";
 
 export default function History() {
   const [history, setHistory] = useState<any[]>([]);
@@ -88,9 +89,11 @@ export default function History() {
                     Archived
                   </div>
                 )}
-                <img
-                  src={`https://image.tmdb.org/t/p/w200${entry.poster_path}`}
-                  alt={entry.show_title}
+                <SafeImage
+                  srcPath={entry.poster_path ? `https://image.tmdb.org/t/p/w500${entry.poster_path}` : ""}
+                  type="poster"
+                  title={entry.show_title}
+                  altText={entry.show_title}
                   className="w-16 h-24 object-cover rounded-md shadow-md"
                 />
                 <div className="flex-1">

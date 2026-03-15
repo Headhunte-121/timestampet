@@ -250,11 +250,11 @@ This document represents the complete functional blueprint and state of the Watc
 
 **3.4 Dedicated TV Show deep-data fetching.** (Incomplete)
 
-- [ ] Ensure the payload strictly maps to the local SQLite `Media` table schema.
-- [ ] Handle edge cases where a TV show lacks a synopsis entirely.
-- [ ] Verify network data structures for complex fields like genres and networks are flattened.
-- [ ] Test data fetching for shows with 50+ seasons (e.g., Soap Operas).
-- [ ] Handle missing poster/backdrop URLs gracefully.
+- [x] Ensure the payload strictly maps to the local SQLite `Media` table schema.
+- [x] Handle edge cases where a TV show lacks a synopsis entirely.
+- [x] Verify network data structures for complex fields like genres and networks are flattened.
+- [x] Test data fetching for shows with 50+ seasons (e.g., Soap Operas).
+- [x] Handle missing poster/backdrop URLs gracefully.
 
 **3.5 Dedicated Movie deep-data fetching.** (Incomplete)
 
