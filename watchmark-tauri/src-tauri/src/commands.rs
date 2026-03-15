@@ -560,6 +560,20 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 let raw_synopsis = row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default();
                 let sanitized_synopsis = crate::sanitizer::sanitize_text(&raw_synopsis, "No overview available.");
 
+                let collection_id = row.get::<_, Option<i32>>(15).unwrap_or_default();
+                let mut collection_parts = serde_json::Value::Null;
+
+                if let Some(c_id) = collection_id {
+                    if let Ok(mut c_stmt) = conn.prepare("SELECT parts FROM Collections WHERE id=?") {
+                        if let Ok(mut c_rows) = c_stmt.query(params![c_id]) {
+                            if let Ok(Some(c_row)) = c_rows.next() {
+                                let parts_str: String = c_row.get(0).unwrap_or_else(|_| "[]".to_string());
+                                collection_parts = serde_json::from_str(&parts_str).unwrap_or(serde_json::Value::Null);
+                            }
+                        }
+                    }
+                }
+
                 media = Some(json!({
                     "id": row.get::<_, i32>(0).unwrap_or(0),
                     "tmdb_id": row.get::<_, String>(1).unwrap_or_default(),
@@ -576,8 +590,9 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                     "is_exact_date": is_exact,
                     "is_date_known": is_known,
                     "is_unaired": is_unaired,
-                    "collection_id": row.get::<_, Option<i32>>(15).unwrap_or_default(),
+                    "collection_id": collection_id,
                     "collection_name": row.get::<_, Option<String>>(16).unwrap_or_default(),
+                    "collection_parts": collection_parts,
                 }));
             }
         }
@@ -1019,6 +1034,34 @@ pub async fn add_to_tracker(
                     Ok::<(), AppError>(())
                 })
             }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+            if let Some(c_id) = details.get("collection_id").and_then(|v| v.as_i64()) {
+                tokio::task::yield_now().await;
+                if let Ok(col) = crate::tmdb::get_collection_details(&api_key, c_id as i32).await {
+                    let _ = tokio::task::spawn_blocking(move || {
+                        handle_panic(|| {
+                            if let Ok(mut conn) = get_db_connection() {
+                                let parts_str = col.get("parts").map(|p| p.to_string()).unwrap_or_else(|| "[]".to_string());
+                                let _ = conn.execute(
+                                    "INSERT INTO Collections (id, name, overview, poster_path, backdrop_path, parts)
+                                     VALUES (?, ?, ?, ?, ?, ?)
+                                     ON CONFLICT(id) DO UPDATE SET
+                                     name=excluded.name, overview=excluded.overview, poster_path=excluded.poster_path, backdrop_path=excluded.backdrop_path, parts=excluded.parts",
+                                    params![
+                                        c_id as i32,
+                                        col.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown Collection"),
+                                        crate::sanitizer::sanitize_text(col.get("overview").and_then(|v| v.as_str()).unwrap_or(""), "No overview available."),
+                                        col.get("poster_path").and_then(|v| v.as_str()).unwrap_or(""),
+                                        col.get("backdrop_path").and_then(|v| v.as_str()).unwrap_or(""),
+                                        parts_str
+                                    ]
+                                );
+                            }
+                            Ok::<(), AppError>(())
+                        })
+                    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+                }
+            }
         }
 
         Ok::<(), AppError>(())
@@ -1374,6 +1417,7 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                 max_year: row.get(18)?,
                 collection_id: None,
                 collection_name: None,
+                collection_parts: None,
                 seasons: Vec::new(),
                 episodes: Vec::new(),
             })
@@ -1585,6 +1629,7 @@ pub async fn get_library_data(
                     max_year: row.get(18)?,
                     collection_id: None,
                     collection_name: None,
+                    collection_parts: None,
                     seasons: Vec::new(),
                     episodes: Vec::new(),
                 });
@@ -2201,6 +2246,7 @@ pub async fn assign_unmatched_to_tracker(
                 Ok(v) => v.clone(),
                 Err(_) => serde_json::Value::Null,
             };
+            let inner_clone = details_clone.clone();
             let _ = tokio::task::spawn_blocking(move || {
                 handle_panic(|| {
                     if let Ok(mut conn) = get_db_connection() {
@@ -2216,14 +2262,14 @@ pub async fn assign_unmatched_to_tracker(
                                     }
                                 }
                             }
-                            let new_air_date = details_clone["release_date"].as_str().unwrap_or("");
+                            let new_air_date = inner_clone["release_date"].as_str().unwrap_or("");
                             let valid_air_date = if new_air_date.to_uppercase() == "TBD" || (new_air_date.len() > 0 && NaiveDate::parse_from_str(new_air_date, "%Y-%m-%d").is_err() && new_air_date.len() != 4) {
                                 should_update_air_date = false;
                                 ""
                             } else {
                                 new_air_date
                             };
-                            let mut synopsis = details_clone["synopsis"].as_str().unwrap_or("").to_string();
+                            let mut synopsis = inner_clone["synopsis"].as_str().unwrap_or("").to_string();
                             if synopsis.chars().count() > 10000 {
                                 synopsis = synopsis.chars().take(10000).collect::<String>();
                                 synopsis.push_str("...");
@@ -2237,14 +2283,14 @@ pub async fn assign_unmatched_to_tracker(
                                         overview=excluded.overview, air_date=excluded.air_date, is_exact_date=excluded.is_exact_date",
                                     params![
                                         media_id,
-                                        details_clone["title"].as_str().unwrap_or("Unknown Title"),
-                                        details_clone["runtime"].as_i64().unwrap_or(0) as i32,
-                                        details_clone["backdrop_path"].as_str().unwrap_or(""),
+                                        inner_clone["title"].as_str().unwrap_or("Unknown Title"),
+                                        inner_clone["runtime"].as_i64().unwrap_or(0) as i32,
+                                        inner_clone["backdrop_path"].as_str().unwrap_or(""),
                                         synopsis,
                                         ep_status,
                                         ep_watch_count,
                                         valid_air_date,
-                                        details_clone["is_exact_date"].as_bool().unwrap_or(true)
+                                        inner_clone["is_exact_date"].as_bool().unwrap_or(true)
                                     ]
                                 );
                             } else {
@@ -2256,9 +2302,9 @@ pub async fn assign_unmatched_to_tracker(
                                         overview=excluded.overview",
                                     params![
                                         media_id,
-                                        details_clone["title"].as_str().unwrap_or("Unknown Title"),
-                                        details_clone["runtime"].as_i64().unwrap_or(0) as i32,
-                                        details_clone["backdrop_path"].as_str().unwrap_or(""),
+                                        inner_clone["title"].as_str().unwrap_or("Unknown Title"),
+                                        inner_clone["runtime"].as_i64().unwrap_or(0) as i32,
+                                        inner_clone["backdrop_path"].as_str().unwrap_or(""),
                                         synopsis,
                                         ep_status,
                                         ep_watch_count
@@ -2271,6 +2317,34 @@ pub async fn assign_unmatched_to_tracker(
                     Ok::<(), AppError>(())
                 })
         }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))?;
+
+            if let Some(c_id) = details_clone.get("collection_id").and_then(|v| v.as_i64()) {
+                tokio::task::yield_now().await;
+                if let Ok(col) = crate::tmdb::get_collection_details(&api_key, c_id as i32).await {
+                    let _ = tokio::task::spawn_blocking(move || {
+                        handle_panic(|| {
+                            if let Ok(mut conn) = get_db_connection() {
+                                let parts_str = col.get("parts").map(|p| p.to_string()).unwrap_or_else(|| "[]".to_string());
+                                let _ = conn.execute(
+                                    "INSERT INTO Collections (id, name, overview, poster_path, backdrop_path, parts)
+                                     VALUES (?, ?, ?, ?, ?, ?)
+                                     ON CONFLICT(id) DO UPDATE SET
+                                     name=excluded.name, overview=excluded.overview, poster_path=excluded.poster_path, backdrop_path=excluded.backdrop_path, parts=excluded.parts",
+                                    params![
+                                        c_id as i32,
+                                        col.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown Collection"),
+                                        crate::sanitizer::sanitize_text(col.get("overview").and_then(|v| v.as_str()).unwrap_or(""), "No overview available."),
+                                        col.get("poster_path").and_then(|v| v.as_str()).unwrap_or(""),
+                                        col.get("backdrop_path").and_then(|v| v.as_str()).unwrap_or(""),
+                                        parts_str
+                                    ]
+                                );
+                            }
+                            Ok::<(), AppError>(())
+                        })
+                    }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+                }
+            }
         }
 
         // Now assign the unmatched files

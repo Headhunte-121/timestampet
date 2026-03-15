@@ -416,6 +416,20 @@ pub async fn get_tv_season_episodes(
     Ok(formatted)
 }
 
+pub async fn get_collection_details(api_key: &str, collection_id: i32) -> Result<Value, AppError> {
+    let url = format!("{}/collection/{}", TMDB_API_BASE, collection_id);
+    let r: Value = NETWORK_MANAGER.external_client
+        .get(&url)
+        .query(&[("api_key", api_key), ("language", "en-US")])
+        .send()
+        .await
+        .map_err(crate::network::NetworkManager::handle_error)?
+        .json()
+        .await?;
+
+    Ok(r)
+}
+
 pub async fn download_image(image_path: &str, size: &str) -> Option<String> {
     if image_path.is_empty() {
         return None;

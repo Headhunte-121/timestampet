@@ -369,3 +369,25 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - **Root Cause Identified:** The recent "Sanitization" updates introduced two new columns (`genres` and `networks`) to the `Media` SQLite table. However, queries in `get_library_data` and `get_dashboard_data` still relied on hardcoded `rusqlite` row indices (e.g. `row.get(13)`) that were mapped directly following `m.*`. This push resulted in pulling the `genres` TEXT field instead of the calculated `completed_eps` INTEGER, throwing a silent `InvalidColumnType` parsing panic, destroying the data payload, and rendering an empty UI.
 - **Index Shift Applied:** Re-mapped indices accurately (e.g., `completed_eps` now correctly targets index 15, `last_watched` at 16, etc.) to reflect the newly expanded column widths, permanently resolving the "Strictness Bug" without database locking or logic regressions.
 - **Frontend Restoration:** Verified the fix correctly revives the `SearchTMDB.tsx` and `Library.tsx` integration where successfully added shows immediately populate as expected.
+
+### Update 14: Feature 3.5 - Dedicated Movie Deep-Data Fetching
+
+**Summary:**
+Implemented specialized deep-data fetching strategies for Movies, effectively mapping them into a unified "1 Unit" format to seamlessly integrate with the application's existing history tracking engine, while preserving critical cinematic metadata like Collections and explicit Release Date handling.
+
+**Core Architectural Features Implemented:**
+- **The "Unit" Logic (Virtual Episode Mapping):** Movies are treated as a single, watchable unit mapped to a Virtual Episode (Season 1, Episode 1) containing the main runtime. The episode title and overview strictly mirror the movie title and synopsis, allowing the timeline tracker and database relationships to function natively without conditional database joins.
+- **Franchise/Collection Pre-Fetching Strategy:** Implemented `collection_id` and `collection_name` natively into the `Media` SQLite table and extracted `belongs_to_collection` data during TMDB synchronization. The backend completely pre-caches this relationship so the UI can instantly display related franchise properties entirely offline.
+- **Strict Data Firewall (Fallback Placeholders):** Implemented the standard "No overview available." fallback and runtime math sanitization directly at the Rust backend layer.
+- **Release Date Sentinel System (NULL DB storage):** If a movie lacks an explicit release date (TBA), the Rust backend strictly stores a `NULL` directly inside SQLite rather than dropping it. This specifically preserves native SQL `NULLS LAST` sorting. During frontend serialization, the Rust layer dynamically wraps this `NULL` into a type-safe string `"0000-00-00"` so the React UI never crashes on `undefined` values and can cleanly format "TBD" badges.
+- **Logic Gatekeeping (Bypassing TV Loops):** The background `add_to_tracker` sync worker now strictly checks the extracted `MediaType` and executes exactly *one* query and bypasses all season-by-season iterators to prevent "Sync Loops" entirely. Applied a `UNIQUE(tmdb_id, type)` multi-column database constraint to protect against movies sharing an ID with a TV series.
+
+**Database Schema Migrations:**
+- Bumbed `user_version` to `14`.
+- Added `collection_id INTEGER` and `collection_name TEXT` to the `Media` table safely via `conn.transaction()`.
+
+**Edge Cases Tested & Verified:**
+- Handled the "Zero-Minute Short" preventing UI divide-by-zero crashes.
+- Ensured massive 10-hour runtimes cast gracefully into `i32` bounds.
+- Parsed "Ghost" collection lists smoothly without throwing unwraps when sparsely defined by TMDB.
+- Tested missing and NULL `release_date` strings and formatting loops.

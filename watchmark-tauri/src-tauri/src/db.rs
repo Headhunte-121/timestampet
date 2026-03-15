@@ -265,6 +265,18 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         (),
     )?;
 
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS Collections (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            overview TEXT,
+            poster_path TEXT,
+            backdrop_path TEXT,
+            parts TEXT
+        )",
+        (),
+    )?;
+
     // Run migrations safely via PRAGMA user_version
     let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
 
@@ -486,6 +498,23 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             }
         }
         tx.execute("PRAGMA user_version = 14", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 15 {
+        let tx = conn.transaction()?;
+        tx.execute(
+            "CREATE TABLE IF NOT EXISTS Collections (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                overview TEXT,
+                poster_path TEXT,
+                backdrop_path TEXT,
+                parts TEXT
+            )",
+            (),
+        )?;
+        tx.execute("PRAGMA user_version = 15", ())?;
         tx.commit()?;
     }
 
