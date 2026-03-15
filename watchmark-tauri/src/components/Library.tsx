@@ -1,3 +1,4 @@
+import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star } from "lucide-react";
@@ -82,7 +83,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               >
             <div className="absolute inset-0 w-full h-full">
               <SafeImage
-                srcPath={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : ""}
+                srcPath={item.poster_path ? formatImagePath(item.poster_path, "w500") : ""}
                 type="poster"
                 altText={item.title}
                 title={item.title}
