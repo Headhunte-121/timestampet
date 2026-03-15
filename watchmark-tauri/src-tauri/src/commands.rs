@@ -1594,7 +1594,11 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                         "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
                         "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
                         "runtime": runtime,
-                        "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
+                        "still_path": (|| {
+                            let ep_id = ep_row.get::<_, i32>(0).unwrap_or(0);
+                            let raw = ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default();
+                            crate::tmdb::resolve_local_still_path(&raw, ep_id).unwrap_or(raw)
+                        })(),
                         "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
                         "season_overview": ep_row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
                         "watch_count": ep_row.get::<_, Option<i32>>(9).unwrap_or(Some(0)).unwrap_or(0),
@@ -1772,7 +1776,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                 poster_path: (|| {
                     let raw: Option<String> = row.get(5)?;
                     let p = raw.unwrap_or_default();
-                    Ok::<_, rusqlite::Error>(Some(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p)))
+                    Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p))
                 })()?,
                 backdrop_path: (|| {
                     let raw: String = row.get(6)?;
@@ -2001,7 +2005,7 @@ pub async fn get_library_data(
                     poster_path: (|| {
                         let raw: Option<String> = row.get(5)?;
                         let p = raw.unwrap_or_default();
-                        Ok::<_, rusqlite::Error>(Some(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p)))
+                        Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p))
                     })()?,
                     backdrop_path: (|| {
                         let raw: String = row.get(6)?;
@@ -2133,6 +2137,7 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
     }
 
     let cancel_tokens = state.cancel_tokens.clone();
+    let high_performance_mode = state.settings.read().unwrap().high_performance_mode;
 
     let result = tokio::task::spawn_blocking(move || {
         handle_panic(std::panic::AssertUnwindSafe(|| {

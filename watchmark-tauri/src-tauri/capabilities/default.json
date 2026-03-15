@@ -11,9 +11,7 @@
     "dialog:default",
     "dialog:allow-save",
     "fs:default",
-    {
-      "identifier": "fs:allow-app-local-data-read",
-      "allow": [{ "path": "$APP_LOCAL_DATA/**" }, { "path": "$APP_DATA/**" }]
-    }
+    "fs:allow-applocaldata-read",
+    "fs:allow-appdata-read"
   ]
 }
