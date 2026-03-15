@@ -1,3 +1,4 @@
+import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -154,15 +155,15 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <span className={`px-3 py-1 rounded-md backdrop-blur-md text-white ${data.type === 'Unknown' ? 'bg-red-500/80' : 'bg-white/10'}`}>
               {data.type}
             </span>
-            <span className="text-gray-300">Aired: {data.is_date_known ? (data.is_exact_date ? data.release_date : data.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-gray-400">TBD</span>}</span>
+            <span className="text-gray-300">Aired: {data.is_date_known ? (data.is_exact_date ? data.release_date : data.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
             <span className="flex items-center gap-1 text-[#F5C518] bg-black/50 px-3 py-1 rounded-full min-w-[70px] justify-center text-center">
               {data.vote_average === null || data.vote_average === undefined ? (
-                <span className="font-bold text-gray-400 tracking-widest text-[10px] px-1">NO DATA</span>
+                <span className="font-bold text-muted tracking-widest text-[10px] px-1">NO DATA</span>
               ) : data.vote_average === 0 ? (
-                <span className="font-bold text-gray-400 tracking-widest text-[10px] px-1">NR</span>
+                <span className="font-bold text-muted tracking-widest text-[10px] px-1">NR</span>
               ) : (
                 <>
-                  <Star className="w-4 h-4 fill-current" /> {Number(data.vote_average).toFixed(1)}
+                  <Icon icon={Star} className="w-4 h-4 fill-current" /> {Number(data.vote_average).toFixed(1)}
                 </>
               )}
             </span>
@@ -173,7 +174,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                   0.0
                 </span>
               )}
-              <span className="text-gray-400 mr-2 text-xs">My Rating:</span>
+              <span className="text-muted mr-2 text-xs">My Rating:</span>
               <StarRating
                 rating={data.user_rating}
                 onChange={(rating) => {
@@ -188,7 +189,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             </div>
 
             {data.networks && data.networks.trim() !== "" && (
-              <div className="flex items-center text-gray-400 bg-white/5 px-3 py-1 rounded-md text-xs font-bold border border-white/10 uppercase">
+              <div className="flex items-center text-muted bg-white/5 px-3 py-1 rounded-md text-xs font-bold border border-white/10 uppercase">
                 {data.networks}
               </div>
             )}
@@ -262,7 +263,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               </div>
             ) : (
               <button className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all shadow-lg shadow-orange-500/20 hover:scale-105">
-                <Play fill="currentColor" /> Play Next
+                <Icon icon={Play} fill="currentColor" /> Play Next
               </button>
             )}
             <button
@@ -307,9 +308,9 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                   toast.error("Failed to check media history.");
                 }
               }}
-              className="p-4 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-500 rounded-full transition-colors ml-auto border border-transparent hover:border-red-500/50"
+              className="p-4 bg-white/5 hover:bg-red-500/20 text-muted hover:text-red-500 rounded-full transition-colors ml-auto border border-transparent hover:border-red-500/50"
             >
-              <Trash2 className="w-5 h-5" />
+              <Icon icon={Trash2} className="w-5 h-5" />
             </button>
           </div>
         </motion.div>
@@ -423,7 +424,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                           }
                         }}
                         className={`w-12 h-12 rounded-full flex items-center justify-center text-white scale-75 hover:scale-100 transition-transform shadow-lg ${ep.file_path ? 'bg-[#FF6B00] shadow-orange-500/30' : 'bg-gray-600 shadow-gray-500/30'}`}>
-                        {ep.file_path ? <Play className="w-5 h-5 ml-1" fill="currentColor" /> : <CloudOff className="w-5 h-5" />}
+                        {ep.file_path ? <Icon icon={Play} className="w-5 h-5 ml-1" fill="currentColor" /> : <Icon icon={CloudOff} className="w-5 h-5" />}
                       </button>
                     )}
                  </div>
@@ -462,12 +463,12 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                       className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${ep.status === 'Completed' ? 'border-green-500 bg-green-500/20 text-green-500' : 'border-gray-600 hover:border-green-500 hover:bg-green-500/20'}`}>
                       {ep.status === 'Completed' ? "✓" : <div className="w-3 h-3 rounded-full bg-transparent" />}
                     </button>
-                    <h3 className={`text-xl font-bold transition-colors ${ep.status === 'Completed' ? 'text-gray-400 font-normal' : 'text-white group-hover:text-[#FF6B00]'}`}>
+                    <h3 className={`text-xl font-bold transition-colors ${ep.status === 'Completed' ? 'text-muted font-normal' : 'text-white group-hover:text-[#FF6B00]'}`}>
                       {ep.ep_num}. {ep.title}
                     </h3>
                     <span className="text-gray-500 text-sm ml-auto">{ep.runtime > 0 ? `${ep.runtime}m` : ''}</span>
                  </div>
-                 <p className="text-gray-400 text-sm pl-12 line-clamp-2">
+                 <p className="text-muted text-sm pl-12 line-clamp-2">
                    {ep.overview}
                  </p>
                </div>
@@ -498,7 +499,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               }
             }}
           >
-            <CloudOff className="w-4 h-4" /> Unlink Local File
+            <Icon icon={CloudOff} className="w-4 h-4" /> Unlink Local File
           </button>
         </div>
       )}

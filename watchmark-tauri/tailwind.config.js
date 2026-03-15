@@ -21,11 +21,15 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+      },
       colors: {
         'brand-orange': '#FF6B00',
         'brand-light': '#FF944D',
         'cinema-black': '#0D0F14',
         'surface-gray': '#1F222A',
+        'muted': '#8E929C',
       },
     },
   },

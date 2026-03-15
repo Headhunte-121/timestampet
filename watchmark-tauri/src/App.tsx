@@ -19,6 +19,7 @@ import { Modal } from "./components/ui/Modal";
 import { ProcessingModal } from "./components/ui/ProcessingModal";
 import { OptimizationModal } from "./components/ui/OptimizationModal";
 import { useAsyncInvoke } from "./hooks/useAsyncInvoke";
+import { Icon } from "./components/ui/Icon";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -193,13 +194,13 @@ function App() {
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden",
                 currentView === item.id && !selectedMediaId
                   ? "text-white bg-gradient-to-r from-white/5 to-transparent"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
+                  : "text-muted hover:text-white hover:bg-white/5"
               )}
             >
               {currentView === item.id && !selectedMediaId && (
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#FF6B00] shadow-[0_0_10px_#FF6B00]" />
               )}
-              <item.icon className={cn("w-5 h-5", currentView === item.id && !selectedMediaId && "text-[#FF6B00]")} />
+              <Icon icon={item.icon} className={cn("w-5 h-5", currentView === item.id && !selectedMediaId && "text-[#FF6B00]")} />
               {item.label}
             </button>
           ))}
@@ -212,13 +213,13 @@ function App() {
               "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden",
               currentView === "settings" && !selectedMediaId
                 ? "text-white bg-gradient-to-r from-white/5 to-transparent"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                : "text-muted hover:text-white hover:bg-white/5"
             )}
           >
             {currentView === "settings" && !selectedMediaId && (
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#FF6B00] shadow-[0_0_10px_#FF6B00]" />
             )}
-            <Settings className={cn("w-5 h-5", currentView === "settings" && !selectedMediaId && "text-[#FF6B00]")} />
+            <Icon icon={Settings} className={cn("w-5 h-5", currentView === "settings" && !selectedMediaId && "text-[#FF6B00]")} />
             Settings
           </button>
         </div>
@@ -259,7 +260,7 @@ function App() {
         {/* Global Search Bar */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4 pointer-events-none">
           <div className="relative pointer-events-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+            <Icon icon={Search} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
             <input
               type="text"
               placeholder="Quick Search..."
@@ -325,7 +326,7 @@ function App() {
                       className="bg-[#1F222A] p-8 rounded-2xl border border-white/10 max-w-md w-full shadow-2xl"
                   >
                       <h2 className="text-2xl font-bold text-white mb-2">Unsaved Changes</h2>
-                      <p className="text-gray-400 mb-8">You have unsaved changes in your settings. Do you want to save them before leaving?</p>
+                      <p className="text-muted mb-8">You have unsaved changes in your settings. Do you want to save them before leaving?</p>
                       <div className="flex flex-col gap-3">
                           <button
                               onClick={() => confirmNavigation(true)}
@@ -341,7 +342,7 @@ function App() {
                           </button>
                           <button
                               onClick={cancelNavigation}
-                              className="w-full py-3 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white font-bold rounded-xl transition-colors mt-2"
+                              className="w-full py-3 bg-transparent hover:bg-white/5 text-muted hover:text-white font-bold rounded-xl transition-colors mt-2"
                           >
                               Cancel
                           </button>

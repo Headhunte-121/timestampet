@@ -1,3 +1,4 @@
+import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -161,7 +162,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             <h1 className="text-5xl font-black text-white mb-2 tracking-tight truncate drop-shadow-lg">
               {data.hero_ep.show_title || "Unknown Show"}
             </h1>
-            <p className="text-lg text-gray-400 mb-6 truncate drop-shadow-md font-medium">
+            <p className="text-lg text-muted mb-6 truncate drop-shadow-md font-medium">
               {data.hero_ep.media_type === "TV"
                 ? `S${String(data.hero_ep.season_num).padStart(2, '0')}E${String(data.hero_ep.ep_num).padStart(2, '0')} - ${data.hero_ep.title || 'Unknown Episode'}`
                 : data.hero_ep.title || "No Title"}
@@ -185,7 +186,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
               >
                 {data.hero_ep.file_path ? (
                   <>
-                    <Play fill="currentColor" className="w-5 h-5" /> Play Next
+                    <Icon icon={Play} fill="currentColor" className="w-5 h-5" /> Play Next
                   </>
                 ) : (
                   "❌ Missing File"
@@ -222,7 +223,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       ) : (
         <div className="w-full h-[450px] bg-[#1F222A]/80 backdrop-blur-xl rounded-2xl flex flex-col items-center justify-center text-center">
           <h1 className="text-4xl font-bold mb-4 text-white">Welcome to WatchMark</h1>
-          <p className="text-gray-400 max-w-md">Scan your local folder or search TMDB to get started and build your library.</p>
+          <p className="text-muted max-w-md">Scan your local folder or search TMDB to get started and build your library.</p>
         </div>
       )}
 
@@ -276,7 +277,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                       }}
                       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-[#FF6B00] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 z-20 hover:bg-[#E66000]"
                     >
-                      <Play fill="currentColor" className="w-5 h-5 ml-1" />
+                      <Icon icon={Play} fill="currentColor" className="w-5 h-5 ml-1" />
                     </button>
                   </div>
 
@@ -295,7 +296,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
 
                   <div className="p-4 flex justify-between items-center bg-[#1F222A]">
                     <h3 className="font-bold text-white truncate pr-2">{ep.show_title || "Unknown Show"}</h3>
-                    <span className="text-xs font-medium text-gray-400 whitespace-nowrap">
+                    <span className="text-xs font-medium text-muted whitespace-nowrap">
                       {ep.media_type === "TV" ? `S${ep.season_num}E${ep.ep_num}` : (ep.title || "No Title")}
                     </span>
                   </div>
@@ -339,7 +340,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
 
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-sm">
                     <div className="w-14 h-14 bg-[#FF6B00] text-white rounded-full flex items-center justify-center shadow-lg shadow-black/50 scale-75 group-hover:scale-100 transition-transform duration-300">
-                      <Play fill="currentColor" className="w-6 h-6 ml-1" />
+                      <Icon icon={Play} fill="currentColor" className="w-6 h-6 ml-1" />
                     </div>
                   </div>
 
@@ -367,17 +368,17 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Your Stats</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-2">Shows Tracked</h3>
+          <h3 className="text-sm font-medium text-muted uppercase tracking-widest mb-2">Shows Tracked</h3>
           <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md">{data.stats.shows_completed}</p>
         </div>
         <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-2">Hours Watched</h3>
+          <h3 className="text-sm font-medium text-muted uppercase tracking-widest mb-2">Hours Watched</h3>
           <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md">{data.stats.hrs_watched}</p>
         </div>
         <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-2">Average Rating</h3>
+          <h3 className="text-sm font-medium text-muted uppercase tracking-widest mb-2">Average Rating</h3>
           <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md flex items-center justify-center gap-2">
-            <Star className="w-8 h-8 fill-current" /> {data.stats.avg_rating.toFixed(1)}
+            <Icon icon={Star} className="w-8 h-8 fill-current" /> {data.stats.avg_rating.toFixed(1)}
           </p>
         </div>
       </div>

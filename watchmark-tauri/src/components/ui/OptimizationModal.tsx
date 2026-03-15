@@ -1,3 +1,4 @@
+import { Icon } from "./Icon";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTaskStore } from "../../store/useTaskStore";
 import { Play } from "lucide-react";
@@ -32,7 +33,7 @@ export function OptimizationModal() {
               }}
               className="w-32 h-32 rounded-full flex items-center justify-center bg-[#1F222A] mb-8"
             >
-              <Play className="w-16 h-16 text-[#FF6B00] ml-2" fill="currentColor" />
+              <Icon icon={Play} className="w-16 h-16 text-[#FF6B00] ml-2" fill="currentColor" />
             </motion.div>
 
             <motion.h2

@@ -86,7 +86,7 @@ export default function History() {
                 }`}
               >
                 {isLegacy && (
-                  <div className="absolute top-2 right-2 bg-white/10 text-gray-400 font-bold text-[10px] px-2 py-1 rounded-full uppercase tracking-wider">
+                  <div className="absolute top-2 right-2 bg-white/10 text-muted font-bold text-[10px] px-2 py-1 rounded-full uppercase tracking-wider">
                     Archived
                   </div>
                 )}
@@ -103,7 +103,7 @@ export default function History() {
                   </h3>
                   {group.type === "binge_block" ? (
                     <div>
-                      <p className="text-gray-400">Watched {group.episode_count} Episodes</p>
+                      <p className="text-muted">Watched {group.episode_count} Episodes</p>
                       {bingeSubtitle && (
                         <p className="text-sm text-gray-500 font-medium italic mt-1">
                           {bingeSubtitle}
@@ -111,7 +111,7 @@ export default function History() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-gray-400">
+                    <p className="text-muted">
                       {entry.media_type === "TV"
                         ? `Season ${entry.season_num} Episode ${entry.ep_num} - ${entry.ep_title}`
                         : entry.ep_title}
@@ -145,12 +145,12 @@ export default function History() {
                   </div>
                 </div>
                 {group.type === "binge_block" ? (
-                  <div className="text-right text-sm text-gray-400 mt-6 mr-2">
+                  <div className="text-right text-sm text-muted mt-6 mr-2">
                     Binge Duration: {Math.floor(group.total_runtime / 60)}h{" "}
                     {group.total_runtime % 60}m
                   </div>
                 ) : !isLegacy && entry.completion_ratio < 0.9 ? (
-                  <div className="text-right text-sm text-gray-400 mt-6 mr-2">
+                  <div className="text-right text-sm text-muted mt-6 mr-2">
                     Paused ({Math.round(entry.completion_ratio * 100)}%)
                   </div>
                 ) : null}

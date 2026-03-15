@@ -3,7 +3,41 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-[#0D0F14] text-white;
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('./assets/fonts/Inter-Variable.woff2') format('woff2');
   }
+
+  body {
+    @apply bg-[#0D0F14] text-white antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Global Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0D0F14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A2D35;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF6B00;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2A2D35 #0D0F14;
 }

@@ -114,7 +114,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
 
       <div className="flex gap-4 mb-12 max-w-2xl">
         <div className="relative flex-1">
-          <Search className={cn("absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5", isApiAuthorized ? "text-gray-400" : "text-gray-600")} />
+          <Search className={cn("absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5", isApiAuthorized ? "text-muted" : "text-gray-600")} />
           <input
             type="text"
             placeholder={isApiAuthorized ? "Search TMDB for Shows or Movies..." : "API Key Required"}
@@ -172,7 +172,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 z-20">
               <h3 className="text-white font-bold leading-tight mb-1 line-clamp-2">{item.title}</h3>
               <p className="text-xs text-gray-300 mb-4 uppercase tracking-wider font-bold flex items-center gap-2">
-                 <span>{item.is_date_known ? (item.type === "TV" ? `${item.release_date.substring(0, 4)}–` : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-gray-400">TBD</span>}</span>
+                 <span>{item.is_date_known ? (item.type === "TV" ? `${item.release_date.substring(0, 4)}–` : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
               </p>
 
               <button
