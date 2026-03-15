@@ -128,6 +128,16 @@ pub async fn search_media(api_key: &str, query: &str, page: u32) -> Result<Vec<V
                 "synopsis".to_string(),
                 Value::String(crate::sanitizer::sanitize_text(item["overview"].as_str().unwrap_or(""), "No overview available.")),
             );
+            let original_language = item["original_language"].as_str().unwrap_or("xx"); // random default if missing
+
+            // Note: search/multi does not easily return all images.
+            // But if TMDB provides null for poster_path under en-US, we can't fetch it without an extra request.
+            // Wait, TMDB generally provides a poster_path even if we request en-US and there is none, it falls back.
+            // The prompt says "if the en-US poster is null, the Rust backend must immediately check the original_language field."
+            // This might just mean making an extra call, or using include_image_language if possible.
+            // Actually, in search we don't have include_image_language. The prompt says "When fetching metadata" which could refer to get_media_details.
+            // Let's implement it here just in case. Since search returns the main poster, we'll use it directly. If it's empty, we might not be able to easily fetch the original without a separate request. Let's just use what's returned here.
+
             let poster = item["poster_path"].as_str().unwrap_or("");
             if poster.is_empty() {
                 obj.insert("poster_path".to_string(), Value::Null);
@@ -183,9 +193,14 @@ pub async fn get_media_details(
     let endpoint = if media_type == "TV" { "tv" } else { "movie" };
     let url = format!("{}/{}/{}", TMDB_API_BASE, endpoint, tmdb_id);
 
+    // We include append_to_response=images to get original language posters if en-US is missing
     let res = NETWORK_MANAGER.external_client
         .get(&url)
-        .query(&[("api_key", api_key), ("language", "en-US")])
+        .query(&[
+            ("api_key", api_key),
+            ("language", "en-US"),
+            ("append_to_response", "images")
+        ])
         .send()
         .await;
 
@@ -230,11 +245,38 @@ pub async fn get_media_details(
         "synopsis".to_string(),
         Value::String(crate::sanitizer::sanitize_text(r["overview"].as_str().unwrap_or(""), "No overview available.")),
     );
-    let poster = r["poster_path"].as_str().unwrap_or("");
+    let mut poster = r["poster_path"].as_str().unwrap_or("").to_string();
+
+    // Fallback: If en-US poster is null/empty, check the original_language
+    if poster.is_empty() {
+        let original_language = r["original_language"].as_str().unwrap_or("");
+        if !original_language.is_empty() {
+            if let Some(images) = r.get("images") {
+                if let Some(posters) = images.get("posters").and_then(|p| p.as_array()) {
+                    // Try to find a poster matching the original language
+                    for p in posters {
+                        if p.get("iso_639_1").and_then(|lang| lang.as_str()) == Some(original_language) {
+                            if let Some(path) = p.get("file_path").and_then(|fp| fp.as_str()) {
+                                poster = path.to_string();
+                                break;
+                            }
+                        }
+                    }
+                    // If still empty, grab the highest rated poster regardless of language
+                    if poster.is_empty() && !posters.is_empty() {
+                        if let Some(path) = posters[0].get("file_path").and_then(|fp| fp.as_str()) {
+                            poster = path.to_string();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if poster.is_empty() {
         obj.insert("poster_path".to_string(), Value::Null);
     } else {
-        obj.insert("poster_path".to_string(), Value::String(poster.to_string()));
+        obj.insert("poster_path".to_string(), Value::String(poster));
     }
 
     let backdrop = r["backdrop_path"].as_str().unwrap_or("");
@@ -480,7 +522,7 @@ pub async fn get_collection_details(api_key: &str, collection_id: i32) -> Result
     Ok(r)
 }
 
-pub async fn download_image(image_path: &str, size: &str) -> Option<String> {
+pub async fn download_image(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
     if image_path.is_empty() {
         return None;
     }
@@ -488,22 +530,40 @@ pub async fn download_image(image_path: &str, size: &str) -> Option<String> {
     let _ = crate::db::ensure_directories();
 
     let clean_path = image_path.trim_start_matches('/');
-    let filename = format!("{}_{}", size, clean_path);
+    let actual_size = if high_performance_mode && size == "w500" { "w342" } else { size };
+    let filename = format!("{}_{}", actual_size, clean_path);
     let local_path = get_poster_cache_dir().join(&filename);
 
     if local_path.exists() {
         return Some(local_path.to_string_lossy().to_string());
     }
 
-    let url = format!("https://image.tmdb.org/t/p/{}/{}", size, clean_path);
+    let mut attempt_sizes = vec![actual_size];
+    if actual_size == "w500" || actual_size == "w342" {
+        attempt_sizes.push("original"); // Fallback for 404
+    }
 
-    if let Ok(response) = NETWORK_MANAGER.external_client.get(&url).send().await {
-        if response.status().is_success() {
-            if let Ok(bytes) = response.bytes().await {
-                // Use blocking file IO inside async (or switch to tokio::fs, but since this isn't high concurrency, std::fs is okay here or we can use tokio::fs)
-                if let Ok(_) = tokio::fs::write(&local_path, &bytes).await {
-                    return Some(local_path.to_string_lossy().to_string());
+    for current_size in attempt_sizes {
+        let url = format!("https://image.tmdb.org/t/p/{}/{}", current_size, clean_path);
+        if let Ok(response) = NETWORK_MANAGER.external_client.get(&url).send().await {
+            if response.status().is_success() {
+                if let Ok(bytes) = response.bytes().await {
+                    let tmp_filename = format!("{}.tmp", filename);
+                    let tmp_local_path = get_poster_cache_dir().join(&tmp_filename);
+                    if let Ok(_) = tokio::fs::write(&tmp_local_path, &bytes).await {
+                        if crate::sanitizer::verify_image_header(&tmp_local_path) {
+                            if std::fs::rename(&tmp_local_path, &local_path).is_ok() {
+                                return Some(local_path.to_string_lossy().to_string());
+                            }
+                        }
+                        let _ = std::fs::remove_file(&tmp_local_path);
+                    }
                 }
+                break; // Stop trying other sizes if we hit success but failed validation (or succeeded)
+            } else if response.status() == reqwest::StatusCode::NOT_FOUND {
+                continue; // Try next size fallback
+            } else {
+                break; // Don't try fallback on other errors (like 429)
             }
         }
     }

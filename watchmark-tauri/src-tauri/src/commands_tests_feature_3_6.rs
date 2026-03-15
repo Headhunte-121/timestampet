@@ -1,6 +1,6 @@
-use crate::commands::{check_rate_limit, AppState};
+use crate::commands::AppState;
 use crate::task_queue::DbTaskQueue;
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64};
 use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 use tokio_util::sync::CancellationToken;
@@ -19,6 +19,7 @@ async fn test_one_piece_staggering_simulator() {
         stats_cache: Arc::new(RwLock::new(None)),
         read_semaphore: Arc::new(tokio::sync::Semaphore::new(2)),
         cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
+        failed_image_syncs: Arc::new(RwLock::new(std::collections::HashSet::new())),
     };
 
     let start_time = std::time::Instant::now();

@@ -177,6 +177,7 @@ pub struct AppState {
     pub stats_cache: Arc<RwLock<Option<Value>>>,
     pub read_semaphore: Arc<tokio::sync::Semaphore>,
     pub cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
+    pub failed_image_syncs: Arc<RwLock<std::collections::HashSet<(String, String)>>>,
 }
 
 #[tauri::command]
@@ -767,11 +768,15 @@ pub async fn add_to_tracker(
     let task = tokio::task::spawn(async move {
         use tauri::Manager;
         let state_clone = app_clone_for_task.state::<AppState>();
+        let high_performance_mode = state_clone.settings.read().unwrap().high_performance_mode;
+        let failed_syncs_clone = state_clone.failed_image_syncs.clone();
+        let cancel_tokens_clone = state_clone.cancel_tokens.clone();
         // Run DB operation inside spawn_blocking to insert the Media row first
         let media_id_res = tokio::task::spawn_blocking({
             let details = details.clone();
             let valid_media_type = valid_media_type.clone();
             let tmdb_id_clone = tmdb_id_clone.clone();
+            let failed_syncs_clone = failed_syncs_clone.clone();
             move || {
                 handle_panic(std::panic::AssertUnwindSafe(|| {
                     let mut synopsis = details["synopsis"].as_str().unwrap_or("").to_string();
@@ -783,16 +788,26 @@ pub async fn add_to_tracker(
                     if let Some(poster) = details["poster_path"].as_str() {
                         if !poster.trim().is_empty() {
                             let poster_str = poster.to_string();
+                            let failed_queue = failed_syncs_clone.clone();
                             tokio::spawn(async move {
-                                crate::tmdb::download_image(&poster_str, "w500").await;
+                                if crate::tmdb::download_image(&poster_str, "w500", high_performance_mode).await.is_none() {
+                                    if let Ok(mut queue) = failed_queue.write() {
+                                        queue.insert((poster_str, "w500".to_string()));
+                                    }
+                                }
                             });
                         }
                     }
                     if let Some(backdrop) = details["backdrop_path"].as_str() {
                         if !backdrop.trim().is_empty() {
                             let backdrop_str = backdrop.to_string();
+                            let failed_queue = failed_syncs_clone.clone();
                             tokio::spawn(async move {
-                                crate::tmdb::download_image(&backdrop_str, "w1280").await;
+                                if crate::tmdb::download_image(&backdrop_str, "w1280", high_performance_mode).await.is_none() {
+                                    if let Ok(mut queue) = failed_queue.write() {
+                                        queue.insert((backdrop_str, "w1280".to_string()));
+                                    }
+                                }
                             });
                         }
                     }
@@ -887,7 +902,7 @@ pub async fn add_to_tracker(
 
         let token = CancellationToken::new();
         {
-            let mut tokens = state_clone.cancel_tokens.write().unwrap();
+            let mut tokens = cancel_tokens_clone.write().unwrap();
             tokens.insert(media_id.to_string(), token.clone());
         }
 
@@ -908,7 +923,8 @@ pub async fn add_to_tracker(
                             }
 
                             // Rate limit check
-                            check_rate_limit(&state_clone).await;
+                            // check_rate_limit uses state, let's just use app_clone_for_task.state::<AppState>() here since we are back in async context
+                            crate::commands::check_rate_limit(&app_clone_for_task.state::<AppState>()).await;
 
                             // Yield back to executor to prevent blocking the async runtime
                             tokio::task::yield_now().await;
@@ -1027,12 +1043,15 @@ pub async fn add_to_tracker(
                                 Err(AppError::Custom(err)) if err.starts_with("RATE_LIMIT:") => {
                                     let parts: Vec<&str> = err.split(':').collect();
                                     let retry_after = parts.get(1).unwrap_or(&"1").parse::<u64>().unwrap_or(1);
-                                    state_clone.is_rate_limited.store(true, Ordering::SeqCst);
-                                    state_clone.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
+                                    let async_state = app_clone_for_task.state::<AppState>();
+                                    async_state.is_rate_limited.store(true, Ordering::SeqCst);
+                                    async_state.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
 
                                     log::warn!("Rate limited. Pausing queue for {} seconds.", retry_after);
                                     tokio::time::sleep(tokio::time::Duration::from_secs(retry_after)).await;
-                                    state_clone.is_rate_limited.store(false, Ordering::SeqCst);
+
+                                    // re-acquire state because previous async_state reference might have been moved/borrowed elsewhere (though state is managed, so it's fine, but let's be safe)
+                                    app_clone_for_task.state::<AppState>().is_rate_limited.store(false, Ordering::SeqCst);
 
                                     // Retry once directly inline after sleeping
                                     if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
@@ -1202,7 +1221,7 @@ pub async fn add_to_tracker(
             }
 
             {
-                let mut tokens = state_clone.cancel_tokens.write().unwrap();
+                let mut tokens = cancel_tokens_clone.write().unwrap();
                 tokens.remove(&media_id.to_string());
             }
 
@@ -2147,6 +2166,10 @@ pub async fn assign_unmatched_to_tracker(
     let task = tokio::task::spawn(async move {
         use tauri::Manager;
         let state = app_clone_for_task.state::<AppState>();
+        let high_performance_mode = state.settings.read().unwrap().high_performance_mode;
+        let failed_syncs_clone = state.failed_image_syncs.clone();
+        let cancel_tokens_clone = state.cancel_tokens.clone();
+
         // Fetch files for this group before spawning the thread
         let unmatched_files = tokio::task::spawn_blocking({
             let group_key = group_key.clone();
@@ -2178,6 +2201,7 @@ pub async fn assign_unmatched_to_tracker(
             };
             let valid_media_type = valid_media_type.clone();
             let tmdb_id_clone = tmdb_id_clone.clone();
+            let failed_syncs_clone = failed_syncs_clone.clone();
             move || {
                 handle_panic(std::panic::AssertUnwindSafe(|| {
                     if !details.is_null() {
@@ -2191,16 +2215,26 @@ pub async fn assign_unmatched_to_tracker(
             if let Some(poster) = details["poster_path"].as_str() {
                 let poster_str = poster.to_string();
                 if !poster_str.is_empty() {
+                    let failed_queue = failed_syncs_clone.clone();
                     tokio::spawn(async move {
-                        crate::tmdb::download_image(&poster_str, "w500").await;
+                        if crate::tmdb::download_image(&poster_str, "w500", high_performance_mode).await.is_none() {
+                            if let Ok(mut queue) = failed_queue.write() {
+                                queue.insert((poster_str, "w500".to_string()));
+                            }
+                        }
                     });
                 }
             }
             if let Some(backdrop) = details["backdrop_path"].as_str() {
                 let backdrop_str = backdrop.to_string();
                 if !backdrop_str.is_empty() {
+                    let failed_queue = failed_syncs_clone.clone();
                     tokio::spawn(async move {
-                        crate::tmdb::download_image(&backdrop_str, "w1280").await;
+                        if crate::tmdb::download_image(&backdrop_str, "w1280", high_performance_mode).await.is_none() {
+                            if let Ok(mut queue) = failed_queue.write() {
+                                queue.insert((backdrop_str, "w1280".to_string()));
+                            }
+                        }
                     });
                 }
             }
@@ -2294,7 +2328,7 @@ pub async fn assign_unmatched_to_tracker(
 
         let token = CancellationToken::new();
         {
-            let mut tokens = state.cancel_tokens.write().unwrap();
+            let mut tokens = cancel_tokens_clone.write().unwrap();
             tokens.insert(media_id.to_string(), token.clone());
         }
 
@@ -2314,7 +2348,7 @@ pub async fn assign_unmatched_to_tracker(
                                     break;
                                 }
 
-                                check_rate_limit(&state).await;
+                                crate::commands::check_rate_limit(&app_clone_for_task.state::<AppState>()).await;
 
                                 tokio::task::yield_now().await;
 
@@ -2425,12 +2459,13 @@ pub async fn assign_unmatched_to_tracker(
                                     Err(AppError::Custom(err)) if err.starts_with("RATE_LIMIT:") => {
                                         let parts: Vec<&str> = err.split(':').collect();
                                         let retry_after = parts.get(1).unwrap_or(&"1").parse::<u64>().unwrap_or(1);
-                                        state.is_rate_limited.store(true, Ordering::SeqCst);
-                                        state.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
+                                        let async_state = app_clone_for_task.state::<AppState>();
+                                        async_state.is_rate_limited.store(true, Ordering::SeqCst);
+                                        async_state.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
 
                                         log::warn!("Rate limited. Pausing queue for {} seconds.", retry_after);
                                         tokio::time::sleep(tokio::time::Duration::from_secs(retry_after)).await;
-                                        state.is_rate_limited.store(false, Ordering::SeqCst);
+                                        app_clone_for_task.state::<AppState>().is_rate_limited.store(false, Ordering::SeqCst);
 
                                         // Retry once directly inline after sleeping
                                         if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
@@ -2646,7 +2681,7 @@ pub async fn assign_unmatched_to_tracker(
         }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
 
         {
-            let mut tokens = state.cancel_tokens.write().unwrap();
+            let mut tokens = cancel_tokens_clone.write().unwrap();
             tokens.remove(&media_id.to_string());
         }
 

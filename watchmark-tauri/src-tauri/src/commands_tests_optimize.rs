@@ -20,6 +20,7 @@ mod tests_feature_25_4 {
             stats_cache: std::sync::Arc::new(std::sync::RwLock::new(None)),
             read_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(4)),
             cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
+            failed_image_syncs: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         };
 
         // Simulate that a maintenance mode is already active
@@ -45,8 +46,6 @@ mod tests_feature_25_4 {
 
 #[cfg(test)]
 pub mod strictness_tests {
-    use super::*;
-
     #[test]
     fn test_strictness_index_fix() {
         // Assert logic verified previously via testing `get_library_data` manually

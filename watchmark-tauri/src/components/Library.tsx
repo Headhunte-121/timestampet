@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Star } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
+import { SafeImage } from "./ui/SafeImage";
 
 // Centralized Intersection Observer to avoid creating 500+ observers
 const lazyImageObserver = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
@@ -126,17 +127,18 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                 className="relative w-full aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group shadow-xl transform-gpu"
                 onClick={() => onMediaSelect(item.id)}
               >
-            {item.poster_path ? (
-              <LazyImage
-                src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
-                alt={item.title}
+            <div className="absolute inset-0 w-full h-full">
+              <SafeImage
+                srcPath={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : ""}
+                type="poster"
+                altText={item.title}
+                title={item.title}
+                releaseDate={item.release_date}
+                isDateKnown={item.is_date_known}
+                isExactDate={item.is_exact_date}
                 className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${item.is_unaired ? 'grayscale-[0.5] opacity-70' : ''}`}
               />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-[#15171e] text-gray-500 font-bold p-4 text-center">
-                {item.title}
-              </div>
-            )}
+            </div>
 
             {item.is_unaired && (
               <div className="absolute top-2 left-2 z-20">

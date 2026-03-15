@@ -196,6 +196,8 @@ fn main() {
             let available_cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2);
             let pool_size = (available_cores.saturating_sub(1)).max(1);
 
+            let failed_image_sync_queue = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new()));
+
             app.manage(commands::AppState {
                 settings: app_backup_settings_arc,
                 settings_tx,
@@ -207,6 +209,7 @@ fn main() {
                 stats_cache: std::sync::Arc::new(std::sync::RwLock::new(None)),
                 read_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(pool_size)),
                 cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
+                failed_image_syncs: failed_image_sync_queue.clone(),
             });
             log::info!("AppState successfully managed by Tauri. Thread pool restricted to {}", pool_size);
 
@@ -284,6 +287,33 @@ fn main() {
 
                     // Sleep for 1 hour before checking again
                     tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+                }
+            });
+
+            // Spawn low priority background image retry loop (runs every 30 mins)
+            let app_handle_for_retry = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1800)); // 30 minutes
+                loop {
+                    interval.tick().await;
+
+                    let mut retries = Vec::new();
+                    {
+                        let mut queue = failed_image_sync_queue.write().unwrap();
+                        for item in queue.drain() {
+                            retries.push(item);
+                        }
+                    }
+
+                    if !retries.is_empty() {
+                        if let Some(state) = app_handle_for_retry.try_state::<commands::AppState>() {
+                            let hp_mode = state.settings.read().unwrap().high_performance_mode;
+                            for (path, size) in retries {
+                                tokio::task::yield_now().await; // prevent blocking
+                                let _ = crate::tmdb::download_image(&path, &size, hp_mode).await;
+                            }
+                        }
+                    }
                 }
             });
 
