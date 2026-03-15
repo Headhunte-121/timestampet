@@ -29,6 +29,9 @@ Before submitting a Pull Request or marking a task as complete, you must perform
 *   **Audit for Regression:** Review all changes to ensure that new logic does not inadvertently remove or break features established in previous commits. If you refactor a function, you must carry over all existing functionality.
 *   **Enforce Project Standards:** Ensure all new and modified logic adheres to the established architectural patterns (e.g., `useAsyncInvoke`, `requestId` for commands).
 *   **Self-Correction:** If the audit reveals any missing requirements or inconsistent patterns, you must resolve them immediately before finalizing the documentation in `update.md`.
+*   cleanup additional files before PR
+
+
 
 **Execution Trigger:** 
 Always perform these steps automatically before finalizing a commit or marking a prompt as fully complete. Do not ask for permission to do this; it is mandatory for every update.
