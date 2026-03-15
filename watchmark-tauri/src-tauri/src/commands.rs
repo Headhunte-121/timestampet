@@ -629,7 +629,10 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
 
             let mut eps_stmt = conn.prepare(
                 "
-                SELECT e.*, l.file_path
+                SELECT e.id, e.media_id, e.season_num, e.ep_num, e.title, e.runtime,
+                       e.still_path, e.overview, e.season_overview, e.watch_count,
+                       e.last_position, e.status, e.completed_date, e.air_date,
+                       e.is_exact_date, e.is_air_date_manual, l.file_path
                 FROM Episodes e
                 LEFT JOIN Local_Files l ON e.id = l.episode_id
                 WHERE e.media_id=?
@@ -639,7 +642,7 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
 
             let mut episodes = vec![];
             if let Ok(ep_rows) = eps_stmt.query_map(params![media_id], |row| {
-                let raw_air_date: String = row.get::<_, Option<String>>(12)?.unwrap_or_default();
+                let raw_air_date: String = row.get::<_, Option<String>>(13)?.unwrap_or_default();
                 let (sanitized_air_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
 
                 let is_unaired = if is_known && !sanitized_air_date.is_empty() {
@@ -656,8 +659,10 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                 let raw_overview = row.get::<_, Option<String>>(7)?.unwrap_or_default();
                 let sanitized_overview = crate::sanitizer::sanitize_text(&raw_overview, "No episode summary.");
 
+                let raw_season_overview = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+
                 let runtime: i32 = row.get::<_, Option<i32>>(5)?.unwrap_or(0);
-                let last_position: i32 = row.get::<_, Option<i32>>(9)?.unwrap_or(0);
+                let last_position: i32 = row.get::<_, Option<i32>>(10)?.unwrap_or(0);
                 let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
                 Ok(json!({
@@ -669,14 +674,15 @@ pub fn get_media_details_db(media_id: i32) -> Result<Value, AppError> {
                     "runtime": runtime,
                     "still_path": row.get::<_, Option<String>>(6)?.unwrap_or_default(),
                     "overview": sanitized_overview,
-                    "watch_count": row.get::<_, i32>(8)?,
+                    "season_overview": raw_season_overview,
+                    "watch_count": row.get::<_, Option<i32>>(9)?.unwrap_or(0),
                     "last_position": last_position,
-                    "status": row.get::<_, Option<String>>(10)?.unwrap_or_default(),
-                    "completed_date": row.get::<_, Option<String>>(11)?.unwrap_or_default(),
+                    "status": row.get::<_, Option<String>>(11)?.unwrap_or_default(),
+                    "completed_date": row.get::<_, Option<String>>(12)?.unwrap_or_default(),
                     "air_date": sanitized_air_date,
                     "is_exact_date": is_exact,
                     "is_date_known": is_known,
-                    "file_path": row.get::<_, Option<String>>(14)?,
+                    "file_path": row.get::<_, Option<String>>(16)?.unwrap_or_default(),
                     "is_unaired": is_unaired,
                     "progress_percentage": progress_percentage,
                 }))
@@ -1246,7 +1252,10 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
                 let mut ep_stmt = conn.prepare(
                     "
-                    SELECT e.*, m.title as show_title, m.backdrop_path, l.file_path, m.type as media_type, e.still_path
+                    SELECT e.id, e.media_id, e.season_num, e.ep_num, e.title, e.runtime, e.still_path,
+                           e.overview, e.season_overview, e.watch_count, e.last_position, e.status, e.completed_date,
+                           e.air_date, e.is_exact_date, e.is_air_date_manual,
+                           m.title as show_title, m.backdrop_path, l.file_path, m.type as media_type
                     FROM Episodes e
                     JOIN Media m ON e.media_id = m.id
                     LEFT JOIN Local_Files l ON e.id = l.episode_id
@@ -1258,8 +1267,8 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
                 let mut ep_rows = ep_stmt.query(params![media_id])?;
                 if let Ok(Some(ep_row)) = ep_rows.next() {
-                    let runtime = ep_row.get::<_, i32>(5).unwrap_or(0);
-                    let last_position = ep_row.get::<_, i32>(10).unwrap_or(0);
+                    let runtime = ep_row.get::<_, Option<i32>>(5).unwrap_or(Some(0)).unwrap_or(0);
+                    let last_position = ep_row.get::<_, Option<i32>>(10).unwrap_or(Some(0)).unwrap_or(0);
                     let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
                     hero_ep = Some(json!({
@@ -1272,13 +1281,13 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                         "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
                         "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
                         "season_overview": ep_row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
-                        "watch_count": ep_row.get::<_, i32>(9).unwrap_or(0),
+                        "watch_count": ep_row.get::<_, Option<i32>>(9).unwrap_or(Some(0)).unwrap_or(0),
                         "last_position": last_position,
                         "status": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
                         "completed_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
                         "air_date": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
                         "is_exact_date": ep_row.get::<_, Option<bool>>(14).unwrap_or_default().unwrap_or(true),
-                        "is_date_known": true, // This field doesn't exist in the query, handled safely by frontend defaulting if missing
+                        "is_date_known": true,
                         "progress_percentage": progress_percentage,
 
                         "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
@@ -1312,7 +1321,10 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
                     let mut ep_stmt = conn.prepare(
                         "
-                        SELECT e.*, m.title as show_title, m.backdrop_path, m.poster_path, l.file_path, m.type as media_type, e.still_path
+                        SELECT e.id, e.media_id, e.season_num, e.ep_num, e.title, e.runtime, e.still_path,
+                               e.overview, e.season_overview, e.watch_count, e.last_position, e.status, e.completed_date,
+                               e.air_date, e.is_exact_date, e.is_air_date_manual,
+                               m.title as show_title, m.backdrop_path, m.poster_path, l.file_path, m.type as media_type
                         FROM Episodes e
                         JOIN Media m ON e.media_id = m.id
                         LEFT JOIN Local_Files l ON e.id = l.episode_id
@@ -1324,8 +1336,8 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
 
                     let mut ep_rows = ep_stmt.query(params![m_id])?;
                     if let Ok(Some(ep_row)) = ep_rows.next() {
-                        let runtime = ep_row.get::<_, i32>(5).unwrap_or(0);
-                        let last_position = ep_row.get::<_, i32>(10).unwrap_or(0);
+                        let runtime = ep_row.get::<_, Option<i32>>(5).unwrap_or(Some(0)).unwrap_or(0);
+                        let last_position = ep_row.get::<_, Option<i32>>(10).unwrap_or(Some(0)).unwrap_or(0);
                         let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
                         cw_eps.push(json!({
@@ -1338,13 +1350,13 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                             "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
                             "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
                             "season_overview": ep_row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
-                        "watch_count": ep_row.get::<_, i32>(9).unwrap_or(0),
+                            "watch_count": ep_row.get::<_, Option<i32>>(9).unwrap_or(Some(0)).unwrap_or(0),
                             "last_position": last_position,
-                            "status": ep_row.get::<_, Option<String>>(10).unwrap_or_default().unwrap_or_default(),
+                            "status": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
                             "completed_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
                             "air_date": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
                             "is_exact_date": ep_row.get::<_, Option<bool>>(14).unwrap_or_default().unwrap_or(true),
-                            "is_date_known": true, // This field doesn't exist in the query, handled safely by frontend defaulting if missing
+                            "is_date_known": true,
                             "progress_percentage": progress_percentage,
 
                             "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
@@ -2472,6 +2484,10 @@ mod commands_tests_optimize;
 #[cfg(test)]
 #[path = "commands_tests_tmdb_auth.rs"]
 mod commands_tests_tmdb_auth;
+
+#[cfg(test)]
+#[path = "commands_tests_episodes.rs"]
+mod commands_tests_episodes;
 
 #[tauri::command]
 pub async fn update_media_rating(
