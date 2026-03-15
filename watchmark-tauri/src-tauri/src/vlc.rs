@@ -1,3 +1,8 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 use rusqlite::params;
 use serde_json::Value;
 use std::time::Duration;

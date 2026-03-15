@@ -1,3 +1,8 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 use rusqlite::{Connection, params};
 use std::sync::{mpsc, MutexGuard};
 use std::thread;
@@ -116,7 +121,7 @@ impl DbTaskQueue {
                             }
                         }
                     } else {
-                        eprintln!("Failed to get db connection in task queue worker");
+                        tracing::debug!("Failed to get db connection in task queue worker");
                     }
                 }
             }
@@ -144,7 +149,7 @@ impl DbTaskQueue {
                 Err(e) => {
                     if attempt >= max_retries {
                         // Max retries hit
-                        log::error!("Database action failed after 3 attempts: {}", e);
+                        tracing::error!("Database action failed after 3 attempts: {}", e);
 
                         // Emit global failure event if possible. Since we don't always have app_handle here,
                         // we'd need to thread it through if we wanted a global toast from the backend for raw actions.
@@ -289,6 +294,6 @@ impl DbTaskQueue {
     /// For now, since the worker itself will fast-fail if the global auth flag is false,
     /// we can safely implement this as a no-op or just log it.
     pub fn clear(&self) {
-        log::info!("Queue clear requested. Tasks will automatically fast-fail via global auth flag interceptors.");
+        tracing::info!("Queue clear requested. Tasks will automatically fast-fail via global auth flag interceptors.");
     }
 }

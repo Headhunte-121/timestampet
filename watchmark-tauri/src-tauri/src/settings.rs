@@ -1,3 +1,8 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 use rusqlite::Result;
 use std::fs;
 use base64::{Engine as _, engine::general_purpose};
@@ -90,13 +95,13 @@ pub fn load_settings() -> Result<Settings, String> {
                     loaded_settings = settings;
                 },
                 Err(e) => {
-                    log::warn!("Corrupted settings.json detected: {}. Resetting to defaults.", e);
+                    tracing::warn!(action = "load_settings", error = %e, "Corrupted settings.json detected. Resetting to defaults.");
                     needs_repair = true;
                 }
             }
         },
         Err(e) => {
-            log::warn!("Failed to read settings.json: {}. Resetting to defaults.", e);
+            tracing::warn!(action = "load_settings", error = %e, "Failed to read settings.json. Resetting to defaults.");
             needs_repair = true;
         }
     }

@@ -1,3 +1,8 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;

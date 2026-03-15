@@ -1,3 +1,8 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 use crate::db::{get_app_data_dir, get_db_connection};
 use crate::error::AppError;
 use chrono::Local;
@@ -21,7 +26,7 @@ pub fn perform_backup() -> Result<(), AppError> {
     if let Ok(free_space) = fs3::available_space(&backup_dir) {
         // 10 MB = 10 * 1024 * 1024 = 10485760 bytes
         if free_space < 10485760 {
-            log::warn!("Backup aborted: Less than 10MB of free space available on drive.");
+            tracing::warn!("Backup aborted: Less than 10MB of free space available on drive.");
             return Err(AppError::Custom("Insufficient disk space".to_string()));
         }
     }
@@ -67,7 +72,7 @@ pub fn prune_backups(backup_dir: &PathBuf) -> Result<(), AppError> {
     if backups.len() > 3 {
         for (path, _) in backups.into_iter().skip(3) {
             if let Err(e) = fs::remove_file(&path) {
-                log::error!("Failed to delete old backup {:?}: {}", path, e);
+                tracing::error!("Failed to delete old backup {:?}: {}", path, e);
             }
         }
     }

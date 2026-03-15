@@ -50,7 +50,9 @@ log = "0.4.29"
 tauri-plugin-shell = "2.3.5"
 tauri-plugin-notification = "2.3.3"
 tauri-plugin-global-shortcut = "2.3.1"
-tauri-plugin-log = "2.8.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
 dunce = "1.0.5"
 keyring = { version = "3.6.3", features = ["windows-native", "linux-native", "apple-native"] }
 base64 = "0.22.1"
