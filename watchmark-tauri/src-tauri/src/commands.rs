@@ -614,7 +614,10 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
                     "type": m_type,
                     "title": row.get::<_, Option<String>>(3).unwrap_or_default().unwrap_or_default(),
                     "synopsis": sanitized_synopsis,
-                    "poster_path": row.get::<_, Option<String>>(5).unwrap_or_default().unwrap_or_default(),
+                    "poster_path": (|| {
+                        let raw = row.get::<_, Option<String>>(5).unwrap_or_default().unwrap_or_default();
+                        crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                    })(),
                     "backdrop_path": (|| {
                         let raw = row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default();
                         crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
@@ -1608,8 +1611,12 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                             let raw = ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default();
                             crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
                         })(),
-                        "file_path": ep_row.get::<_, Option<String>>(18).unwrap_or_default(),
-                        "media_type": ep_row.get::<_, Option<String>>(19).unwrap_or_default().unwrap_or_default(),
+                        "poster_path": (|| {
+                            let raw = ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default();
+                            crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                        })(),
+                        "file_path": ep_row.get::<_, Option<String>>(19).unwrap_or_default(),
+                        "media_type": ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default(),
                     }));
                 }
             }
@@ -1707,7 +1714,10 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                                 let raw = ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default();
                                 crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
                             })(),
-                            "poster_path": ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default(),
+                            "poster_path": (|| {
+                                let raw = ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default();
+                                crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                            })(),
                             "file_path": ep_row.get::<_, Option<String>>(19).unwrap_or_default(),
                             "media_type": ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default(),
                         }));
@@ -1759,7 +1769,11 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                 r#type: row.get(2)?,
                 title: row.get(3)?,
                 synopsis: sanitized_synopsis,
-                poster_path: row.get(5)?,
+                poster_path: (|| {
+                    let raw: Option<String> = row.get(5)?;
+                    let p = raw.unwrap_or_default();
+                    Ok::<_, rusqlite::Error>(Some(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p)))
+                })()?,
                 backdrop_path: (|| {
                     let raw: String = row.get(6)?;
                     Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw))
@@ -1984,7 +1998,11 @@ pub async fn get_library_data(
                     r#type: row.get(2)?,
                     title: row.get(3)?,
                     synopsis: sanitized_synopsis,
-                    poster_path: row.get(5)?,
+                    poster_path: (|| {
+                        let raw: Option<String> = row.get(5)?;
+                        let p = raw.unwrap_or_default();
+                        Ok::<_, rusqlite::Error>(Some(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p)))
+                    })()?,
                     backdrop_path: (|| {
                         let raw: String = row.get(6)?;
                         Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw))
@@ -2201,8 +2219,14 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                     "progress_percentage": progress_percentage,
                     "media_id": row.get::<_, i32>(18)?,
                     "show_title": row.get::<_, Option<String>>(19)?.unwrap_or_default(),
-                    "poster_path": row.get::<_, Option<String>>(20)?.unwrap_or_default(),
-                    "backdrop_path": row.get::<_, Option<String>>(21)?.unwrap_or_default(),
+                    "poster_path": (|| {
+                        let raw = row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default();
+                        crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                    })(),
+                    "backdrop_path": (|| {
+                        let raw = row.get::<_, Option<String>>(21).unwrap_or_default().unwrap_or_default();
+                        crate::tmdb::resolve_local_backdrop_path(&raw, "w1280", high_performance_mode).unwrap_or(raw)
+                    })(),
                     "media_type": row.get::<_, Option<String>>(22)?.unwrap_or_default(),
                     "is_fallback_image": is_fallback_image,
                     "potential_spoiler": potential_spoiler,

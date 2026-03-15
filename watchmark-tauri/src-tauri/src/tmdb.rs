@@ -590,6 +590,22 @@ pub fn resolve_local_still_path(image_path: &str, episode_id: i32) -> Option<Str
     None
 }
 
+pub fn resolve_local_poster_path(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
+    if image_path.is_empty() {
+        return None;
+    }
+
+    let clean_path = image_path.trim_start_matches('/');
+    let actual_size = if high_performance_mode && size == "w500" { "w342" } else { size };
+    let filename = format!("{}_{}", actual_size, clean_path);
+
+    let local_path = get_poster_cache_dir().join(&filename);
+    if local_path.exists() {
+        return Some(local_path.to_string_lossy().to_string());
+    }
+    None
+}
+
 pub fn resolve_local_backdrop_path(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
     if image_path.is_empty() {
         return None;

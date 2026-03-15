@@ -9,6 +9,11 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "fs:default",
+    {
+      "identifier": "fs:allow-app-local-data-read",
+      "allow": [{ "path": "$APP_LOCAL_DATA/**" }, { "path": "$APP_DATA/**" }]
+    }
   ]
 }
