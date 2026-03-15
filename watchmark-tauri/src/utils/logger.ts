@@ -9,13 +9,13 @@ export const logger = {
     // 1. Navigation & App Lifecycle
     app: (msg: string) => console.log(`[APP] 🚀 ${msg}`),
     settings: (msg: string) => console.log(`[APP] ⚙️ ${msg}`),
-    navTo: (msg: string) => console.log(`[NAV] ➡️ ${msg}`),
-    navBack: (msg: string) => console.log(`[NAV] ⬅️ ${msg}`),
+    navTo: (msg: string) => console.info(`[NAV] ➡️ ${msg}`),
+    navBack: (msg: string) => console.info(`[NAV] ⬅️ ${msg}`),
 
     // 2. User Actions (Clicks & Inputs)
-    click: (msg: string) => console.log(`[ACTION] 🖱️ User clicked ${msg}.`),
-    input: (msg: string) => console.log(`[ACTION] ⌨️ User typing in ${msg}...`),
-    action: (msg: string) => console.log(`[ACTION] 🖱️ ${msg}`),
+    click: (msg: string) => console.info(`[ACTION] 🖱️ User clicked ${msg}.`),
+    input: (msg: string) => console.info(`[ACTION] ⌨️ User typing in ${msg}...`),
+    action: (msg: string) => console.info(`[ACTION] 🖱️ ${msg}`),
 
     // 3. Backend Communication (IPC Requests)
     ipcSend: (cmd: string, context?: string, id?: string) => {
@@ -31,7 +31,13 @@ export const logger = {
     state: (msg: string) => console.log(`[STATE] 🔄 ${msg}`),
 
     // 5. Errors & Edge Cases
-    error: (context: string, error: any) => console.error(`[ERROR] 🚨 ${context}: ${error}`),
+    error: (context: string, error?: any) => {
+        if (error !== undefined) {
+            console.error(`[ERROR] 🚨 ${context}`, error);
+        } else {
+            console.error(`[ERROR] 🚨 ${context}`);
+        }
+    },
     warn: (msg: string) => console.warn(`[WARNING] ⚠️ ${msg}`),
 
     // 6. The "Unmatched Inbox" Flow

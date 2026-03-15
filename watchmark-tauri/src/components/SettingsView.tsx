@@ -100,13 +100,13 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
           setSettings(res);
           setInitialSettings(JSON.parse(JSON.stringify(res)));
       })
-      .catch(console.error);
+      .catch(e => logger.error("Failed to get settings", e));
 
     invoke("get_available_modules")
       .then((res: any) => {
           setAvailableModules(res);
       })
-      .catch(console.error);
+      .catch(e => logger.error("Failed to get available modules", e));
 
     const unlistenScan = listen("scan-match-batch", (event: any) => {
       const batch = event.payload.files;
@@ -222,7 +222,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
       }
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
-        console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
+        logger.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
       } else {
         logger.error("Scan Dialog Failed", e);
         toast.error("Error opening dialog: " + e);
@@ -243,8 +243,9 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
       }
     } catch (e: any) {
        if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
-        console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
+        logger.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
       } else {
+        logger.error("Error opening dialog", e);
         toast.error("Error opening dialog: " + e);
       }
     }
@@ -321,7 +322,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
           try {
               defaultPath = await documentDir();
           } catch (e) {
-              console.warn("Failed to get document dir:", e);
+              logger.warn(`Failed to get document dir: ${e}`);
           }
 
           const selected = await save({
@@ -337,7 +338,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
           }
       } catch (error: any) {
           if (error?.toString().includes("reading 'invoke'") || error?.toString().includes("window.__TAURI_INTERNALS__")) {
-              console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
+              logger.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
           } else {
               logger.error("Database Export Failed", error);
               toast.error(`Export failed: ${error}`);
@@ -418,7 +419,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                         TMDB is a free service used to provide the high-quality posters and details shown in the app.
                                     </p>
                                     <button
-                                        onClick={() => openUrl("https://www.themoviedb.org/settings/api").catch(console.error)}
+                                        onClick={() => openUrl("https://www.themoviedb.org/settings/api").catch(e => logger.error("Failed to open URL", e))}
                                         className="text-[#FF6B00] font-bold hover:underline"
                                     >
                                         Get your free API key here &rarr;
