@@ -10,6 +10,7 @@ import { StarRating } from "./ui/StarRating";
 import { useAppStore } from "../store/useAppStore";
 import { cn } from "../App";
 import { RefreshCw } from "lucide-react";
+import { SafeImage } from "./ui/SafeImage";
 
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const { showConfirm, setProcessing } = useUiStore();
@@ -83,9 +84,10 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       {/* Edge-to-edge Hero Banner */}
       <div className="relative w-full h-[50vh] min-h-[400px]">
         <div className="absolute inset-0">
-          <img
-            src={`https://image.tmdb.org/t/p/original${data.backdrop_path}`}
-            alt="Backdrop"
+          <SafeImage
+            srcPath={data.backdrop_path ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` : ""}
+            type="backdrop"
+            altText="Backdrop"
             className="w-full h-full object-cover opacity-60"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0D0F14] via-[#0D0F14]/40 to-transparent" />
@@ -107,12 +109,14 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="relative w-64 shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10"
+          className="relative w-64 shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10 aspect-[2/3]"
         >
-          <img
-            src={`https://image.tmdb.org/t/p/w500${data.poster_path}`}
-            alt="Poster"
-            className={`w-full h-auto object-cover ${data.is_unaired ? 'grayscale-[0.5] opacity-70' : ''}`}
+          <SafeImage
+            srcPath={data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : ""}
+            type="poster"
+            altText="Poster"
+            title={data.title}
+            className={`w-full h-full object-cover ${data.is_unaired ? 'grayscale-[0.5] opacity-70' : ''}`}
           />
           {data.is_unaired && (
             <div className="absolute top-2 left-2 z-20 px-2 py-1 bg-blue-500/80 backdrop-blur-md rounded-md text-[10px] font-bold text-white shadow-md uppercase tracking-wider">
@@ -132,7 +136,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             {data.title}
           </h1>
 
-          <div className="flex items-center gap-4 mb-6 text-sm font-bold tracking-wider">
+          <div className="flex items-center gap-4 mb-3 text-sm font-bold tracking-wider flex-wrap">
             <span className={`px-3 py-1 rounded-md backdrop-blur-md text-white ${data.type === 'Unknown' ? 'bg-red-500/80' : 'bg-white/10'}`}>
               {data.type}
             </span>
@@ -168,7 +172,23 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                 }}
               />
             </div>
+
+            {data.networks && data.networks.trim() !== "" && (
+              <div className="flex items-center text-gray-400 bg-white/5 px-3 py-1 rounded-md text-xs font-bold border border-white/10 uppercase">
+                {data.networks}
+              </div>
+            )}
           </div>
+
+          {data.genres && data.genres.trim() !== "" && (
+            <div className="flex gap-2 mb-6 flex-wrap">
+              {data.genres.split(",").map((g: string, i: number) => (
+                <span key={i} className="px-3 py-1 rounded-full border border-white/20 bg-[#1F222A] text-gray-300 text-xs font-bold shadow-md tracking-wider">
+                  {g.trim()}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="mb-8">
             <p className="text-lg text-gray-300 leading-relaxed drop-shadow-md whitespace-pre-line">
@@ -313,17 +333,15 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                }}
              >
                <div className="w-40 aspect-video bg-black/40 rounded-lg overflow-hidden shrink-0 relative mr-6">
-                 {ep.still_path ? (
-                    <img
-                        src={`https://image.tmdb.org/t/p/w500${ep.still_path}`}
-                        alt={ep.title}
-                        className="w-full h-full object-cover"
-                    />
-                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs font-bold uppercase tracking-widest bg-[#15171e]">
-                       EP {ep.ep_num}
-                    </div>
-                 )}
+                 <SafeImage
+                    srcPath={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : ""}
+                    fallbackSrcPath={data.backdrop_path ? `https://image.tmdb.org/t/p/w1280${data.backdrop_path}` : ""}
+                    type="still"
+                    episodeNumber={ep.ep_num}
+                    altText={ep.title}
+                    title={ep.title}
+                    className="w-full h-full object-cover"
+                 />
                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity">
                     {ep.is_unaired ? (
                       <div className="w-12 h-12 rounded-full bg-gray-700/80 flex items-center justify-center text-white shadow-lg cursor-not-allowed group/tooltip relative">

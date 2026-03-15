@@ -187,6 +187,8 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             user_rating INTEGER CHECK(user_rating >= 0 AND user_rating <= 10) DEFAULT NULL,
             release_date TEXT,
             is_exact_date BOOLEAN DEFAULT 1,
+            genres TEXT DEFAULT '',
+            networks TEXT DEFAULT '',
             UNIQUE(tmdb_id, \"type\")
         )",
         (),
@@ -202,6 +204,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             runtime INTEGER,
             still_path TEXT,
             overview TEXT,
+            season_overview TEXT DEFAULT '',
             watch_count INTEGER DEFAULT 0,
             last_position INTEGER NOT NULL DEFAULT 0,
             status TEXT DEFAULT 'Unwatched',
@@ -446,6 +449,24 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         let tx = conn.transaction()?;
         tx.execute("CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)", ())?;
         tx.execute("PRAGMA user_version = 12", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 13 {
+        let tx = conn.transaction()?;
+        let v13_migrations = vec![
+            "ALTER TABLE Media ADD COLUMN genres TEXT DEFAULT ''",
+            "ALTER TABLE Media ADD COLUMN networks TEXT DEFAULT ''",
+            "ALTER TABLE Episodes ADD COLUMN season_overview TEXT DEFAULT ''",
+        ];
+        for query in v13_migrations {
+            if let Err(e) = tx.execute(query, ()) {
+                if !e.to_string().contains("duplicate column name") {
+                    return Err(crate::error::AppError::DbError(e));
+                }
+            }
+        }
+        tx.execute("PRAGMA user_version = 13", ())?;
         tx.commit()?;
     }
 

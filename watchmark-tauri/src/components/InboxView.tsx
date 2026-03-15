@@ -7,6 +7,7 @@ import { invokeWithTimeout } from "../utils/ipc";
 import { invoke } from "@tauri-apps/api/core";
 import { useTaskStore } from "../store/useTaskStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
+import { SafeImage } from "./ui/SafeImage";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -165,12 +166,23 @@ export default function InboxView({ onMatch }: any) {
               <div
                 key={key}
                 onClick={() => setSelectedGroup(key)}
-                className={`p-4 rounded-xl cursor-pointer transition-colors mb-2 ${
+                className={`p-4 flex items-center gap-4 rounded-xl cursor-pointer transition-colors mb-2 ${
                   selectedGroup === key ? "bg-white/10 border border-[#FF6B00]/50" : "hover:bg-white/5"
                 }`}
               >
-                <h3 className="text-white font-bold truncate">{key}</h3>
-                <p className="text-gray-500 text-sm mt-1">{files.length} files</p>
+                <SafeImage
+                  srcPath=""
+                  type="poster"
+                  altText={key}
+                  title={key}
+                  className="w-12 h-16 shrink-0 shadow-md"
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white font-bold truncate">{key}</h3>
+                  <p className="text-gray-500 text-sm mt-1 font-semibold tracking-wider">
+                    {files.length} {files.length === 1 ? 'FILE' : 'FILES'}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -269,17 +281,13 @@ export default function InboxView({ onMatch }: any) {
                   {searchResults.map((item, i) => (
                     <div key={i} className="bg-[#1F222A] rounded-xl overflow-hidden group border border-white/5 shadow-xl">
                       <div className="aspect-[2/3] relative">
-                        {item.poster_path ? (
-                          <img
-                            src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
-                            alt={item.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-black/40 text-gray-500 font-bold p-4 text-center">
-                            {item.title}
-                          </div>
-                        )}
+                        <SafeImage
+                          srcPath={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : ""}
+                          type="poster"
+                          altText={item.title}
+                          title={item.title}
+                          className="w-full h-full object-cover"
+                        />
                         <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                           <button
                             onClick={() => assignShow(item.tmdb_id, item.type)}

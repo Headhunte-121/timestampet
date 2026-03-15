@@ -147,6 +147,10 @@ pub struct Media {
     pub is_exact_date: bool,
     #[serde(default)]
     pub is_date_known: bool,
+    #[serde(default)]
+    pub genres: String,
+    #[serde(default)]
+    pub networks: String,
 
     // Virtual fields
     #[serde(default)]
@@ -181,6 +185,8 @@ pub struct Episode {
     #[serde(default)]
     pub file_path: String,
     pub overview: String,
+    #[serde(default)]
+    pub season_overview: String,
     pub air_date: String,
     pub is_exact_date: bool,
     #[serde(default)]

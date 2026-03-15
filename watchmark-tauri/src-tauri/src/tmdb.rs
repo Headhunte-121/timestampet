@@ -211,6 +211,31 @@ pub async fn get_media_details(
         Value::String(r["backdrop_path"].as_str().unwrap_or("").to_string()),
     );
 
+    // Flatten genres
+    let genres = r["genres"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|g| g["name"].as_str())
+                .collect::<Vec<&str>>()
+                .join(", ")
+        })
+        .unwrap_or_else(|| "".to_string());
+    obj.insert("genres".to_string(), Value::String(genres));
+
+    // Flatten networks / studios
+    let networks = r["networks"]
+        .as_array()
+        .or_else(|| r["production_companies"].as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|n| n["name"].as_str())
+                .collect::<Vec<&str>>()
+                .join(", ")
+        })
+        .unwrap_or_else(|| "".to_string());
+    obj.insert("networks".to_string(), Value::String(networks));
+
     if media_type == "TV" {
         obj.insert(
             "total_episodes".to_string(),
@@ -300,6 +325,11 @@ pub async fn get_tv_season_episodes(
         .json()
         .await?;
 
+    let season_overview = crate::sanitizer::sanitize_text(
+        r["overview"].as_str().unwrap_or(""),
+        "No season overview.",
+    );
+
     let episodes = r["episodes"].as_array().unwrap_or(&vec![]).clone();
     let mut formatted = Vec::new();
 
@@ -323,6 +353,10 @@ pub async fn get_tv_season_episodes(
         obj.insert(
             "overview".to_string(),
             Value::String(crate::sanitizer::sanitize_text(&tmdb_ep.overview.unwrap_or("".to_string()), "No episode summary.")),
+        );
+        obj.insert(
+            "season_overview".to_string(),
+            Value::String(season_overview.clone()),
         );
         obj.insert(
             "runtime".to_string(),
@@ -382,3 +416,7 @@ pub async fn download_image(image_path: &str, size: &str) -> Option<String> {
 
     None
 }
+
+#[cfg(test)]
+#[path = "tmdb_tests_3_4.rs"]
+mod tmdb_tests_3_4;

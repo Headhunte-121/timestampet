@@ -356,3 +356,11 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Handled edge cases for date formatting per requested rules (e.g., displaying `2013-` for TV Shows vs just `2013` for Movies).
 - Attached extensive test suite ensuring same-name collisions, actor name flattening, and character encoding execute flawlessly.
 
+
+## Feature 3.4: Dedicated TV Show deep-data fetching
+- Added `genres` and `networks` flattened fields to `Media` schema via migration.
+- Added `season_overview` to `Episodes` schema via migration.
+- Integrated iterative Fetch-and-Commit streaming loop in `add_to_tracker` to prevent RAM spikes on 50+ season shows.
+- Refactored `assign_unmatched_to_tracker` to also use iterative streaming loop.
+- Added empty-string sanitization mapping missing images to `Value::Null` for data integrity.
+- Integrated `SafeImage` component across Dashboard, Library, SearchTMDB, Inbox, and History for robust image fallbacks without layout shifts.
