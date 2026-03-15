@@ -335,22 +335,26 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         )}
 
         <div className="grid gap-4 max-w-5xl">
-          {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => (
-             <div
-               key={ep.id}
-               className="flex items-center bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group relative"
-               onContextMenu={(e) => {
-                 e.preventDefault();
-                 if (ep.file_path) {
-                   setContextMenu({ x: e.pageX, y: e.pageY, epId: ep.id });
-                 }
-               }}
-             >
-               <div className="w-40 aspect-video bg-black/40 rounded-lg overflow-hidden shrink-0 relative mr-6">
-                 <SafeImage
-                    srcPath={ep.still_path ? formatImagePath(ep.still_path, "w500") : ""}
-                    fallbackSrcPath={data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : ""}
-                    type="still"
+          {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => {
+             const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
+             const fallbackUrl = data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : "";
+             console.log(`Show Title: ${ep.title || "Unknown Episode"} | Image URL being used: ${stillUrl || fallbackUrl}`);
+             return (
+               <div
+                 key={ep.id}
+                 className="flex items-center bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group relative"
+                 onContextMenu={(e) => {
+                   e.preventDefault();
+                   if (ep.file_path) {
+                     setContextMenu({ x: e.pageX, y: e.pageY, epId: ep.id });
+                   }
+                 }}
+               >
+                 <div className="w-40 aspect-video bg-black/40 rounded-lg overflow-hidden shrink-0 relative mr-6">
+                   <SafeImage
+                      srcPath={stillUrl}
+                      fallbackSrcPath={fallbackUrl}
+                      type="still"
                     episodeNumber={ep.ep_num}
                     altText={ep.title}
                     title={ep.title}
@@ -469,7 +473,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                  </p>
                </div>
              </div>
-          ))}
+             );
+          })}
           {(!data.episodes || data.episodes.length === 0) && (
               <div className="p-8 text-gray-500">No episodes found for this media.</div>
           )}
