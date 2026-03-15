@@ -14,6 +14,7 @@ import { Loader2, UploadCloud, Sparkles, CheckCircle2, XCircle, AlertTriangle } 
 import { documentDir } from '@tauri-apps/api/path';
 import { RestoreConfirmationModal } from "./ui/RestoreConfirmationModal";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
+import { logger } from "../utils/logger";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -201,16 +202,19 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
         title: "Select Directory to Scan"
       });
       if (selected && typeof selected === 'string') {
+        logger.click("the 'Run Scan' button");
         setScanStatus("Scan started...");
         setScanning(true);
         // Ensure a generous timeout matching the backend (300 seconds)
         invokeWithTimeout<number>("run_scan_directory", { directory: selected }, 300000)
           .then((count: number) => {
+            logger.ipcSuccess(`Scan complete. Found ${count} unmatched files.`);
             toast.success(`Scan complete. Found ${count} unmatched files.`);
             setScanStatus("");
             setScanning(false);
           })
           .catch((e: any) => {
+            logger.error("Scan Failed", e);
             toast.error("Error during scan: " + e);
             setScanStatus("");
             setScanning(false);
@@ -220,6 +224,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
       if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
         console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
       } else {
+        logger.error("Scan Dialog Failed", e);
         toast.error("Error opening dialog: " + e);
       }
     }
@@ -255,12 +260,15 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
         toast.error("Both Old Root and New Root must be provided.");
         return;
     }
+    logger.click("'Repair Paths' button");
     try {
         const affected: number = await invoke("repair_paths", { oldRoot: oldRootPath, newRoot: newRootPath });
+        logger.ipcSuccess(`Path repair complete. Updated ${affected} entries.`);
         toast.success(`Path repair complete. Updated ${affected} entries.`);
         setOldRootPath("");
         setNewRootPath("");
     } catch (e: any) {
+        logger.error("Path Repair Failed", e);
         toast.error(`Error repairing paths: ${e}`);
     }
   };
@@ -287,6 +295,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
 
   const confirmRestore = async () => {
       if (!selectedRestoreFile) return;
+      logger.click("'Confirm Restore' button");
       setIsRestoring(true);
       try {
           // Set a local storage flag so the frontend knows on boot that a restore just finished
@@ -295,6 +304,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
           // If successful, app will restart. If we reach here, restart didn't happen immediately but was triggered.
       } catch (e: any) {
           localStorage.removeItem('restore_success');
+          logger.error("Database Restore Failed", e);
           toast.error("Restore failed: " + e);
           setIsRestoring(false);
           setShowRestoreModal(false);
@@ -302,6 +312,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   };
 
   const handleBackupDB = async () => {
+      logger.click("'Backup DB' button");
       setIsBackingUp(true);
       try {
           const dateString = new Date().toISOString().split('T')[0];
@@ -321,12 +332,14 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
 
           if (selected && typeof selected === 'string') {
               await invoke("export_database", { targetPath: selected });
+              logger.ipcSuccess(`Database exported to ${selected}`);
               toast.success(`Database exported! Your media history is now safe in ${selected}`);
           }
       } catch (error: any) {
           if (error?.toString().includes("reading 'invoke'") || error?.toString().includes("window.__TAURI_INTERNALS__")) {
               console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
           } else {
+              logger.error("Database Export Failed", error);
               toast.error(`Export failed: ${error}`);
           }
       } finally {
@@ -345,15 +358,19 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   };
 
   const handleOptimizeDB = async () => {
+      logger.click("'Clean Database' button");
       setOptimizing(true);
       try {
           const [savedBytes, percentage]: [number, number] = await invoke("optimize_database");
           if (savedBytes > 0) {
+             logger.ipcSuccess(`Database optimized. Reclaimed ${formatBytes(savedBytes)}.`);
              toast.success(`Optimization Complete! Database is now ${percentage}% smaller. ${formatBytes(savedBytes)} reclaimed.`);
           } else {
+             logger.ipcSuccess(`Database is already fully optimized.`);
              toast.success("Database is already fully optimized.");
           }
       } catch (error: any) {
+          logger.error("Database Optimization Failed", error);
           toast.error(`${error}`);
       } finally {
           setOptimizing(false);

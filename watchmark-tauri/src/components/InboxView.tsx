@@ -8,6 +8,7 @@ import { invokeWithTimeout } from "../utils/ipc";
 import { invoke } from "@tauri-apps/api/core";
 import { useTaskStore } from "../store/useTaskStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
+import { logger } from "../utils/logger";
 import { SafeImage } from "./ui/SafeImage";
 import { motion } from "framer-motion";
 
@@ -70,12 +71,15 @@ export default function InboxView({ onMatch }: any) {
 
   const assignShow = async (tmdbId: string, mediaType: string) => {
     if (!selectedGroup) return;
+    logger.inboxMatch(tmdbId);
     try {
       await asyncInvoke("assign_unmatched_to_tracker", {
         tmdbId,
         mediaType,
         groupKey: selectedGroup
       });
+      const matchedGroup = unmatched.find(g => g.group_key === selectedGroup);
+      logger.inboxSuccess(matchedGroup?.files?.length || 0, `TMDB ID: ${tmdbId}`);
       toast.success(`Successfully assigned files to tracker!`);
       setSelectedGroup(null);
       setIsModalOpen(false);
@@ -85,12 +89,16 @@ export default function InboxView({ onMatch }: any) {
       if (e?.toString().includes("reading 'invoke'")) {
         console.warn("Tauri invoke missing.");
       } else {
+        logger.error("Inbox Assignment Failed", e);
         toast.error("Error assigning show: " + e);
       }
     }
   };
 
   const openSearchModal = () => {
+    if (selectedGroup) {
+        logger.inboxGroup(selectedGroup);
+    }
     setIsModalOpen(true);
     if (selectedGroup) {
       performSearch();
@@ -132,11 +140,13 @@ export default function InboxView({ onMatch }: any) {
           <button
             onClick={async () => {
               if (confirm("Are you sure you want to clear the entire Inbox? This will not delete any files.")) {
+                logger.inboxIgnore("Entire Inbox");
                 try {
                   await invoke("clear_unmatched_files");
                   toast.success("Inbox cleared safely.");
                   fetchUnmatched();
                 } catch (e: any) {
+                  logger.error("Inbox Clear Failed", e);
                   toast.error("Error clearing inbox: " + e);
                 }
               }
@@ -255,7 +265,12 @@ export default function InboxView({ onMatch }: any) {
                   type="text"
                   placeholder="Search TMDB..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                      if (searchQuery !== e.target.value) {
+                          logger.inboxEdit(searchQuery, e.target.value);
+                      }
+                      setSearchQuery(e.target.value);
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && performSearch()}
                   className="flex-1 bg-[#15171e] text-white px-6 py-3 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00] transition-colors"
                 />

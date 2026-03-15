@@ -19,6 +19,7 @@ import { Modal } from "./components/ui/Modal";
 import { ProcessingModal } from "./components/ui/ProcessingModal";
 import { OptimizationModal } from "./components/ui/OptimizationModal";
 import { useAsyncInvoke } from "./hooks/useAsyncInvoke";
+import { logger } from "./utils/logger";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -47,6 +48,7 @@ function App() {
   const activeSyncs = useTaskStore((state) => state.activeSyncs);
 
   useEffect(() => {
+    logger.app("WatchMark Frontend successfully mounted.");
     initializeSettings();
 
     // Check for successful restore flag
@@ -146,6 +148,15 @@ function App() {
       if (currentView === view && !selectedMediaId && !mediaId) {
           return; // Do nothing if already on the root of the tab
       }
+
+      if (mediaId && mediaId !== selectedMediaId) {
+          logger.navTo(`Media Details for ID: ${mediaId}`);
+      } else if (!mediaId && selectedMediaId) {
+          logger.navBack(`Return to ${currentView}`);
+      } else if (view !== currentView) {
+          logger.navTo(`'${navItems.find(i => i.id === view)?.label || view}' Tab`);
+      }
+
       setCurrentView(view);
       setSelectedMediaId(mediaId);
     }
