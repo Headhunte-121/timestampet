@@ -13,12 +13,16 @@ import { convertFileSrc } from '@tauri-apps/api/core';
  * @returns The formatted, ready-to-use image URL.
  */
 export function formatImagePath(path: string | null | undefined, size: string = 'w500'): string {
+  console.log("LOG 1: INPUT PATH", path);
+
   if (!path || path.trim() === '') {
+    console.log("IMAGE PATH IS NULL");
     return '';
   }
 
   // Double Conversion Protection
   if (path.startsWith('asset.localhost') || path.startsWith('http') || path.startsWith('asset://')) {
+    console.log("LOG 3 (Double-converted block): FINAL URL", path);
     return path;
   }
 
@@ -32,12 +36,18 @@ export function formatImagePath(path: string | null | undefined, size: string = 
     // Normalize backslashes to forward slashes for Tauri v2 Windows compatibility
     // This prevents 403 Forbidden errors caused by double-encoded '%5C' in URI schemes.
     const normalizedPath = path.replace(/\\/g, '/');
+    console.log("LOG 2: NORMALIZED PATH", normalizedPath);
+
     // It's a local cached file, use Tauri's custom protocol
-    return convertFileSrc(normalizedPath);
+    const finalUrl = convertFileSrc(normalizedPath);
+    console.log("LOG 3: FINAL URL", finalUrl);
+    return finalUrl;
   }
 
   // Otherwise, it's a raw TMDB path
   // Ensure it starts with a slash
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `https://image.tmdb.org/t/p/${size}${cleanPath}`;
+  const finalUrl = `https://image.tmdb.org/t/p/${size}${cleanPath}`;
+  console.log("LOG 3 (TMDB Block): FINAL URL", finalUrl);
+  return finalUrl;
 }

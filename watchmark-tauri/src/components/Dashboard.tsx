@@ -235,6 +235,10 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             {filteredCW.map((ep) => {
               const progress = calculateProgress(ep.last_position, ep.runtime);
 
+              const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
+              const fallbackUrl = ep.backdrop_path ? formatImagePath(ep.backdrop_path, "w500") : PLACEHOLDER_BACKDROP;
+              console.log(`Show Title: ${ep.show_title || "Unknown Show"} | Image URL being used: ${stillUrl || fallbackUrl}`);
+
               return (
                 <motion.div
                   key={ep.id}
@@ -249,8 +253,8 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                 >
                   <div className="w-full h-[180px] relative overflow-hidden bg-black/40">
                     <SafeImage
-                      srcPath={ep.still_path ? formatImagePath(ep.still_path, "w500") : ""}
-                      fallbackSrcPath={ep.backdrop_path ? formatImagePath(ep.backdrop_path, "w500") : PLACEHOLDER_BACKDROP}
+                      srcPath={stillUrl}
+                      fallbackSrcPath={fallbackUrl}
                       type="still"
                       episodeNumber={ep.ep_num}
                       title={ep.show_title || "Unknown Show"}
@@ -311,6 +315,9 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           <motion.div layout className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
             <AnimatePresence mode="popLayout">
             {filteredRecent.map((media) => {
+              const posterUrl = media.poster_path ? formatImagePath(media.poster_path, "w500") : "";
+              console.log(`Show Title: ${media.title || "Unknown Title"} | Image URL being used: ${posterUrl}`);
+
               return (
                 <motion.div
                   key={media.id}
@@ -324,7 +331,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   className="relative flex-none w-[140px] md:w-[160px] lg:w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-shadow duration-300 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A] transform-gpu"
                 >
                   <SafeImage
-                    srcPath={media.poster_path ? formatImagePath(media.poster_path, "w500") : ""}
+                    srcPath={posterUrl}
                     fallbackSrcPath={PLACEHOLDER_POSTER}
                     type="poster"
                     altText={media.title || "Unknown Title"}

@@ -1613,11 +1613,15 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                         "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
                         "backdrop_path": (|| {
                             let raw = ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default();
-                            crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
+                            let resolved = crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw);
+                            log::info!("RUST SENDING PATH (hero): backdrop_path={:?}", resolved);
+                            resolved
                         })(),
                         "poster_path": (|| {
                             let raw = ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default();
-                            crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                            let resolved = crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw);
+                            log::info!("RUST SENDING PATH (hero): poster_path={:?}", resolved);
+                            resolved
                         })(),
                         "file_path": ep_row.get::<_, Option<String>>(19).unwrap_or_default(),
                         "media_type": ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default(),
@@ -1776,11 +1780,15 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                 poster_path: (|| {
                     let raw: Option<String> = row.get(5)?;
                     let p = raw.unwrap_or_default();
-                    Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p))
+                    let resolved = crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p);
+                    log::info!("RUST SENDING PATH (recent): poster_path={:?}", resolved);
+                    Ok::<_, rusqlite::Error>(resolved)
                 })()?,
                 backdrop_path: (|| {
                     let raw: String = row.get(6)?;
-                    Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw))
+                    let resolved = crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw);
+                    log::info!("RUST SENDING PATH (recent): backdrop_path={:?}", resolved);
+                    Ok::<_, rusqlite::Error>(resolved)
                 })()?,
                 total_episodes: row.get(7)?,
                 status: row.get(8)?,
