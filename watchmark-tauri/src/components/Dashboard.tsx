@@ -54,6 +54,11 @@ interface DashboardData {
 const PLACEHOLDER_BACKDROP = "https://images.unsplash.com/photo-1542293787-827fb705d15a?q=80&w=2560&auto=format&fit=crop";
 const PLACEHOLDER_POSTER = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop";
 
+interface EpisodeExtended extends Episode {
+    is_fallback_image?: boolean;
+    potential_spoiler?: boolean;
+}
+
 export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery = "" }: { onMediaSelect: (id: number) => void, refreshTrigger: number, searchQuery?: string }) {
   const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -111,7 +116,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     return Math.min(100, progress);
   };
 
-  const filteredCW = data.cw_eps?.filter(ep =>
+  const filteredCW: EpisodeExtended[] = data.cw_eps?.filter(ep =>
     !searchQuery ||
     ep.show_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ep.title?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -128,10 +133,13 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {data.hero_ep ? (
         <div className="relative aspect-video w-full max-h-[450px] rounded-2xl overflow-hidden group">
           <SafeImage
-            srcPath={data.hero_ep.backdrop_path || ""}
+            srcPath={(data.hero_ep as any).still_path || data.hero_ep.backdrop_path || ""}
             fallbackSrcPath={(data.hero_ep as any).backdrop_fallback || undefined}
             type="backdrop"
             altText="Hero Backdrop"
+            isFallbackImage={(data.hero_ep as any).is_fallback_image}
+            potentialSpoiler={(data.hero_ep as any).potential_spoiler}
+            isCompleted={data.hero_ep.status === "Completed"}
             className="w-full h-full object-cover origin-center"
             // Note: Since SafeImage uses motion.img under the hood, standard style pass-through applies, but to properly pass framer props we cast or just rely on the fallback structure.
             // SafeImage now returns a wrapper div when type="backdrop" containing motion.img
@@ -218,8 +226,6 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           <motion.div layout className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x">
             <AnimatePresence mode="popLayout">
             {filteredCW.map((ep) => {
-              const imagePath = ep.still_path || ep.backdrop_path;
-              const imgUrl = imagePath ? `https://image.tmdb.org/t/p/w500${imagePath}` : PLACEHOLDER_BACKDROP;
               const progress = calculateProgress(ep.last_position, ep.runtime);
 
               return (
@@ -234,13 +240,20 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   whileHover={isCinemaMode ? { scale: 1.02 } : {}}
                   className="flex-none min-w-[320px] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative transform-gpu"
                 >
-                  <div className="w-full h-[180px] relative overflow-hidden">
-                    <img
-                      src={imgUrl}
-                      alt={ep.show_title || "Show Thumbnail"}
-                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                  <div className="w-full h-[180px] relative overflow-hidden bg-black/40">
+                    <SafeImage
+                      srcPath={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : ""}
+                      fallbackSrcPath={ep.backdrop_path ? `https://image.tmdb.org/t/p/w1280${ep.backdrop_path}` : PLACEHOLDER_BACKDROP}
+                      type="still"
+                      episodeNumber={ep.ep_num}
+                      title={ep.show_title || "Unknown Show"}
+                      altText={ep.show_title || "Show Thumbnail"}
+                      isFallbackImage={ep.is_fallback_image}
+                      potentialSpoiler={ep.potential_spoiler}
+                      isCompleted={ep.status === "Completed"}
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
                     <button
                       onClick={(e) => {

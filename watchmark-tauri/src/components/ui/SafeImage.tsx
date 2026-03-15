@@ -13,13 +13,30 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   releaseDate?: string;
   isDateKnown?: boolean;
   isExactDate?: boolean;
+  isFallbackImage?: boolean;
+  potentialSpoiler?: boolean;
+  isCompleted?: boolean;
 }
 
-export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, className, title, fallbackSrcPath, episodeNumber, releaseDate, isDateKnown, isExactDate, ...rest }) => {
+export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, className, title, fallbackSrcPath, episodeNumber, releaseDate, isDateKnown, isExactDate, isFallbackImage, potentialSpoiler, isCompleted, ...rest }) => {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  useEffect(() => {
+    let timer: any;
+    if (isHovering && potentialSpoiler && !isCompleted && !isRevealed) {
+      timer = setTimeout(() => {
+        setIsRevealed(true);
+      }, 1000);
+    } else if (!isHovering) {
+        setIsRevealed(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isHovering, potentialSpoiler, isCompleted, isRevealed]);
 
   useEffect(() => {
     if (fallbackSrcPath) {
@@ -152,13 +169,35 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
     );
   }
 
+  const shouldBlur = potentialSpoiler && !isCompleted && !isRevealed;
+  const blurClass = shouldBlur ? 'backdrop-filter backdrop-blur-[25px]' : '';
+  const transitionClass = 'transition-[filter] duration-300 ease-in';
+  const filterStyle = shouldBlur ? { filter: 'blur(25px)' } : { filter: 'blur(0px)' };
+
+  const commonClasses = `${className || ''} ${isFallbackImage ? 'brightness-75' : ''}`;
+  const objectPositionClass = type === 'still' ? 'object-[center_20%]' : '';
+
   return (
-    <img
-      src={imgSrc!}
-      alt={altText}
-      className={className}
-      onError={() => setHasError(true)}
-      {...rest}
-    />
+    <div
+        className={`relative w-full h-full overflow-hidden ${type === 'still' ? 'aspect-video' : ''} ${blurClass}`}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+    >
+      <motion.img
+        src={imgSrc!}
+        alt={altText}
+        className={`${commonClasses} w-full h-full object-cover ${objectPositionClass} ${transitionClass}`}
+        style={filterStyle}
+        onError={() => setHasError(true)}
+        {...rest as any}
+      />
+      {isFallbackImage && type === 'still' && (
+         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+           <span className="text-white font-bold text-3xl drop-shadow-lg tracking-wider uppercase opacity-90">
+             {episodeNumber ? `EP ${episodeNumber}` : (title || "EP")}
+           </span>
+         </div>
+      )}
+    </div>
   );
 };

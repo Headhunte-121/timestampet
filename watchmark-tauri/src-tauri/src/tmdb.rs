@@ -29,6 +29,14 @@ pub fn get_poster_cache_dir() -> PathBuf {
     dir
 }
 
+pub fn get_still_cache_dir() -> PathBuf {
+    let dir = get_app_data_dir().join("cache").join("stills");
+    if !dir.exists() {
+        fs::create_dir_all(&dir).unwrap_or_default();
+    }
+    dir
+}
+
 pub async fn validate_key(api_key: &str) -> Result<bool, AppError> {
     let url = format!("{}/configuration", TMDB_API_BASE);
 
@@ -568,6 +576,20 @@ pub async fn get_collection_details(api_key: &str, collection_id: i32) -> Result
     Ok(r)
 }
 
+pub fn resolve_local_still_path(image_path: &str, episode_id: i32) -> Option<String> {
+    if image_path.is_empty() {
+        return None;
+    }
+
+    let filename = format!("ep_{}.jpg", episode_id);
+    let local_path = get_still_cache_dir().join(&filename);
+
+    if local_path.exists() {
+        return Some(local_path.to_string_lossy().to_string());
+    }
+    None
+}
+
 pub fn resolve_local_backdrop_path(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
     if image_path.is_empty() {
         return None;
@@ -593,6 +615,57 @@ pub fn resolve_local_backdrop_path(image_path: &str, size: &str, high_performanc
     if local_path.exists() {
         return Some(local_path.to_string_lossy().to_string());
     }
+    None
+}
+
+pub async fn download_episode_still(image_path: &str, episode_id: i32, high_performance_mode: bool) -> Option<String> {
+    if image_path.is_empty() {
+        return None;
+    }
+
+    let _ = crate::db::ensure_directories();
+
+    let clean_path = image_path.trim_start_matches('/');
+    let actual_size = if high_performance_mode { "w300" } else { "w500" };
+
+    let filename = format!("ep_{}.jpg", episode_id);
+    let local_path = get_still_cache_dir().join(&filename);
+
+    if local_path.exists() {
+        return Some(local_path.to_string_lossy().to_string());
+    }
+
+    let mut attempt_sizes = vec![actual_size];
+    if actual_size == "w500" {
+        attempt_sizes.push("original");
+    }
+
+    for current_size in attempt_sizes {
+        let url = format!("https://image.tmdb.org/t/p/{}/{}", current_size, clean_path);
+        if let Ok(response) = NETWORK_MANAGER.external_client.get(&url).send().await {
+            if response.status().is_success() {
+                if let Ok(bytes) = response.bytes().await {
+                    let tmp_filename = format!("{}.tmp", filename);
+                    let tmp_local_path = get_still_cache_dir().join(&tmp_filename);
+
+                    if let Ok(_) = tokio::fs::write(&tmp_local_path, &bytes).await {
+                        if crate::sanitizer::verify_image_header(&tmp_local_path) {
+                            if std::fs::rename(&tmp_local_path, &local_path).is_ok() {
+                                return Some(local_path.to_string_lossy().to_string());
+                            }
+                        }
+                        let _ = std::fs::remove_file(&tmp_local_path);
+                    }
+                }
+                break;
+            } else if response.status() == reqwest::StatusCode::NOT_FOUND {
+                continue;
+            } else {
+                break;
+            }
+        }
+    }
+
     None
 }
 

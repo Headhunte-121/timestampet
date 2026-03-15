@@ -679,6 +679,7 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
 
             let mut episodes = vec![];
             if let Ok(ep_rows) = eps_stmt.query_map(params![media_id], |row| {
+                let ep_id = row.get::<_, i32>(0)?;
                 let raw_air_date: String = row.get::<_, Option<String>>(13)?.unwrap_or_default();
                 let (sanitized_air_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
 
@@ -686,6 +687,18 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
                     let now = chrono::Utc::now().naive_utc().date();
                     if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d") {
                         parsed > now
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                let potential_spoiler = if is_known && !sanitized_air_date.is_empty() {
+                    let now = chrono::Utc::now().naive_utc().date();
+                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d") {
+                        let duration = now.signed_duration_since(parsed);
+                        duration.num_days() <= 2
                     } else {
                         false
                     }
@@ -702,14 +715,23 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
                 let last_position: i32 = row.get::<_, Option<i32>>(10)?.unwrap_or(0);
                 let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
+                let raw_still_path: String = row.get::<_, Option<String>>(6)?.unwrap_or_default();
+                let is_fallback_image = raw_still_path.is_empty();
+
+                let resolved_still_path = if !is_fallback_image {
+                    crate::tmdb::resolve_local_still_path(&raw_still_path, ep_id).unwrap_or(raw_still_path)
+                } else {
+                    String::new()
+                };
+
                 Ok(json!({
-                    "id": row.get::<_, i32>(0)?,
+                    "id": ep_id,
                     "media_id": row.get::<_, i32>(1)?,
                     "season_num": row.get::<_, u32>(2)?,
                     "ep_num": row.get::<_, u32>(3)?,
                     "title": row.get::<_, Option<String>>(4)?.unwrap_or_default(),
                     "runtime": runtime,
-                    "still_path": row.get::<_, Option<String>>(6)?.unwrap_or_default(),
+                    "still_path": resolved_still_path,
                     "overview": sanitized_overview,
                     "season_overview": raw_season_overview,
                     "watch_count": row.get::<_, Option<i32>>(9)?.unwrap_or(0),
@@ -722,6 +744,8 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
                     "file_path": row.get::<_, Option<String>>(16)?.unwrap_or_default(),
                     "is_unaired": is_unaired,
                     "progress_percentage": progress_percentage,
+                    "is_fallback_image": is_fallback_image,
+                    "potential_spoiler": potential_spoiler,
                 }))
             }) {
                 for ep in ep_rows.flatten() {
@@ -969,8 +993,9 @@ pub async fn add_to_tracker(
                             match crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
                                 Ok(eps) => {
                                 // Insert the chunk immediately inside spawn_blocking
-                                let _ = tokio::task::spawn_blocking(move || {
+                                let res = tokio::task::spawn_blocking(move || {
                                     handle_panic(|| {
+                                        let mut inserted_eps = Vec::new();
                                         if let Ok(mut conn) = get_db_connection() {
                                             if let Ok(tx) = conn.transaction() {
                                                 for ep in eps {
@@ -1009,6 +1034,8 @@ pub async fn add_to_tracker(
                                                         new_air_date
                                                     };
 
+                                                    let raw_still_path = if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) };
+
                                                     if should_update_air_date {
                                                         let _ = tx.execute(
                                                             "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, season_overview, status, watch_count, air_date, is_exact_date)
@@ -1022,7 +1049,7 @@ pub async fn add_to_tracker(
                                                                 ep_num,
                                                                 ep["title"].as_str().unwrap_or("Unknown Title"),
                                                                 ep["runtime"].as_i64().unwrap_or(0) as i32,
-                                                                if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) },
+                                                                raw_still_path,
                                                                 ep_overview,
                                                                 season_overview,
                                                                 ep_status,
@@ -1044,7 +1071,7 @@ pub async fn add_to_tracker(
                                                                 ep_num,
                                                                 ep["title"].as_str().unwrap_or("Unknown Title"),
                                                                 ep["runtime"].as_i64().unwrap_or(0) as i32,
-                                                                if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) },
+                                                                raw_still_path,
                                                                 ep_overview,
                                                                 season_overview,
                                                                 ep_status,
@@ -1052,13 +1079,71 @@ pub async fn add_to_tracker(
                                                             ]
                                                         );
                                                     }
+
+                                                    if let Some(path) = raw_still_path {
+                                                        if let Ok(mut stmt) = tx.prepare("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?") {
+                                                            if let Ok(mut rows) = stmt.query(params![media_id, season_num, ep_num]) {
+                                                                if let Ok(Some(row)) = rows.next() {
+                                                                    let ep_id: i32 = row.get(0).unwrap_or(0);
+                                                                    inserted_eps.push((ep_id, path.to_string()));
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                                 let _ = tx.commit();
                                             }
                                         }
-                                        Ok::<(), AppError>(())
+                                        Ok::<Vec<(i32, String)>, AppError>(inserted_eps)
                                     })
                                 }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+                                if let Ok(inserted_eps) = res {
+                                    if !inserted_eps.is_empty() {
+                                        // "Lazy Discovery" architecture: Priority active-season vs background idle downloading
+                                        let is_active_season = index == 0;
+                                        let token_clone = token.clone();
+
+                                        let download_future = async move {
+                                            for chunk in inserted_eps.chunks(20) {
+                                                if token_clone.is_cancelled() {
+                                                    break;
+                                                }
+
+                                                let mut tasks = Vec::new();
+                                                for (ep_id, path) in chunk {
+                                                    let path_clone = path.clone();
+                                                    let ep_id_clone = *ep_id;
+                                                    tasks.push(tokio::spawn(async move {
+                                                        crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
+                                                    }));
+                                                }
+
+                                                for t in tasks {
+                                                    let _ = t.await;
+                                                }
+
+                                                if token_clone.is_cancelled() {
+                                                    break;
+                                                }
+                                                // Slower background rate limit for non-active seasons
+                                                if is_active_season {
+                                                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                                                } else {
+                                                    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+                                                }
+                                            }
+                                        };
+
+                                        if is_active_season {
+                                            // Await inline for the active season
+                                            download_future.await;
+                                        } else {
+                                            // Spawn background task for idle seasons
+                                            tokio::spawn(download_future);
+                                        }
+                                    }
+                                }
                                 }
                                 Err(AppError::Custom(err)) if err == "NOT_FOUND" => {
                                     log::warn!("Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
@@ -1080,17 +1165,19 @@ pub async fn add_to_tracker(
 
                                     // Retry once directly inline after sleeping
                                     if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
-                                        let _ = tokio::task::spawn_blocking({
+                                        let res = tokio::task::spawn_blocking({
                                             let media_id = media_id;
                                             let ep_status = ep_status;
                                             let ep_watch_count = ep_watch_count;
                                             move || {
                                                 handle_panic(|| {
+                                                    let mut inserted_eps = Vec::new();
                                                     if let Ok(mut conn) = get_db_connection() {
                                                         if let Ok(tx) = conn.transaction() {
                                                             for ep in eps {
-                                                                // (Simplified copy of the logic to avoid code duplication size limits)
-                                                                // We just insert the episodes...
+                                                                let ep_num = ep["ep_num"].as_i64().unwrap_or(1) as u32;
+                                                                let raw_still_path = if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) };
+                                                                let raw_still_path = if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) };
                                                                 let _ = tx.execute(
                                                                     "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, season_overview, status, watch_count, air_date, is_exact_date)
                                                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1100,10 +1187,10 @@ pub async fn add_to_tracker(
                                                                     params![
                                                                         media_id,
                                                                         s_num,
-                                                                        ep["ep_num"].as_i64().unwrap_or(1) as u32,
+                                                                        ep_num,
                                                                         ep["title"].as_str().unwrap_or("Unknown Title"),
                                                                         ep["runtime"].as_i64().unwrap_or(0) as i32,
-                                                                        if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) },
+                                                                        raw_still_path,
                                                                         ep["overview"].as_str().unwrap_or(""),
                                                                         ep["season_overview"].as_str().unwrap_or(""),
                                                                         ep_status,
@@ -1112,14 +1199,51 @@ pub async fn add_to_tracker(
                                                                         ep["is_exact_date"].as_bool().unwrap_or(true)
                                                                     ]
                                                                 );
+
+                                                                if let Some(path) = raw_still_path {
+                                                                    if let Ok(mut stmt) = tx.prepare("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?") {
+                                                                        if let Ok(mut rows) = stmt.query(params![media_id, s_num, ep_num]) {
+                                                                            if let Ok(Some(row)) = rows.next() {
+                                                                                let ep_id: i32 = row.get(0).unwrap_or(0);
+                                                                                inserted_eps.push((ep_id, path.to_string()));
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                             let _ = tx.commit();
                                                         }
                                                     }
-                                                    Ok::<(), AppError>(())
+                                                    Ok::<Vec<(i32, String)>, AppError>(inserted_eps)
                                                 })
                                             }
-                                        }).await;
+                                        }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+                                        if let Ok(inserted_eps) = res {
+                                            for chunk in inserted_eps.chunks(20) {
+                                                if token.is_cancelled() {
+                                                    break;
+                                                }
+
+                                                let mut tasks = Vec::new();
+                                                for (ep_id, path) in chunk {
+                                                    let path_clone = path.clone();
+                                                    let ep_id_clone = *ep_id;
+                                                    tasks.push(tokio::spawn(async move {
+                                                        crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
+                                                    }));
+                                                }
+
+                                                for t in tasks {
+                                                    let _ = t.await;
+                                                }
+
+                                                if token.is_cancelled() {
+                                                    break;
+                                                }
+                                                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                                            }
+                                        }
                                     }
                                 }
                                 Err(e) => {
@@ -1444,7 +1568,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                     SELECT e.id, e.media_id, e.season_num, e.ep_num, e.title, e.runtime, e.still_path,
                            e.overview, e.season_overview, e.watch_count, e.last_position, e.status, e.completed_date,
                            e.air_date, e.is_exact_date, e.is_air_date_manual,
-                           m.title as show_title, m.backdrop_path, l.file_path, m.type as media_type
+                               m.title as show_title, m.backdrop_path, m.poster_path, l.file_path, m.type as media_type
                     FROM Episodes e
                     JOIN Media m ON e.media_id = m.id
                     LEFT JOIN Local_Files l ON e.id = l.episode_id
@@ -1528,28 +1652,55 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
 
                     let mut ep_rows = ep_stmt.query(params![m_id])?;
                     if let Ok(Some(ep_row)) = ep_rows.next() {
+                        let ep_id = ep_row.get::<_, i32>(0).unwrap_or(0);
                         let runtime = ep_row.get::<_, Option<i32>>(5).unwrap_or(Some(0)).unwrap_or(0);
                         let last_position = ep_row.get::<_, Option<i32>>(10).unwrap_or(Some(0)).unwrap_or(0);
                         let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
+                        let raw_air_date: String = ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default();
+                        let (sanitized_air_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
+
+                        let potential_spoiler = if is_known && !sanitized_air_date.is_empty() {
+                            let now = chrono::Utc::now().naive_utc().date();
+                            if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d") {
+                                // within last 48 hours or future
+                                let duration = now.signed_duration_since(parsed);
+                                duration.num_days() <= 2
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        };
+
+                        let raw_still_path = ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default();
+                        let is_fallback_image = raw_still_path.is_empty();
+                        let resolved_still_path = if !is_fallback_image {
+                            crate::tmdb::resolve_local_still_path(&raw_still_path, ep_id).unwrap_or(raw_still_path)
+                        } else {
+                            String::new()
+                        };
+
                         cw_eps.push(json!({
-                            "id": ep_row.get::<_, i32>(0).unwrap_or(0),
+                            "id": ep_id,
                             "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
                             "season_num": ep_row.get::<_, u32>(2).unwrap_or(0),
                             "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
                             "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
                             "runtime": runtime,
-                            "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
+                            "still_path": resolved_still_path,
                             "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
                             "season_overview": ep_row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
                             "watch_count": ep_row.get::<_, Option<i32>>(9).unwrap_or(Some(0)).unwrap_or(0),
                             "last_position": last_position,
                             "status": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
                             "completed_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
-                            "air_date": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
-                            "is_exact_date": ep_row.get::<_, Option<bool>>(14).unwrap_or_default().unwrap_or(true),
-                            "is_date_known": true,
+                            "air_date": sanitized_air_date,
+                            "is_exact_date": is_exact,
+                            "is_date_known": is_known,
                             "progress_percentage": progress_percentage,
+                            "is_fallback_image": is_fallback_image,
+                            "potential_spoiler": potential_spoiler,
 
                             "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
                             "backdrop_path": (|| {
@@ -2003,6 +2154,28 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                 let (sanitized_air_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
                 let time_capsule = calculate_gap(&sanitized_air_date, ts);
 
+                let ep_id = row.get::<_, i32>(8)?;
+                let raw_still_path = row.get::<_, Option<String>>(12)?.unwrap_or_default();
+                let is_fallback_image = raw_still_path.is_empty();
+                let resolved_still_path = if !is_fallback_image {
+                    crate::tmdb::resolve_local_still_path(&raw_still_path, ep_id).unwrap_or(raw_still_path)
+                } else {
+                    String::new()
+                };
+
+                let potential_spoiler = if is_known && !sanitized_air_date.is_empty() {
+                    let now = chrono::Utc::now().naive_utc().date();
+                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d") {
+                        // within last 48 hours or future
+                        let duration = now.signed_duration_since(parsed);
+                        duration.num_days() <= 2
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
                 let last_position = row.get::<_, Option<i32>>(15)?.unwrap_or(0);
                 let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
@@ -2015,11 +2188,11 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                     "end_time": row.get::<_, Option<String>>(5)?.unwrap_or_default(),
                     "pause_count": row.get::<_, i32>(6)?,
                     "completion_ratio": row.get::<_, f64>(7)?,
-                    "episode_id": row.get::<_, i32>(8)?,
+                    "episode_id": ep_id,
                     "season_num": row.get::<_, u32>(9)?,
                     "ep_num": row.get::<_, u32>(10)?,
                     "ep_title": row.get::<_, Option<String>>(11)?.unwrap_or_default(),
-                    "still_path": row.get::<_, Option<String>>(12)?.unwrap_or_default(),
+                    "still_path": resolved_still_path,
                     "air_date": sanitized_air_date,
                     "is_date_known": is_known,
                     "is_exact_date": is_exact,
@@ -2031,6 +2204,8 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                     "poster_path": row.get::<_, Option<String>>(20)?.unwrap_or_default(),
                     "backdrop_path": row.get::<_, Option<String>>(21)?.unwrap_or_default(),
                     "media_type": row.get::<_, Option<String>>(22)?.unwrap_or_default(),
+                    "is_fallback_image": is_fallback_image,
+                    "potential_spoiler": potential_spoiler,
                 }));
             }
 
@@ -2540,16 +2715,19 @@ pub async fn assign_unmatched_to_tracker(
 
                                         // Retry once directly inline after sleeping
                                         if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
-                                            let _ = tokio::task::spawn_blocking({
+                                            let res = tokio::task::spawn_blocking({
                                                 let media_id = media_id;
                                                 let ep_status = ep_status;
                                                 let ep_watch_count = ep_watch_count;
                                                 move || {
                                                     handle_panic(|| {
+                                                        let mut inserted_eps = Vec::new();
                                                         if let Ok(mut conn) = get_db_connection() {
                                                             if let Ok(tx) = conn.transaction() {
                                                                 for ep in eps {
                                                                     // Simplified retry logic
+                                                                    let ep_num = ep["ep_num"].as_i64().unwrap_or(1) as u32;
+                                                                    let raw_still_path = if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) };
                                                                     let _ = tx.execute(
                                                                         "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, season_overview, status, watch_count, air_date, is_exact_date)
                                                                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2559,10 +2737,10 @@ pub async fn assign_unmatched_to_tracker(
                                                                         params![
                                                                             media_id,
                                                                             s_num,
-                                                                            ep["ep_num"].as_i64().unwrap_or(1) as u32,
+                                                                            ep_num,
                                                                             ep["title"].as_str().unwrap_or("Unknown Title"),
                                                                             ep["runtime"].as_i64().unwrap_or(0) as i32,
-                                                                            if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) },
+                                                                            raw_still_path,
                                                                             ep["overview"].as_str().unwrap_or(""),
                                                                             ep["season_overview"].as_str().unwrap_or(""),
                                                                             ep_status,
@@ -2571,14 +2749,58 @@ pub async fn assign_unmatched_to_tracker(
                                                                             ep["is_exact_date"].as_bool().unwrap_or(true)
                                                                         ]
                                                                     );
+                                                                    if let Some(path) = raw_still_path {
+                                                                        if let Ok(mut stmt) = tx.prepare("SELECT id FROM Episodes WHERE media_id=? AND season_num=? AND ep_num=?") {
+                                                                            if let Ok(mut rows) = stmt.query(params![media_id, s_num, ep_num]) {
+                                                                                if let Ok(Some(row)) = rows.next() {
+                                                                                    let ep_id: i32 = row.get(0).unwrap_or(0);
+                                                                                    inserted_eps.push((ep_id, path.to_string()));
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
                                                                 }
                                                                 let _ = tx.commit();
                                                             }
                                                         }
-                                                        Ok::<(), AppError>(())
+                                                        Ok::<Vec<(i32, String)>, AppError>(inserted_eps)
                                                     })
                                                 }
-                                            }).await;
+                                            }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+
+                                            if let Ok(inserted_eps) = res {
+                                                if !inserted_eps.is_empty() {
+                                                    let is_active_season = true; // In retry block, just process it since it's a fallback
+                                                    let token_clone = token.clone();
+
+                                                    let download_future = async move {
+                                                        for chunk in inserted_eps.chunks(20) {
+                                                            if token_clone.is_cancelled() {
+                                                                break;
+                                                            }
+
+                                                            let mut tasks = Vec::new();
+                                                            for (ep_id, path) in chunk {
+                                                                let path_clone = path.clone();
+                                                                let ep_id_clone = *ep_id;
+                                                                tasks.push(tokio::spawn(async move {
+                                                                    crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
+                                                                }));
+                                                            }
+
+                                                            for t in tasks {
+                                                                let _ = t.await;
+                                                            }
+
+                                                            if token_clone.is_cancelled() {
+                                                                break;
+                                                            }
+                                                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                                                        }
+                                                    };
+                                                    tokio::spawn(download_future);
+                                                }
+                                            }
                                         }
                                     }
                                     Err(e) => {
