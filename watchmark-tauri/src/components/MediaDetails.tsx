@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { motion } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Lock } from "lucide-react";
 import { useUiStore } from "../store/uiStore";
+import { useTaskStore } from "../store/useTaskStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { toast } from "sonner";
 import { StarRating } from "./ui/StarRating";
@@ -16,6 +17,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const { showConfirm, setProcessing } = useUiStore();
   const { isApiAuthorized } = useAppStore();
   const [data, setData] = useState<any>(null);
+  const activeSyncs = useTaskStore((state) => state.activeSyncs);
+  const syncProgress = data ? activeSyncs[data.id.toString()] : undefined;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeSeason, setActiveSeason] = useState<number>(1);
   const [showFullSynopsis, setShowFullSynopsis] = useState<boolean>(false);
@@ -83,6 +86,15 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
     >
       {/* Edge-to-edge Hero Banner */}
       <div className="relative w-full h-[50vh] min-h-[400px]">
+        {syncProgress !== undefined && (
+          <div className="absolute top-0 left-0 w-full h-1 z-50 bg-black/50">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${syncProgress}%` }}
+              className="h-full bg-[#FF6B00] shadow-[0_0_10px_#FF6B00]"
+            />
+          </div>
+        )}
         <div className="absolute inset-0">
           <SafeImage
             srcPath={data.backdrop_path ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` : ""}

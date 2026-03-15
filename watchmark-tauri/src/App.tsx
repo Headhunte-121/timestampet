@@ -44,6 +44,7 @@ function App() {
   const isImporting = useTaskStore((state) => state.isImporting);
   const importProgress = useTaskStore((state) => state.progress);
   const importTotal = useTaskStore((state) => state.total);
+  const activeSyncs = useTaskStore((state) => state.activeSyncs);
 
   useEffect(() => {
     initializeSettings();
@@ -89,6 +90,17 @@ function App() {
       }
     );
 
+    const unlistenSyncProgress = listen<{ mediaId: number; tmdbId?: string; currentSeason: number; totalSeasons: number }>(
+      "sync-progress",
+      (event) => {
+        const { mediaId, tmdbId, currentSeason, totalSeasons } = event.payload;
+        useTaskStore.getState().updateSyncProgress(mediaId.toString(), currentSeason, totalSeasons);
+        if (tmdbId) {
+            useTaskStore.getState().updateSyncProgress(`tmdb_${tmdbId}`, currentSeason, totalSeasons);
+        }
+      }
+    );
+
     const unlistenDbFailed = listen("db-write-failed", () => {
         toast.error(
             "Database Sync Issue: A change failed to save after 3 attempts. Your data is safe, but this action needs a retry.",
@@ -107,6 +119,7 @@ function App() {
     return () => {
       unlisten.then(fn => fn());
       unlistenProgress.then(fn => fn());
+      unlistenSyncProgress.then(fn => fn());
       unlistenDbFailed.then(fn => fn());
       unlistenApiFailed.then(fn => fn());
     };
@@ -219,7 +232,7 @@ function App() {
         <OptimizationModal />
 
         {/* Progress Bar (Global) */}
-        <div className="absolute top-0 left-0 w-full h-1 z-[100] pointer-events-none">
+        <div className="absolute top-0 left-0 w-full z-[100] pointer-events-none flex flex-col">
           <AnimatePresence>
             {isImporting && (
               <motion.div
@@ -228,11 +241,20 @@ function App() {
                 exit={{ opacity: 0 }}
                 style={{ originX: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="h-full bg-[#FF6B00] shadow-[0_0_10px_#FF6B00]"
+                className="h-1 bg-[#FF6B00] shadow-[0_0_10px_#FF6B00] w-full origin-left"
               />
             )}
           </AnimatePresence>
+          {Object.keys(activeSyncs).length > 0 && (
+             <div className="h-1 bg-[#FF6B00]/80 w-full animate-pulse shadow-[0_0_10px_#FF6B00]" />
+          )}
         </div>
+
+        {Object.keys(activeSyncs).length > 0 && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-[#FF6B00]/20 backdrop-blur-md border border-[#FF6B00]/50 text-[#FF6B00] text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-orange-500/20 whitespace-nowrap animate-pulse">
+            Syncing {Object.keys(activeSyncs).filter(k => !k.startsWith('tmdb_')).length} item{Object.keys(activeSyncs).filter(k => !k.startsWith('tmdb_')).length !== 1 ? "s" : ""}...
+          </div>
+        )}
 
         {/* Global Search Bar */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4 pointer-events-none">

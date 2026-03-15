@@ -17,6 +17,8 @@ async fn test_feature_3_2_api_key_sanitization() {
         db_queue: Arc::new(crate::task_queue::DbTaskQueue::new_for_tests()),
         is_maintenance_mode: AtomicBool::new(false),
         is_api_authorized: AtomicBool::new(true),
+        is_rate_limited: AtomicBool::new(false),
+        rate_limit_reset: std::sync::atomic::AtomicI64::new(0),
         stats_cache: Arc::new(RwLock::new(None)),
         read_semaphore: Arc::new(tokio::sync::Semaphore::new(10)),
         cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
