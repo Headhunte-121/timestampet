@@ -225,29 +225,29 @@ pub async fn get_media_details(
         obj.insert("backdrop_path".to_string(), Value::String(backdrop.to_string()));
     }
 
-    // Flatten genres
-    let genres = r["genres"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|g| g["name"].as_str())
-                .collect::<Vec<&str>>()
-                .join(", ")
-        })
-        .unwrap_or_else(|| "".to_string());
+    // Flatten genres correctly
+    let genres = if let Some(genres_arr) = r["genres"].as_array() {
+        genres_arr.iter()
+            .filter_map(|g| g["name"].as_str())
+            .collect::<Vec<&str>>()
+            .join(", ")
+    } else {
+        String::new()
+    };
     obj.insert("genres".to_string(), Value::String(genres));
 
-    // Flatten networks / studios
-    let networks = r["networks"]
-        .as_array()
-        .or_else(|| r["production_companies"].as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|n| n["name"].as_str())
-                .collect::<Vec<&str>>()
-                .join(", ")
-        })
-        .unwrap_or_else(|| "".to_string());
+    // Flatten networks / studios correctly
+    let networks_arr = r["networks"].as_array()
+        .or_else(|| r["production_companies"].as_array());
+
+    let networks = if let Some(arr) = networks_arr {
+        arr.iter()
+            .filter_map(|n| n["name"].as_str())
+            .collect::<Vec<&str>>()
+            .join(", ")
+    } else {
+        String::new()
+    };
     obj.insert("networks".to_string(), Value::String(networks));
 
     if media_type == "TV" {
