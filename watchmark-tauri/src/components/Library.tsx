@@ -4,6 +4,7 @@ import { Star } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
+import { formatImagePath } from "../utils/imagePath";
 
 
 export default function Library({ type, onMediaSelect, refreshTrigger, searchQuery = "" }: any) {
@@ -82,7 +83,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               >
             <div className="absolute inset-0 w-full h-full">
               <SafeImage
-                srcPath={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : ""}
+                srcPath={formatImagePath(item.poster_path)}
                 type="poster"
                 altText={item.title}
                 title={item.title}

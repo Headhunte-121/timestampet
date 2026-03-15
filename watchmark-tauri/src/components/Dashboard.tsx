@@ -5,6 +5,7 @@ import { Play, Star } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
+import { formatImagePath } from "../utils/imagePath";
 
 // Types matching the Rust backend structure
 interface Episode {
@@ -133,7 +134,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {data.hero_ep ? (
         <div className="relative aspect-video w-full max-h-[450px] rounded-2xl overflow-hidden group">
           <SafeImage
-            srcPath={(data.hero_ep as any).still_path || data.hero_ep.backdrop_path || ""}
+            srcPath={formatImagePath((data.hero_ep as any).still_path) || formatImagePath(data.hero_ep.backdrop_path) || ""}
             fallbackSrcPath={(data.hero_ep as any).backdrop_fallback || undefined}
             type="backdrop"
             altText="Hero Backdrop"
@@ -242,8 +243,8 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                 >
                   <div className="w-full h-[180px] relative overflow-hidden bg-black/40">
                     <SafeImage
-                      srcPath={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : ""}
-                      fallbackSrcPath={ep.backdrop_path ? `https://image.tmdb.org/t/p/w1280${ep.backdrop_path}` : PLACEHOLDER_BACKDROP}
+                      srcPath={formatImagePath(ep.still_path)}
+                      fallbackSrcPath={formatImagePath(ep.backdrop_path, 'w1280') || PLACEHOLDER_BACKDROP}
                       type="still"
                       episodeNumber={ep.ep_num}
                       title={ep.show_title || "Unknown Show"}
@@ -304,7 +305,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           <motion.div layout className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
             <AnimatePresence mode="popLayout">
             {filteredRecent.map((media) => {
-              const imgUrl = media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : PLACEHOLDER_POSTER;
+              const imgUrl = formatImagePath(media.poster_path) || PLACEHOLDER_POSTER;
 
               return (
                 <motion.div

@@ -614,7 +614,10 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
                     "type": m_type,
                     "title": row.get::<_, Option<String>>(3).unwrap_or_default().unwrap_or_default(),
                     "synopsis": sanitized_synopsis,
-                    "poster_path": row.get::<_, Option<String>>(5).unwrap_or_default().unwrap_or_default(),
+                    "poster_path": (|| {
+                        let raw = row.get::<_, Option<String>>(5).unwrap_or_default().unwrap_or_default();
+                        crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                    })(),
                     "backdrop_path": (|| {
                         let raw = row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default();
                         crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
@@ -1759,7 +1762,11 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                 r#type: row.get(2)?,
                 title: row.get(3)?,
                 synopsis: sanitized_synopsis,
-                poster_path: row.get(5)?,
+                poster_path: (||
+                    {
+                        let raw: String = row.get(5)?;
+                        Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw))
+                    })()?,
                 backdrop_path: (|| {
                     let raw: String = row.get(6)?;
                     Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw))
@@ -1984,7 +1991,11 @@ pub async fn get_library_data(
                     r#type: row.get(2)?,
                     title: row.get(3)?,
                     synopsis: sanitized_synopsis,
-                    poster_path: row.get(5)?,
+                    poster_path: (||
+                    {
+                        let raw: String = row.get(5)?;
+                        Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw))
+                    })()?,
                     backdrop_path: (|| {
                         let raw: String = row.get(6)?;
                         Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw))

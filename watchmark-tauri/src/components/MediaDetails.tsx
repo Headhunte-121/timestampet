@@ -12,6 +12,7 @@ import { useAppStore } from "../store/useAppStore";
 import { cn } from "../App";
 import { RefreshCw } from "lucide-react";
 import { SafeImage } from "./ui/SafeImage";
+import { formatImagePath } from "../utils/imagePath";
 
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const { showConfirm, setProcessing } = useUiStore();
@@ -125,10 +126,13 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           className="relative w-64 shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10 aspect-[2/3]"
         >
           <SafeImage
-            srcPath={data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : ""}
+            srcPath={formatImagePath(data.poster_path)}
             type="poster"
             altText="Poster"
             title={data.title}
+            releaseDate={data.release_date}
+            isDateKnown={data.is_date_known}
+            isExactDate={data.is_exact_date}
             className={`w-full h-full object-cover ${data.is_unaired ? 'grayscale-[0.5] opacity-70' : ''}`}
           />
           {data.is_unaired && (
@@ -347,8 +351,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
              >
                <div className="w-40 aspect-video bg-black/40 rounded-lg overflow-hidden shrink-0 relative mr-6">
                  <SafeImage
-                    srcPath={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : ""}
-                    fallbackSrcPath={data.backdrop_path ? `https://image.tmdb.org/t/p/w1280${data.backdrop_path}` : ""}
+                    srcPath={formatImagePath(ep.still_path)}
+                    fallbackSrcPath={formatImagePath(data.backdrop_path, 'w1280')}
                     type="still"
                     episodeNumber={ep.ep_num}
                     altText={ep.title}
