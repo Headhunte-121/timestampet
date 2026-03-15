@@ -1,6 +1,12 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw tracing::debug! allowed.
+
 /* WATCHMARK STANDARD PATTERN: All asynchronous data commands MUST implement requestId for cancellation support and pagination (page/limit) for UI performance. Follow this signature for all future connections to maintain Phase 1 & 2 integrity. */
 
 use crate::db::get_db_connection;
+use std::collections::HashMap;
 use crate::error::{handle_panic, AppError};
 use crate::models::{Media, Settings, UnmatchedFile};
 use rusqlite::params;
@@ -149,7 +155,6 @@ mod tests_feature_5_8 {
 
 use crate::task_queue::DbTaskQueue;
 
-use std::collections::HashMap;
 use tokio_util::sync::CancellationToken;
 
 pub async fn check_rate_limit(state: &tauri::State<'_, AppState>) {
@@ -244,7 +249,7 @@ pub async fn optimize_database(
                 0
             };
 
-            log::info!("Database optimization complete. Reclaimed {} bytes ({}%).", saved_bytes, percentage);
+            tracing::info!("Database optimization complete. Reclaimed {} bytes ({}%).", saved_bytes, percentage);
             Ok((saved_bytes, percentage))
         }
         Ok(Err(e)) => Err(AppError::Custom(format!("Database optimization failed: {}", e))),
@@ -390,8 +395,59 @@ pub async fn save_settings(
         *current_settings = settings.clone();
     }
 
+    if let Err(e) = crate::logging::set_levels(&settings.global_log_level, &settings.module_logs) {
+        tracing::error!(action = "save_settings", error = %e, "Failed to apply dynamic tracing filter.");
+    }
+
     // Send to debouncer task
     state.settings_tx.send(settings).await.map_err(|e| AppError::Custom(e.to_string()))
+}
+
+#[tauri::command]
+pub async fn update_log_settings(
+    global_level: String,
+    module_settings: HashMap<String, String>,
+    state: tauri::State<'_, AppState>
+) -> Result<(), AppError> {
+    let mut updated_settings = {
+        let cache = state.settings.read().unwrap();
+        cache.clone()
+    };
+
+    updated_settings.global_log_level = global_level.clone();
+    updated_settings.module_logs = module_settings.clone();
+
+    {
+        let mut cache = state.settings.write().unwrap();
+        *cache = updated_settings.clone();
+    }
+
+    if let Err(e) = crate::logging::set_levels(&global_level, &module_settings) {
+        tracing::error!(action = "update_log_settings", error = %e, "Failed to apply dynamic tracing filter.");
+        return Err(AppError::Custom(e));
+    }
+
+    if let Err(e) = state.settings_tx.send(updated_settings.clone()).await {
+        return Err(AppError::Custom(format!("Failed to queue settings save: {}", e)));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_available_modules() -> Result<HashMap<String, String>, AppError> {
+    let mut map = HashMap::new();
+
+    if let Ok(settings) = crate::settings::load_settings() {
+        map = settings.module_logs;
+    }
+
+    // Ensure core modules exist
+    for module in crate::logging::CORE_MODULES {
+        map.entry(module.to_string()).or_insert_with(|| "info".to_string());
+    }
+
+    Ok(map)
 }
 
 #[tauri::command]
@@ -420,7 +476,7 @@ pub fn delete_media_cmd(
         let mut tokens = state.cancel_tokens.write().unwrap();
         if let Some(token) = tokens.remove(&media_id.to_string()) {
             token.cancel();
-            log::info!("Cancelled background fetch for media_id {}", media_id);
+            tracing::info!("Cancelled background fetch for media_id {}", media_id);
         }
     }
 
@@ -970,7 +1026,7 @@ pub async fn add_to_tracker(
                         if s_num >= 0 {
                             // Rate limit check
                             if token.is_cancelled() {
-                                log::info!("Fetch loop cancelled for media_id {}", media_id);
+                                tracing::info!("Fetch loop cancelled for media_id {}", media_id);
                                 break;
                             }
 
@@ -1149,7 +1205,7 @@ pub async fn add_to_tracker(
                                 }
                                 }
                                 Err(AppError::Custom(err)) if err == "NOT_FOUND" => {
-                                    log::warn!("Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
+                                    tracing::warn!("Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
                                     let _ = app_clone_for_task.emit("warning-toast", format!("Season {} missing from TMDB, skipped.", s_num));
                                     continue;
                                 }
@@ -1160,7 +1216,7 @@ pub async fn add_to_tracker(
                                     async_state.is_rate_limited.store(true, Ordering::SeqCst);
                                     async_state.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
 
-                                    log::warn!("Rate limited. Pausing queue for {} seconds.", retry_after);
+                                    tracing::warn!("Rate limited. Pausing queue for {} seconds.", retry_after);
                                     tokio::time::sleep(tokio::time::Duration::from_secs(retry_after)).await;
 
                                     // re-acquire state because previous async_state reference might have been moved/borrowed elsewhere (though state is managed, so it's fine, but let's be safe)
@@ -1250,7 +1306,7 @@ pub async fn add_to_tracker(
                                     }
                                 }
                                 Err(e) => {
-                                    log::error!("Error fetching season {}: {}", s_num, e);
+                                    tracing::error!("Error fetching season {}: {}", s_num, e);
                                     continue;
                                 }
                             }
@@ -2619,7 +2675,7 @@ pub async fn assign_unmatched_to_tracker(
                         if let Some(s_num) = season["season_number"].as_i64() {
                             if s_num >= 0 {
                                 if token.is_cancelled() {
-                                    log::info!("Fetch loop cancelled for unmatched media_id {}", media_id);
+                                    tracing::info!("Fetch loop cancelled for unmatched media_id {}", media_id);
                                     break;
                                 }
 
@@ -2786,7 +2842,7 @@ pub async fn assign_unmatched_to_tracker(
                                     }
                                     }
                                     Err(AppError::Custom(err)) if err == "NOT_FOUND" => {
-                                        log::warn!("Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
+                                        tracing::warn!("Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
                                         let _ = app_clone_for_task.emit("warning-toast", format!("Season {} missing from TMDB, skipped.", s_num));
                                         continue;
                                     }
@@ -2797,7 +2853,7 @@ pub async fn assign_unmatched_to_tracker(
                                         async_state.is_rate_limited.store(true, Ordering::SeqCst);
                                         async_state.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
 
-                                        log::warn!("Rate limited. Pausing queue for {} seconds.", retry_after);
+                                        tracing::warn!("Rate limited. Pausing queue for {} seconds.", retry_after);
                                         tokio::time::sleep(tokio::time::Duration::from_secs(retry_after)).await;
                                         app_clone_for_task.state::<AppState>().is_rate_limited.store(false, Ordering::SeqCst);
 
@@ -2892,7 +2948,7 @@ pub async fn assign_unmatched_to_tracker(
                                         }
                                     }
                                     Err(e) => {
-                                        log::error!("Error fetching season {}: {}", s_num, e);
+                                        tracing::error!("Error fetching season {}: {}", s_num, e);
                                         continue;
                                     }
                                 }
@@ -3161,7 +3217,7 @@ pub async fn update_media_rating(
     if let Some(r) = rating {
         if r < 0 || r > 10 {
             let error_msg = format!("Validation Error: rating {} is out of bounds (0-10)", r);
-            log::error!("{}", error_msg);
+            tracing::error!("{}", error_msg);
             return Err(AppError::Custom(error_msg));
         }
     }

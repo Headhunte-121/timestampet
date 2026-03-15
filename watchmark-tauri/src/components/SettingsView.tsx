@@ -47,8 +47,11 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     binge_grouping_hours: 6,
     auto_resume: true,
     auto_scan_on_boot: false,
-    logging_level: "Info"
+    global_log_level: "info",
+    module_logs: {}
   });
+
+  const [availableModules, setAvailableModules] = useState<Record<string, string>>({});
 
   const { isCinemaMode, setCinemaMode } = useAppStore();
   const { isScanning, setScanning, isOptimizing, setOptimizing } = useTaskStore();
@@ -95,6 +98,12 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
       .then((res: any) => {
           setSettings(res);
           setInitialSettings(JSON.parse(JSON.stringify(res)));
+      })
+      .catch(console.error);
+
+    invoke("get_available_modules")
+      .then((res: any) => {
+          setAvailableModules(res);
       })
       .catch(console.error);
 
@@ -621,22 +630,36 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                 <div className="space-y-6">
                     <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
                         <div>
-                            <h3 className="text-sm font-bold text-white">Logging Level</h3>
+                            <h3 className="text-sm font-bold text-white">Global Logging Level</h3>
                             <p className="text-xs text-gray-500 mt-1">Detail level for rust backend logs.</p>
                         </div>
-                        <div className="flex gap-2">
-                             {['Debug', 'Info', 'Warn', 'Error'].map(level => (
-                                 <button
-                                     key={level}
-                                     onClick={() => updateSetting('logging_level', level)}
-                                     className={cn(
-                                         "px-4 py-2 rounded-full text-sm font-bold transition-colors",
-                                         settings.logging_level === level ? "bg-[#FF6B00] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"
-                                     )}
-                                 >
-                                     {level}
-                                 </button>
-                             ))}
+                        <div className="flex flex-col gap-4">
+                            <div className="flex gap-2">
+                                 {['debug', 'info', 'warn', 'error'].map(level => (
+                                     <button
+                                         key={level}
+                                         onClick={() => {
+                                             updateSetting('global_log_level', level);
+
+                                             // If we change global level, we also apply it to all modules that aren't specifically set differently,
+                                             // or let the user choose. For now, we'll just set global level and update state.
+                                             // Let's reset all module levels to the global level for ease of use.
+                                             const newModules = { ...settings.module_logs };
+                                             Object.keys(availableModules).forEach(mod => {
+                                                 newModules[mod] = level;
+                                             });
+                                             updateSetting('module_logs', newModules);
+                                         }}
+                                         className={cn(
+                                             "px-4 py-2 rounded-full text-sm font-bold transition-colors capitalize",
+                                             settings.global_log_level === level ? "bg-[#FF6B00] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"
+                                         )}
+                                     >
+                                         {level}
+                                     </button>
+                                 ))}
+                            </div>
+                            <p className="text-xs text-gray-500">Changes apply immediately without restart. See Advanced tab for per-file logging.</p>
                         </div>
                     </div>
 
@@ -790,9 +813,66 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
             )}
 
             {activeTab === "Advanced" && (
-                <div className="flex items-center justify-center h-full text-gray-500 flex-col gap-4">
-                    <span className="text-6xl">🚧</span>
-                    <p className="font-bold">Advanced Settings Coming Soon</p>
+                <div className="space-y-6">
+                    <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                        <div>
+                            <h3 className="text-sm font-bold text-white">Advanced Logging Control</h3>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Adjust logging levels for individual system modules to surgically debug issues without flooding the console.
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-6">
+                            {Object.entries(
+                                Object.keys(availableModules).reduce((acc: any, key) => {
+                                    const parts = key.split('::');
+                                    const group = parts.length > 1 ? parts[0] : 'core';
+                                    const name = parts.length > 1 ? parts.slice(1).join('::') : key;
+
+                                    if (!acc[group]) acc[group] = [];
+                                    acc[group].push({ fullKey: key, displayName: name });
+                                    return acc;
+                                }, {})
+                            ).map(([groupName, modules]: any) => (
+                                <div key={groupName} className="bg-black/30 rounded-xl p-4 border border-white/5">
+                                    <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider border-b border-white/10 pb-2">
+                                        {groupName.replace(/_/g, ' ')}
+                                    </h4>
+                                    <div className="flex flex-col gap-3">
+                                        {modules.map((mod: any) => {
+                                            const currentLevel = settings.module_logs[mod.fullKey] || settings.global_log_level || 'info';
+                                            return (
+                                                <div key={mod.fullKey} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
+                                                    <div className="text-sm font-medium text-white">{mod.displayName}.rs</div>
+                                                    <div className="flex bg-black/50 rounded-lg p-1">
+                                                        {['off', 'error', 'warn', 'info', 'debug'].map(level => {
+                                                            const isActive = currentLevel === level;
+                                                            return (
+                                                                <button
+                                                                    key={level}
+                                                                    onClick={() => {
+                                                                        const newModules = { ...settings.module_logs, [mod.fullKey]: level };
+                                                                        updateSetting('module_logs', newModules);
+                                                                    }}
+                                                                    className={cn(
+                                                                        "px-3 py-1 text-xs font-bold rounded-md transition-all capitalize",
+                                                                        isActive
+                                                                            ? (level === 'error' ? "bg-red-500 text-white" : level === 'warn' ? "bg-yellow-600 text-white" : level === 'off' ? "bg-gray-700 text-white" : "bg-[#FF6B00] text-white")
+                                                                            : "text-gray-400 hover:text-white hover:bg-white/10"
+                                                                    )}
+                                                                >
+                                                                    {level === 'error' ? 'Err' : level === 'warn' ? 'Wrn' : level === 'info' ? 'Inf' : level === 'debug' ? 'Dbg' : 'Off'}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

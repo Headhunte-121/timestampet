@@ -1,3 +1,8 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 use serde::{Deserialize, Deserializer, Serialize};
 
 fn deserialize_to_i32<'de, D>(deserializer: D) -> Result<i32, D::Error>
@@ -319,7 +324,9 @@ pub struct Settings {
     #[serde(default = "default_auto_scan_on_boot")]
     pub auto_scan_on_boot: bool,
     #[serde(default = "default_logging_level")]
-    pub logging_level: String,
+    pub global_log_level: String,
+    #[serde(default = "default_module_logs")]
+    pub module_logs: std::collections::HashMap<String, String>,
     #[serde(default = "default_last_backup_timestamp")]
     pub last_backup_timestamp: i64,
     #[serde(default = "default_last_backup_status")]
@@ -340,6 +347,13 @@ fn default_binge_grouping_hours() -> i32 { 6 }
 fn default_auto_resume() -> bool { true }
 fn default_auto_scan_on_boot() -> bool { false }
 fn default_logging_level() -> String { "Info".to_string() }
+fn default_module_logs() -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    for module in crate::logging::CORE_MODULES {
+        map.insert(module.to_string(), "info".to_string());
+    }
+    map
+}
 fn default_last_backup_timestamp() -> i64 { 0 }
 fn default_last_backup_status() -> String { "".to_string() }
 fn default_last_backup_error() -> String { "".to_string() }
@@ -360,7 +374,8 @@ impl Default for Settings {
             binge_grouping_hours: default_binge_grouping_hours(),
             auto_resume: default_auto_resume(),
             auto_scan_on_boot: default_auto_scan_on_boot(),
-            logging_level: default_logging_level(),
+            global_log_level: default_logging_level(),
+            module_logs: default_module_logs(),
             last_backup_timestamp: default_last_backup_timestamp(),
             last_backup_status: default_last_backup_status(),
             last_backup_error: default_last_backup_error(),

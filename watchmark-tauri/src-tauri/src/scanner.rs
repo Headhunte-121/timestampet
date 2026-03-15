@@ -1,3 +1,8 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 use regex::Regex;
 use rusqlite::{params, Connection, Result};
 use std::path::Path;
@@ -135,7 +140,7 @@ pub fn scan_directory(
     let sanitized_dir = match dunce::canonicalize(directory) {
         Ok(p) => p,
         Err(e) => {
-            log::error!("Failed to canonicalize directory path: {}", e);
+            tracing::error!("Failed to canonicalize directory path: {}", e);
             return Err(rusqlite::Error::InvalidPath(std::path::PathBuf::from(directory)));
         }
     };
@@ -162,9 +167,9 @@ pub fn scan_directory(
             Err(err) => {
                 if let Some(io_err) = err.io_error() {
                     if io_err.kind() == std::io::ErrorKind::PermissionDenied {
-                        log::warn!("Scanner skipped path due to PermissionDenied: {}", err);
+                        tracing::warn!("Scanner skipped path due to PermissionDenied: {}", err);
                     } else {
-                        log::error!("Scanner encountered IO error: {}", err);
+                        tracing::error!("Scanner encountered IO error: {}", err);
                     }
                 }
                 None
@@ -181,7 +186,7 @@ pub fn scan_directory(
 
                     let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) as i64;
                     if file_size == 0 {
-                        log::warn!("Bit-Rot or Empty File Detected: {}", str_path);
+                        tracing::warn!("Bit-Rot or Empty File Detected: {}", str_path);
                     }
 
                     let mut matched_ep_id: Option<i32> = None;
@@ -284,7 +289,7 @@ pub fn scan_directory(
                             if file_size <= existing_size {
                                 update_needed = false;
                             } else {
-                                log::info!("Auto-replaced episode_id {} with larger file: {} ({} bytes > {} bytes)", ep_id, str_path, file_size, existing_size);
+                                tracing::info!("Auto-replaced episode_id {} with larger file: {} ({} bytes > {} bytes)", ep_id, str_path, file_size, existing_size);
                             }
                         }
 

@@ -1,9 +1,15 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
 mod db;
 mod error;
+mod logging;
 mod models;
 mod hash;
 mod scanner;
@@ -101,10 +107,11 @@ fn canary_check() -> Result<(), std::io::Error> {
 }
 
 fn main() {
-    log::info!("Starting application: Running canary check...");
+    // Cannot log here until settings are loaded. We can do minimal println if needed,
+    // or wait until after `load_settings`.
+    // BUT canary check doesn't need logging.
     if let Err(e) = canary_check() {
         let error_msg = format!("Fatal Error: Could not initialize application data directory.\n\nPermissions Required to write to: {:?}\n\nError details: {}", db::get_app_data_dir(), e);
-        log::error!("{}", error_msg);
         MessageDialog::new()
             .set_type(MessageType::Error)
             .set_title("WatchMark - Fatal Error")
@@ -113,11 +120,8 @@ fn main() {
             .unwrap();
         std::process::exit(1);
     }
-    log::info!("Canary check passed successfully.");
-
     if let Err(e) = db::ensure_directories() {
          let error_msg = format!("Fatal Error: Could not create nested application data directories.\n\nError details: {}", e);
-         log::error!("{}", error_msg);
          MessageDialog::new()
             .set_type(MessageType::Error)
             .set_title("WatchMark - Fatal Error")
@@ -129,10 +133,6 @@ fn main() {
 
     // Cold-Swap Database Restore Logic
     execute_cold_swap(&db::get_app_data_dir());
-
-    log::info!("Initializing SQLite database...");
-    db::init_db().expect("Failed to initialize database");
-    log::info!("Database initialized successfully.");
 
     let initial_settings = match settings::load_settings() {
         Ok(s) => s,
@@ -148,6 +148,15 @@ fn main() {
         }
     };
 
+    // Initialize Tracing Engine
+    logging::init_tracing(&initial_settings.global_log_level, &initial_settings.module_logs);
+
+    tracing::info!(action = "boot", "Starting application: Canary check passed.");
+
+    tracing::info!(action = "init_db", "Initializing SQLite database...");
+    db::init_db().expect("Failed to initialize database");
+    tracing::info!(action = "init_db_success", "Database initialized successfully.");
+
     let (settings_tx, mut settings_rx) = tokio::sync::mpsc::channel::<models::Settings>(100);
 
     // Spawn Background Backup Task
@@ -155,17 +164,6 @@ fn main() {
     let app_backup_settings_arc = backup_settings_arc.clone();
 
     tauri::Builder::default()
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Debug)
-                .targets([
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
-                        file_name: Some("app".into()),
-                    }),
-                ])
-                .build(),
-        )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -192,7 +190,7 @@ fn main() {
             }
         })
         .setup(move |app| {
-            log::info!("Tauri setup hook triggered. Initializing state...");
+            tracing::info!("Tauri setup hook triggered. Initializing state...");
             let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new(app.handle().clone()));
 
             let available_cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2);
@@ -213,7 +211,7 @@ fn main() {
                 cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
                 failed_image_syncs: failed_image_sync_queue.clone(),
             });
-            log::info!("AppState successfully managed by Tauri. Thread pool restricted to {}", pool_size);
+            tracing::info!("AppState successfully managed by Tauri. Thread pool restricted to {}", pool_size);
 
             #[cfg(test)]
             crate::backup_tests_module_trigger();
@@ -243,7 +241,7 @@ fn main() {
 
                         match backup_res {
                             Ok(Ok(_)) => {
-                                log::info!("Automatic database backup successful.");
+                                tracing::info!("Automatic database backup successful.");
                                 let mut next_settings = None;
                                 {
                                     if let Ok(mut settings) = backup_settings_arc.write() {
@@ -262,7 +260,7 @@ fn main() {
                                 }
                             }
                             Ok(Err(e)) => {
-                                log::error!("Automatic database backup failed: {}", e);
+                                tracing::error!("Automatic database backup failed: {}", e);
                                 let fail_ts = chrono::Utc::now().timestamp();
                                 let mut next_settings = None;
                                 {
@@ -282,7 +280,7 @@ fn main() {
                                 }));
                             }
                             Err(_) => {
-                                log::error!("Backup task panicked or timed out.");
+                                tracing::error!("Backup task panicked or timed out.");
                             }
                         }
                     }
@@ -334,9 +332,9 @@ fn main() {
                         _ = timeout.tick() => {
                             if let Some(settings) = last_settings.take() {
                                 if let Err(e) = crate::settings::save_settings(&settings) {
-                                    log::error!("Failed to save debounced settings: {}", e);
+                                    tracing::error!("Failed to save debounced settings: {}", e);
                                 } else {
-                                    log::info!("Settings successfully saved to disk.");
+                                    tracing::info!("Settings successfully saved to disk.");
                                 }
                             }
                         }
@@ -619,6 +617,8 @@ fn main() {
             commands::update_local_file,
             commands::get_settings,
             commands::save_settings,
+            commands::update_log_settings,
+            commands::get_available_modules,
             commands::delete_media_cmd,
             commands::get_media_details_db,
             commands::add_to_tracker,

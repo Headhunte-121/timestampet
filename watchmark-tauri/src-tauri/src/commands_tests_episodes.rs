@@ -1,3 +1,8 @@
+// WATCHMARK TRACING DIRECTIVE:
+// 1. Use tracing::instrument on all public commands/logic blocks.
+// 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
+// 3. No raw println! allowed.
+
 use crate::db::{get_db_connection, init_db};
 use crate::commands::get_media_details_db;
 use std::sync::Once;
@@ -9,6 +14,8 @@ static INIT: Once = Once::new();
 fn setup_test_db() {
     INIT.call_once(|| {
         let _ = std::fs::remove_dir_all(crate::db::get_app_data_dir());
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        let _ = std::fs::create_dir_all(crate::db::get_app_data_dir());
         init_db().unwrap();
     });
 }
@@ -16,6 +23,7 @@ fn setup_test_db() {
 #[test]
 fn test_get_media_details_db_handles_null_episode_data_safely_no_panics() {
     setup_test_db();
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     let media_id = {
         let mut conn = get_db_connection().unwrap();
