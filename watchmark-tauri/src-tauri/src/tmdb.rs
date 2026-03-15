@@ -644,7 +644,7 @@ pub async fn download_episode_still(image_path: &str, episode_id: i32, high_perf
         return None;
     }
 
-    let _ = crate::db::ensure_directories();
+
 
     let clean_path = image_path.trim_start_matches('/');
     let actual_size = if high_performance_mode { "w300" } else { "w500" };
@@ -695,7 +695,7 @@ pub async fn download_image(image_path: &str, size: &str, high_performance_mode:
         return None;
     }
 
-    let _ = crate::db::ensure_directories();
+
 
     let mut is_pseudo_backdrop = false;
     let mut raw_path = image_path;

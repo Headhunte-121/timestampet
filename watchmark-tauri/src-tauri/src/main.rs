@@ -20,6 +20,7 @@ pub mod task_queue;
 mod backup;
 mod sanitizer;
 pub mod network;
+mod filesystem_guard;
 
 #[cfg(test)]
 #[path = "sanitizer_tests.rs"]
@@ -89,73 +90,26 @@ pub fn execute_cold_swap(app_dir: &std::path::Path) {
     }
 }
 
-fn canary_check() -> Result<(), std::io::Error> {
-    let app_dir = db::get_app_data_dir();
-    // Try to create base dir if not exist
-    if !app_dir.exists() {
-        if let Err(e) = std::fs::create_dir_all(&app_dir) {
-            return Err(e);
-        }
-    }
-
-    let canary_path = app_dir.join(".canary");
-    if let Err(e) = std::fs::write(&canary_path, b"canary") {
-        return Err(e);
-    }
-    let _ = std::fs::remove_file(canary_path);
-    Ok(())
-}
-
 fn main() {
-    // Cannot log here until settings are loaded. We can do minimal println if needed,
-    // or wait until after `load_settings`.
-    // BUT canary check doesn't need logging.
-    if let Err(e) = canary_check() {
-        let error_msg = format!("Fatal Error: Could not initialize application data directory.\n\nPermissions Required to write to: {:?}\n\nError details: {}", db::get_app_data_dir(), e);
-        MessageDialog::new()
-            .set_type(MessageType::Error)
-            .set_title("WatchMark - Fatal Error")
-            .set_text(&error_msg)
-            .show_alert()
-            .unwrap();
-        std::process::exit(1);
-    }
-    if let Err(e) = db::ensure_directories() {
-         let error_msg = format!("Fatal Error: Could not create nested application data directories.\n\nError details: {}", e);
-         MessageDialog::new()
-            .set_type(MessageType::Error)
-            .set_title("WatchMark - Fatal Error")
-            .set_text(&error_msg)
-            .show_alert()
-            .unwrap();
-        std::process::exit(1);
-    }
+    let app_dir = db::get_app_data_dir();
 
-    // Cold-Swap Database Restore Logic
-    execute_cold_swap(&db::get_app_data_dir());
-
+    // Load settings early to get logging config, but fall back gracefully if we can't write to disk yet.
     let initial_settings = match settings::load_settings() {
         Ok(s) => s,
         Err(e) => {
-            let error_msg = format!("Fatal Error: Could not load or generate configuration files.\n\nError details: {}", e);
-            MessageDialog::new()
-                .set_type(MessageType::Error)
-                .set_title("WatchMark - Fatal Error")
-                .set_text(&error_msg)
-                .show_alert()
-                .unwrap();
-            std::process::exit(1);
+            // If settings fail to load initially (e.g. disk issue), we create a default config
+            // for the logger and let the File System Guard catch the actual disk problem in `.setup()`.
+            models::Settings::default()
         }
     };
 
-    // Initialize Tracing Engine
+    // Initialize Tracing Engine First
     logging::init_tracing(&initial_settings.global_log_level, &initial_settings.module_logs);
 
-    tracing::info!(action = "boot", "Starting application: Canary check passed.");
+    tracing::info!(action = "boot", "Starting application WatchMark...");
 
-    tracing::info!(action = "init_db", "Initializing SQLite database...");
-    db::init_db().expect("Failed to initialize database");
-    tracing::info!(action = "init_db_success", "Database initialized successfully.");
+    // Cold-Swap Database Restore Logic
+    execute_cold_swap(&app_dir);
 
     let (settings_tx, mut settings_rx) = tokio::sync::mpsc::channel::<models::Settings>(100);
 
@@ -191,6 +145,25 @@ fn main() {
         })
         .setup(move |app| {
             tracing::info!("Tauri setup hook triggered. Initializing state...");
+
+            // 1. Boot-Time Filesystem Guard
+            let app_data_dir = db::get_app_data_dir();
+            filesystem_guard::execute_guard_and_exit_on_failure(app, &app_data_dir);
+
+            // 2. Initialize Database after filesystem is vouched for
+            tracing::info!(action = "init_db", "Initializing SQLite database...");
+            if let Err(e) = db::init_db() {
+                // Critical DB failure
+                use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+                app.dialog()
+                    .message(format!("Fatal Error: WatchMark could not initialize its database.\nError: {}", e))
+                    .kind(MessageDialogKind::Error)
+                    .title("WatchMark - Fatal DB Error")
+                    .blocking_show();
+                std::process::exit(1);
+            }
+            tracing::info!(action = "init_db_success", "Database initialized successfully.");
+
             let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new(app.handle().clone()));
 
             let available_cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2);

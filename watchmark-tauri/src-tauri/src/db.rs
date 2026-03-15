@@ -4,7 +4,6 @@
 // 3. No raw println! allowed.
 
 use rusqlite::{Connection, Result};
-use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::sync::{Mutex, MutexGuard};
@@ -22,41 +21,6 @@ pub fn get_app_data_dir() -> PathBuf {
         exe_dir.pop();
         exe_dir.join("WatchMark")
     }
-}
-
-pub fn ensure_directories() -> std::io::Result<()> {
-    let app_dir = get_app_data_dir();
-
-    let paths_to_create = vec![
-        app_dir.clone(),
-        app_dir.join("db"),
-        app_dir.join("cache").join("posters"),
-        app_dir.join("cache").join("backdrops"),
-        app_dir.join("cache").join("stills"),
-    ];
-
-    for path in paths_to_create {
-        if path.exists() {
-            if path.is_file() {
-                // Rogue file collision! Delete or rename the rogue file
-                let _ = fs::remove_file(&path);
-                fs::create_dir_all(&path)?;
-            }
-        } else {
-            fs::create_dir_all(&path)?;
-        }
-
-        // Final metadata check
-        let meta = fs::metadata(&path)?;
-        if !meta.is_dir() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                format!("Failed to create directory at {:?}", path)
-            ));
-        }
-    }
-
-    Ok(())
 }
 
 pub fn get_db_path() -> PathBuf {
@@ -101,7 +65,6 @@ pub fn check_db_permissions(db_path: &PathBuf) -> Result<(), crate::error::AppEr
 }
 
 pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::Error> {
-    let _ = ensure_directories();
     if let Some(conn_mutex) = DB_CONNECTION.get() {
         Ok(conn_mutex.lock().unwrap())
     } else {
@@ -132,7 +95,6 @@ pub fn get_db_connection() -> Result<MutexGuard<'static, Connection>, rusqlite::
 }
 
 pub fn get_readonly_connection() -> Result<Connection, rusqlite::Error> {
-    let _ = ensure_directories();
     let db_path = get_db_path();
 
     let conn = Connection::open_with_flags(
@@ -151,7 +113,6 @@ pub fn get_readonly_connection() -> Result<Connection, rusqlite::Error> {
 }
 
 pub fn init_db() -> Result<(), crate::error::AppError> {
-    let _ = ensure_directories();
     if DB_CONNECTION.get().is_none() {
         let db_path = get_db_path();
 

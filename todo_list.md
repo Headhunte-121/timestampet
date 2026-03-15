@@ -1762,13 +1762,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test hiding the broken 'image not found' icon native to all specific web browsers.
 - [ ] Ensure this completely avoids throwing explicit JavaScript console errors that halt execution.
 
-**16.13 Automatic boot-up cache verification (mkdir -p equivalents in Rust to ensure the app never crashes from missing folders).** (Incomplete)
+**16.13 Automatic boot-up cache verification (mkdir -p equivalents in Rust to ensure the app never crashes from missing folders).** (Complete)
 
-- [ ] Verify Rust strictly checks for critical directory paths specifically on every single startup sequence.
-- [ ] Ensure automated recursive directory creation constructs the entire tree explicitly if deleted.
-- [ ] Handle edge cases explicitly where file permission errors lock creation entirely (display fatal error UI).
-- [ ] Test specifically verifying the structure required for Database, Posters, Backdrops, and Episode Stills.
-- [ ] Ensure the creation specifically logs precisely to the background debugging file entirely.
+- [x] Verify Rust strictly checks for critical directory paths specifically on every single startup sequence.
+- [x] Ensure automated recursive directory creation constructs the entire tree explicitly if deleted.
+- [x] Handle edge cases explicitly where file permission errors lock creation entirely (display fatal error UI).
+- [x] Test specifically verifying the structure required for Database, Posters, Backdrops, and Episode Stills.
+- [x] Ensure the creation specifically logs precisely to the background debugging file entirely.
 
 ## ⌨️ Part 17: Advanced Navigation & Shortcuts (UX Polish) (Incomplete)
 
