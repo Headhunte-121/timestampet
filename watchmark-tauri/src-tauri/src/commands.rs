@@ -1206,7 +1206,7 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                 let mut ep_rows = ep_stmt.query(params![media_id])?;
                 if let Ok(Some(ep_row)) = ep_rows.next() {
                     let runtime = ep_row.get::<_, i32>(5).unwrap_or(0);
-                    let last_position = ep_row.get::<_, i32>(9).unwrap_or(0);
+                    let last_position = ep_row.get::<_, i32>(10).unwrap_or(0);
                     let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
                     hero_ep = Some(json!({
@@ -1218,19 +1218,20 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                         "runtime": runtime,
                         "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
                         "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
-                        "watch_count": ep_row.get::<_, i32>(8).unwrap_or(0),
+                        "season_overview": ep_row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
+                        "watch_count": ep_row.get::<_, i32>(9).unwrap_or(0),
                         "last_position": last_position,
-                        "status": ep_row.get::<_, Option<String>>(10).unwrap_or_default().unwrap_or_default(),
-                        "completed_date": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
-                        "air_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
-                        "is_exact_date": ep_row.get::<_, Option<bool>>(13).unwrap_or_default().unwrap_or(true),
+                        "status": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
+                        "completed_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
+                        "air_date": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
+                        "is_exact_date": ep_row.get::<_, Option<bool>>(14).unwrap_or_default().unwrap_or(true),
                         "is_date_known": true, // This field doesn't exist in the query, handled safely by frontend defaulting if missing
                         "progress_percentage": progress_percentage,
 
-                        "show_title": ep_row.get::<_, Option<String>>(14).unwrap_or_default().unwrap_or_default(),
-                        "backdrop_path": ep_row.get::<_, Option<String>>(15).unwrap_or_default().unwrap_or_default(),
-                        "file_path": ep_row.get::<_, Option<String>>(16).unwrap_or_default(),
-                        "media_type": ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default(),
+                        "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
+                        "backdrop_path": ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default(),
+                        "file_path": ep_row.get::<_, Option<String>>(18).unwrap_or_default(),
+                        "media_type": ep_row.get::<_, Option<String>>(19).unwrap_or_default().unwrap_or_default(),
                     }));
                 }
             }
@@ -1271,7 +1272,7 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                     let mut ep_rows = ep_stmt.query(params![m_id])?;
                     if let Ok(Some(ep_row)) = ep_rows.next() {
                         let runtime = ep_row.get::<_, i32>(5).unwrap_or(0);
-                        let last_position = ep_row.get::<_, i32>(9).unwrap_or(0);
+                        let last_position = ep_row.get::<_, i32>(10).unwrap_or(0);
                         let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
                         cw_eps.push(json!({
@@ -1283,20 +1284,21 @@ pub async fn get_dashboard_data(request_id: String, state: tauri::State<'_, AppS
                             "runtime": runtime,
                             "still_path": ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default(),
                             "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
-                            "watch_count": ep_row.get::<_, i32>(8).unwrap_or(0),
+                            "season_overview": ep_row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
+                        "watch_count": ep_row.get::<_, i32>(9).unwrap_or(0),
                             "last_position": last_position,
                             "status": ep_row.get::<_, Option<String>>(10).unwrap_or_default().unwrap_or_default(),
-                            "completed_date": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
-                            "air_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
-                            "is_exact_date": ep_row.get::<_, Option<bool>>(13).unwrap_or_default().unwrap_or(true),
+                            "completed_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
+                            "air_date": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
+                            "is_exact_date": ep_row.get::<_, Option<bool>>(14).unwrap_or_default().unwrap_or(true),
                             "is_date_known": true, // This field doesn't exist in the query, handled safely by frontend defaulting if missing
                             "progress_percentage": progress_percentage,
 
-                            "show_title": ep_row.get::<_, Option<String>>(14).unwrap_or_default().unwrap_or_default(),
-                            "backdrop_path": ep_row.get::<_, Option<String>>(15).unwrap_or_default().unwrap_or_default(),
-                            "poster_path": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
-                            "file_path": ep_row.get::<_, Option<String>>(17).unwrap_or_default(),
-                            "media_type": ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default(),
+                            "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
+                            "backdrop_path": ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default(),
+                            "poster_path": ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default(),
+                            "file_path": ep_row.get::<_, Option<String>>(19).unwrap_or_default(),
+                            "media_type": ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default(),
                         }));
                     }
                 }
