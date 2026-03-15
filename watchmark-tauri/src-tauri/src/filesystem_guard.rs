@@ -18,7 +18,7 @@ pub fn boot_time_guard(_app: &mut App, app_dir: &PathBuf) -> Result<(), String> 
     ];
 
     for path in required_paths {
-        tracing::info!(action = "fs_guard", path = ?path, "Verifying directory");
+        tracing::info!("[FS] 📁 Verifying directory: {:?}", path);
 
         // 1. Idempotent Creation
         if !path.exists() {
@@ -26,13 +26,13 @@ pub fn boot_time_guard(_app: &mut App, app_dir: &PathBuf) -> Result<(), String> 
                 tracing::error!(action = "fs_guard_fail", path = ?path, error = %e, "Permission or I/O error during startup - Creation Failed");
                 return Err(format!("Fatal Error: WatchMark lacks permission to create its data folders.\nPath: {:?}\nError: {}\nPlease check your Antivirus or Folder Permissions.", path, e));
             }
-            tracing::info!(action = "fs_guard", path = ?path, "Created Directory");
+            tracing::info!("[FS] ✨ Created Directory: {:?}", path);
         } else if path.is_file() {
             // If a file exists where a directory should be, it's a conflict
             tracing::error!(action = "fs_guard_fail", path = ?path, "Conflict: File exists where directory was expected");
             return Err(format!("Fatal Error: WatchMark found a file where a directory was expected.\nPath: {:?}\nPlease remove the file and restart the app.", path));
         } else {
-             tracing::info!(action = "fs_guard", path = ?path, "Verified Directory Exists");
+             tracing::info!("[FS] ✅ Verified Directory Exists: {:?}", path);
         }
 
         // 2. Functional Probe - Read (Execute/Search)
