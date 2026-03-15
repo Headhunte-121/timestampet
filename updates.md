@@ -364,3 +364,8 @@ Update 21: Feature 5.7 release_date column and precise library sorting
 - Refactored `assign_unmatched_to_tracker` to also use iterative streaming loop.
 - Added empty-string sanitization mapping missing images to `Value::Null` for data integrity.
 - Integrated `SafeImage` component across Dashboard, Library, SearchTMDB, Inbox, and History for robust image fallbacks without layout shifts.
+
+### Update 22: Strictness Bug Resolution (Library Missing Items)
+- **Root Cause Identified:** The recent "Sanitization" updates introduced two new columns (`genres` and `networks`) to the `Media` SQLite table. However, queries in `get_library_data` and `get_dashboard_data` still relied on hardcoded `rusqlite` row indices (e.g. `row.get(13)`) that were mapped directly following `m.*`. This push resulted in pulling the `genres` TEXT field instead of the calculated `completed_eps` INTEGER, throwing a silent `InvalidColumnType` parsing panic, destroying the data payload, and rendering an empty UI.
+- **Index Shift Applied:** Re-mapped indices accurately (e.g., `completed_eps` now correctly targets index 15, `last_watched` at 16, etc.) to reflect the newly expanded column widths, permanently resolving the "Strictness Bug" without database locking or logic regressions.
+- **Frontend Restoration:** Verified the fix correctly revives the `SearchTMDB.tsx` and `Library.tsx` integration where successfully added shows immediately populate as expected.
