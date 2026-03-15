@@ -34,8 +34,7 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "$APP_LOCAL_DATA/**",
-          "$APP_DATA/**",
+          "$APP_LOCAL_DATA/WatchMark/**",
           "$APPDATA/WatchMark/**"
         ]
       }

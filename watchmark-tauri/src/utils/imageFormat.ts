@@ -29,8 +29,11 @@ export function formatImagePath(path: string | null | undefined, size: string = 
   const isUnixPath = path.startsWith('/') && path.indexOf('/', 1) !== -1;
 
   if (isWindowsPath || isUnixPath) {
+    // Normalize backslashes to forward slashes for Tauri v2 Windows compatibility
+    // This prevents 403 Forbidden errors caused by double-encoded '%5C' in URI schemes.
+    const normalizedPath = path.replace(/\\/g, '/');
     // It's a local cached file, use Tauri's custom protocol
-    return convertFileSrc(path);
+    return convertFileSrc(normalizedPath);
   }
 
   // Otherwise, it's a raw TMDB path
