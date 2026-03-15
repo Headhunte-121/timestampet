@@ -408,3 +408,11 @@ Implemented global rate limit management and staggered iterative background fetc
 - "One Piece" Staggering Simulator: Verified a 250ms deterministic delay effectively staggers massive fetch queues.
 - Add-Remove Sprint Cancellation: Validated that a rapid background delete cleanly intercepts and halts the active loop via token polling.
 - Missing Season Skip Logic: Tested that a 404 response logs a warning, skips the iteration, and continues without raising fatal errors.
+
+### Update Feature 3.8: High-resolution cinematic Backdrop image extraction
+- **Dynamic Resolution Resolver:** Implemented `ImageConfig` in the Rust backend that interfaces with Tauri's `app.primary_monitor()` to dynamically select the ideal backdrop resolution (`original` for High-DPI displays, `w1280` for standard 1080p).
+- **Textless Backdrop Fallback (Primary):** Refactored `get_media_details` to parse the `append_to_response=images` TMDB payload, specifically filtering the `backdrops` array for clean, textless variants (`iso_639_1` == null) and selecting the one with the highest `vote_average`.
+- **Pseudo-Backdrop Generation (Secondary):** Integrated the Rust `image` crate into the download pipeline. If a show lacks backdrops entirely, the backend intercepts the primary poster path (appended with `?crop=true`), downloads it, and automatically performs a 16:9 center-crop and horizontal expansion to create a seamless "Pseudo-Backdrop" cached locally.
+- **Gradient Fallback (Tertiary):** Updated SQLite schema (`PRAGMA user_version = 16`) to include a `backdrop_fallback` column. If both backdrops and posters are missing from TMDB, the DTO passes `fallback_type: "gradient"` to the React UI.
+- **Eviction-Based Image Buffer:** Modified `SafeImage.tsx` to handle `asset://` object URLs for backdrops. Added a `useEffect` cleanup hook that explicitly calls `URL.revokeObjectURL` and sets the image source to null upon component unmount, strictly adhering to the 30MB RAM target during deep library navigation.
+- **Cinematic Skeleton Loading:** Upgraded the `SafeImage` backdrop renderer with a z-index stack: a pulsing `#1F222A` to `#2A2D35` gradient bottom layer, overlaid with a `framer-motion` image that smoothly fades in (600ms ease-in-out) via the `onLoad` event to eliminate jarring layout snaps.

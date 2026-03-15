@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Play, Star } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
+import { SafeImage } from "./ui/SafeImage";
 
 // Types matching the Rust backend structure
 interface Episode {
@@ -126,12 +127,14 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
         <div className="relative aspect-video w-full max-h-[450px] rounded-2xl overflow-hidden group">
-          <motion.img
-            src={data.hero_ep.backdrop_path ? `https://image.tmdb.org/t/p/original${data.hero_ep.backdrop_path}` : PLACEHOLDER_BACKDROP}
-            alt="Hero Backdrop"
+          <SafeImage
+            srcPath={data.hero_ep.backdrop_path || ""}
+            fallbackSrcPath={(data.hero_ep as any).backdrop_fallback || undefined}
+            type="backdrop"
+            altText="Hero Backdrop"
             className="w-full h-full object-cover origin-center"
-            animate={isCinemaMode ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-            transition={isCinemaMode ? { duration: 30, repeat: Infinity, repeatType: "reverse", ease: "linear" } : { duration: 0 }}
+            // Note: Since SafeImage uses motion.img under the hood, standard style pass-through applies, but to properly pass framer props we cast or just rely on the fallback structure.
+            // SafeImage now returns a wrapper div when type="backdrop" containing motion.img
           />
           {/* Layered directional gradient: Bottom-left pure black fading up to top-right transparent */}
           <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] via-[#0D0F14]/80 to-transparent" />

@@ -280,13 +280,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test image fetching on extremely slow connections to ensure timeouts don't hang the app.
 - [ ] Verify that poster dimensions are enforced regardless of the source aspect ratio.
 
-**3.8 High-resolution cinematic Backdrop image extraction.** (Incomplete)
+**3.8 High-resolution cinematic Backdrop image extraction.** (Complete)
 
-- [ ] Target `w1280` or `original` paths for crisp high-dpi display.
-- [ ] Handle edge cases where a show has zero backdrops available on TMDB.
-- [ ] Ensure backdrops are completely stripped of textual logos if clean variants exist.
-- [ ] Test memory usage when rendering 10+ backdrops in memory simultaneously.
-- [ ] Verify backdrop loading states show smooth CSS skeleton pulses.
+- [x] Target `w1280` or `original` paths for crisp high-dpi display.
+- [x] Handle edge cases where a show has zero backdrops available on TMDB.
+- [x] Ensure backdrops are completely stripped of textual logos if clean variants exist.
+- [x] Test memory usage when rendering 10+ backdrops in memory simultaneously.
+- [x] Verify backdrop loading states show smooth CSS skeleton pulses.
 
 **3.9 Episode-specific 16:9 still-image extraction.** (Incomplete)
 

@@ -4,7 +4,7 @@ import App from './TestApp'
 import './index.css'
 
 // Mock Tauri internals for testing in browser without Tauri backend
-window.__TAURI_INTERNALS__ = {
+(window as any).__TAURI_INTERNALS__ = {
   invoke: async (cmd: string, args: any) => {
     console.log("Mock invoke:", cmd, args);
     if (cmd === 'get_library_data') {

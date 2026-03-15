@@ -191,6 +191,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             networks TEXT DEFAULT '',
             collection_id INTEGER,
             collection_name TEXT,
+            backdrop_fallback TEXT DEFAULT NULL,
             UNIQUE(tmdb_id, \"type\")
         )",
         (),
@@ -519,6 +520,7 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
                 networks TEXT DEFAULT '',
                 collection_id INTEGER,
                 collection_name TEXT,
+                backdrop_fallback TEXT DEFAULT NULL,
                 UNIQUE(tmdb_id, \"type\")
             )",
             (),
@@ -553,6 +555,13 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             (),
         )?;
         tx.execute("PRAGMA user_version = 15", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 16 {
+        let tx = conn.transaction()?;
+        let _ = tx.execute("ALTER TABLE Media ADD COLUMN backdrop_fallback TEXT DEFAULT NULL", ());
+        tx.execute("PRAGMA user_version = 16", ())?;
         tx.commit()?;
     }
 

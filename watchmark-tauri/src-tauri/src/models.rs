@@ -148,6 +148,8 @@ pub struct Media {
     #[serde(default)]
     pub is_date_known: bool,
     #[serde(default)]
+    pub backdrop_fallback: Option<String>,
+    #[serde(default)]
     pub genres: String,
     #[serde(default)]
     pub networks: String,
@@ -206,6 +208,8 @@ pub struct Episode {
     pub show_title: String,
     #[serde(default)]
     pub backdrop_path: String,
+    #[serde(default)]
+    pub backdrop_fallback: Option<String>,
     #[serde(default)]
     pub media_type: String,
     #[serde(default)]

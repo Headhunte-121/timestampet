@@ -1,57 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
 
-// Centralized Intersection Observer to avoid creating 500+ observers
-const lazyImageObserver = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
-  entries.forEach((entry) => {
-    const target = entry.target as HTMLImageElement;
-    if (entry.isIntersecting) {
-      const src = target.getAttribute('data-src');
-      if (src && target.src !== src) {
-        target.src = src;
-      }
-    } else {
-      // Clear out of view images to save memory
-      if (target.src !== "") {
-        target.src = "";
-      }
-    }
-  });
-}, { rootMargin: "300px" }) : null;
-
-const LazyImage = ({ src, alt, className }: { src: string, alt: string, className: string }) => {
-  const imgRef = useRef<HTMLImageElement>(null);
-
-  useEffect(() => {
-    const node = imgRef.current;
-    if (node && lazyImageObserver) {
-      lazyImageObserver.observe(node);
-    }
-
-    return () => {
-      if (node) {
-        if (lazyImageObserver) {
-          lazyImageObserver.unobserve(node);
-        }
-        // Aggressive cleanup on unmount
-        node.src = "";
-      }
-    };
-  }, []);
-
-  return (
-    <img
-      ref={imgRef}
-      data-src={src}
-      alt={alt}
-      className={className}
-    />
-  );
-};
 
 export default function Library({ type, onMediaSelect, refreshTrigger, searchQuery = "" }: any) {
   const { isCinemaMode } = useAppStore();

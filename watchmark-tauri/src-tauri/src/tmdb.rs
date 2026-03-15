@@ -3,6 +3,19 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::db::get_app_data_dir;
+
+#[derive(Clone, Debug)]
+pub struct ImageConfig {
+    pub backdrop_size: String,
+}
+
+impl Default for ImageConfig {
+    fn default() -> Self {
+        Self {
+            backdrop_size: "w1280".to_string(),
+        }
+    }
+}
 use crate::network::NETWORK_MANAGER;
 use crate::error::AppError;
 
@@ -276,14 +289,47 @@ pub async fn get_media_details(
     if poster.is_empty() {
         obj.insert("poster_path".to_string(), Value::Null);
     } else {
-        obj.insert("poster_path".to_string(), Value::String(poster));
+        obj.insert("poster_path".to_string(), Value::String(poster.clone()));
     }
 
-    let backdrop = r["backdrop_path"].as_str().unwrap_or("");
+    let mut backdrop = r["backdrop_path"].as_str().unwrap_or("").to_string();
+
+    if let Some(images) = r.get("images") {
+        if let Some(backdrops) = images.get("backdrops").and_then(|b| b.as_array()) {
+            let mut best_clean_backdrop = None;
+            let mut highest_vote = -1.0;
+
+            for b in backdrops {
+                // Ensure iso_639_1 is null for clean textless images
+                if b.get("iso_639_1").unwrap_or(&Value::Null).is_null() {
+                    let vote = b.get("vote_average").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    if vote > highest_vote {
+                        highest_vote = vote;
+                        if let Some(path) = b.get("file_path").and_then(|fp| fp.as_str()) {
+                            best_clean_backdrop = Some(path.to_string());
+                        }
+                    }
+                }
+            }
+
+            if let Some(clean_backdrop) = best_clean_backdrop {
+                backdrop = clean_backdrop;
+            }
+        }
+    }
+
     if backdrop.is_empty() {
-        obj.insert("backdrop_path".to_string(), Value::Null);
+        if !poster.is_empty() {
+            // Secondary Fallback: Use poster as pseudo-backdrop
+            // We append a custom query param/marker to the path so the download engine knows to crop it
+            obj.insert("backdrop_path".to_string(), Value::String(format!("{}?crop=true", poster)));
+        } else {
+            // Tertiary Fallback: no backdrops and no poster
+            obj.insert("backdrop_path".to_string(), Value::Null);
+            obj.insert("fallback_type".to_string(), Value::String("gradient".to_string()));
+        }
     } else {
-        obj.insert("backdrop_path".to_string(), Value::String(backdrop.to_string()));
+        obj.insert("backdrop_path".to_string(), Value::String(backdrop));
     }
 
     // Flatten genres correctly
@@ -522,6 +568,34 @@ pub async fn get_collection_details(api_key: &str, collection_id: i32) -> Result
     Ok(r)
 }
 
+pub fn resolve_local_backdrop_path(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
+    if image_path.is_empty() {
+        return None;
+    }
+
+    let mut is_pseudo_backdrop = false;
+    let mut raw_path = image_path;
+    if image_path.ends_with("?crop=true") {
+        is_pseudo_backdrop = true;
+        raw_path = image_path.trim_end_matches("?crop=true");
+    }
+
+    let clean_path = raw_path.trim_start_matches('/');
+    let actual_size = if high_performance_mode && size == "w500" { "w342" } else { size };
+
+    let filename = if is_pseudo_backdrop {
+        format!("{}_pseudo_{}", actual_size, clean_path)
+    } else {
+        format!("{}_{}", actual_size, clean_path)
+    };
+
+    let local_path = get_poster_cache_dir().join(&filename);
+    if local_path.exists() {
+        return Some(local_path.to_string_lossy().to_string());
+    }
+    None
+}
+
 pub async fn download_image(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
     if image_path.is_empty() {
         return None;
@@ -529,9 +603,21 @@ pub async fn download_image(image_path: &str, size: &str, high_performance_mode:
 
     let _ = crate::db::ensure_directories();
 
-    let clean_path = image_path.trim_start_matches('/');
+    let mut is_pseudo_backdrop = false;
+    let mut raw_path = image_path;
+    if image_path.ends_with("?crop=true") {
+        is_pseudo_backdrop = true;
+        raw_path = image_path.trim_end_matches("?crop=true");
+    }
+
+    let clean_path = raw_path.trim_start_matches('/');
     let actual_size = if high_performance_mode && size == "w500" { "w342" } else { size };
-    let filename = format!("{}_{}", actual_size, clean_path);
+
+    let filename = if is_pseudo_backdrop {
+        format!("{}_pseudo_{}", actual_size, clean_path)
+    } else {
+        format!("{}_{}", actual_size, clean_path)
+    };
     let local_path = get_poster_cache_dir().join(&filename);
 
     if local_path.exists() {
@@ -550,13 +636,45 @@ pub async fn download_image(image_path: &str, size: &str, high_performance_mode:
                 if let Ok(bytes) = response.bytes().await {
                     let tmp_filename = format!("{}.tmp", filename);
                     let tmp_local_path = get_poster_cache_dir().join(&tmp_filename);
-                    if let Ok(_) = tokio::fs::write(&tmp_local_path, &bytes).await {
-                        if crate::sanitizer::verify_image_header(&tmp_local_path) {
-                            if std::fs::rename(&tmp_local_path, &local_path).is_ok() {
-                                return Some(local_path.to_string_lossy().to_string());
+
+                    if is_pseudo_backdrop {
+                        // Secondary Fallback: Process poster into a pseudo-backdrop
+                        if let Ok(mut img) = image::load_from_memory(&bytes) {
+                            // Center-crop to 16:9 and horizontal expansion
+                            let (width, height) = img.dimensions();
+                            use image::GenericImageView;
+
+                            // Calculate 16:9 dimensions based on original width
+                            let target_height = (width as f32 * 9.0 / 16.0).round() as u32;
+
+                            // If the calculated height is smaller than the original, we can crop safely
+                            if target_height <= height {
+                                let y_offset = (height - target_height) / 2;
+                                let cropped = img.crop(0, y_offset, width, target_height);
+                                if let Ok(_) = cropped.save_with_format(&tmp_local_path, image::ImageFormat::Jpeg) {
+                                    if std::fs::rename(&tmp_local_path, &local_path).is_ok() {
+                                        return Some(local_path.to_string_lossy().to_string());
+                                    }
+                                }
+                            } else {
+                                // Just save it anyway if math is weird
+                                if let Ok(_) = img.save_with_format(&tmp_local_path, image::ImageFormat::Jpeg) {
+                                    if std::fs::rename(&tmp_local_path, &local_path).is_ok() {
+                                        return Some(local_path.to_string_lossy().to_string());
+                                    }
+                                }
                             }
+                            let _ = std::fs::remove_file(&tmp_local_path);
                         }
-                        let _ = std::fs::remove_file(&tmp_local_path);
+                    } else {
+                        if let Ok(_) = tokio::fs::write(&tmp_local_path, &bytes).await {
+                            if crate::sanitizer::verify_image_header(&tmp_local_path) {
+                                if std::fs::rename(&tmp_local_path, &local_path).is_ok() {
+                                    return Some(local_path.to_string_lossy().to_string());
+                                }
+                            }
+                            let _ = std::fs::remove_file(&tmp_local_path);
+                        }
                     }
                 }
                 break; // Stop trying other sizes if we hit success but failed validation (or succeeded)
