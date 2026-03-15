@@ -646,29 +646,29 @@ This document represents the complete functional blueprint and state of the Watc
 
 ## 🎨 Part 6: Global UI, Styling & Motion (Cinema-Grade) (Incomplete)
 
-**6.1 Pure #0D0F14 deep cinematic background color.** (Incomplete)
+**6.1 Pure #0D0F14 deep cinematic background color.** (Complete)
 
-- [ ] Ensure the color is uniformly applied to `<body>` to prevent white flashes on load.
-- [ ] Verify scrollbar track colors match or blend seamlessly into this hex value.
-- [ ] Handle edge cases where transparent images render awkwardly over this specific dark tone.
-- [ ] Test contrast ratios ensuring standard silver text remains readable against it.
-- [ ] Ensure fullscreen modes maintain this background color on ultra-wide monitors.
+- [x] Ensure the color is uniformly applied to `<body>` to prevent white flashes on load.
+- [x] Verify scrollbar track colors match or blend seamlessly into this hex value.
+- [x] Handle edge cases where transparent images render awkwardly over this specific dark tone.
+- [x] Test contrast ratios ensuring standard silver text remains readable against it.
+- [x] Ensure fullscreen modes maintain this background color on ultra-wide monitors.
 
-**6.2 Translucent #1F222A surface cards for depth.** (Incomplete)
+**6.2 Translucent #1F222A surface cards for depth.** (Complete)
 
-- [ ] Ensure borders use a subtle lighter tone (e.g., `#2A2D35`) to define card edges.
-- [ ] Verify nested cards (cards within cards) step up lightness correctly for visual hierarchy.
-- [ ] Handle edge cases where surface cards overlap each other during Framer Motion transitions.
-- [ ] Test hover states slightly brightening this hex value to indicate interactivity.
-- [ ] Ensure loading skeletons utilize a pulsed version of this exact color.
+- [x] Ensure borders use a subtle lighter tone (e.g., `#2A2D35`) to define card edges.
+- [x] Verify nested cards (cards within cards) step up lightness correctly for visual hierarchy.
+- [x] Handle edge cases where surface cards overlap each other during Framer Motion transitions.
+- [x] Test hover states slightly brightening this hex value to indicate interactivity.
+- [x] Ensure loading skeletons utilize a pulsed version of this exact color.
 
-**6.3 Vibrant #FF6B00 (VLC Orange) global accent/interaction color.** (Incomplete)
+**6.3 Vibrant #FF6B00 (VLC Orange) global accent/interaction color.** (Complete)
 
-- [ ] Verify this color is strictly reserved for primary actions, not passive text.
-- [ ] Ensure hover states utilize a slightly lighter variant (e.g., `#FF8533`) for feedback.
-- [ ] Handle edge cases where this color is used as a drop-shadow glow effect.
-- [ ] Test colorblind accessibility, ensuring text inside an orange pill remains pure `#FFFFFF`.
-- [ ] Ensure progress bars use this exact color to fill their active width.
+- [x] Verify this color is strictly reserved for primary actions, not passive text.
+- [x] Ensure hover states utilize a slightly lighter variant (e.g., `#FF8533`) for feedback.
+- [x] Handle edge cases where this color is used as a drop-shadow glow effect.
+- [x] Test colorblind accessibility, ensuring text inside an orange pill remains pure `#FFFFFF`.
+- [x] Ensure progress bars use this exact color to fill their active width.
 
 **6.4 Tailwind backdrop-blur-xl heavy Frosted Glass effects on sidebars.** (Incomplete)
 
@@ -694,13 +694,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test font weights, strictly using `font-bold` for headers and `font-normal` for body.
 - [ ] Ensure letter spacing (tracking) is slightly tightened on massive hero text.
 
-**6.7 Modern Inter sans-serif font family integration.** (Incomplete)
+**6.7 Modern Inter sans-serif font family integration.** (Complete)
 
-- [ ] Ensure the Inter font files are locally bundled to prevent network-dependent font loading.
-- [ ] Verify font anti-aliasing is explicitly enabled in CSS (`antialiased`, `subpixel-antialiased`).
-- [ ] Handle edge cases where foreign languages fall back gracefully to standard system sans-serif.
-- [ ] Test number rendering, ensuring tabular figures are used in data-heavy stat grids.
-- [ ] Ensure variable font weights map correctly without causing layout jumps.
+- [x] Ensure the Inter font files are locally bundled to prevent network-dependent font loading.
+- [x] Verify font anti-aliasing is explicitly enabled in CSS (`antialiased`, `subpixel-antialiased`).
+- [x] Handle edge cases where foreign languages fall back gracefully to standard system sans-serif.
+- [x] Test number rendering, ensuring tabular figures are used in data-heavy stat grids.
+- [x] Ensure variable font weights map correctly without causing layout jumps.
 
 **6.8 Perfect rounded-xl and rounded-2xl corner radii.** (Incomplete)
 
@@ -718,21 +718,21 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test smooth scrolling CSS properties to ensure flick-scrolling feels natural.
 - [ ] Ensure hiding the scrollbar doesn't accidentally disable keyboard accessibility (arrow keys).
 
-**6.10 Custom thin, dark styled scrollbars for vertical lists.** (Incomplete)
+**6.10 Custom thin, dark styled scrollbars for vertical lists.** (Complete)
 
-- [ ] Verify the scrollbar track is entirely transparent or matches `#0D0F14`.
-- [ ] Ensure the scrollbar thumb uses a subtle gray that slightly brightens on hover.
-- [ ] Handle cross-browser specific CSS (`::-webkit-scrollbar` vs standard `scrollbar-width`).
-- [ ] Test that the scrollbar overlay doesn't shift the entire page width when it appears.
-- [ ] Ensure standard scrollbar width is incredibly thin (e.g., `4px` or `6px`).
+- [x] Verify the scrollbar track is entirely transparent or matches `#0D0F14`.
+- [x] Ensure the scrollbar thumb uses a subtle gray that slightly brightens on hover.
+- [x] Handle cross-browser specific CSS (`::-webkit-scrollbar` vs standard `scrollbar-width`).
+- [x] Test that the scrollbar overlay doesn't shift the entire page width when it appears.
+- [x] Ensure standard scrollbar width is incredibly thin (e.g., `4px` or `6px`).
 
-**6.11 Lucide-React high-fidelity vector icon integration.** (Incomplete)
+**6.11 Lucide-React high-fidelity vector icon integration.** (Complete)
 
-- [ ] Verify all icons scale perfectly without pixelation regardless of size.
-- [ ] Ensure `strokeWidth` is globally consistent across all imported icons.
-- [ ] Handle edge cases where icons require filling (like the 5-star rating stars).
-- [ ] Test icon rendering overhead when rendering grids containing hundreds of them.
-- [ ] Ensure screen readers correctly ignore icons flagged with `aria-hidden`.
+- [x] Verify all icons scale perfectly without pixelation regardless of size.
+- [x] Ensure `strokeWidth` is globally consistent across all imported icons.
+- [x] Handle edge cases where icons require filling (like the 5-star rating stars).
+- [x] Test icon rendering overhead when rendering grids containing hundreds of them.
+- [x] Ensure screen readers correctly ignore icons flagged with `aria-hidden`.
 
 **6.12 Advanced linear gradient fades over all background images for text legibility.** (Incomplete)
 

@@ -16,6 +16,18 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  h1, h2, h3 {
+    @apply text-white font-bold;
+  }
+
+  p, span, .secondary-text {
+    @apply text-[#8E929C] font-normal;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Global Custom Scrollbar */
@@ -29,7 +41,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2A2D35;
+  background: rgba(42, 45, 53, 0.4);
   border-radius: 4px;
 }
 
@@ -39,5 +51,71 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2A2D35 #0D0F14;
+  scrollbar-color: rgba(42, 45, 53, 0.4) #0D0F14;
+}
+
+/* Fix for transparent PNG edges against dark background */
+img[src$=".png"] {
+  mix-blend-mode: multiply;
+}
+
+.poster-back-fill {
+  background-color: #0D0F14;
+}
+
+/* Fullscreen behavior on ultra-wide monitors */
+.hero-wrapper {
+  max-width: 1920px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+}
+
+/* Translucent surface cards */
+.surface-card {
+  background-color: #1F222A;
+  border: 1px solid #2A2D35;
+  transition: background-color 200ms ease-in-out;
+}
+
+.surface-card:hover {
+  background-color: #252830;
+}
+
+.surface-card .surface-card {
+  background-color: #252830;
+}
+
+.surface-card.expanded {
+  z-index: 50;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Skeleton loader pulsing */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    background-color: #1F222A;
+  }
+  50% {
+    background-color: #2A2D35;
+  }
+}
+
+.skeleton-loader {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Vibrant Orange primary actions */
+.btn-primary {
+  background-color: #FF6B00;
+  color: #FFFFFF;
+  transition: background-color 200ms ease-in-out;
+}
+
+.btn-primary:hover {
+  background-color: #FF8533;
+}
+
+.active-glow {
+  box-shadow: 0 0 20px rgba(255, 107, 0, 0.2);
 }
