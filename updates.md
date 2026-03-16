@@ -464,3 +464,24 @@ Implemented robust native OS window frame integrations and window geometry resto
 - **Focus Signal Filters:** Linked `tauri://focus` and `tauri://blur` events in `App.tsx` to conditionally render `grayscale-[20%]` and `opacity-90` classes to visually cue when WatchMark enters background OS states.
 - **Off-Screen Recovery & Automatic Preservation:** Augmented the Rust boot sequence in `main.rs` to validate the `initial_settings` bounded X and Y coordinates explicitly against `window.available_monitors()`. If off-screen, it performs an immediate fall-back calculation bounding the app back to the primary center.
 - **Maximized/Fullscreen Disambiguation:** Bound Tauri's `WindowEvent::CloseRequested` to serialize coordinates exclusively if the window is natively windowed (`!is_maximized` && `!is_fullscreen`), explicitly preventing maximized dimensions from overriding the preferred state on next launch.
+
+### Feature 16.9: TMDB API Key text input, validation, and persistent local storage
+- **Visual Obscuration**: Added a secure Eye/EyeOff toggle to the TMDB API key input field in the Settings UI to mask the key by default.
+- **Background Validation**: Integrated debounced automatic validation against TMDB's `/3/configuration` endpoint when the key changes. Displays dynamic UI feedback (emerald checkmark for success, red cross for error, yellow triangle for rate limits).
+- **Whitespace Scrubbing**: Enforced robust sanitization in `validate_tmdb_key` Rust command, stripping whitespace and non-alphanumeric characters before validation and storage.
+- **Secure Storage**: Ensured the Windows Credential Manager integration (via the `keyring` crate) prioritizes secure storage of the validated key, falling back to Base64 encoding.
+- **Test Connection Loop**: Added a manual "Test Connection" button that bypasses caches, triggers a fresh network handshake, displays a "Pinging TMDB..." loading state, and fires explicit Success/Error Toasts.
+
+### Feature 16.1 & 16.2: Dedicated TMDB Search full-page UI & Input Handling
+- **Expansive Layout**: Built a dedicated Search view utilizing a `max-w-[1800px]` container with `mx-auto` centering and `px-10` padding to perfectly organize results on ultra-wide monitors.
+- **Visual Parity**: Reused the standard 2:3 aspect ratio Poster Card components with Framer Motion `whileHover` scale animations and "At-a-Glance" TV/Movie badges for a seamless transition from the Dashboard.
+- **Fluid Grid**: Implemented responsive Tailwind auto-grid columns (`grid-cols-[repeat(auto-fill,minmax(180px,1fr))]`) ensuring graceful reflows across narrow and extreme wide-screens, animated via Framer Motion's `layout` prop.
+- **Form-Based Input**: Wrapped the quick search and main search pills in native HTML `<form>` elements to capture `onSubmit` events, allowing instant 'Enter' key request firing that bypasses debounce delays.
+- **Input UX**: Added inline 'X' clear button functionality to rapidly reset the view state, and implemented an initial page-load auto-focus to let users start typing immediately.
+- **Navigation**: Integrated a smooth "<- Back to Home" button pinned to the top-left of the Top Global Navigation bar when in the Search view.
+- **State Preservation**: Ensured the Search component safely receives and syncs initial query parameters (e.g., from the global quick search) to maintain state during navigation.
+
+### Feature 16.3: API HTTP Error / Invalid Key graceful error toast catchers
+- **Specific Error Parsing**: Intercepted 401 Unauthorized responses to render a structured "Danger" Toast guiding the user to check their Settings.
+- **Timeout Handling**: Caught network timeouts and generic connection failures to display distinct "Warning" Toasts indicating TMDB is taking too long to respond.
+- **UI Shell Resilience**: Wrapped API invocations in `try/catch` blocks within the frontend, ensuring failing network calls gracefully stop loading spinners and never crash the React application shell.
