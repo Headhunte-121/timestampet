@@ -233,6 +233,19 @@ struct MatchBatchPayload {
     files: Vec<serde_json::Value>,
 }
 
+pub fn normalize_path(path: &Path) -> String {
+    #[allow(unused_mut)]
+    let mut s = path.to_string_lossy().to_string();
+    #[cfg(windows)]
+    {
+        if s.starts_with(r"\\?\") {
+            s = s[4..].to_string();
+        }
+        s = s.to_lowercase();
+    }
+    s
+}
+
 pub fn scan_directory(
     directory: &str,
     conn: &mut Connection,
@@ -247,6 +260,43 @@ pub fn scan_directory(
     let mut unmatched_insert_buffer = Vec::new();
 
     let tx = conn.transaction()?;
+
+    // Pre-check cache for path collision detection (O(1) skipping)
+    let mut existing_paths = std::collections::HashSet::new();
+    if let Ok(mut stmt) = tx.prepare("SELECT file_path FROM Local_Files") {
+        if let Ok(mut rows) = stmt.query([]) {
+            while let Ok(Some(row)) = rows.next() {
+                let p: String = row.get(0).unwrap_or_default();
+                existing_paths.insert(p);
+            }
+        }
+    }
+    if let Ok(mut stmt) = tx.prepare("SELECT file_path FROM Unmatched_Files") {
+        if let Ok(mut rows) = stmt.query([]) {
+            while let Ok(Some(row)) = rows.next() {
+                let p: String = row.get(0).unwrap_or_default();
+                existing_paths.insert(p);
+            }
+        }
+    }
+
+    // Migration cache for file renames
+    let mut migration_cache: std::collections::HashMap<(i64, String, Option<String>), i32> = std::collections::HashMap::new();
+    if let Ok(mut stmt) = tx.prepare("SELECT id, file_size, file_path FROM Local_Files") {
+        if let Ok(mut rows) = stmt.query([]) {
+            while let Ok(Some(row)) = rows.next() {
+                let id: i32 = row.get(0).unwrap_or(0);
+                let size: i64 = row.get(1).unwrap_or(0);
+                let path_str: String = row.get(2).unwrap_or_default();
+                let p = Path::new(&path_str);
+                if !p.exists() {
+                    let filename = p.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                    let parent = p.parent().map(|p| normalize_path(p));
+                    migration_cache.insert((size, filename, parent), id);
+                }
+            }
+        }
+    }
 
     // Canonicalize path safely using dunce
     let sanitized_dir = match dunce::canonicalize(directory) {
@@ -303,7 +353,49 @@ pub fn scan_directory(
             }
         }
     }) {
-        let path = entry.path();
+        let mut path = entry.path().to_path_buf();
+
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            if ext.to_lowercase() == "lnk" {
+                if let Ok(shortcut) = parselnk::Lnk::try_from(path.as_path()) {
+                    if let Some(target) = shortcut.relative_path() {
+                        let target_path = path.parent().unwrap_or(Path::new("")).join(target);
+                        if target_path.exists() {
+                            path = target_path;
+                        } else {
+                            // If relative path fails or doesn't exist, we might try to fall back
+                            // but for simplicity, if it's broken, canonicalize below will catch it.
+                            path = target_path;
+                        }
+                    } else {
+                        let link_info = &shortcut.link_info;
+                        if let Some(local_base) = &link_info.local_base_path {
+                            let target_path = Path::new(local_base).to_path_buf();
+                            if target_path.exists() {
+                                path = target_path;
+                            }
+                        }
+                    }
+                } else {
+                    continue;
+                }
+            }
+        }
+
+        // Final canonicalization to get terminal file path for DB storage
+        let path = match std::fs::canonicalize(&path) {
+            Ok(p) => p,
+            Err(_) => {
+                tracing::warn!("Broken link or missing target, skipping: {}", path.display());
+                continue;
+            }
+        };
+
+        let normalized_path = normalize_path(&path);
+
+        if existing_paths.contains(&normalized_path) {
+            continue; // O(1) skipping for existing items
+        }
 
         #[cfg(unix)]
         {
@@ -311,7 +403,7 @@ pub fn scan_directory(
             if let Ok(meta) = std::fs::metadata(&path) {
                 let id = (meta.dev(), meta.ino());
                 if !visited_inodes.insert(id) {
-                    tracing::warn!("Circular symlink detected, skipping: {}", path.display());
+                    tracing::warn!("Cyclic Link Abort detected, skipping: {}", path.display());
                     continue;
                 }
             }
@@ -324,7 +416,7 @@ pub fn scan_directory(
                     let file_index = (info.nFileIndexHigh as u64) << 32 | (info.nFileIndexLow as u64);
                     let id = (info.dwVolumeSerialNumber, file_index);
                     if !visited_inodes.insert(id) {
-                        tracing::warn!("Circular symlink detected, skipping: {}", path.display());
+                        tracing::warn!("Cyclic Link Abort detected, skipping: {}", path.display());
                         continue;
                     }
                 }
@@ -388,10 +480,20 @@ pub fn scan_directory(
                 if supported_extensions.contains(&ext_lower) {
                     let filename = path.file_name().unwrap().to_string_lossy().to_string();
                     let (series_name, season_num, episode_num) = parse_filename(&filename);
-                    let str_path = path.to_string_lossy().to_string();
+                    let str_path = normalized_path.clone();
 
                     if file_size == 0 {
                         tracing::warn!("Bit-Rot or Empty File Detected: {}", str_path);
+                        continue;
+                    }
+
+                    // Migration logic
+                    if let Some(old_id) = migration_cache.remove(&(file_size, filename.clone(), path.parent().map(|p| normalize_path(p)))) {
+                        let _ = tx.execute(
+                            "UPDATE Local_Files SET file_path = ? WHERE id = ?",
+                            params![&str_path, old_id],
+                        );
+                        tracing::info!("Migrated missing file to new path: {}", str_path);
                         continue;
                     }
 
@@ -599,7 +701,7 @@ pub fn scan_directory(
                             // If group_key is too generic, fallback to parent directory
                             if let Some(ref gk) = group_key {
                                 if is_too_generic(gk) {
-                                    if let Some(parent_name) = get_parent_directory_name(path) {
+                                    if let Some(parent_name) = get_parent_directory_name(&path) {
                                         group_key = Some(parent_name);
                                     }
                                 }

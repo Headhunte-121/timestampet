@@ -574,29 +574,29 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Handle path collisions and build the Inbox layout.**
 
-**2.10 Path collision detection (prevents duplicate file paths in the DB).** (Incomplete)
+**2.10 Path collision detection (prevents duplicate file paths in the DB).** (Complete)
 
-- [ ] Ensure the database strictly enforces UNIQUE constraints on the file path column.
-- [ ] Handle edge cases where a file is renamed but the content/hash remains identical.
-- [ ] Verify that scanning the exact same directory twice results in zero new additions.
-- [ ] Handle case-sensitivity issues on Windows (treating `C:\File` and `c:\file` as identical).
-- [ ] Test resolving path conflicts seamlessly without throwing a red UI error.
+- [x] Ensure the database strictly enforces UNIQUE constraints on the file path column.
+- [x] Handle edge cases where a file is renamed but the content/hash remains identical.
+- [x] Verify that scanning the exact same directory twice results in zero new additions.
+- [x] Handle case-sensitivity issues on Windows (treating `C:\File` and `c:\file` as identical).
+- [x] Test resolving path conflicts seamlessly without throwing a red UI error.
 
-**2.11 Symlink and shortcut resolution for external drives.** (Incomplete)
+**2.11 Symlink and shortcut resolution for external drives.** (Complete)
 
-- [ ] Resolve `.lnk` files on Windows to their absolute target paths.
-- [ ] Resolve standard Unix symlinks accurately on macOS/Linux.
-- [ ] Handle edge cases where the symlink points to a deleted or non-existent file.
-- [ ] Ensure the database stores the final resolved path, not the symlink path.
-- [ ] Test recursive scanning through directory symlinks while preventing infinite loops.
+- [x] Resolve `.lnk` files on Windows to their absolute target paths.
+- [x] Resolve standard Unix symlinks accurately on macOS/Linux.
+- [x] Handle edge cases where the symlink points to a deleted or non-existent file.
+- [x] Ensure the database stores the final resolved path, not the symlink path.
+- [x] Test recursive scanning through directory symlinks while preventing infinite loops.
 
-**15.1 Split-pane layout architecture (Left sidebar list, Right wide action area).** (Incomplete)
+**15.1 Split-pane layout architecture (Left sidebar list, Right wide action area).** (Complete)
 
-- [ ] Verify the left pane visually distincts itself using a darker background shade.
-- [ ] Ensure standard hidden scrollbars isolate the left list scrolling from the right action area.
-- [ ] Handle edge cases on narrow widths by stacking the panes vertically instead of side-by-side.
-- [ ] Test active state highlighting when a user selects a specific item in the left list.
-- [ ] Ensure the right action area defaults to empty state instructions if nothing is selected.
+- [x] Verify the left pane visually distincts itself using a darker background shade.
+- [x] Ensure standard hidden scrollbars isolate the left list scrolling from the right action area.
+- [x] Handle edge cases on narrow widths by stacking the panes vertically instead of side-by-side.
+- [x] Test active state highlighting when a user selects a specific item in the left list.
+- [x] Ensure the right action area defaults to empty state instructions if nothing is selected.
 
 ## Micro-Feature 12: Inbox Triage Logic
 

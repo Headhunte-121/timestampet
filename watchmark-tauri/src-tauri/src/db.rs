@@ -531,6 +531,43 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         tx.commit()?;
     }
 
+    if user_version < 17 {
+        let tx = conn.transaction()?;
+
+        tx.execute(
+            "CREATE TABLE IF NOT EXISTS Local_Files_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER UNIQUE,
+                file_path TEXT UNIQUE,
+                file_size INTEGER DEFAULT 0,
+                file_hash TEXT,
+                FOREIGN KEY (episode_id) REFERENCES Episodes (id) ON DELETE CASCADE
+            )",
+            (),
+        )?;
+        tx.execute("INSERT OR IGNORE INTO Local_Files_new SELECT * FROM Local_Files", ())?;
+        tx.execute("DROP TABLE Local_Files", ())?;
+        tx.execute("ALTER TABLE Local_Files_new RENAME TO Local_Files", ())?;
+
+        tx.execute(
+            "CREATE TABLE IF NOT EXISTS Unmatched_Files_new (
+                file_path TEXT PRIMARY KEY,
+                filename TEXT,
+                parsed_series TEXT,
+                parsed_season INTEGER,
+                parsed_episode INTEGER,
+                group_key TEXT
+            )",
+            (),
+        )?;
+        tx.execute("INSERT OR IGNORE INTO Unmatched_Files_new SELECT * FROM Unmatched_Files", ())?;
+        tx.execute("DROP TABLE Unmatched_Files", ())?;
+        tx.execute("ALTER TABLE Unmatched_Files_new RENAME TO Unmatched_Files", ())?;
+
+        tx.execute("PRAGMA user_version = 17", ())?;
+        tx.commit()?;
+    }
+
     Ok(())
 }
 

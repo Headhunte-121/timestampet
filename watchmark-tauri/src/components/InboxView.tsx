@@ -235,14 +235,14 @@ export default function InboxView({ onMatch }: any) {
            <p className="text-xl text-gray-500 font-bold">Inbox is empty. All files are matched!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 flex-1 min-h-0">
-          <div className="col-span-1 bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 overflow-y-auto border border-white/5">
+        <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0">
+          <div className="lg:w-1/3 max-h-[40vh] lg:max-h-none h-full bg-[#0D0F14] backdrop-blur-md rounded-2xl p-6 overflow-y-auto border border-white/5 scrollbar-hide">
             {Object.entries(grouped).map(([key, files]: [string, any]) => (
               <div
                 key={key}
                 onClick={() => setSelectedGroup(key)}
-                className={`p-4 flex items-center gap-4 rounded-xl cursor-pointer transition-colors mb-2 ${
-                  selectedGroup === key ? "bg-white/10 border border-[#FF6B00]/50" : "hover:bg-white/5"
+                className={`p-4 flex items-center gap-4 rounded-xl cursor-pointer transition-colors mb-2 border-l-2 ${
+                  selectedGroup === key ? "bg-[#FF6B00]/10 border-[#FF6B00]" : "border-transparent hover:bg-white/5"
                 }`}
               >
                 <SafeImage
@@ -254,20 +254,26 @@ export default function InboxView({ onMatch }: any) {
                 />
                 <div className="flex-1 min-w-0">
                   <h3 className="text-white font-bold truncate">{key}</h3>
-                  <p className="text-gray-500 text-sm mt-1 font-semibold tracking-wider">
-                    {files.length} {files.length === 1 ? 'FILE' : 'FILES'}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="bg-[#FF6B00] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {files.length}
+                    </span>
+                    <p className="text-gray-500 text-xs font-semibold tracking-wider">
+                      {files.length === 1 ? 'FILE' : 'FILES'}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="col-span-2 bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-8 border border-white/5 flex flex-col overflow-y-auto">
+          <div className="lg:w-2/3 h-full bg-[#1F222A] backdrop-blur-md rounded-2xl p-8 border border-[#2A2D35] flex flex-col overflow-y-auto">
             {!selectedGroup ? (
               <div className="flex flex-col items-center justify-center text-center h-full">
-                <h2 className="text-2xl font-bold mb-4 text-white">Select a group to triage</h2>
+                <FolderSearch className="w-24 h-24 text-gray-700 mb-6" />
+                <h2 className="text-2xl font-bold mb-4 text-white">Select a group on the left to begin matching files to TMDB.</h2>
                 <p className="text-muted max-w-md">
-                  Groups are generated automatically from filenames. Select one to assign it to a TMDB show.
+                  Groups are generated automatically from filenames.
                 </p>
               </div>
             ) : (
