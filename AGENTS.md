@@ -10,7 +10,7 @@ Whenever you finish implementing a specific task (referred to dynamically as `[T
 * ONLY update the mentioned `[TASK_ID]`. Do not modify the status of other tasks.
 
 ### 2. Update the Progress Log (`update.md`)
-* Open `update.md`.
+* Open `updates.md`.
 * Add a new section for the current `[TASK_ID]` at the bottom of the document and summarize the updates, changes, and implementations made during this commit it sould be very detailed explaining exatly what you did.
 
 ### 3. Working Directory & Architecture Rules
