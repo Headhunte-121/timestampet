@@ -18,7 +18,7 @@ import { SafeImage } from "./ui/SafeImage";
 
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const { showConfirm, setProcessing } = useUiStore();
-  const { isApiAuthorized } = useAppStore();
+  const { isApiAuthorized, isOffline } = useAppStore();
   const [data, setData] = useState<any>(null);
   const activeSyncs = useTaskStore((state) => state.activeSyncs);
   const syncProgress = data ? activeSyncs[data.id.toString()] : undefined;
@@ -233,6 +233,10 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     toast.error("API Key required to refresh data.");
                     return;
                 }
+                if (isOffline) {
+                    toast.error("Cannot refresh data while offline.");
+                    return;
+                }
                 logger.click(`'Refresh Data' for '${data.title}'`);
                 setIsRefreshing(true);
                 try {
@@ -254,12 +258,12 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                   setIsRefreshing(false);
                 }
               }}
-              disabled={isRefreshing || !isApiAuthorized}
-              title={!isApiAuthorized ? "API Key required" : "Refresh metadata from TMDB"}
+              disabled={isRefreshing || !isApiAuthorized || isOffline}
+              title={isOffline ? "Requires internet connection." : !isApiAuthorized ? "API Key required" : "Refresh metadata from TMDB"}
               className={cn(
                 "flex items-center gap-2 px-6 py-4 font-bold rounded-full backdrop-blur-md transition-all",
-                isRefreshing || !isApiAuthorized
-                  ? "bg-white/5 text-gray-500 cursor-not-allowed"
+                isRefreshing || !isApiAuthorized || isOffline
+                  ? "bg-white/5 text-gray-500 cursor-not-allowed opacity-50 grayscale pointer-events-none"
                   : "bg-white/10 hover:bg-white/20 text-white hover:scale-105"
               )}
             >

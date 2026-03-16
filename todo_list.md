@@ -390,29 +390,29 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test toast dismissal explicitly allowing users to clear them immediately.
 - [x] Ensure failing API calls never crash the entire React application shell.
 
-**16.4 Network disconnect / Offline mode detection and UI notification.** (Incomplete)
+**16.4 Network disconnect / Offline mode detection and UI notification.** (Complete)
 
-- [ ] Verify global connection status tracking specifically accurately detects offline states.
-- [ ] Ensure a permanent visual banner or icon appears universally indicating 'Offline Mode'.
-- [ ] Handle edge cases where the network rapidly drops and reconnects.
-- [ ] Test disabling specific network-dependent actions (like manual syncs) explicitly when offline.
-- [ ] Ensure local cached data (images, library lists) continues to render flawlessly without internet.
+- [x] Verify global connection status tracking specifically accurately detects offline states.
+- [x] Ensure a permanent visual banner or icon appears universally indicating 'Offline Mode'.
+- [x] Handle edge cases where the network rapidly drops and reconnects.
+- [x] Test disabling specific network-dependent actions (like manual syncs) explicitly when offline.
+- [x] Ensure local cached data (images, library lists) continues to render flawlessly without internet.
 
-**16.5 Responsive grid display of fetched TMDB search results.** (Incomplete)
+**16.5 Responsive grid display of fetched TMDB search results.** (Complete)
 
-- [ ] Verify fetched results strictly populate identical 2:3 aspect ratio poster cards as the main Library.
-- [ ] Ensure pagination triggers more results seamlessly when scrolling to the bottom.
-- [ ] Handle edge cases where TMDB returns extremely low-resolution or entirely missing primary posters.
-- [ ] Test filtering toggles strictly separating TV shows from Movies in the results view.
-- [ ] Ensure the grid correctly handles extremely short lists of 1 or 2 items by centering them beautifully.
+- [x] Verify fetched results strictly populate identical 2:3 aspect ratio poster cards as the main Library.
+- [x] Ensure pagination triggers more results seamlessly when scrolling to the bottom.
+- [x] Handle edge cases where TMDB returns extremely low-resolution or entirely missing primary posters.
+- [x] Test filtering toggles strictly separating TV shows from Movies in the results view.
+- [x] Ensure the grid correctly handles extremely short lists of 1 or 2 items by centering them beautifully.
 
-**16.12 Image Load Error handling (Silently dropping broken TMDB URLs and defaulting to skeletons).** (Incomplete)
+**16.12 Image Load Error handling (Silently dropping broken TMDB URLs and defaulting to skeletons).** (Complete)
 
-- [ ] Verify listening explicitly for standard `<img onError>` DOM events.
-- [ ] Ensure catching the error instantly swaps the specific broken `<img src>` to the fallback placeholder.
-- [ ] Handle edge cases where the fallback image itself fails to load.
-- [ ] Test hiding the broken 'image not found' icon native to all specific web browsers.
-- [ ] Ensure this completely avoids throwing explicit JavaScript console errors that halt execution.
+- [x] Verify listening explicitly for standard `<img onError>` DOM events.
+- [x] Ensure catching the error instantly swaps the specific broken `<img src>` to the fallback placeholder.
+- [x] Handle edge cases where the fallback image itself fails to load.
+- [x] Test hiding the broken 'image not found' icon native to all specific web browsers.
+- [x] Ensure this completely avoids throwing explicit JavaScript console errors that halt execution.
 
 ## Micro-Feature 8: TMDB Deep Data Fetching
 

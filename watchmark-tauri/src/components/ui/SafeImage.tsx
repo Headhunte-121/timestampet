@@ -21,6 +21,7 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, className, title, fallbackSrcPath, episodeNumber, releaseDate, isDateKnown, isExactDate, isFallbackImage, potentialSpoiler, isCompleted, ...rest }) => {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -54,6 +55,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
 
   useEffect(() => {
     setHasError(false);
+    setFallbackFailed(false);
     if (!srcPath || srcPath.trim() === '') {
       setHasError(true);
       return;
@@ -92,6 +94,26 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
     );
   }
 
+  const handleImageError = (e: any) => {
+    try {
+      e.target.style.opacity = '0';
+      e.target.style.objectPosition = 'transparent';
+      setHasError(true);
+    } catch (err) {
+      console.warn("Failed to set image error fallback state silently.");
+    }
+  };
+
+  const handleFallbackError = (e: any) => {
+    try {
+      e.target.style.opacity = '0';
+      e.target.style.objectPosition = 'transparent';
+      setFallbackFailed(true);
+    } catch (err) {
+      console.warn("Fallback image completely failed silently.");
+    }
+  };
+
   if (hasError || !imgSrc) {
     if (type === 'poster') {
       const year = isDateKnown
@@ -102,24 +124,26 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
         <div
           className={`flex flex-col items-center justify-center bg-gradient-to-tr from-[#0D0F14] to-[#1F222A] border border-[#2A2D35] text-center p-4 rounded-xl ${className || ''}`}
         >
-          <span className="text-white font-bold drop-shadow-md text-sm md:text-base leading-tight break-words">
+          {/* Logo or placeholder if you wanted to add WatchMark logo explicitly here */}
+          <span className="text-white font-bold drop-shadow-md text-sm md:text-base leading-tight break-words z-10">
             {title || altText || 'Unknown Title'}
           </span>
           {year && (
-            <span className="text-muted font-bold drop-shadow-md text-xs mt-2">
+            <span className="text-muted font-bold drop-shadow-md text-xs mt-2 z-10">
               {year}
             </span>
           )}
         </div>
       );
     } else if (type === 'still') {
-      if (fallbackSrc) {
+      if (fallbackSrc && !fallbackFailed) {
         return (
           <div className={`relative overflow-hidden bg-[#0D0F14] ${className || ''}`}>
             <img
               src={fallbackSrc}
               alt="Backdrop Fallback"
               className="absolute inset-0 w-full h-full object-cover blur-[12px] brightness-50"
+              onError={handleFallbackError}
             />
             <div className="absolute inset-0 bg-black/60"></div>
             <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -162,7 +186,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
           animate={{ opacity: isLoaded ? 1 : 0 }}
           transition={{ duration: 0.6, ease: "easeInOut" }}
           onLoad={() => setIsLoaded(true)}
-          onError={() => setHasError(true)}
+          onError={handleImageError}
           {...rest as any}
         />
       </div>
@@ -188,7 +212,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
         alt={altText}
         className={`${commonClasses} w-full h-full object-cover ${objectPositionClass} ${transitionClass}`}
         style={filterStyle}
-        onError={() => setHasError(true)}
+        onError={handleImageError}
         {...rest as any}
       />
       {isFallbackImage && type === 'still' && (

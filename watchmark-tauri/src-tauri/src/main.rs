@@ -372,6 +372,25 @@ fn main() {
                 }
             });
 
+            // Spawn 30-second heartbeat to detect offline mode
+            let app_handle_for_heartbeat = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(5))
+                    .build()
+                    .unwrap_or_default();
+                loop {
+                    interval.tick().await;
+                    // Attempt to ping 1.1.1.1 or TMDB base URL to ensure actual internet access
+                    let is_online = match client.get("https://1.1.1.1").send().await {
+                        Ok(res) => res.status().is_success(),
+                        Err(_) => false,
+                    };
+                    let _ = app_handle_for_heartbeat.emit("network-status", serde_json::json!({ "online": is_online }));
+                }
+            });
+
             // Spawn debouncer task for saving settings inside Tauri's managed tokio runtime
             tauri::async_runtime::spawn(async move {
                 let mut last_settings: Option<models::Settings> = None;
