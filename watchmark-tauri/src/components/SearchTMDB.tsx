@@ -1,6 +1,7 @@
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Tv, Clapperboard, XCircle } from "lucide-react";
+import { formatLocaleDate } from "../utils/dateFormatter";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { logger } from "../utils/logger";
 import { motion } from "framer-motion";
@@ -80,24 +81,9 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
       const errStr = typeof e === 'object' && e.message ? e.message : String(e);
       logger.error("TMDB Search Failed", errStr);
       if (errStr.includes("API Key is invalid") || errStr.includes("401") || errStr.includes("Unauthorized") || errStr.includes("API Key was revoked")) {
-        toast.error(
-          <div className="flex flex-col gap-1">
-            <span className="font-bold">Invalid API Key</span>
-            <span className="text-sm">Please check your TMDB API Key.</span>
-            <button
-              onClick={() => {
-                // Navigate to settings (This works globally if event is emitted, but here we can just show the toast and they have to navigate)
-                // A better approach would be to pass handleNav as prop or use custom event, but for now just showing text
-              }}
-              className="mt-2 w-max px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-xs transition-colors"
-            >
-              Check Settings
-            </button>
-          </div>,
-          { duration: 8000, style: { background: "#b71c1c", color: "#ffffff", border: "none" } }
-        );
+        toast.error("Invalid API Key: Please check your TMDB API Key in Settings.");
       } else if (errStr.includes("Task Timed Out") || errStr.includes("timeout") || errStr.toLowerCase().includes("connection")) {
-        toast.warning("TMDB is taking too long to respond. Please check your internet connection.", { duration: 6000 });
+        toast.error("TMDB is taking too long to respond. Please check your internet connection.", { duration: 6000 });
       } else {
         // Fallback for other errors (they might be handled silently or show a generic toast)
         toast.error("Search failed: " + errStr);
@@ -286,7 +272,7 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 z-20">
               <h3 className="text-white font-bold leading-tight mb-1 line-clamp-2">{item.title}</h3>
               <p className="text-xs text-gray-300 mb-4 uppercase tracking-wider font-bold flex items-center gap-2">
-                 <span>{item.is_date_known ? (item.type === "TV" ? `${item.release_date.substring(0, 4)}–` : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
+                 <span>{item.is_date_known ? (item.type === "TV" ? `${item.release_date.substring(0, 4)}–` : (item.is_exact_date ? formatLocaleDate(item.release_date) : item.release_date.substring(0, 4))) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
               </p>
 
               <button

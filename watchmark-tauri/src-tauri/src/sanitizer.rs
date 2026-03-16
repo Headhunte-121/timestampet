@@ -37,8 +37,8 @@ pub fn sanitize_date(raw_date: &str) -> (String, bool, bool) {
     }
 
     // Handle normal valid date
-    if NaiveDate::parse_from_str(trimmed, "%Y-%m-%d").is_ok() {
-        return (trimmed.to_string(), true, true);
+    if let Ok(parsed) = NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
+        return (parsed.format("%Y-%m-%d").to_string(), true, true);
     }
 
     // Fallback for completely malformed garbage strings
