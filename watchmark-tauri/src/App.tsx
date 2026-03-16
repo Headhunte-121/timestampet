@@ -53,6 +53,39 @@ function App() {
   // Focus state for applying native signal (grayscale/opacity) when out of focus
   const [isFocused, setIsFocused] = useState(true);
 
+  const { isOffline, setOffline } = useAppStore();
+
+  useEffect(() => {
+    // Check initial online status
+    setOffline(!navigator.onLine);
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleStatusChange = (online: boolean) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        setOffline(!online);
+      }, 3000);
+    };
+
+    const onOnline = () => handleStatusChange(true);
+    const onOffline = () => handleStatusChange(false);
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
+    const unlistenHeartbeat = listen("network-status", (event: any) => {
+      const isOnline = event.payload.online;
+      handleStatusChange(isOnline);
+    });
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      unlistenHeartbeat.then(fn => fn());
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, [setOffline]);
+
   useEffect(() => {
     logger.app("WatchMark Frontend successfully mounted.");
     initializeSettings();
@@ -355,6 +388,21 @@ function App() {
         )}
 
         {/* Top Global Navigation Bar */}
+        {/* Offline Banner */}
+        <AnimatePresence>
+          {isOffline && (
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -50, opacity: 0 }}
+              className="absolute top-16 left-0 right-0 z-30 bg-amber-500/20 text-amber-400 py-1.5 flex items-center justify-center gap-2 text-sm font-bold shadow-lg"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="2" x2="22" y2="22"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+              Offline Mode
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <header
           data-tauri-drag-region
           className={cn(

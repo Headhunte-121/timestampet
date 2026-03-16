@@ -33,9 +33,10 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
   const [_page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const asyncInvoke = useAsyncInvoke();
-  const { isApiAuthorized } = useAppStore();
+  const { isApiAuthorized, isOffline } = useAppStore();
   const observer = useRef<IntersectionObserver | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [filterType, setFilterType] = useState<"All" | "TV" | "Movies">("All");
 
   useEffect(() => {
     // Initial page-load auto-focus
@@ -136,10 +137,31 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
     if (node) observer.current.observe(node);
   }, [loading, hasMore, debouncedQuery, performSearch]);
 
+  const filteredResults = results.filter((item) => {
+    if (filterType === "All") return true;
+    if (filterType === "TV") return item.type === "TV";
+    if (filterType === "Movies") return item.type === "Movie";
+    return true;
+  });
+
   return (
     <div className="max-w-[1800px] mx-auto px-10 pt-24 relative">
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-8 justify-between">
         <h1 className="text-4xl font-extrabold tracking-tight">Discover Media</h1>
+        <div className="flex items-center bg-[#1F222A] p-1 rounded-full border border-white/5 shadow-inner">
+          {["All", "TV", "Movies"].map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilterType(type as any)}
+              className={cn(
+                "px-6 py-2 rounded-full text-sm font-bold transition-all duration-200",
+                filterType === type ? "bg-[#FF6B00] text-white shadow-md" : "text-muted hover:text-white"
+              )}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
       </div>
 
       {!isApiAuthorized && (
@@ -208,15 +230,24 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
         </div>
         <button
           type="submit"
-          disabled={loading || !isApiAuthorized}
-          className="px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all hover:scale-105 shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:hover:scale-100"
+          disabled={loading || !isApiAuthorized || isOffline}
+          title={isOffline ? "Requires internet connection." : ""}
+          className={cn(
+            "px-8 py-4 font-bold rounded-full transition-all shadow-lg",
+            loading || !isApiAuthorized || isOffline
+              ? "bg-gray-600 text-gray-300 opacity-40 cursor-not-allowed grayscale pointer-events-none"
+              : "bg-[#FF6B00] hover:bg-[#E66000] text-white hover:scale-105 shadow-orange-500/20"
+          )}
         >
           {loading ? "Searching..." : "Search TMDB"}
         </button>
       </form>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6 pb-24">
-        {results.map((item, i) => (
+      <div className={cn(
+        "gap-6 pb-24",
+        filteredResults.length <= 2 && filteredResults.length > 0 ? "flex justify-center max-w-3xl mx-auto" : "grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))]"
+      )}>
+        {filteredResults.map((item, i) => (
           <motion.div
             layout
             key={`${item.type}-${item.tmdb_id}`}
@@ -224,7 +255,10 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ scale: 1.05 }}
             transition={{ delay: (i % 20) * 0.05, duration: 0.2 }}
-            className="relative aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden group shadow-md hover:shadow-2xl transition-shadow"
+            className={cn(
+              "relative aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden group shadow-md hover:shadow-2xl transition-shadow",
+              filteredResults.length <= 2 ? "w-[180px] md:w-[220px] flex-none" : "w-full"
+            )}
           >
             {/* Visual Badging */}
             <div className="absolute top-2 left-2 z-10">
