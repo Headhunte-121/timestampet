@@ -208,6 +208,8 @@ function App() {
     };
   }, []);
 
+  const { isScanning } = useTaskStore();
+
   if (!initialized) {
     return null; // or a simple spinner
   }
@@ -267,8 +269,6 @@ function App() {
 
 
 
-
-  const { isScanning } = useTaskStore();
 
   return (
     <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
