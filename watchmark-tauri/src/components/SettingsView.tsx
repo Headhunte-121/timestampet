@@ -229,10 +229,10 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
         setScanStatus("Scan started...");
         setScanning(true);
         // Ensure a generous timeout matching the backend (300 seconds)
-        invokeWithTimeout<number>("run_scan_directory", { directory: selected }, 300000)
-          .then((count: number) => {
-            logger.ipcSuccess(`Scan complete. Found ${count} unmatched files.`);
-            toast.success(`Scan complete. Found ${count} unmatched files.`);
+        invokeWithTimeout<any>("run_scan_directory", { directory: selected }, 300000)
+          .then((res: any) => {
+            logger.ipcSuccess(`Scan complete. Found ${res.unmatched_count} unmatched files.`);
+            toast.scanComplete(res);
             setSettings({ ...settings, last_scanned_path: selected });
             setScanStatus("");
             setScanning(false);

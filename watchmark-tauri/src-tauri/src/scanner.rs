@@ -253,9 +253,11 @@ pub fn scan_directory(
     cancel_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pause_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
     supported_extensions: &[String],
-) -> Result<i32> {
+) -> Result<serde_json::Value> {
     tracing::info!("[BACKEND] 🔍 Scanning root directory... ");
     let mut new_unmatched_count = 0;
+    let mut auto_matched_count = 0;
+    let mut matched_items = Vec::new();
     let mut batch = Vec::new();
     let mut unmatched_insert_buffer = Vec::new();
 
@@ -549,6 +551,12 @@ pub fn scan_directory(
                                         matched_media_id = Some(id);
                                         break;
                                     }
+
+                                    // Fuzzy matching fallback
+                                    if strsim::normalized_levenshtein(&safe_series, &safe_db_name) > 0.90 {
+                                        matched_media_id = Some(id);
+                                        break;
+                                    }
                                 }
 
                                 if let Some(m_id) = matched_media_id {
@@ -586,6 +594,11 @@ pub fn scan_directory(
                                     .to_lowercase();
 
                                 if safe_series == safe_db_name {
+                                    matched_media_id = Some(id);
+                                    break;
+                                }
+
+                                if strsim::normalized_levenshtein(&safe_series, &safe_db_name) > 0.90 {
                                     matched_media_id = Some(id);
                                     break;
                                 }
@@ -667,6 +680,9 @@ pub fn scan_directory(
                                     "INSERT INTO Local_Files (episode_id, file_path, file_size) VALUES (?, ?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path, file_size=excluded.file_size",
                                     params![e_id, &str_path, file_size],
                                 );
+
+                                auto_matched_count += 1;
+                                matched_items.push(str_path.clone());
 
                                 // Auto-Migration: If it's matched mid-scan, ensure we wipe it from Unmatched_Files so it doesn't stay in Inbox
                                 let _ = tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![&str_path]);
@@ -802,6 +818,11 @@ pub fn scan_directory(
     }
 
     tx.commit()?;
-    tracing::info!("[BACKEND] 🧠 Regex engine finished parsing. Found {} unmatched files.", new_unmatched_count);
-    Ok(new_unmatched_count)
+    tracing::info!("[BACKEND] 🧠 Regex engine finished parsing. Found {} unmatched files, auto-matched {}.", new_unmatched_count, auto_matched_count);
+
+    Ok(serde_json::json!({
+        "unmatched_count": new_unmatched_count,
+        "auto_matched_count": auto_matched_count,
+        "matched_items": matched_items,
+    }))
 }

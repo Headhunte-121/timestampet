@@ -704,6 +704,7 @@ fn main() {
             commands::get_dashboard_data,
             commands::get_library_data,
             commands::clear_unmatched_files,
+            commands::ignore_unmatched_group,
             commands::fetch_unmatched_files,
             commands::fetch_history,
             commands::run_scan_directory,
