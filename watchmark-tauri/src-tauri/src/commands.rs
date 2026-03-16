@@ -2344,17 +2344,17 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                     "time_capsule": time_capsule,
                     "runtime": runtime,
                     "progress_percentage": progress_percentage,
-                    "media_id": row.get::<_, i32>(18)?,
-                    "show_title": row.get::<_, Option<String>>(19)?.unwrap_or_default(),
+                    "media_id": row.get::<_, i32>(17)?,
+                    "show_title": row.get::<_, Option<String>>(18)?.unwrap_or_default(),
                     "poster_path": (|| {
-                        let raw = row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default();
+                        let raw = row.get::<_, Option<String>>(19).unwrap_or_default().unwrap_or_default();
                         crate::tmdb::resolve_local_poster_path(&raw, &poster_size, high_performance_mode).unwrap_or(raw)
                     })(),
                     "backdrop_path": (|| {
-                        let raw = row.get::<_, Option<String>>(21).unwrap_or_default().unwrap_or_default();
+                        let raw = row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default();
                         crate::tmdb::resolve_local_backdrop_path(&raw, "w1280", high_performance_mode).unwrap_or(raw)
                     })(),
-                    "media_type": row.get::<_, Option<String>>(22)?.unwrap_or_default(),
+                    "media_type": row.get::<_, Option<String>>(21)?.unwrap_or_default(),
                     "is_fallback_image": is_fallback_image,
                     "potential_spoiler": potential_spoiler,
                 }));
