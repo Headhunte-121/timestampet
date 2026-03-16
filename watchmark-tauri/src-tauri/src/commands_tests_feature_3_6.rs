@@ -13,7 +13,7 @@ use tokio_util::sync::CancellationToken;
 #[tokio::test]
 async fn test_one_piece_staggering_simulator() {
     // Simulate a fetch loop for 20 seasons, ensure logic doesn't burst
-    let state = AppState {
+    let _state = AppState {
         settings: Arc::new(RwLock::new(crate::models::Settings::default())),
         settings_tx: tokio::sync::mpsc::channel(1).0,
         db_queue: Arc::new(DbTaskQueue::new_for_tests()),
@@ -25,6 +25,8 @@ async fn test_one_piece_staggering_simulator() {
         read_semaphore: Arc::new(tokio::sync::Semaphore::new(2)),
         cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
         failed_image_syncs: Arc::new(RwLock::new(std::collections::HashSet::new())),
+        is_scan_cancelled: Arc::new(AtomicBool::new(false)),
+        is_scan_paused: Arc::new(AtomicBool::new(false)),
     };
 
     let start_time = std::time::Instant::now();

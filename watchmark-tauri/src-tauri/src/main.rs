@@ -97,7 +97,7 @@ fn main() {
     // Load settings early to get logging config, but fall back gracefully if we can't write to disk yet.
     let initial_settings = match settings::load_settings() {
         Ok(s) => s,
-        Err(e) => {
+        Err(_e) => {
             // If settings fail to load initially (e.g. disk issue), we create a default config
             // for the logger and let the File System Guard catch the actual disk problem in `.setup()`.
             models::Settings::default()

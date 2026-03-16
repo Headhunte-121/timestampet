@@ -26,6 +26,8 @@ mod tests_feature_25_4 {
             read_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(4)),
             cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
             failed_image_syncs: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+            is_scan_cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            is_scan_paused: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         };
 
         // Simulate that a maintenance mode is already active

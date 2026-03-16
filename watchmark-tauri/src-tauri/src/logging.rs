@@ -10,7 +10,7 @@ use tracing_subscriber::{
     layer::SubscriberExt,
     util::SubscriberInitExt,
 };
-use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_appender::rolling;
 use std::collections::HashMap;
 use std::sync::RwLock;

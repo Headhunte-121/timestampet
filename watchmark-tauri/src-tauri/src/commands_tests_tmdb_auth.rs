@@ -27,6 +27,8 @@ async fn test_feature_3_2_api_key_sanitization() {
         read_semaphore: Arc::new(tokio::sync::Semaphore::new(10)),
         cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
         failed_image_syncs: Arc::new(RwLock::new(std::collections::HashSet::new())),
+        is_scan_cancelled: Arc::new(AtomicBool::new(false)),
+        is_scan_paused: Arc::new(AtomicBool::new(false)),
     };
 
     // Note: since validate_tmdb_key requires State, which requires tauri runtime injection,
