@@ -8,6 +8,7 @@ import { useAppStore } from "./store/useAppStore";
 import { useTaskStore } from "./store/useTaskStore";
 import Dashboard from "./components/Dashboard";
 import { toast } from "sonner";
+import { logger } from "./utils/logger";
 import Library from "./components/Library";
 import SearchTMDB from "./components/SearchTMDB";
 import History from "./components/History";
@@ -19,7 +20,6 @@ import { Modal } from "./components/ui/Modal";
 import { ProcessingModal } from "./components/ui/ProcessingModal";
 import { OptimizationModal } from "./components/ui/OptimizationModal";
 import { useAsyncInvoke } from "./hooks/useAsyncInvoke";
-import { logger } from "./utils/logger";
 import { Icon } from "./components/ui/Icon";
 
 export function cn(...inputs: ClassValue[]) {
@@ -70,11 +70,11 @@ function App() {
                 toast.success(`Library Restored! ${totalItems} shows and ${hCount} history entries recovered.`, { duration: 5000 });
                 setRefreshTrigger(prev => prev + 1);
             }).catch(e => {
-                console.error("Failed to fetch restored stats:", e);
+                logger.error("Failed to fetch restored stats", e);
                 toast.success("Library Restored Successfully!");
                 setRefreshTrigger(prev => prev + 1);
             });
-        }).catch(e => console.error("Failed to import invoke:", e));
+        }).catch(e => logger.error("Failed to import invoke", e));
     }
   }, [initializeSettings]);
 

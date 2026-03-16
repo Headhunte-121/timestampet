@@ -40,9 +40,9 @@ export default function InboxView({ onMatch }: any) {
       setUnmatched(res);
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'")) {
-        console.warn("Tauri invoke missing (likely running in a browser).");
+        logger.warn("Tauri invoke missing (likely running in a browser).");
       } else {
-        console.error(e);
+        logger.error("Failed to fetch unmatched files", e);
       }
     }
   };
@@ -61,7 +61,7 @@ export default function InboxView({ onMatch }: any) {
       if (res) setSearchResults(res);
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'")) {
-        console.warn("Tauri invoke missing.");
+        logger.warn("Tauri invoke missing.");
       } else {
         toast.error("Search failed: " + e);
       }
@@ -88,7 +88,7 @@ export default function InboxView({ onMatch }: any) {
       if (onMatch) onMatch();
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'")) {
-        console.warn("Tauri invoke missing.");
+        logger.warn("Tauri invoke missing.");
       } else {
         logger.error("Inbox Assignment Failed", e);
         toast.error("Error assigning show: " + e);
@@ -126,7 +126,7 @@ export default function InboxView({ onMatch }: any) {
       }
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'") || e?.toString().includes("window.__TAURI_INTERNALS__")) {
-        console.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
+        logger.warn("Tauri invoke missing. Cannot open system file dialog in browser.");
       } else {
         toast.error("Scan Error: " + e);
       }
