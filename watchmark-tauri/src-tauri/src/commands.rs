@@ -3253,11 +3253,10 @@ pub async fn assign_unmatched_to_tracker(
                                     "INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path",
                                     params![ep_id, file_path],
                                 );
+                                // Remove this unmatched file
+                                let _ = tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![file_path]);
                             }
                         }
-
-                        // Remove these unmatched files
-                        let _ = tx.execute("DELETE FROM Unmatched_Files WHERE group_key = ?", params![group_key]);
 
                         let _ = tx.commit();
                     }
@@ -3285,6 +3284,34 @@ pub async fn assign_unmatched_to_tracker(
     }
 
     result
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug")]
+pub fn link_manual_file(file_path: String, tmdb_id: String, season_num: u32, ep_num: u32) -> Result<(), AppError> {
+    handle_panic(|| {
+        let mut conn = get_db_connection()?;
+        let mut ep_id: Option<i32> = None;
+
+        let media_id: i32 = match conn.query_row("SELECT id FROM Media WHERE tmdb_id = ?", params![tmdb_id], |row| row.get(0)) {
+            Ok(id) => id,
+            Err(_) => return Err(AppError::Custom(format!("Show TMDB ID {} not found in library.", tmdb_id))),
+        };
+
+        if let Ok(id) = conn.query_row("SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? AND ep_num = ?", params![media_id, season_num, ep_num], |row| row.get(0)) {
+            ep_id = Some(id);
+        }
+
+        if let Some(id) = ep_id {
+            let tx = conn.transaction()?;
+            tx.execute("INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path", params![id, file_path])?;
+            tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![file_path])?;
+            tx.commit()?;
+            Ok(())
+        } else {
+            Err(AppError::Custom(format!("Episode S{:02}E{:02} not found in database for this show.", season_num, ep_num)))
+        }
+    })
 }
 
 #[tauri::command]
