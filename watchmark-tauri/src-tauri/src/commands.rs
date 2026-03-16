@@ -292,6 +292,19 @@ pub fn remove_local_link(episode_id: i32) -> Result<(), AppError> {
 }
 
 #[tauri::command]
+#[tracing::instrument(level = "debug", skip(state))]
+pub fn ignore_unmatched_group(group_key: String, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    // We execute the delete in the background queue so the UI can respond immediately
+    let db_queue = state.db_queue.clone();
+
+    db_queue.push_high_priority(move |conn| {
+        let _ = conn.execute("DELETE FROM Unmatched_Files WHERE group_key = ?", params![group_key]);
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
 #[tracing::instrument(level = "debug")]
 pub async fn validate_and_hash_file(episode_id: i32, file_path: String) -> Result<Value, AppError> {
     let task = tokio::task::spawn_blocking(move || {
@@ -2433,7 +2446,7 @@ pub async fn run_scan_directory(
     app_handle: tauri::AppHandle,
     directory: String,
     state: tauri::State<'_, AppState>,
-) -> Result<i32, AppError> {
+) -> Result<serde_json::Value, AppError> {
     if !std::fs::metadata(&directory).map(|m| m.is_dir()).unwrap_or(false) {
         return Err(AppError::Custom("Selected path is not a valid directory.".to_string()));
     }

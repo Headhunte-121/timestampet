@@ -1,7 +1,7 @@
 import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
-import { FolderSearch, Search, X } from "lucide-react";
+import { FolderSearch, Search, SearchX, X } from "lucide-react";
 import { formatLocaleDate } from "../utils/dateFormatter";
 import { toast } from "../utils/toast";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -54,11 +54,11 @@ export default function InboxView({ onMatch }: any) {
     return acc;
   }, {});
 
-  const performSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const performSearchForGroup = async (groupKey: string) => {
+    if (!groupKey.trim()) return;
     setIsSearching(true);
     try {
-      const res: any = await asyncInvoke("perform_tmdb_search", { query: searchQuery, page: 1 });
+      const res: any = await asyncInvoke("perform_tmdb_search", { query: groupKey, page: 1 });
       if (res) setSearchResults(res);
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'")) {
@@ -69,6 +69,56 @@ export default function InboxView({ onMatch }: any) {
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const performSearch = async () => {
+    await performSearchForGroup(searchQuery);
+  };
+
+  const handleGroupSelect = (key: string) => {
+    setSelectedGroup(key);
+    setSearchQuery(key);
+    setSearchResults([]);
+    performSearchForGroup(key);
+  };
+
+  const ignoreGroup = async (groupKey: string) => {
+    // Optimistic UI update
+    const previousUnmatched = [...unmatched];
+    setUnmatched(unmatched.filter(item => item.group_key !== groupKey));
+    if (selectedGroup === groupKey) {
+        setSelectedGroup(null);
+    }
+
+    let isUndone = false;
+
+    // Show toast with undo action
+    toast.success(`Ignored group: ${groupKey}`, {
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          isUndone = true;
+          setUnmatched(previousUnmatched);
+          toast.info(`Restored group: ${groupKey}`);
+        }
+      }
+    });
+
+    // Wait 5 seconds before making the actual DB call
+    setTimeout(async () => {
+      if (!isUndone) {
+        try {
+          await asyncInvoke("ignore_unmatched_group", { groupKey });
+          logger.inboxIgnore(`Ignored group: ${groupKey}`);
+        } catch (e: any) {
+           console.error("Failed to ignore group:", e);
+           // Revert on failure
+           setUnmatched(previousUnmatched);
+           toast.error("Failed to ignore group.");
+        }
+      }
+    }, 5000);
   };
 
   const assignShow = async (tmdbId: string, mediaType: string) => {
@@ -135,8 +185,8 @@ export default function InboxView({ onMatch }: any) {
       if (typeof selected === 'string') {
         setScanning(true);
         try {
-            const res = await invokeWithTimeout<number>("run_scan_directory", { directory: selected }, 300000);
-            toast.success(`Found ${res} new unmatched files.`);
+            const res = await invokeWithTimeout<any>("run_scan_directory", { directory: selected }, 300000);
+            toast.scanComplete(res);
             try {
                 const { invoke } = await import('@tauri-apps/api/core');
                 const settings: any = await invoke('get_settings');
@@ -240,29 +290,42 @@ export default function InboxView({ onMatch }: any) {
             {Object.entries(grouped).map(([key, files]: [string, any]) => (
               <div
                 key={key}
-                onClick={() => setSelectedGroup(key)}
-                className={`p-4 flex items-center gap-4 rounded-xl cursor-pointer transition-colors mb-2 border-l-2 ${
+                onClick={() => handleGroupSelect(key)}
+                className={`p-4 flex items-center justify-between gap-4 rounded-xl cursor-pointer transition-colors mb-2 border-l-2 group ${
                   selectedGroup === key ? "bg-[#FF6B00]/10 border-[#FF6B00]" : "border-transparent hover:bg-white/5"
                 }`}
               >
-                <SafeImage
-                  srcPath=""
-                  type="poster"
-                  altText={key}
-                  title={key}
-                  className="w-12 h-16 shrink-0 shadow-md"
-                />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-bold truncate">{key}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="bg-[#FF6B00] text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                      {files.length}
-                    </span>
-                    <p className="text-gray-500 text-xs font-semibold tracking-wider">
-                      {files.length === 1 ? 'FILE' : 'FILES'}
-                    </p>
+                <div className="flex items-center gap-4 min-w-0 flex-1">
+                  <SafeImage
+                    srcPath=""
+                    type="poster"
+                    altText={key}
+                    title={key}
+                    className="w-12 h-16 shrink-0 shadow-md"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-bold truncate">{key}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="bg-[#FF6B00] flex-shrink-0 text-white text-xs font-bold px-2 py-0.5 rounded-full text-center min-w-[20px]">
+                        {files.length > 99 ? "99+" : files.length}
+                      </span>
+                      <p className="text-gray-500 text-xs font-semibold tracking-wider">
+                        {files.length === 1 ? 'FILE' : 'FILES'}
+                      </p>
+                    </div>
                   </div>
                 </div>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    ignoreGroup(key);
+                  }}
+                  className="p-2 bg-transparent hover:bg-red-600/20 text-red-500 hover:text-red-400 rounded-lg transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                  title="Ignore group"
+                >
+                  <Icon icon={X} className="w-5 h-5" />
+                </button>
               </div>
             ))}
           </div>
@@ -359,8 +422,10 @@ export default function InboxView({ onMatch }: any) {
                    <div className="w-8 h-8 rounded-full border-4 border-[#FF6B00] border-t-transparent animate-spin"></div>
                 </div>
               ) : searchResults.length === 0 ? (
-                <div className="text-center text-gray-500 p-12">
-                  No results found for "{searchQuery}". Try a different search term.
+                <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 p-12">
+                  <SearchX className="w-16 h-16 text-gray-700 mb-4" />
+                  <h3 className="text-xl font-bold text-white mb-2">No TMDB match found for "{searchQuery}".</h3>
+                  <p className="max-w-md">The automatic extraction might have missed some details. Try refining your search by typing a different name.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
