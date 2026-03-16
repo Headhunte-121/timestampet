@@ -184,6 +184,7 @@ pub struct AppState {
     pub cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
     pub failed_image_syncs: Arc<RwLock<std::collections::HashSet<(String, String)>>>,
     pub is_scan_cancelled: Arc<AtomicBool>,
+    pub is_scan_paused: Arc<AtomicBool>,
 }
 
 #[tauri::command]
@@ -2451,7 +2452,9 @@ pub async fn run_scan_directory(
     }
 
     state.is_scan_cancelled.store(false, Ordering::SeqCst);
+    state.is_scan_paused.store(false, Ordering::SeqCst);
     let cancel_flag = state.is_scan_cancelled.clone();
+    let pause_flag = state.is_scan_paused.clone();
 
     let supported_extensions = {
         let s = state.settings.read().unwrap();
@@ -2469,7 +2472,7 @@ pub async fn run_scan_directory(
         }
         handle_panic(std::panic::AssertUnwindSafe(|| {
             let mut conn = get_db_connection()?;
-            crate::scanner::scan_directory(&directory, &mut conn, &app_handle, cancel_flag, &supported_extensions).map_err(AppError::from)
+            crate::scanner::scan_directory(&directory, &mut conn, &app_handle, cancel_flag, pause_flag, &supported_extensions).map_err(AppError::from)
         }))
     });
 
@@ -2485,6 +2488,22 @@ pub async fn run_scan_directory(
 pub fn cancel_active_scan(state: tauri::State<'_, AppState>) -> Result<(), AppError> {
     state.is_scan_cancelled.store(true, Ordering::SeqCst);
     tracing::info!("[ACTION] 🛑 Cancel active scan requested by user");
+    Ok(())
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug", skip(state))]
+pub fn pause_active_scan(state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    state.is_scan_paused.store(true, Ordering::SeqCst);
+    tracing::info!("[ACTION] ⏸️ Pause active scan requested by user");
+    Ok(())
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug", skip(state))]
+pub fn resume_active_scan(state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    state.is_scan_paused.store(false, Ordering::SeqCst);
+    tracing::info!("[ACTION] ▶️ Resume active scan requested by user");
     Ok(())
 }
 

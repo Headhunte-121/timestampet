@@ -21,7 +21,7 @@ export default function InboxView({ onMatch }: any) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { setScanning, activeSyncs, isScanning } = useTaskStore();
+  const { setScanning, activeSyncs, isScanning, isScanPaused, setScanPaused } = useTaskStore();
   const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
@@ -189,6 +189,21 @@ export default function InboxView({ onMatch }: any) {
             Clear Inbox
           </button>
           {isScanning ? (
+            <div className="flex items-center gap-2">
+              <button
+                  onClick={() => {
+                      import('@tauri-apps/api/core').then(({ invoke }) => {
+                          if (isScanPaused) {
+                              invoke('resume_active_scan').then(() => setScanPaused(false)).catch(console.error);
+                          } else {
+                              invoke('pause_active_scan').then(() => setScanPaused(true)).catch(console.error);
+                          }
+                      });
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-orange-600/80 hover:bg-orange-500 text-white font-bold rounded-lg transition-colors"
+              >
+                  {isScanPaused ? "Resume Scan" : "Pause Scan"}
+              </button>
               <button
                   onClick={() => {
                       import('@tauri-apps/api/core').then(({ invoke }) => {
@@ -200,6 +215,7 @@ export default function InboxView({ onMatch }: any) {
                   <FolderSearch className="w-5 h-5" />
                   Cancel Scan
               </button>
+            </div>
           ) : (
               <button
                   onClick={triggerScan}

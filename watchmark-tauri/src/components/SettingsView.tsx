@@ -57,7 +57,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   const [availableModules, setAvailableModules] = useState<Record<string, string>>({});
 
   const { isCinemaMode, setCinemaMode } = useAppStore();
-  const { isScanning, setScanning, isOptimizing, setOptimizing } = useTaskStore();
+  const { isScanning, setScanning, isScanPaused, setScanPaused, isOptimizing, setOptimizing } = useTaskStore();
   const [scanStatus, setScanStatus] = useState<string>("");
   const [_, setBackupStatus] = useState<{ status: string, error?: string, timestamp: number } | null>(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -668,16 +668,32 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                         </div>
                         <div>
                              {isScanning ? (
-                                <button
-                                    onClick={() => {
-                                        import('@tauri-apps/api/core').then(({ invoke }) => {
-                                            invoke('cancel_active_scan').catch(console.error);
-                                        });
-                                    }}
-                                    className="px-6 py-3 bg-red-600/80 hover:bg-red-500 text-white font-bold rounded-xl transition-colors flex items-center gap-2"
-                                >
-                                    Cancel Scan
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            import('@tauri-apps/api/core').then(({ invoke }) => {
+                                                if (isScanPaused) {
+                                                    invoke('resume_active_scan').then(() => setScanPaused(false)).catch(console.error);
+                                                } else {
+                                                    invoke('pause_active_scan').then(() => setScanPaused(true)).catch(console.error);
+                                                }
+                                            });
+                                        }}
+                                        className="px-6 py-3 bg-orange-600/80 hover:bg-orange-500 text-white font-bold rounded-xl transition-colors flex items-center gap-2"
+                                    >
+                                        {isScanPaused ? "Resume Scan" : "Pause Scan"}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            import('@tauri-apps/api/core').then(({ invoke }) => {
+                                                invoke('cancel_active_scan').catch(console.error);
+                                            });
+                                        }}
+                                        className="px-6 py-3 bg-red-600/80 hover:bg-red-500 text-white font-bold rounded-xl transition-colors flex items-center gap-2"
+                                    >
+                                        Cancel Scan
+                                    </button>
+                                </div>
                              ) : (
                                 <button
                                     onClick={runScan}

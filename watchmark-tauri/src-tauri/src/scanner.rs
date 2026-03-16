@@ -130,6 +130,7 @@ pub fn scan_directory(
     conn: &mut Connection,
     app_handle: &AppHandle,
     cancel_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pause_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
     supported_extensions: &[String],
 ) -> Result<i32> {
     tracing::info!("[BACKEND] 🔍 Scanning root directory... ");
@@ -171,6 +172,15 @@ pub fn scan_directory(
             tracing::info!("[BACKEND] 🛑 Scanner gracefully halted via Cancel signal.");
             return None;
         }
+
+        while pause_flag.load(std::sync::atomic::Ordering::SeqCst) {
+            if cancel_flag.load(std::sync::atomic::Ordering::SeqCst) {
+                tracing::info!("[BACKEND] 🛑 Scanner gracefully halted via Cancel signal during Pause.");
+                return None;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+
         match e {
             Ok(entry) => Some(entry),
             Err(err) => {
