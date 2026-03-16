@@ -654,37 +654,37 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Let the user manually map files to TMDB episodes.**
 
-**15.6 1-Click Match action: Click a TMDB search result to instantly assign all files in the group to that show.** (Incomplete)
+**15.6 1-Click Match action: Click a TMDB search result to instantly assign all files in the group to that show.** (Complete)
 
-- [ ] Verify clicking a TMDB poster instantly extracts the Media ID.
-- [ ] Ensure backend logic rapidly maps every single file in the active group to that Media ID.
-- [ ] Handle edge cases where the chosen TMDB show has fewer total episodes than the selected files.
-- [ ] Test visual state transitions (e.g., green checkmark success) upon completion.
-- [ ] Ensure the right pane instantly clears its state and prompts the user to select the next group.
+- [x] Verify clicking a TMDB poster instantly extracts the Media ID.
+- [x] Ensure backend logic rapidly maps every single file in the active group to that Media ID.
+- [x] Handle edge cases where the chosen TMDB show has fewer total episodes than the selected files.
+- [x] Test visual state transitions (e.g., green checkmark success) upon completion.
+- [x] Ensure the right pane instantly clears its state and prompts the user to select the next group.
 
-**15.7 'Advanced/Manual Match' state toggle switch.** (Incomplete)
+**15.7 'Advanced/Manual Match' state toggle switch.** (Complete)
 
-- [ ] Verify the toggle explicitly flips the UI into a granular, row-by-row mapping interface.
-- [ ] Ensure the automated bulk-match '1-Click' UI specifically hides to prevent user confusion.
-- [ ] Handle edge cases where the user toggles back and forth without losing unconfirmed input data.
-- [ ] Test toggle animations making the UI shift feel intentional and smooth.
-- [ ] Ensure the active state is clearly highlighted so the user knows they are overriding defaults.
+- [x] Verify the toggle explicitly flips the UI into a granular, row-by-row mapping interface.
+- [x] Ensure the automated bulk-match '1-Click' UI specifically hides to prevent user confusion.
+- [x] Handle edge cases where the user toggles back and forth without losing unconfirmed input data.
+- [x] Test toggle animations making the UI shift feel intentional and smooth.
+- [x] Ensure the active state is clearly highlighted so the user knows they are overriding defaults.
 
-**15.8 Manual Episode and Season integer text inputs per individual file.** (Incomplete)
+**15.8 Manual Episode and Season integer text inputs per individual file.** (Complete)
 
-- [ ] Verify input fields strictly restrict entry to pure positive integers.
-- [ ] Ensure pressing 'Tab' accurately shifts focus down the list sequentially for fast data entry.
-- [ ] Handle edge cases where a file belongs to a 'Special' (allow Season 0).
-- [ ] Test visual validation error states if the user accidentally inputs massive, invalid numbers.
-- [ ] Ensure default placeholder logic accurately guesses SxxExx based on raw regex extraction.
+- [x] Verify input fields strictly restrict entry to pure positive integers.
+- [x] Ensure pressing 'Tab' accurately shifts focus down the list sequentially for fast data entry.
+- [x] Handle edge cases where a file belongs to a 'Special' (allow Season 0).
+- [x] Test visual validation error states if the user accidentally inputs massive, invalid numbers.
+- [x] Ensure default placeholder logic accurately guesses SxxExx based on raw regex extraction.
 
-**15.9 Real-time file mapping list display updating as matches are confirmed.** (Incomplete)
+**15.9 Real-time file mapping list display updating as matches are confirmed.** (Complete)
 
-- [ ] Verify confirming a manual match instantly removes that specific row from the UI list.
-- [ ] Ensure the parent group's numeric badge precisely decrements to reflect the remaining unmatched items.
-- [ ] Handle edge cases where the list hits 0 (trigger automatic UI navigation to the next group).
-- [ ] Test layout shifting to ensure removing a row doesn't break the vertical alignment of adjacent elements.
-- [ ] Ensure a subtle fade-out animation signifies the successful confirmation.
+- [x] Verify confirming a manual match instantly removes that specific row from the UI list.
+- [x] Ensure the parent group's numeric badge precisely decrements to reflect the remaining unmatched items.
+- [x] Handle edge cases where the list hits 0 (trigger automatic UI navigation to the next group).
+- [x] Test layout shifting to ensure removing a row doesn't break the vertical alignment of adjacent elements.
+- [x] Ensure a subtle fade-out animation signifies the successful confirmation.
 
 ## Micro-Feature 14: Library Grid UI (Read-Only)
 
