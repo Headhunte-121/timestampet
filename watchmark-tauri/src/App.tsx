@@ -41,6 +41,8 @@ function App() {
 
   // Refresh UI hook
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
   const { isCinemaMode, initialized, initializeSettings, setApiAuthorized } = useAppStore();
 
   const isImporting = useTaskStore((state) => state.isImporting);
@@ -51,6 +53,31 @@ function App() {
   useEffect(() => {
     logger.app("WatchMark Frontend successfully mounted.");
     initializeSettings();
+
+    // Setup dynamic font
+    import("@tauri-apps/api/core").then(({ invoke, convertFileSrc }) => {
+        invoke<string>("get_app_data_dir").then(appDataDir => {
+            // Convert backslashes for windows paths to avoid regex parsing issues
+            const cleanPath = appDataDir.replace(/\\/g, '/');
+            const fontPath = `${cleanPath}/fonts/Inter-Variable.woff2`;
+            const assetUrl = convertFileSrc(fontPath);
+
+            // Inject global font-face
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @font-face {
+                    font-family: 'Inter';
+                    font-style: normal;
+                    font-weight: 100 900;
+                    font-display: swap;
+                    src: url('${assetUrl}') format('woff2');
+                }
+            `;
+            document.head.appendChild(style);
+        }).catch(e => {
+            console.error("Failed to fetch AppData dir for fonts:", e);
+        });
+    });
 
     // Check for successful restore flag
     if (localStorage.getItem('restore_success') === 'true') {
@@ -185,8 +212,8 @@ function App() {
       setPendingNavigation(null);
   };
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
+
+
 
   return (
     <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>

@@ -21,6 +21,7 @@ mod backup;
 mod sanitizer;
 pub mod network;
 mod filesystem_guard;
+mod assets;
 
 #[cfg(test)]
 #[path = "sanitizer_tests.rs"]
@@ -163,6 +164,13 @@ fn main() {
                 std::process::exit(1);
             }
             tracing::info!(action = "init_db_success", "[DB] ✨ Database initialized successfully.");
+
+            // 3. Ensure offline fonts are present
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = assets::ensure_fonts().await {
+                    tracing::error!(action = "init_fonts_error", "[ASSETS] ❌ Failed to ensure fonts: {}", e);
+                }
+            });
 
             let db_queue = std::sync::Arc::new(task_queue::DbTaskQueue::new(app.handle().clone()));
 
@@ -608,6 +616,7 @@ fn main() {
             commands::validate_tmdb_key,
             commands::assign_unmatched_to_tracker,
             commands::get_media_history_count,
+            commands::get_app_data_dir,
             commands::update_media_rating,
             commands::export_database,
             commands::prepare_restore,
