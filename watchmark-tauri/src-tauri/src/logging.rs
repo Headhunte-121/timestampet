@@ -73,9 +73,12 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
         .with(
             fmt::layer()
                 .with_writer(std::io::stdout)
-                .with_target(true)
+                .with_target(false) // Hide target (e.g. watchmark_tauri::commands)
                 .with_thread_ids(false)
                 .with_thread_names(false)
+                .without_time() // Make it read like a script without timestamps
+                .with_file(false)
+                .with_line_number(false)
                 .compact() // Cleaner English-focused terminal output
         )
         .with(

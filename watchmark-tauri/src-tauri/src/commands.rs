@@ -3244,11 +3244,11 @@ pub fn frontend_log(level: String, message: String, context: Option<String>) {
     };
 
     match level.to_lowercase().as_str() {
-        "error" => tracing::error!(action = "frontend_log", "{}", msg),
-        "warn" => tracing::warn!(action = "frontend_log", "{}", msg),
-        "info" => tracing::info!(action = "frontend_log", "{}", msg),
-        "debug" => tracing::debug!(action = "frontend_log", "{}", msg),
-        _ => tracing::info!(action = "frontend_log", "{}", msg), // default to info
+        "error" => tracing::error!("{}", msg),
+        "warn" => tracing::warn!("{}", msg),
+        "info" => tracing::info!("{}", msg),
+        "debug" => tracing::debug!("{}", msg),
+        _ => tracing::info!("{}", msg), // default to info
     }
 }
 

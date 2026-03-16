@@ -74,10 +74,58 @@ export const logger = {
     },
 
     // 3. Backend Communication (IPC Requests)
-    ipcSend: (cmd: string, context?: string, id?: string) => {
-        let text = `[IPC: SEND] 📡 Requesting '${cmd}'`;
-        if (context) text += ` for ${context}`;
-        if (id) text += ` (ID: ${id})`;
+    ipcSend: (cmd: string, context?: any, id?: string) => {
+        let actionStr = cmd;
+        let detailsStr = "";
+
+        // Map technical command names to plain English
+        switch (cmd) {
+            case "get_dashboard_data":
+                actionStr = "dashboard data";
+                break;
+            case "get_library_data":
+                actionStr = "Library Data";
+                if (context) {
+                    const page = context.page !== undefined ? ` (Page ${context.page + 1})` : "";
+                    const mediaType = context.mediaType || "items";
+                    detailsStr = ` for ${mediaType} sorted by '${context.sortBy}'${page}`;
+                }
+                break;
+            case "perform_tmdb_search":
+                actionStr = "TMDB Search";
+                if (context && context.query) {
+                    detailsStr = ` for query: '${context.query}'`;
+                }
+                break;
+            case "get_media_details_db":
+                actionStr = "Media Details";
+                if (context && context.mediaId) {
+                    detailsStr = ` for ID: ${context.mediaId}`;
+                }
+                break;
+            case "toggle_episode_status":
+                actionStr = "status toggle";
+                if (context && context.episode_id !== undefined) {
+                    detailsStr = ` for Episode ${context.episode_id}`;
+                }
+                break;
+            default:
+                if (context) {
+                    // Fallback to JSON string if it's an unrecognized command,
+                    // but limit length so it doesn't flood the console.
+                    let cStr = "";
+                    try { cStr = JSON.stringify(context); } catch(e) {}
+                    detailsStr = ` with args: ${cStr.substring(0, 40)}${cStr.length > 40 ? '...' : ''}`;
+                }
+                break;
+        }
+
+        let text = `[IPC: SEND] 📡 Requesting ${actionStr}${detailsStr}`;
+        if (id) {
+            // Shorten UUIDs so they don't look ugly
+            const shortId = id.split('-')[0];
+            text += ` (ID: req-${shortId})`;
+        }
         text += '.';
         console.log(text);
         logToBackend("info", text);
