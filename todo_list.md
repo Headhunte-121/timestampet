@@ -602,53 +602,53 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Group unmatched files intelligently and auto-match if possible.**
 
-**15.2 Intelligent grouping of unmatched files based on extracted string keys.** (Incomplete)
+**15.2 Intelligent grouping of unmatched files based on extracted string keys.** (Complete)
 
-- [ ] Verify the regex correctly extracts just the 'Title' string for grouping purposes.
-- [ ] Ensure all files sharing an identical extracted title cluster strictly under one parent node.
-- [ ] Handle edge cases where capitalization mismatches (e.g., 'show' vs 'Show').
-- [ ] Test extremely long title strings to ensure they wrap or truncate without breaking the layout.
-- [ ] Ensure the original raw file path remains securely mapped underneath the parsed group name.
+- [x] Verify the regex correctly extracts just the 'Title' string for grouping purposes.
+- [x] Ensure all files sharing an identical extracted title cluster strictly under one parent node.
+- [x] Handle edge cases where capitalization mismatches (e.g., 'show' vs 'Show').
+- [x] Test extremely long title strings to ensure they wrap or truncate without breaking the layout.
+- [x] Ensure the original raw file path remains securely mapped underneath the parsed group name.
 
-**15.3 Numerical badge count of specific files inside each group folder.** (Incomplete)
+**15.3 Numerical badge count of specific files inside each group folder.** (Complete)
 
-- [ ] Verify exactly rendering a vibrant orange numeric badge next to the group name.
-- [ ] Ensure mathematical logic exclusively sums every individual file mapped inside the group.
-- [ ] Handle edge cases where only a single file exists (still display '1').
-- [ ] Test formatting to ensure massive counts (e.g., 100+ anime episodes) render cleanly.
-- [ ] Ensure badge updates dynamically if files are manually re-mapped or ignored.
+- [x] Verify exactly rendering a vibrant orange numeric badge next to the group name.
+- [x] Ensure mathematical logic exclusively sums every individual file mapped inside the group.
+- [x] Handle edge cases where only a single file exists (still display '1').
+- [x] Test formatting to ensure massive counts (e.g., 100+ anime episodes) render cleanly.
+- [x] Ensure badge updates dynamically if files are manually re-mapped or ignored.
 
-**15.4 Auto-filling TMDB Search Bar utilizing the parsed group name.** (Incomplete)
+**15.4 Auto-filling TMDB Search Bar utilizing the parsed group name.** (Complete)
 
-- [ ] Verify clicking a group instantly pushes its parsed string into the top TMDB search bar.
-- [ ] Ensure the app immediately queries TMDB without requiring the user to press 'Enter'.
-- [ ] Handle edge cases where the parsed string is completely illegible to TMDB.
-- [ ] Test allowing the user to seamlessly edit the auto-filled string to try alternative queries.
-- [ ] Ensure clear UI feedback if the auto-search returns exactly 0 results.
+- [x] Verify clicking a group instantly pushes its parsed string into the top TMDB search bar.
+- [x] Ensure the app immediately queries TMDB without requiring the user to press 'Enter'.
+- [x] Handle edge cases where the parsed string is completely illegible to TMDB.
+- [x] Test allowing the user to seamlessly edit the auto-filled string to try alternative queries.
+- [x] Ensure clear UI feedback if the auto-search returns exactly 0 results.
 
-**15.5 '🗑️ Ignore' action button to permanently delete a group from the unmatched pool.** (Incomplete)
+**15.5 '🗑️ Ignore' action button to permanently delete a group from the unmatched pool.** (Complete)
 
-- [ ] Verify clicking instantly wipes the entire group from the local SQLite staging table.
-- [ ] Ensure the UI dynamically updates, entirely removing the item from the left pane list.
-- [ ] Handle edge cases where the user accidentally clicks (provide a brief undo toast or warning).
-- [ ] Test processing multiple ignore actions consecutively to ensure DB queues don't bottleneck.
-- [ ] Ensure the actual physical files on the hard drive are strictly ignored, never deleted.
+- [x] Verify clicking instantly wipes the entire group from the local SQLite staging table.
+- [x] Ensure the UI dynamically updates, entirely removing the item from the left pane list.
+- [x] Handle edge cases where the user accidentally clicks (provide a brief undo toast or warning).
+- [x] Test processing multiple ignore actions consecutively to ensure DB queues don't bottleneck.
+- [x] Ensure the actual physical files on the hard drive are strictly ignored, never deleted.
 
-**2.9 Auto-matching scanned files directly to existing tracked database entries.** (Incomplete)
+**2.9 Auto-matching scanned files directly to existing tracked database entries.** (Complete)
 
-- [ ] Implement fuzzy string matching to account for slight spelling differences.
-- [ ] Ensure season/episode integers precisely match before automatically linking the file.
-- [ ] Handle edge cases where two shows have the identical parsed name but different years.
-- [ ] Do not overwrite an existing matched file path without explicit confirmation.
-- [ ] Provide a detailed log of which files were auto-matched vs left unmatched.
+- [x] Implement fuzzy string matching to account for slight spelling differences.
+- [x] Ensure season/episode integers precisely match before automatically linking the file.
+- [x] Handle edge cases where two shows have the identical parsed name but different years.
+- [x] Do not overwrite an existing matched file path without explicit confirmation.
+- [x] Provide a detailed log of which files were auto-matched vs left unmatched.
 
-**2.12 "Scan Complete" dynamic system toast notification with match counts.** (Incomplete)
+**2.12 "Scan Complete" dynamic system toast notification with match counts.** (Complete)
 
-- [ ] Ensure the toast auto-dismisses after a sensible timeout (e.g., 5 seconds).
-- [ ] Display exact numerical data (e.g., 'Added 15 episodes, 3 unmatched').
-- [ ] Handle edge cases where multiple scans finish simultaneously, preventing toast spam.
-- [ ] Allow the user to click the toast to navigate directly to the Inbox/Unmatched view.
-- [ ] Verify toasts render smoothly above all other modal z-indexes.
+- [x] Ensure the toast auto-dismisses after a sensible timeout (e.g., 5 seconds).
+- [x] Display exact numerical data (e.g., 'Added 15 episodes, 3 unmatched').
+- [x] Handle edge cases where multiple scans finish simultaneously, preventing toast spam.
+- [x] Allow the user to click the toast to navigate directly to the Inbox/Unmatched view.
+- [x] Verify toasts render smoothly above all other modal z-indexes.
 
 ## Micro-Feature 13: Inbox Manual Override
 
