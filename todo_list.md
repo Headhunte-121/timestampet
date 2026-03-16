@@ -60,13 +60,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test Windows SmartScreen false-positive mitigations by ensuring proper signing.
 - [x] Ensure global keyboard shortcuts do not conflict with native OS defaults.
 
-**1.8 Native OS window frame integration (supports Windows snap-assist and native drop shadows).** (Incomplete)
+**1.8 Native OS window frame integration (supports Windows snap-assist and native drop shadows).** (Complete)
 
-- [ ] Ensure titlebar drag regions do not overlap with clickable UI elements like tabs.
-- [ ] Handle edge cases where restoring from minimized state breaks layout dimensions.
-- [ ] Test multi-monitor dragging where DPI scales drastically change between screens.
-- [ ] Verify Windows Snap-Assist snapping triggers proper layout recalculations.
-- [ ] Ensure custom macOS traffic light buttons (close/minimize/maximize) align perfectly.
+- [x] Ensure titlebar drag regions do not overlap with clickable UI elements like tabs.
+- [x] Handle edge cases where restoring from minimized state breaks layout dimensions.
+- [x] Test multi-monitor dragging where DPI scales drastically change between screens.
+- [x] Verify Windows Snap-Assist snapping triggers proper layout recalculations.
+- [x] Ensure custom macOS traffic light buttons (close/minimize/maximize) align perfectly.
 
 **1.9 Seamless IPC (Inter-Process Communication) bridging via Tauri invoke.** (Complete)
 
@@ -116,13 +116,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Verify that deleting the config JSON dynamically generates a new one on next boot.
 - [x] Handle edge cases where integer sizes/positions are saved as floats and break parsing.
 
-**1.15 Automatic window geometry and position restoration on launch.** (Incomplete)
+**1.15 Automatic window geometry and position restoration on launch.** (Complete)
 
-- [ ] Handle edge cases where the saved position is now off-screen (e.g., disconnected secondary monitor).
-- [ ] Ensure maximized states are restored correctly without hiding the taskbar.
-- [ ] Verify width/height are constrained to minimum allowable app dimensions.
-- [ ] Test rapid opening/closing of the app to ensure bounds save correctly.
-- [ ] Ensure fullscreen vs. windowed states are properly distinguished and saved.
+- [x] Handle edge cases where the saved position is now off-screen (e.g., disconnected secondary monitor).
+- [x] Ensure maximized states are restored correctly without hiding the taskbar.
+- [x] Verify width/height are constrained to minimum allowable app dimensions.
+- [x] Test rapid opening/closing of the app to ensure bounds save correctly.
+- [x] Ensure fullscreen vs. windowed states are properly distinguished and saved.
 
 ## 📁 Part 2: Local File Scanning & Smart Parser (Incomplete)
 

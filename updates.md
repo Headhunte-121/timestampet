@@ -451,3 +451,16 @@ Implemented a centralized, plain-English logging blueprint for the React fronten
 - **Global Log Purge:** Systematically removed all pre-existing raw `console.*` statements across `src/components`, `src/store`, and `src/utils`, replacing them with appropriate `logger.*` functions to guarantee a continuous, clean script of frontend activity.
 - **Frontend-to-Backend Log Bridge:** Added an IPC hook (`frontend_log` inside `commands.rs`) that explicitly pipes all plain-English logs from the React UI directly to the Rust backend's `tracing` engine, ensuring the actual terminal logs tell the full story.
 - **Backend Logging Refactor:** Mass-replaced existing `tracing::info!` statements throughout the Rust backend to strictly adopt the matching plain-English, emoji-prefixed format (e.g., `[APP] 🚀`, `[DB] ✨`, `[IPC: CANCEL] 🛑`).
+
+### Update: Feature 1.8 & 1.15 Window Frame & Geometry Management
+
+**Summary:**
+Implemented robust native OS window frame integrations and window geometry restoration.
+
+**Core Architectural Features Implemented:**
+- **Titlebar Drag Regions:** Added native `data-tauri-drag-region` to the `<header>` in `App.tsx` and used `z-10` on children to cleanly decouple drag zones from clickable buttons.
+- **Dynamic DPI Scaling & Layout Recovery:** Mapped listeners to `tauri://resize` to dispatch synthetic window resize events, ensuring virtualized lists (like `Library.tsx`) and Intersection Observers properly reflow from minimized states.
+- **Snap-Assist Compatibility:** Enabled `decorations: true` and set `minWidth: 800` & `minHeight: 600` via `tauri.conf.json`. Upgraded `Library.tsx`'s auto-fill constraints to strictly calculate exact widths without breaking column alignments.
+- **Focus Signal Filters:** Linked `tauri://focus` and `tauri://blur` events in `App.tsx` to conditionally render `grayscale-[20%]` and `opacity-90` classes to visually cue when WatchMark enters background OS states.
+- **Off-Screen Recovery & Automatic Preservation:** Augmented the Rust boot sequence in `main.rs` to validate the `initial_settings` bounded X and Y coordinates explicitly against `window.available_monitors()`. If off-screen, it performs an immediate fall-back calculation bounding the app back to the primary center.
+- **Maximized/Fullscreen Disambiguation:** Bound Tauri's `WindowEvent::CloseRequested` to serialize coordinates exclusively if the window is natively windowed (`!is_maximized` && `!is_fullscreen`), explicitly preventing maximized dimensions from overriding the preferred state on next launch.

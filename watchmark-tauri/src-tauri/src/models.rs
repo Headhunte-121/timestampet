@@ -327,6 +327,11 @@ pub struct Settings {
     pub global_log_level: String,
     #[serde(default = "default_module_logs")]
     pub module_logs: std::collections::HashMap<String, String>,
+
+    #[serde(default = "default_false")]
+    pub is_fullscreen: bool,
+    #[serde(default = "default_false")]
+    pub is_maximized: bool,
     #[serde(default = "default_last_backup_timestamp")]
     pub last_backup_timestamp: i64,
     #[serde(default = "default_last_backup_status")]
@@ -341,6 +346,7 @@ fn default_width() -> i32 { 1280 }
 fn default_height() -> i32 { 800 }
 fn default_x() -> i32 { 100 }
 fn default_y() -> i32 { 100 }
+fn default_false() -> bool { false }
 fn default_language() -> String { "en-US".to_string() }
 fn default_auto_complete_threshold() -> i32 { 90 }
 fn default_binge_grouping_hours() -> i32 { 6 }
@@ -380,6 +386,8 @@ impl Default for Settings {
             last_backup_status: default_last_backup_status(),
             last_backup_error: default_last_backup_error(),
             high_performance_mode: default_high_performance_mode(),
+            is_fullscreen: default_false(),
+            is_maximized: default_false(),
         }
     }
 }
