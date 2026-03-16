@@ -721,6 +721,7 @@ fn main() {
             commands::prepare_restore,
             commands::frontend_log,
             vlc::play_episode_cmd,
+            commands::link_manual_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

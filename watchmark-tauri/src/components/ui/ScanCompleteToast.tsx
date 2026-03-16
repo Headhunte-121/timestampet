@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { CheckCircle2, FolderSearch } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast as sonnerToast } from "sonner";
 
@@ -8,7 +8,7 @@ export const ScanCompleteToast = ({ result, t }: { result: any; t: string | numb
     const [progress, setProgress] = useState(100);
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: ReturnType<typeof setInterval>;
         if (!paused) {
             interval = setInterval(() => {
                 setProgress((prev) => {

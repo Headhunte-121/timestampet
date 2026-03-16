@@ -12,7 +12,7 @@ import { useTaskStore } from "../store/useTaskStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { logger } from "../utils/logger";
 import { SafeImage } from "./ui/SafeImage";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -21,6 +21,12 @@ export default function InboxView({ onMatch }: any) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Manual Match State
+  const [matchMode, setMatchMode] = useState<'1-click' | 'manual'>('1-click');
+  const [manualTarget, setManualTarget] = useState<any>(null);
+  const [manualInputs, setManualInputs] = useState<Record<string, { s: string, e: string }>>({});
+
   const { setScanning, activeSyncs, isScanning, isScanPaused, setScanPaused } = useTaskStore();
   const asyncInvoke = useAsyncInvoke();
 
@@ -34,6 +40,19 @@ export default function InboxView({ onMatch }: any) {
       setSearchResults([]);
     }
   }, [selectedGroup]);
+
+  // Handle Input Changes for Manual Mapping
+  const updateInput = (filePath: string, key: 's' | 'e', value: string) => {
+    // Restrict strictly to digits
+    if (!/^\d*$/.test(value)) return;
+    setManualInputs(prev => ({
+      ...prev,
+      [filePath]: {
+        ...prev[filePath],
+        [key]: value
+      }
+    }));
+  };
 
   const fetchUnmatched = async () => {
     try {
@@ -79,7 +98,17 @@ export default function InboxView({ onMatch }: any) {
     setSelectedGroup(key);
     setSearchQuery(key);
     setSearchResults([]);
+    setManualTarget(null);
     performSearchForGroup(key);
+
+    const initialInputs: any = {};
+    grouped[key]?.forEach((f: any) => {
+        initialInputs[f.file_path] = {
+            s: f.parsed_season ? String(f.parsed_season) : '',
+            e: f.parsed_episode ? String(f.parsed_episode) : ''
+        };
+    });
+    setManualInputs(initialInputs);
   };
 
   const ignoreGroup = async (groupKey: string) => {
@@ -154,6 +183,71 @@ export default function InboxView({ onMatch }: any) {
     setIsModalOpen(true);
     if (selectedGroup) {
       performSearch();
+    }
+  };
+
+  const selectManualTarget = async (item: any) => {
+    setManualTarget(item);
+    setIsModalOpen(false);
+    toast.info(`Fetching episode data for ${item.title}...`, { duration: 3000 });
+
+    try {
+      // Use add_to_tracker but DO NOT map unmatched files yet
+      await asyncInvoke("add_to_tracker", {
+        tmdbId: item.tmdb_id,
+        mediaType: item.type,
+        archive: false
+      });
+      toast.success(`Episode data ready for ${item.title}`);
+    } catch (e: any) {
+      toast.error(`Failed to fetch show data: ${e}`);
+      setManualTarget(null); // Revert
+    }
+  };
+
+  const confirmManualMatch = async (file: any) => {
+    const sStr = manualInputs[file.file_path]?.s;
+    const eStr = manualInputs[file.file_path]?.e;
+
+    if (!sStr || !eStr) {
+      toast.error("Both Season and Episode are required.");
+      return;
+    }
+
+    const s = parseInt(sStr);
+    const e = parseInt(eStr);
+
+    if (isNaN(s) || isNaN(e) || s < 0 || e < 0) {
+        toast.error("Season and Episode must be positive integers.");
+        return;
+    }
+
+    if (!manualTarget) {
+      toast.error("Please select a target show first.");
+      return;
+    }
+
+    try {
+      await asyncInvoke('link_manual_file', {
+        filePath: file.file_path,
+        tmdbId: manualTarget.tmdb_id,
+        seasonNum: s,
+        epNum: e
+      });
+
+      toast.success(`Matched: S${s}E${e}`);
+
+      // Update local state to remove the file
+      const newUnmatched = unmatched.filter(f => f.file_path !== file.file_path);
+      setUnmatched(newUnmatched);
+
+      // If group is empty, auto-navigate
+      const remaining = newUnmatched.filter(f => f.group_key === selectedGroup);
+      if (remaining.length === 0) {
+          setSelectedGroup(null);
+      }
+    } catch (err: any) {
+      toast.error(`Match Failed: ${err}`);
     }
   };
 
@@ -346,29 +440,131 @@ export default function InboxView({ onMatch }: any) {
                     <h2 className="text-2xl font-bold text-white mb-1">Group: {selectedGroup}</h2>
                     <p className="text-muted text-sm">{grouped[selectedGroup]?.length || 0} files</p>
                   </div>
-                  <button
-                    onClick={openSearchModal}
-                    className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors shadow-lg shadow-orange-500/20"
-                  >
-                    + Add Tracker
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto bg-black/20 rounded-xl border border-white/5 p-4">
-                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Files in this group</h3>
-                  <div className="space-y-2">
-                    {grouped[selectedGroup]?.map((file: any, index: number) => (
-                      <div key={index} className="flex flex-col gap-1 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full bg-[#FF6B00]"></div>
-                          <p className="text-sm text-gray-300 font-mono break-all">{file.filename}</p>
-                        </div>
-                        <p className="text-xs text-gray-600 font-mono break-all pl-5">{formatWindowsPath(file.file_path)}</p>
-                      </div>
-                    ))}
+                  <div className="flex gap-2 p-1 bg-black/20 border border-white/5 rounded-xl">
+                    <button
+                      onClick={() => setMatchMode('1-click')}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${matchMode === '1-click' ? 'bg-[#FF6B00] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      1-Click Match
+                    </button>
+                    <button
+                      onClick={() => setMatchMode('manual')}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${matchMode === 'manual' ? 'bg-[#FF6B00] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      Manual Map
+                    </button>
                   </div>
                 </div>
 
+                {matchMode === '1-click' ? (
+                  <div className="flex-1 flex flex-col">
+                    <button
+                      onClick={openSearchModal}
+                      className="w-full mb-4 px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors shadow-lg shadow-orange-500/20"
+                    >
+                      + Search TMDB & Add Tracker
+                    </button>
+
+                    <div className="flex-1 overflow-y-auto bg-black/20 rounded-xl border border-white/5 p-4">
+                      <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Files in this group</h3>
+                      <div className="space-y-2">
+                        {grouped[selectedGroup]?.map((file: any, index: number) => (
+                          <div key={index} className="flex flex-col gap-1 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-[#FF6B00]"></div>
+                              <p className="text-sm text-gray-300 font-mono break-all">{file.filename}</p>
+                            </div>
+                            <p className="text-xs text-gray-600 font-mono break-all pl-5">{formatWindowsPath(file.file_path)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col">
+                    {!manualTarget ? (
+                      <button
+                        onClick={openSearchModal}
+                        className="w-full mb-4 px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors shadow-lg shadow-orange-500/20"
+                      >
+                        Select Target Show from TMDB
+                      </button>
+                    ) : (
+                      <div className="w-full mb-4 px-6 py-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          {manualTarget.poster_path && (
+                            <img src={formatImagePath(manualTarget.poster_path, "w500")} alt="poster" className="w-10 h-14 rounded-md object-cover shadow-md" />
+                          )}
+                          <div>
+                            <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Target Show</p>
+                            <h3 className="text-white font-bold">{manualTarget.title}</h3>
+                          </div>
+                        </div>
+                        <button
+                          onClick={openSearchModal}
+                          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors text-sm"
+                        >
+                          Change Target
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto bg-black/20 rounded-xl border border-white/5 p-4">
+                      <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Manual Mapping</h3>
+                      <div className="space-y-2">
+                        <motion.div layout className="flex flex-col gap-2">
+                        <AnimatePresence>
+                        {grouped[selectedGroup]?.map((file: any) => (
+                          <motion.div
+                            layout
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                            key={file.file_path}
+                            className="flex flex-col xl:flex-row xl:items-center gap-4 p-4 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition-colors"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-300 font-mono break-all truncate">{file.filename}</p>
+                              <p className="text-xs text-gray-600 font-mono break-all truncate">{formatWindowsPath(file.file_path)}</p>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <div className="flex items-center bg-black/40 rounded-lg px-2 border border-white/10">
+                                <span className="text-gray-500 font-bold text-sm mr-2">S</span>
+                                <input
+                                  type="text"
+                                  placeholder="01"
+                                  value={manualInputs[file.file_path]?.s || ''}
+                                  onChange={(e) => updateInput(file.file_path, 's', e.target.value)}
+                                  className="w-10 bg-transparent text-white font-bold text-center focus:outline-none py-2"
+                                />
+                              </div>
+                              <div className="flex items-center bg-black/40 rounded-lg px-2 border border-white/10">
+                                <span className="text-gray-500 font-bold text-sm mr-2">E</span>
+                                <input
+                                  type="text"
+                                  placeholder="01"
+                                  value={manualInputs[file.file_path]?.e || ''}
+                                  onChange={(e) => updateInput(file.file_path, 'e', e.target.value)}
+                                  className="w-10 bg-transparent text-white font-bold text-center focus:outline-none py-2"
+                                />
+                              </div>
+                              <button
+                                onClick={() => confirmManualMatch(file)}
+                                disabled={!manualTarget || !manualInputs[file.file_path]?.s || !manualInputs[file.file_path]?.e}
+                                className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:hover:bg-green-600 text-white font-bold rounded-lg transition-colors ml-2"
+                              >
+                                Confirm
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                        </AnimatePresence>
+                        </motion.div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -449,12 +645,21 @@ export default function InboxView({ onMatch }: any) {
                           className="w-full h-full object-cover"
                         />
                         <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                          <button
-                            onClick={() => assignShow(item.tmdb_id, item.type)}
-                            className="w-full py-3 bg-[#FF6B00] text-white font-bold rounded-lg hover:bg-[#E66000] transition-colors shadow-lg"
-                          >
-                            Assign Show
-                          </button>
+                          {matchMode === '1-click' ? (
+                            <button
+                              onClick={() => assignShow(item.tmdb_id, item.type)}
+                              className="w-full py-3 bg-[#FF6B00] text-white font-bold rounded-lg hover:bg-[#E66000] transition-colors shadow-lg"
+                            >
+                              Assign Show
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => selectManualTarget(item)}
+                              className="w-full py-3 bg-[#FF6B00] text-white font-bold rounded-lg hover:bg-[#E66000] transition-colors shadow-lg"
+                            >
+                              Select Target
+                            </button>
+                          )}
                         </div>
                       </div>
                       <div className="p-4">
