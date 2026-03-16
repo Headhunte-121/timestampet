@@ -82,6 +82,8 @@ pub async fn vlc_heartbeat(
         }
     }
 
+    let mut has_overridden_runtime = false;
+
     loop {
         tokio::select! {
             _ = interval.tick() => {
@@ -90,6 +92,21 @@ pub async fn vlc_heartbeat(
 
                     let length = status["length"].as_f64().unwrap_or(0.0);
                     let time = status["time"].as_f64().unwrap_or(0.0);
+
+                    if length > 0.0 && !has_overridden_runtime {
+                        let length_minutes = (length / 60.0).round();
+                        if (length_minutes - stored_runtime_minutes).abs() > 2.0 {
+                            tracing::info!("[VLC] 🔄 Local file length ({:?}m) differs from TMDB ({:?}m). Overriding.", length_minutes, stored_runtime_minutes);
+                            if let Ok(conn) = get_db_connection() {
+                                let _ = conn.execute(
+                                    "UPDATE Episodes SET runtime=? WHERE id=?",
+                                    params![length_minutes as i32, episode_id],
+                                );
+                            }
+                            stored_runtime_minutes = length_minutes;
+                        }
+                        has_overridden_runtime = true;
+                    }
 
                     if length > 0.0 {
                         let pos = time / length;

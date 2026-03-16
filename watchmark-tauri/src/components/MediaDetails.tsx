@@ -6,7 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { motion } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Calendar } from "lucide-react";
-import { formatLocaleDate } from "../utils/dateFormatter";
+import { formatLocaleDate, formatRuntime } from "../utils/dateFormatter";
 import { useUiStore } from "../store/uiStore";
 import { useTaskStore } from "../store/useTaskStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
@@ -497,7 +497,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     <h3 className={`text-xl font-bold transition-colors ${ep.status === 'Completed' ? 'text-muted font-normal' : 'text-white group-hover:text-[#FF6B00]'}`}>
                       {ep.ep_num}. {ep.title}
                     </h3>
-                    <span className="text-gray-500 text-sm ml-auto">{ep.runtime > 0 ? `${ep.runtime}m` : ''}</span>
+                    <span className="text-gray-500 text-sm ml-auto">{ep.runtime > 0 ? formatRuntime(ep.runtime) : ''}</span>
                  </div>
                  <p className="text-muted text-sm pl-12 line-clamp-2">
                    {ep.overview}

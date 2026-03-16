@@ -482,21 +482,21 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test memory usage when rendering 10+ backdrops in memory simultaneously.
 - [x] Verify backdrop loading states show smooth CSS skeleton pulses.
 
-**3.9 Episode-specific 16:9 still-image extraction.** (Incomplete)
+**3.9 Episode-specific 16:9 still-image extraction.** (Complete)
 
-- [ ] Ensure missing episode stills fall back to the show's main backdrop automatically.
-- [ ] Handle API rate limiting strictly, as querying 200 episode images simultaneously will fail.
-- [ ] Test edge cases where the still image is flagged as a spoiler and blurred.
-- [ ] Verify the exact 16:9 crop is maintained in the UI regardless of the raw image.
-- [ ] Ensure cached stills are tied to the specific episode ID.
+- [x] Ensure missing episode stills fall back to the show's main backdrop automatically.
+- [x] Handle API rate limiting strictly, as querying 200 episode images simultaneously will fail.
+- [x] Test edge cases where the still image is flagged as a spoiler and blurred.
+- [x] Verify the exact 16:9 crop is maintained in the UI regardless of the raw image.
+- [x] Ensure cached stills are tied to the specific episode ID.
 
-**3.14 Accurate Runtime/Duration metadata pulling.** (Incomplete)
+**3.14 Accurate Runtime/Duration metadata pulling.** (Complete)
 
-- [ ] Handle API responses where runtime is an array instead of an integer.
-- [ ] Ensure missing runtimes default to a sensible value (e.g., 0) for math calculations.
-- [ ] Test edge cases where runtimes are extremely long (e.g., 200+ minute movies).
-- [ ] Verify runtime updates dynamically if local file FFmpeg length overrides TMDB data.
-- [ ] Ensure UI cleanly formats 135m as '2h 15m'.
+- [x] Handle API responses where runtime is an array instead of an integer.
+- [x] Ensure missing runtimes default to a sensible value (e.g., 0) for math calculations.
+- [x] Test edge cases where runtimes are extremely long (e.g., 200+ minute movies).
+- [x] Verify runtime updates dynamically if local file FFmpeg length overrides TMDB data.
+- [x] Ensure UI cleanly formats 135m as '2h 15m'.
 
 ## Micro-Feature 9: Local Scanner Core Engine
 

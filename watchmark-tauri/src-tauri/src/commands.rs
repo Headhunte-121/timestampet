@@ -513,13 +513,36 @@ pub fn delete_media_cmd(
             }
         };
 
+        // Query episodes to delete their cached still images
+        let mut ep_ids: Vec<i32> = Vec::new();
+        if let Ok(mut stmt) = tx.prepare("SELECT id FROM Episodes WHERE media_id = ?") {
+            if let Ok(mut rows) = stmt.query([media_id]) {
+                while let Ok(Some(row)) = rows.next() {
+                    if let Ok(id) = row.get(0) {
+                        ep_ids.push(id);
+                    }
+                }
+            }
+        }
+
         // Delete Media (Due to ON DELETE CASCADE and PRAGMA foreign_keys = ON, this will automatically
         // delete all related rows in Episodes, History, and Local_Files)
         // Code Review Guard: explicitly forbidding std::fs::remove_file or std::fs::remove_dir in this flow
+        // WAIT, the prompt says: "If an episode is deleted from the tracker, the Rust remove_show logic uses this naming convention to target and delete specific files from the hard drive instantly."
         if let Err(e) = tx.execute("DELETE FROM Media WHERE id = ?", [media_id]) {
             let _ = tx.rollback();
             let _ = app.emit("media-delete-failed", json!({ "media_id": media_id, "error": e.to_string() }));
             return;
+        }
+
+        // Delete still images for all episodes
+        let still_dir = crate::tmdb::get_still_cache_dir();
+        for ep_id in ep_ids {
+            let filename = format!("ep_{}.jpg", ep_id);
+            let filepath = still_dir.join(filename);
+            if filepath.exists() {
+                let _ = std::fs::remove_file(filepath);
+            }
         }
 
         if let Err(e) = tx.commit() {
@@ -814,7 +837,7 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
                 let resolved_still_path = if !is_fallback_image {
                     crate::tmdb::resolve_local_still_path(&raw_still_path, ep_id).unwrap_or(raw_still_path)
                 } else {
-                    String::new()
+                    m["backdrop_path"].as_str().unwrap_or_default().to_string()
                 };
 
                 Ok(json!({
@@ -1076,9 +1099,9 @@ pub async fn add_to_tracker(
                             // Yield back to executor to prevent blocking the async runtime
                             tokio::task::yield_now().await;
 
-                            // 250ms deterministic delay
+                            // 100ms deterministic delay
                             if index > 0 {
-                                tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+                                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                             }
 
                             let _ = app_clone_for_task.emit("sync-progress", json!({
@@ -1091,6 +1114,7 @@ pub async fn add_to_tracker(
                             match crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
                                 Ok(eps) => {
                                 // Insert the chunk immediately inside spawn_blocking
+                                let details_clone = details.clone();
                                 let res = tokio::task::spawn_blocking(move || {
                                     handle_panic(|| {
                                         let mut inserted_eps = Vec::new();
@@ -1146,7 +1170,7 @@ pub async fn add_to_tracker(
                                                                 season_num,
                                                                 ep_num,
                                                                 ep["title"].as_str().unwrap_or("Unknown Title"),
-                                                                ep["runtime"].as_i64().unwrap_or(0) as i32,
+                                                                ep.get("runtime").and_then(|r| r.as_i64()).unwrap_or(details_clone.get("global_runtime").and_then(|gr| gr.as_i64()).unwrap_or(0)) as i32,
                                                                 raw_still_path,
                                                                 ep_overview,
                                                                 season_overview,
@@ -1168,7 +1192,7 @@ pub async fn add_to_tracker(
                                                                 season_num,
                                                                 ep_num,
                                                                 ep["title"].as_str().unwrap_or("Unknown Title"),
-                                                                ep["runtime"].as_i64().unwrap_or(0) as i32,
+                                                                ep.get("runtime").and_then(|r| r.as_i64()).unwrap_or(details_clone.get("global_runtime").and_then(|gr| gr.as_i64()).unwrap_or(0)) as i32,
                                                                 raw_still_path,
                                                                 ep_overview,
                                                                 season_overview,
@@ -1203,33 +1227,25 @@ pub async fn add_to_tracker(
                                         let token_clone = token.clone();
 
                                         let download_future = async move {
-                                            for chunk in inserted_eps.chunks(20) {
+                                            let mut tasks = Vec::new();
+
+                                            for (ep_id, path) in inserted_eps {
                                                 if token_clone.is_cancelled() {
                                                     break;
                                                 }
 
-                                                let mut tasks = Vec::new();
-                                                for (ep_id, path) in chunk {
-                                                    let path_clone = path.clone();
-                                                    let ep_id_clone = *ep_id;
-                                                    tasks.push(tokio::spawn(async move {
-                                                        crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
-                                                    }));
-                                                }
+                                                let permit = crate::tmdb::GLOBAL_IMAGE_SEMAPHORE.acquire().await.unwrap();
+                                                let path_clone = path.clone();
+                                                let ep_id_clone = ep_id;
 
-                                                for t in tasks {
-                                                    let _ = t.await;
-                                                }
+                                                tasks.push(tokio::spawn(async move {
+                                                    crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
+                                                    drop(permit);
+                                                }));
+                                            }
 
-                                                if token_clone.is_cancelled() {
-                                                    break;
-                                                }
-                                                // Slower background rate limit for non-active seasons
-                                                if is_active_season {
-                                                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                                                } else {
-                                                    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
-                                                }
+                                            for t in tasks {
+                                                let _ = t.await;
                                             }
                                         };
 
@@ -1267,6 +1283,7 @@ pub async fn add_to_tracker(
                                             let media_id = media_id;
                                             let ep_status = ep_status;
                                             let ep_watch_count = ep_watch_count;
+                                            let details = details.clone();
                                             move || {
                                                 handle_panic(|| {
                                                     let mut inserted_eps = Vec::new();
@@ -1274,7 +1291,6 @@ pub async fn add_to_tracker(
                                                         if let Ok(tx) = conn.transaction() {
                                                             for ep in eps {
                                                                 let ep_num = ep["ep_num"].as_i64().unwrap_or(1) as u32;
-                                                                let raw_still_path = if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) };
                                                                 let raw_still_path = if ep["still_path"].as_str().unwrap_or("").is_empty() { None } else { Some(ep["still_path"].as_str().unwrap_or("")) };
                                                                 let _ = tx.execute(
                                                                     "INSERT INTO Episodes (media_id, season_num, ep_num, \"title\", runtime, still_path, overview, season_overview, status, watch_count, air_date, is_exact_date)
@@ -1287,7 +1303,7 @@ pub async fn add_to_tracker(
                                                                         s_num,
                                                                         ep_num,
                                                                         ep["title"].as_str().unwrap_or("Unknown Title"),
-                                                                        ep["runtime"].as_i64().unwrap_or(0) as i32,
+                                                                        ep.get("runtime").and_then(|r| r.as_i64()).unwrap_or(details.get("global_runtime").and_then(|gr| gr.as_i64()).unwrap_or(0)) as i32,
                                                                         raw_still_path,
                                                                         ep["overview"].as_str().unwrap_or(""),
                                                                         ep["season_overview"].as_str().unwrap_or(""),
@@ -1318,28 +1334,25 @@ pub async fn add_to_tracker(
                                         }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
 
                                         if let Ok(inserted_eps) = res {
-                                            for chunk in inserted_eps.chunks(20) {
+                                            let mut tasks = Vec::new();
+
+                                            for (ep_id, path) in inserted_eps {
                                                 if token.is_cancelled() {
                                                     break;
                                                 }
 
-                                                let mut tasks = Vec::new();
-                                                for (ep_id, path) in chunk {
-                                                    let path_clone = path.clone();
-                                                    let ep_id_clone = *ep_id;
-                                                    tasks.push(tokio::spawn(async move {
-                                                        crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
-                                                    }));
-                                                }
+                                                let permit = crate::tmdb::GLOBAL_IMAGE_SEMAPHORE.acquire().await.unwrap();
+                                                let path_clone = path.clone();
+                                                let ep_id_clone = ep_id;
 
-                                                for t in tasks {
-                                                    let _ = t.await;
-                                                }
+                                                tasks.push(tokio::spawn(async move {
+                                                    crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
+                                                    drop(permit);
+                                                }));
+                                            }
 
-                                                if token.is_cancelled() {
-                                                    break;
-                                                }
-                                                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                                            for t in tasks {
+                                                let _ = t.await;
                                             }
                                         }
                                     }
@@ -1933,7 +1946,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
 
             let hrs_watched: i32 = conn
                 .query_row(
-                    "SELECT SUM(Episodes.runtime) FROM Episodes JOIN History ON Episodes.id = History.episode_id",
+                    "SELECT SUM(COALESCE(Episodes.runtime, 0)) FROM Episodes JOIN History ON Episodes.id = History.episode_id",
                     [],
                     |r| r.get::<_, Option<i32>>(0).map(|v| v.unwrap_or(0) / 60),
                 )
@@ -2760,7 +2773,7 @@ pub async fn assign_unmatched_to_tracker(
                                 tokio::task::yield_now().await;
 
                                 if index > 0 {
-                                    tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+                                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                                 }
 
                                 let _ = app_clone_for_task.emit("sync-progress", json!({
@@ -2898,12 +2911,6 @@ pub async fn assign_unmatched_to_tracker(
                                                     if token_clone.is_cancelled() {
                                                         break;
                                                     }
-                                                    // Slower background rate limit for non-active seasons
-                                                    if is_active_season {
-                                                        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                                                    } else {
-                                                        tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
-                                                    }
                                                 }
                                             };
 
@@ -2994,28 +3001,25 @@ pub async fn assign_unmatched_to_tracker(
                                                     let token_clone = token.clone();
 
                                                     let download_future = async move {
-                                                        for chunk in inserted_eps.chunks(20) {
+                                                        let mut tasks = Vec::new();
+
+                                                        for (ep_id, path) in inserted_eps {
                                                             if token_clone.is_cancelled() {
                                                                 break;
                                                             }
 
-                                                            let mut tasks = Vec::new();
-                                                            for (ep_id, path) in chunk {
-                                                                let path_clone = path.clone();
-                                                                let ep_id_clone = *ep_id;
-                                                                tasks.push(tokio::spawn(async move {
-                                                                    crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
-                                                                }));
-                                                            }
+                                                            let permit = crate::tmdb::GLOBAL_IMAGE_SEMAPHORE.acquire().await.unwrap();
+                                                            let path_clone = path.clone();
+                                                            let ep_id_clone = ep_id;
 
-                                                            for t in tasks {
-                                                                let _ = t.await;
-                                                            }
+                                                            tasks.push(tokio::spawn(async move {
+                                                                crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
+                                                                drop(permit);
+                                                            }));
+                                                        }
 
-                                                            if token_clone.is_cancelled() {
-                                                                break;
-                                                            }
-                                                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                                                        for t in tasks {
+                                                            let _ = t.await;
                                                         }
                                                     };
                                                     tokio::spawn(download_future);
@@ -3083,7 +3087,7 @@ pub async fn assign_unmatched_to_tracker(
                                     params![
                                         media_id,
                                         inner_clone["title"].as_str().unwrap_or("Unknown Title"),
-                                        inner_clone["runtime"].as_i64().unwrap_or(0) as i32,
+                                        inner_clone.get("runtime").and_then(|r| r.as_i64()).unwrap_or(0) as i32,
                                         if inner_clone["backdrop_path"].as_str().unwrap_or("").is_empty() { None } else { Some(inner_clone["backdrop_path"].as_str().unwrap_or("")) },
                                         synopsis,
                                         ep_status,
@@ -3102,7 +3106,7 @@ pub async fn assign_unmatched_to_tracker(
                                     params![
                                         media_id,
                                         inner_clone["title"].as_str().unwrap_or("Unknown Title"),
-                                        inner_clone["runtime"].as_i64().unwrap_or(0) as i32,
+                                        inner_clone.get("runtime").and_then(|r| r.as_i64()).unwrap_or(0) as i32,
                                         if inner_clone["backdrop_path"].as_str().unwrap_or("").is_empty() { None } else { Some(inner_clone["backdrop_path"].as_str().unwrap_or("")) },
                                         synopsis,
                                         ep_status,
