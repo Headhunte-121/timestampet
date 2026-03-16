@@ -130,6 +130,7 @@ pub fn scan_directory(
     conn: &mut Connection,
     app_handle: &AppHandle,
 ) -> Result<i32> {
+    tracing::info!("[BACKEND] 🔍 Scanning root directory... ");
     let mut new_unmatched_count = 0;
     let mut batch = Vec::new();
     let mut unmatched_insert_buffer = Vec::new();
@@ -432,5 +433,6 @@ pub fn scan_directory(
     }
 
     tx.commit()?;
+    tracing::info!("[BACKEND] 🧠 Regex engine finished parsing. Found {} unmatched files.", new_unmatched_count);
     Ok(new_unmatched_count)
 }

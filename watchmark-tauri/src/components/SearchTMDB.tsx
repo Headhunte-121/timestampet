@@ -4,7 +4,7 @@ import { Search, Tv, Clapperboard } from "lucide-react";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { logger } from "../utils/logger";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { useAppStore } from "../store/useAppStore";
 import { cn } from "../App";
 import { SafeImage } from "./ui/SafeImage";
@@ -112,7 +112,7 @@ export default function SearchTMDB({ onMediaSelect: _onMediaSelect }: any) {
                           const { open } = await import('@tauri-apps/plugin-shell');
                           await open("https://www.themoviedb.org/settings/api");
                       } catch (e) {
-                          logger.error("Failed to open URL", e);
+                          console.error("Failed to open URL:", e);
                       }
                   }}
                   className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-xl transition-colors"
