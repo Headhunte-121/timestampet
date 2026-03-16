@@ -268,9 +268,27 @@ function App() {
 
 
 
+  const { isScanning } = useTaskStore();
+
   return (
     <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
     <div className="h-screen overflow-hidden flex bg-cinema-black text-white selection:bg-brand-orange/30">
+
+      {/* Visual scan activity indicator */}
+      {isScanning && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed top-0 left-0 right-0 h-1 bg-[#FF6B00] z-[9999] overflow-hidden"
+        >
+          <motion.div
+            className="h-full w-1/3 bg-white/50 blur-[2px]"
+            animate={{ x: ["-100%", "400%"] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+          />
+        </motion.div>
+      )}
 
       {/* Mobile Scrim */}
       <AnimatePresence>

@@ -349,6 +349,18 @@ pub struct Settings {
     pub last_backup_error: String,
     #[serde(default = "default_high_performance_mode")]
     pub high_performance_mode: bool,
+    #[serde(default = "default_empty_string")]
+    pub last_scanned_path: String,
+    #[serde(default = "default_video_extensions")]
+    pub supported_extensions: Vec<String>,
+}
+
+fn default_video_extensions() -> Vec<String> {
+    vec!["mp4".to_string(), "mkv".to_string(), "avi".to_string(), "mov".to_string(), "wmv".to_string(), "flv".to_string(), "webm".to_string()]
+}
+
+fn default_empty_string() -> String {
+    "".to_string()
 }
 
 fn default_width() -> i32 { 1280 }
@@ -397,6 +409,8 @@ impl Default for Settings {
             high_performance_mode: default_high_performance_mode(),
             is_fullscreen: default_false(),
             is_maximized: default_false(),
+            last_scanned_path: default_empty_string(),
+            supported_extensions: default_video_extensions(),
         }
     }
 }

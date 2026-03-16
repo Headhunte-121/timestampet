@@ -50,7 +50,8 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     auto_resume: true,
     auto_scan_on_boot: false,
     global_log_level: "info",
-    module_logs: {}
+    module_logs: {},
+    last_scanned_path: ""
   });
 
   const [availableModules, setAvailableModules] = useState<Record<string, string>>({});
@@ -203,12 +204,27 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
 
   const runScan = async () => {
     try {
+      let defaultPath;
+      if (settings?.last_scanned_path) {
+          defaultPath = settings.last_scanned_path;
+      } else {
+          try {
+              const { videoDir } = await import('@tauri-apps/api/path');
+              defaultPath = await videoDir();
+          } catch (e) {
+              console.warn("Could not get video dir:", e);
+          }
+      }
+
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Select Directory to Scan"
+        title: "Select Directory to Scan",
+        defaultPath
       });
-      if (selected && typeof selected === 'string') {
+      if (!selected) return;
+
+      if (typeof selected === 'string') {
         logger.click("the 'Run Scan' button");
         setScanStatus("Scan started...");
         setScanning(true);
@@ -217,12 +233,17 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
           .then((count: number) => {
             logger.ipcSuccess(`Scan complete. Found ${count} unmatched files.`);
             toast.success(`Scan complete. Found ${count} unmatched files.`);
+            setSettings({ ...settings, last_scanned_path: selected });
             setScanStatus("");
             setScanning(false);
           })
           .catch((e: any) => {
             logger.error("Scan Failed", e);
-            toast.error("Error during scan: " + e);
+            if (e?.type === "AccessDenied" || e?.code === "ACCESS_DENIED") {
+              toast.error(`Access Denied: WatchMark lacks permissions for ${e.path}`);
+            } else {
+              toast.error("Error during scan: " + e);
+            }
             setScanStatus("");
             setScanning(false);
           });
@@ -646,12 +667,25 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                             <p className="text-xs text-gray-500 mt-1">Scan a specific directory for new media.</p>
                         </div>
                         <div>
-                             <button
-                                onClick={runScan}
-                                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors"
-                            >
-                                Run Scan
-                            </button>
+                             {isScanning ? (
+                                <button
+                                    onClick={() => {
+                                        import('@tauri-apps/api/core').then(({ invoke }) => {
+                                            invoke('cancel_active_scan').catch(console.error);
+                                        });
+                                    }}
+                                    className="px-6 py-3 bg-red-600/80 hover:bg-red-500 text-white font-bold rounded-xl transition-colors flex items-center gap-2"
+                                >
+                                    Cancel Scan
+                                </button>
+                             ) : (
+                                <button
+                                    onClick={runScan}
+                                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors relative"
+                                >
+                                    Run Scan
+                                </button>
+                             )}
                             {scanStatus && <div className="text-muted text-sm mt-2">{scanStatus}</div>}
                         </div>
                     </div>
@@ -970,6 +1004,44 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                   </div>
               </motion.div>
           )}
+
+            <AnimatePresence mode="popLayout">
+                {activeTab === "Scanner" && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="bg-[#1F222A] rounded-2xl p-6 border border-white/5 shadow-xl"
+                    >
+                        <h2 className="text-xl font-bold text-white mb-6">Scanner Configuration</h2>
+                        <div className="grid grid-cols-[250px_1fr] gap-6 items-start py-4 border-b border-white/5 last:border-0">
+                            <div>
+                                <h3 className="text-sm font-bold text-white">Supported Video Formats</h3>
+                                <p className="text-xs text-gray-500 mt-1">Comma-separated list of extensions the scanner will index.</p>
+                            </div>
+                            <div>
+                                <input
+                                    type="text"
+                                    value={settings.supported_extensions_raw ?? (settings.supported_extensions?.join(', ') || '')}
+                                    onChange={(e) => {
+                                        updateSetting('supported_extensions_raw', e.target.value);
+                                    }}
+                                    onBlur={() => {
+                                        const raw = settings.supported_extensions_raw ?? (settings.supported_extensions?.join(', ') || '');
+                                        const exts = raw.split(',').map((s: string) => s.trim().toLowerCase()).filter((s: string) => s.length > 0);
+                                        const updatedSettings = { ...settings, supported_extensions: exts };
+                                        delete updatedSettings.supported_extensions_raw;
+                                        setSettings(updatedSettings);
+                                        setIsDirty(true);
+                                    }}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FF6B00] transition-colors font-mono text-sm"
+                                    placeholder="mp4, mkv, avi, mov..."
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
       </AnimatePresence>
 
     </div>

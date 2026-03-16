@@ -183,6 +183,7 @@ pub struct AppState {
     pub read_semaphore: Arc<tokio::sync::Semaphore>,
     pub cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
     pub failed_image_syncs: Arc<RwLock<std::collections::HashSet<(String, String)>>>,
+    pub is_scan_cancelled: Arc<AtomicBool>,
 }
 
 #[tauri::command]
@@ -2432,14 +2433,43 @@ pub async fn run_scan_directory(
     directory: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<i32, AppError> {
+    if !std::fs::metadata(&directory).map(|m| m.is_dir()).unwrap_or(false) {
+        return Err(AppError::Custom("Selected path is not a valid directory.".to_string()));
+    }
+
+    if let Err(e) = std::fs::read_dir(&directory) {
+        if e.kind() == std::io::ErrorKind::PermissionDenied {
+            return Err(AppError::AccessDenied {
+                code: "ACCESS_DENIED".to_string(),
+                path: directory,
+            });
+        }
+    }
+
     if state.is_maintenance_mode.load(Ordering::SeqCst) {
         return Err(AppError::Custom("System Busy: Maintenance mode is currently active.".to_string()));
     }
 
+    state.is_scan_cancelled.store(false, Ordering::SeqCst);
+    let cancel_flag = state.is_scan_cancelled.clone();
+
+    let supported_extensions = {
+        let s = state.settings.read().unwrap();
+        s.supported_extensions.clone()
+    };
+
     let task = tokio::task::spawn_blocking(move || {
+        #[cfg(windows)]
+        {
+            use winapi::um::processthreadsapi::{SetThreadPriority, GetCurrentThread};
+            use winapi::um::winbase::THREAD_PRIORITY_BELOW_NORMAL;
+            unsafe {
+                SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+            }
+        }
         handle_panic(std::panic::AssertUnwindSafe(|| {
             let mut conn = get_db_connection()?;
-            crate::scanner::scan_directory(&directory, &mut conn, &app_handle).map_err(AppError::from)
+            crate::scanner::scan_directory(&directory, &mut conn, &app_handle, cancel_flag, &supported_extensions).map_err(AppError::from)
         }))
     });
 
@@ -2448,6 +2478,14 @@ pub async fn run_scan_directory(
         Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
         Err(_) => Err(AppError::Custom("Scan Directory Task Timed Out".to_string())),
     }
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug", skip(state))]
+pub fn cancel_active_scan(state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    state.is_scan_cancelled.store(true, Ordering::SeqCst);
+    tracing::info!("[ACTION] 🛑 Cancel active scan requested by user");
+    Ok(())
 }
 
 #[tauri::command]

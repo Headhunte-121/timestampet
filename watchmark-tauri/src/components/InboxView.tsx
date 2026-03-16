@@ -21,7 +21,7 @@ export default function InboxView({ onMatch }: any) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { setScanning, activeSyncs } = useTaskStore();
+  const { setScanning, activeSyncs, isScanning } = useTaskStore();
   const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
@@ -109,18 +109,49 @@ export default function InboxView({ onMatch }: any) {
 
   const triggerScan = async () => {
     try {
+      let defaultPath;
+      try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const settings: any = await invoke('get_settings');
+          if (settings?.last_scanned_path) {
+              defaultPath = settings.last_scanned_path;
+          } else {
+              const { videoDir } = await import('@tauri-apps/api/path');
+              defaultPath = await videoDir();
+          }
+      } catch (e) {
+          console.warn("Could not load default path for scanner:", e);
+      }
+
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Select Directory to Scan"
+        title: "Select Directory to Scan",
+        defaultPath
       });
 
-      if (selected && typeof selected === 'string') {
+      if (!selected) return;
+
+      if (typeof selected === 'string') {
         setScanning(true);
         try {
             const res = await invokeWithTimeout<number>("run_scan_directory", { directory: selected }, 300000);
             toast.success(`Found ${res} new unmatched files.`);
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                const settings: any = await invoke('get_settings');
+                settings.last_scanned_path = selected;
+                await invoke('save_settings', { settings });
+            } catch (e) {
+                console.warn("Failed to save last_scanned_path:", e);
+            }
             fetchUnmatched();
+        } catch (scanErr: any) {
+            if (scanErr?.type === "AccessDenied" || scanErr?.code === "ACCESS_DENIED") {
+              toast.error(`Access Denied: WatchMark lacks permissions for ${scanErr.path}`);
+            } else {
+              throw scanErr;
+            }
         } finally {
             setScanning(false);
         }
@@ -157,13 +188,27 @@ export default function InboxView({ onMatch }: any) {
           >
             Clear Inbox
           </button>
-          <button
-            onClick={triggerScan}
-            className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors"
-          >
-            <FolderSearch className="w-5 h-5" />
-            Scan Directory
-          </button>
+          {isScanning ? (
+              <button
+                  onClick={() => {
+                      import('@tauri-apps/api/core').then(({ invoke }) => {
+                          invoke('cancel_active_scan').catch(console.error);
+                      });
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-red-600/80 hover:bg-red-500 text-white font-bold rounded-lg transition-colors"
+              >
+                  <FolderSearch className="w-5 h-5" />
+                  Cancel Scan
+              </button>
+          ) : (
+              <button
+                  onClick={triggerScan}
+                  className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors"
+              >
+                  <FolderSearch className="w-5 h-5" />
+                  Scan Directory
+              </button>
+          )}
         </div>
       </div>
 

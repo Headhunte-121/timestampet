@@ -26,6 +26,9 @@ pub enum AppError {
     #[error("Fatal Database/Permission error: {0}")]
     Fatal(String),
 
+    #[error("Access Denied: {code} - {path}")]
+    AccessDenied { code: String, path: String },
+
     #[error("{0}")]
     Custom(String),
 
@@ -67,6 +70,13 @@ impl Serialize for AppError {
                 state.serialize_field("type", "NetworkError")?;
                 state.serialize_field("code", "OFFLINE")?;
                 state.serialize_field("message", "You are currently offline.")?;
+                state.end()
+            }
+            AppError::AccessDenied { code, path } => {
+                let mut state = serializer.serialize_struct("AppError", 3)?;
+                state.serialize_field("type", "AccessDenied")?;
+                state.serialize_field("code", code)?;
+                state.serialize_field("path", path)?;
                 state.end()
             }
             _ => {

@@ -502,37 +502,37 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Pick a folder on the hard drive and find video files.**
 
-**2.1 Native OS directory selection dialog.** (Incomplete)
+**2.1 Native OS directory selection dialog.** (Complete)
 
-- [ ] Ensure dialog strictly restricts selection to directories, not individual files.
-- [ ] Handle edge cases where the user cancels the dialog (should fail gracefully).
-- [ ] Test behavior when a selected directory is read-only or restricted by the OS.
-- [ ] Verify default paths open to logical locations (e.g., user's Video folder).
-- [ ] Handle edge cases where a network drive is selected and suddenly disconnects.
+- [x] Ensure dialog strictly restricts selection to directories, not individual files.
+- [x] Handle edge cases where the user cancels the dialog (should fail gracefully).
+- [x] Test behavior when a selected directory is read-only or restricted by the OS.
+- [x] Verify default paths open to logical locations (e.g., user's Video folder).
+- [x] Handle edge cases where a network drive is selected and suddenly disconnects.
 
-**2.2 Recursive subfolder deep-scanning.** (Incomplete)
+**2.2 Recursive subfolder deep-scanning.** (Complete)
 
-- [ ] Implement a maximum depth limit to prevent infinite recursion in complex directory trees.
-- [ ] Handle circular symlinks that could cause scanning loops.
-- [ ] Ensure the UI visually indicates that a deep scan is actively running.
-- [ ] Test scanning performance on folders containing 10,000+ files.
-- [ ] Provide a manual 'Cancel Scan' button to halt the background thread.
+- [x] Implement a maximum depth limit to prevent infinite recursion in complex directory trees.
+- [x] Handle circular symlinks that could cause scanning loops.
+- [x] Ensure the UI visually indicates that a deep scan is actively running.
+- [x] Test scanning performance on folders containing 10,000+ files.
+- [x] Provide a manual 'Cancel Scan' button to halt the background thread.
 
-**2.3 Real-time file extension filtering (.mkv, .mp4, .avi, .mov, etc.).** (Incomplete)
+**2.3 Real-time file extension filtering (.mkv, .mp4, .avi, .mov, etc.).** (Complete)
 
-- [ ] Ensure file extension matching is entirely case-insensitive (.MKV vs .mkv).
-- [ ] Handle edge cases with double extensions (e.g., `video.tar.gz` skipped, `video.mkv` parsed).
-- [ ] Provide a settings option to manually add or remove supported formats.
-- [ ] Verify hidden OS files (like `.DS_Store` or `Thumbs.db`) are strictly ignored.
-- [ ] Test behavior when a valid file extension masks a corrupted or zero-byte file.
+- [x] Ensure file extension matching is entirely case-insensitive (.MKV vs .mkv).
+- [x] Handle edge cases with double extensions (e.g., `video.tar.gz` skipped, `video.mkv` parsed).
+- [x] Provide a settings option to manually add or remove supported formats.
+- [x] Verify hidden OS files (like `.DS_Store` or `Thumbs.db`) are strictly ignored.
+- [x] Test behavior when a valid file extension masks a corrupted or zero-byte file.
 
-**2.7 Non-blocking background thread execution for massive directory scans.** (Incomplete)
+**2.7 Non-blocking background thread execution for massive directory scans.** (Complete)
 
-- [ ] Ensure the UI remains 60FPS responsive while scanning a 5TB drive.
-- [ ] Implement a progress channel sending batch updates to React rather than single file events.
-- [ ] Handle thread panics gracefully if the drive is unexpectedly ejected.
-- [ ] Test pausing and resuming the scan queue.
-- [ ] Ensure CPU prioritization is set to lower levels so system performance isn't tanked.
+- [x] Ensure the UI remains 60FPS responsive while scanning a 5TB drive.
+- [x] Implement a progress channel sending batch updates to React rather than single file events.
+- [x] Handle thread panics gracefully if the drive is unexpectedly ejected.
+- [x] Test pausing and resuming the scan queue.
+- [x] Ensure CPU prioritization is set to lower levels so system performance isn't tanked.
 
 ## Micro-Feature 10: Regex String Parsing
 

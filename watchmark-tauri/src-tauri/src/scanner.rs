@@ -129,6 +129,8 @@ pub fn scan_directory(
     directory: &str,
     conn: &mut Connection,
     app_handle: &AppHandle,
+    cancel_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    supported_extensions: &[String],
 ) -> Result<i32> {
     tracing::info!("[BACKEND] 🔍 Scanning root directory... ");
     let mut new_unmatched_count = 0;
@@ -162,7 +164,13 @@ pub fn scan_directory(
         }
     }
 
-    for entry in WalkDir::new(scan_path).into_iter().filter_map(|e| {
+    let mut visited_inodes = std::collections::HashSet::new();
+
+    for entry in WalkDir::new(scan_path).max_depth(15).follow_links(true).into_iter().filter_map(|e| {
+        if cancel_flag.load(std::sync::atomic::Ordering::SeqCst) {
+            tracing::info!("[BACKEND] 🛑 Scanner gracefully halted via Cancel signal.");
+            return None;
+        }
         match e {
             Ok(entry) => Some(entry),
             Err(err) => {
@@ -178,17 +186,113 @@ pub fn scan_directory(
         }
     }) {
         let path = entry.path();
-        if path.is_file() {
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if let Ok(meta) = std::fs::metadata(&path) {
+                let id = (meta.dev(), meta.ino());
+                if !visited_inodes.insert(id) {
+                    tracing::warn!("Circular symlink detected, skipping: {}", path.display());
+                    continue;
+                }
+            }
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            if let Ok(meta) = std::fs::metadata(&path) {
+                if let Some(ino) = meta.file_index() {
+                    let id = (meta.volume_serial_number().unwrap_or(0), ino);
+                    if !visited_inodes.insert(id) {
+                        tracing::warn!("Circular symlink detected, skipping: {}", path.display());
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // Timeout-wrapped metadata read (for network drives)
+        let (is_file, file_size) = {
+            let p = path.to_path_buf();
+            let p_clone = p.clone();
+            let (tx_meta, rx_meta) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let meta = std::fs::metadata(&p_clone);
+                let _ = tx_meta.send(meta);
+            });
+            match rx_meta.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(Ok(m)) => (m.is_file(), m.len() as i64),
+                Ok(Err(e)) => {
+                    tracing::warn!("Failed to read metadata for {}: {}", p.display(), e);
+                    continue; // Skip this file
+                }
+                Err(_) => {
+                    return Err(rusqlite::Error::SqliteFailure(
+                        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_IOERR),
+                        Some("Drive Disconnected or timed out during scan".to_string()),
+                    ));
+                }
+            }
+        };
+
+        if is_file {
+            let file_name_str = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let is_hidden = file_name_str.starts_with('.') ||
+                ["thumbs.db", "desktop.ini", ".ds_store"].contains(&file_name_str.to_lowercase().as_str());
+
+            #[cfg(windows)]
+            let is_hidden = is_hidden || {
+                use std::os::windows::fs::MetadataExt;
+                if let Ok(meta) = std::fs::metadata(&path) {
+                    (meta.file_attributes() & 2) != 0 // FILE_ATTRIBUTE_HIDDEN
+                } else {
+                    false
+                }
+            };
+
+            if is_hidden {
+                continue;
+            }
+
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if VIDEO_EXTENSIONS.contains(&ext.to_lowercase().as_str()) {
+                let ext_lower = ext.to_lowercase();
+
+                // Exclude common double extensions / archive files
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    let stem_lower = stem.to_lowercase();
+                    if stem_lower.ends_with(".tar") || stem_lower.ends_with(".part") {
+                        continue;
+                    }
+                }
+
+                if supported_extensions.contains(&ext_lower) {
                     let filename = path.file_name().unwrap().to_string_lossy().to_string();
                     let (series_name, season_num, episode_num) = parse_filename(&filename);
                     let str_path = path.to_string_lossy().to_string();
 
-                    let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) as i64;
                     if file_size == 0 {
                         tracing::warn!("Bit-Rot or Empty File Detected: {}", str_path);
+                        continue;
                     }
+
+                    // Fast Metadata Read (4KB check)
+                    let mut is_corrupt = false;
+                    if let Ok(mut file) = std::fs::File::open(&path) {
+                        use std::io::Read;
+                        let mut buffer = [0; 4096];
+                        if let Err(e) = file.read(&mut buffer) {
+                            tracing::warn!("Corrupt File Detected (Failed fast read): {} ({})", str_path, e);
+                            is_corrupt = true;
+                        }
+                    } else {
+                        is_corrupt = true;
+                    }
+
+                    if is_corrupt {
+                        continue;
+                    }
+
 
                     let mut matched_ep_id: Option<i32> = None;
 
@@ -352,8 +456,8 @@ pub fn scan_directory(
                                 group_key_clone,
                             ));
 
-                            // Process in chunks of 500
-                            if unmatched_insert_buffer.len() >= 500 {
+                            // Process in chunks of 100 for 10,000+ files low memory footprint
+                            if unmatched_insert_buffer.len() >= 100 {
                                 let mut insert_stmt = tx.prepare_cached(
                                     "INSERT OR IGNORE INTO Unmatched_Files (file_path, filename, parsed_series, parsed_season, parsed_episode, group_key) VALUES (?, ?, ?, ?, ?, ?)"
                                 )?;
