@@ -348,11 +348,11 @@ This document represents the complete functional blueprint and state of the Watc
 
 **16.9 TMDB API Key text input, validation, and persistent local storage.** (Incomplete)
 
-- [ ] Verify text input obscures the string visually (using `type='password'`) for security.
-- [ ] Ensure changing the key triggers a background validation test instantly against TMDB.
-- [ ] Handle edge cases where the user accidentally copies surrounding whitespace characters.
-- [ ] Test storing the value securely, overriding any previous configuration seamlessly.
-- [ ] Ensure a 'Test Connection' button explicitly returns a 'Success' or 'Failure' visual cue.
+- [x] Verify text input obscures the string visually (using `type='password'`) for security.
+- [x] Ensure changing the key triggers a background validation test instantly against TMDB.
+- [x] Handle edge cases where the user accidentally copies surrounding whitespace characters.
+- [x] Test storing the value securely, overriding any previous configuration seamlessly.
+- [x] Ensure a 'Test Connection' button explicitly returns a 'Success' or 'Failure' visual cue.
 
 ## Micro-Feature 7: TMDB Search Execution & UI
 
@@ -368,27 +368,27 @@ This document represents the complete functional blueprint and state of the Watc
 
 **16.1 Dedicated TMDB Search full-page UI.** (Incomplete)
 
-- [ ] Verify the search container utilizes maximum available width for expansive visual layout.
-- [ ] Ensure visual parity aligns strictly with the primary Dashboard interface.
-- [ ] Handle edge cases where the search page is bookmarked or refreshed directly in the browser.
-- [ ] Test responsive design breaking the grid smoothly on narrow or extremely wide monitors.
-- [ ] Ensure a prominent 'Back to Dashboard' or global close button exists in the upper left.
+- [x] Verify the search container utilizes maximum available width for expansive visual layout.
+- [x] Ensure visual parity aligns strictly with the primary Dashboard interface.
+- [x] Handle edge cases where the search page is bookmarked or refreshed directly in the browser.
+- [x] Test responsive design breaking the grid smoothly on narrow or extremely wide monitors.
+- [x] Ensure a prominent 'Back to Dashboard' or global close button exists in the upper left.
 
 **16.2 Live search input handling with <Enter> key triggers.** (Incomplete)
 
-- [ ] Verify pressing 'Enter' instantly fires the request to the TMDB API.
-- [ ] Ensure input debouncing prevents accidental network spam if the user types rapidly.
-- [ ] Handle edge cases where the user searches for purely empty spaces (should reset UI or ignore).
-- [ ] Test standard clear buttons ('X' icon inside the input) rapidly resetting the view state.
-- [ ] Ensure the input field is automatically focused whenever the page is initially loaded.
+- [x] Verify pressing 'Enter' instantly fires the request to the TMDB API.
+- [x] Ensure input debouncing prevents accidental network spam if the user types rapidly.
+- [x] Handle edge cases where the user searches for purely empty spaces (should reset UI or ignore).
+- [x] Test standard clear buttons ('X' icon inside the input) rapidly resetting the view state.
+- [x] Ensure the input field is automatically focused whenever the page is initially loaded.
 
 **16.3 API HTTP Error / Invalid Key graceful error toast catchers.** (Incomplete)
 
-- [ ] Verify the UI explicitly renders a descriptive red toast error upon a 401 Unauthorized TMDB response.
-- [ ] Ensure network timeouts trigger specific text ('Unable to reach TMDB. Check connection').
-- [ ] Handle edge cases where an error occurs silently in the background (log to console instead of spamming user).
-- [ ] Test toast dismissal explicitly allowing users to clear them immediately.
-- [ ] Ensure failing API calls never crash the entire React application shell.
+- [x] Verify the UI explicitly renders a descriptive red toast error upon a 401 Unauthorized TMDB response.
+- [x] Ensure network timeouts trigger specific text ('Unable to reach TMDB. Check connection').
+- [x] Handle edge cases where an error occurs silently in the background (log to console instead of spamming user).
+- [x] Test toast dismissal explicitly allowing users to clear them immediately.
+- [x] Ensure failing API calls never crash the entire React application shell.
 
 **16.4 Network disconnect / Offline mode detection and UI notification.** (Incomplete)
 
