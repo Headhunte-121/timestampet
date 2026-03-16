@@ -21,7 +21,7 @@ export default function InboxView({ onMatch }: any) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { setScanning, activeSyncs } = useTaskStore();
+  const { setScanning, activeSyncs, isScanning } = useTaskStore();
   const asyncInvoke = useAsyncInvoke();
 
   useEffect(() => {
@@ -188,13 +188,27 @@ export default function InboxView({ onMatch }: any) {
           >
             Clear Inbox
           </button>
-          <button
-            onClick={triggerScan}
-            className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors"
-          >
-            <FolderSearch className="w-5 h-5" />
-            Scan Directory
-          </button>
+          {isScanning ? (
+              <button
+                  onClick={() => {
+                      import('@tauri-apps/api/core').then(({ invoke }) => {
+                          invoke('cancel_active_scan').catch(console.error);
+                      });
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-red-600/80 hover:bg-red-500 text-white font-bold rounded-lg transition-colors"
+              >
+                  <FolderSearch className="w-5 h-5" />
+                  Cancel Scan
+              </button>
+          ) : (
+              <button
+                  onClick={triggerScan}
+                  className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-lg transition-colors"
+              >
+                  <FolderSearch className="w-5 h-5" />
+                  Scan Directory
+              </button>
+          )}
         </div>
       </div>
 

@@ -265,6 +265,7 @@ fn main() {
                 read_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(pool_size)),
                 cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
                 failed_image_syncs: failed_image_sync_queue.clone(),
+                is_scan_cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             });
             tracing::info!("[APP] ⚙️ AppState successfully managed by Tauri. Thread pool restricted to {}", pool_size);
 
@@ -705,6 +706,7 @@ fn main() {
             commands::fetch_unmatched_files,
             commands::fetch_history,
             commands::run_scan_directory,
+            commands::cancel_active_scan,
             commands::perform_tmdb_search,
             commands::validate_tmdb_key,
             commands::assign_unmatched_to_tracker,
