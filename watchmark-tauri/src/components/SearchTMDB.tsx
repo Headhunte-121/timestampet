@@ -131,7 +131,7 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
   });
 
   return (
-    <div className="max-w-[1800px] mx-auto px-10 pt-24 relative">
+    <div className="max-w-[1800px] mx-auto px-6 py-24 pb-24 relative">
       <div className="flex items-center gap-4 mb-8 justify-between">
         <h1 className="text-4xl font-extrabold tracking-tight">Discover Media</h1>
         <div className="flex items-center bg-[#1F222A] p-1 rounded-full border border-white/5 shadow-inner">
@@ -230,7 +230,7 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
       </form>
 
       <div className={cn(
-        "gap-6 pb-24",
+        "gap-6 md:gap-8 pb-24",
         filteredResults.length <= 2 && filteredResults.length > 0 ? "flex justify-center max-w-3xl mx-auto" : "grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))]"
       )}>
         {filteredResults.map((item, i) => (

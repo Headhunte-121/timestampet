@@ -10,11 +10,15 @@
   }
 
   h1, h2, h3 {
-    @apply text-white font-bold;
+    @apply text-[#FFFFFF] font-bold;
   }
 
-  p, span, .secondary-text {
-    @apply text-[#8E929C] font-normal;
+  h1 {
+      @apply tracking-tighter;
+  }
+
+  p, span, label, .secondary-text {
+    @apply text-[#A0AEC0] font-normal;
   }
 }
 
@@ -129,4 +133,9 @@ img[src$=".png"] {
 
 .active-glow {
   box-shadow: 0 0 20px rgba(255, 107, 0, 0.2);
+}
+
+/* Double-Guard for High-Brightness background text */
+.text-double-guard {
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }

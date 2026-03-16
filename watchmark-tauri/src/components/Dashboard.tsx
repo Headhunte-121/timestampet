@@ -155,16 +155,17 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             // SafeImage now returns a wrapper div when type="backdrop" containing motion.img
           />
           {/* Layered directional gradient: Bottom-left pure black fading up to top-right transparent */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] via-[#0D0F14]/80 to-transparent" />
 
-          <div className="absolute bottom-8 left-8 w-full max-w-2xl z-10">
-            <h2 className="text-[#FF6B00] font-bold tracking-widest text-xs mb-2 uppercase drop-shadow-md">
+          <div className="absolute bottom-8 left-8 w-full max-w-2xl z-10 text-double-guard">
+            <h2 className="text-[#FF6B00] font-bold tracking-widest text-xs mb-2 uppercase text-double-guard">
               {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume Session" : "Up Next"}
             </h2>
-            <h1 className="text-5xl font-black text-white mb-2 tracking-tight truncate drop-shadow-lg">
+            <h1 className="text-5xl font-black text-white mb-2 tracking-tighter truncate text-double-guard">
               {data.hero_ep.show_title || "Unknown Show"}
             </h1>
-            <p className="text-lg text-muted mb-6 truncate drop-shadow-md font-medium">
+            <p className="text-lg text-muted mb-6 truncate font-medium text-double-guard">
               {data.hero_ep.media_type === "TV"
                 ? `S${String(data.hero_ep.season_num).padStart(2, '0')}E${String(data.hero_ep.ep_num).padStart(2, '0')} - ${data.hero_ep.title || 'Unknown Episode'}`
                 : data.hero_ep.title || "No Title"}
