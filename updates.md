@@ -521,6 +521,20 @@ Implemented robust native OS window frame integrations and window geometry resto
 - Added dynamic FFmpeg duration override during VLC heartbeat checking if the local file length differs from the TMDB estimated runtime by > 2 minutes.
 - Secured Dashboard metrics against null runtimes using proper `COALESCE` arithmetic in SQL aggregates.
 
+### [2.10] Path collision detection & [2.11] Symlink and shortcut resolution & [15.1] Split-pane layout architecture (Inbox)
+- Updated `scanner.rs` to implement a "Pre-Check Cache", reading existing paths in `Local_Files` and `Unmatched_Files` upfront to provide O(1) skipping logic during scanning.
+- Handled Windows case-insensitivity requirements by implementing path normalization. For Windows, UNC path prefixes (`\\?\`) are stripped and the path is converted to lowercase for consistency in DB.
+- Implemented Migration Detection: before scanning, missing files (`!Path::exists`) are recorded. If an unmatched file matches the size and filename of a missing file, it updates the `Local_Files` DB entry rather than deleting and re-inserting.
+- Implemented `ON CONFLICT` updates and collision management during file mapping.
+- Added `parselnk` crate to resolve Windows `.lnk` files, extracting the target `relative_path` or `local_base_path`.
+- Leveraged `fs::canonicalize` for Unix symlinks and `.lnk` targets, resolving to final true filesystem terminal targets.
+- Maintained infinite recursion and Cyclic Link protection via the existing `visited_inodes` cache. Log warning on loop abort.
+- Enforced `UNIQUE` constraints via DB migration PRAGMA (v17) recreating tables with `UNIQUE` column types.
+- Updated `InboxView.tsx` with tailwind layout to match responsive `lg:flex-row flex-col` logic.
+- Added hidden scrollbar UI via `.scrollbar-hide`. Active item is highlighted using `bg-[#FF6B00]/10` with a 2px `border-[#FF6B00]` indicator on the left side.
+- Implemented Empty UI instruction view showing a `FolderSearch` icon from `lucide-react` with specific copy.
+- Fully checked `npm run build` and `cargo check` successfully.
+
 ### Task 2.1: Native OS directory selection dialog
 * **Directory-only restriction enforcement**: Integrated `directory: true` into all `@tauri-apps/plugin-dialog` `open` calls in `SettingsView.tsx` and `InboxView.tsx`. Double-verified backend string paths by utilizing `std::fs::metadata(&directory).map(|m| m.is_dir())` inside `run_scan_directory` prior to initiating the walkdir thread.
 * **Graceful cancellation handling**: Modified the `open` callbacks inside the frontend to include an early exit `if (!selected) return;`, ensuring no null errors or toast "False Alarm" failures are thrown when users cancel out of the OS window prompt natively.
