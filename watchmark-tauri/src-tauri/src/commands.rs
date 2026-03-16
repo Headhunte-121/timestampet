@@ -462,6 +462,11 @@ pub async fn get_available_modules() -> Result<HashMap<String, String>, AppError
 }
 
 #[tauri::command]
+pub fn get_app_data_dir() -> Result<String, AppError> {
+    Ok(crate::db::get_app_data_dir().to_string_lossy().to_string())
+}
+
+#[tauri::command]
 #[tracing::instrument(level = "debug")]
 pub fn get_media_history_count(media_id: i32) -> Result<i32, AppError> {
     handle_panic(|| {
