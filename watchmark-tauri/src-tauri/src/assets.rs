@@ -1,6 +1,6 @@
 use crate::db::get_app_data_dir;
 
-const FONT_URL: &str = "https://github.com/rsms/inter/releases/download/v4.0/Inter-Variable.woff2";
+const FONT_URL: &str = "https://git.science.uu.nl/graphpolaris/frontend-v2/-/raw/v1.136.0/public/fonts/inter/InterVariable.woff2";
 
 #[tracing::instrument]
 pub async fn ensure_fonts() -> Result<(), crate::error::AppError> {
