@@ -538,37 +538,37 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Strip the junk text out of scanned filenames.**
 
-**2.4 Complex Regex Engine: Extracts Series Name, Season, and Episode from standard SxxExx formats.** (Incomplete)
+**2.4 Complex Regex Engine: Extracts Series Name, Season, and Episode from standard SxxExx formats.** (Complete)
 
-- [ ] Handle spaces, dots, and hyphens preceding the SxxExx block.
-- [ ] Ensure single-digit seasons and episodes (e.g., S1E5) parse equally well as S01E05.
-- [ ] Handle multi-episode files gracefully (e.g., S01E01-E02).
-- [ ] Verify text following the episode block (like episode titles) is cleanly stripped.
-- [ ] Test edge cases where the series name contains numbers matching the regex.
+- [x] Handle spaces, dots, and hyphens preceding the SxxExx block.
+- [x] Ensure single-digit seasons and episodes (e.g., S1E5) parse equally well as S01E05.
+- [x] Handle multi-episode files gracefully (e.g., S01E01-E02).
+- [x] Verify text following the episode block (like episode titles) is cleanly stripped.
+- [x] Test edge cases where the series name contains numbers matching the regex.
 
-**2.5 Complex Regex Engine: Parses alternative TV formats (e.g., Sxx.Exx, [Sxx][Exx]).** (Incomplete)
+**2.5 Complex Regex Engine: Parses alternative TV formats (e.g., Sxx.Exx, [Sxx][Exx]).** (Complete)
 
-- [ ] Handle bracketed formats often used in anime releases.
-- [ ] Parse explicit 'Season X Episode Y' full text strings.
-- [ ] Ensure year-based episode formats (e.g., 2023.10.05) fall back to specific parsing logic.
-- [ ] Verify absolute episode numbers (e.g., Episode 105 instead of S3E05) flag for manual review.
-- [ ] Test edge cases where multiple format styles appear in the same filename.
+- [x] Handle bracketed formats often used in anime releases.
+- [x] Parse explicit 'Season X Episode Y' full text strings.
+- [x] Ensure year-based episode formats (e.g., 2023.10.05) fall back to specific parsing logic.
+- [x] Verify absolute episode numbers (e.g., Episode 105 instead of S3E05) flag for manual review.
+- [x] Test edge cases where multiple format styles appear in the same filename.
 
-**2.6 Complex Regex Engine: Parses Movie formats extracting Title and (Year).** (Incomplete)
+**2.6 Complex Regex Engine: Parses Movie formats extracting Title and (Year).** (Complete)
 
-- [ ] Extract the year strictly from 4-digit blocks surrounded by parenthesis or brackets.
-- [ ] Ensure resolutions like '1080p' or '4K' are not mistaken for a release year.
-- [ ] Handle edge cases where the movie title itself contains a year (e.g., 'Blade Runner 2049 (2017)').
-- [ ] Verify standard release group tags are ignored during title extraction.
-- [ ] Test titles with colons or hyphens replacing spaces.
+- [x] Extract the year strictly from 4-digit blocks surrounded by parenthesis or brackets.
+- [x] Ensure resolutions like '1080p' or '4K' are not mistaken for a release year.
+- [x] Handle edge cases where the movie title itself contains a year (e.g., 'Blade Runner 2049 (2017)').
+- [x] Verify standard release group tags are ignored during title extraction.
+- [x] Test titles with colons or hyphens replacing spaces.
 
-**2.8 Automated String-Cleaning (removing dots, underscores, resolution tags).** (Incomplete)
+**2.8 Automated String-Cleaning (removing dots, underscores, resolution tags).** (Complete)
 
-- [ ] Strip all known codec tags (x264, x265, HEVC, AAC).
-- [ ] Remove resolution tags (720p, 1080p, 4K, 2160p).
-- [ ] Replace periods and underscores with standard space characters.
-- [ ] Handle edge cases where the actual show title contains dots (e.g., 'Mr. Robot').
-- [ ] Verify trailing hyphens and brackets are entirely trimmed.
+- [x] Strip all known codec tags (x264, x265, HEVC, AAC).
+- [x] Remove resolution tags (720p, 1080p, 4K, 2160p).
+- [x] Replace periods and underscores with standard space characters.
+- [x] Handle edge cases where the actual show title contains dots (e.g., 'Mr. Robot').
+- [x] Verify trailing hyphens and brackets are entirely trimmed.
 
 ## Micro-Feature 11: File Matching & Inbox Staging
 
