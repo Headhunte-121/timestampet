@@ -11,7 +11,7 @@ Whenever you finish implementing a specific task (referred to dynamically as `[T
 
 ### 2. Update the Progress Log (`update.md`)
 * Open `update.md`.
-* Add a new section for the current `[TASK_ID]` at the bottom of the document and summarize the updates, changes, and implementations made during this commit.
+* Add a new section for the current `[TASK_ID]` at the bottom of the document and summarize the updates, changes, and implementations made during this commit it sould be very detailed explaining exatly what you did.
 
 ### 3. Working Directory & Architecture Rules
 * **Rust Backend:** All Rust code, `Cargo.toml`, and database schemas reside inside `watchmark-tauri/src-tauri`. You must navigate to this directory before running any `cargo` commands.
