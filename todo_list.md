@@ -466,6 +466,38 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test aggregation math against locally tracked vs globally available numbers.
 - [ ] Ensure discrepancies between local files and TMDB counts highlight missing files.
 
+**3.7 High-resolution primary Poster image extraction.** (Incomplete)
+
+- [ ] Target specific TMDB image width configurations (e.g., `w500` or `original`).
+- [ ] Ensure fallbacks are strictly enforced if the primary locale poster is missing.
+- [ ] Handle corrupt or incomplete image byte streams during download.
+- [ ] Test image fetching on extremely slow connections to ensure timeouts don't hang the app.
+- [ ] Verify that poster dimensions are enforced regardless of the source aspect ratio.
+
+**3.8 High-resolution cinematic Backdrop image extraction.** (Complete)
+
+- [x] Target `w1280` or `original` paths for crisp high-dpi display.
+- [x] Handle edge cases where a show has zero backdrops available on TMDB.
+- [x] Ensure backdrops are completely stripped of textual logos if clean variants exist.
+- [x] Test memory usage when rendering 10+ backdrops in memory simultaneously.
+- [x] Verify backdrop loading states show smooth CSS skeleton pulses.
+
+**3.9 Episode-specific 16:9 still-image extraction.** (Incomplete)
+
+- [ ] Ensure missing episode stills fall back to the show's main backdrop automatically.
+- [ ] Handle API rate limiting strictly, as querying 200 episode images simultaneously will fail.
+- [ ] Test edge cases where the still image is flagged as a spoiler and blurred.
+- [ ] Verify the exact 16:9 crop is maintained in the UI regardless of the raw image.
+- [ ] Ensure cached stills are tied to the specific episode ID.
+
+**3.14 Accurate Runtime/Duration metadata pulling.** (Incomplete)
+
+- [ ] Handle API responses where runtime is an array instead of an integer.
+- [ ] Ensure missing runtimes default to a sensible value (e.g., 0) for math calculations.
+- [ ] Test edge cases where runtimes are extremely long (e.g., 200+ minute movies).
+- [ ] Verify runtime updates dynamically if local file FFmpeg length overrides TMDB data.
+- [ ] Ensure UI cleanly formats 135m as '2h 15m'.
+
 ## Micro-Feature 9: Local Scanner Core Engine
 
 **Goal: Pick a folder on the hard drive and find video files.**
@@ -697,6 +729,38 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Handle edge cases where users lack a scroll wheel (provide optional left/right arrow buttons).
 - [ ] Test smooth scrolling CSS properties to ensure flick-scrolling feels natural.
 - [ ] Ensure hiding the scrollbar doesn't accidentally disable keyboard accessibility (arrow keys).
+
+**9.5 Always-on Top-Right Star Rating pill (Conditionally rendered if rated > 0).** (Incomplete)
+
+- [ ] Verify the pill is absolutely positioned specifically in the top right corner (`top-2 right-2`).
+- [ ] Ensure it correctly evaluates the `user_rating` column, completely ignoring the TMDB `vote_average`.
+- [ ] Handle edge cases where the value is 0 or null (the pill must completely vanish).
+- [ ] Test the text formatting strictly outputs a string like '★ 4' or '★ 5/5'.
+- [ ] Ensure the background is a translucent black to remain visible on bright white posters.
+
+**9.6 Always-on Bottom-Left Original Release Year pill.** (Incomplete)
+
+- [ ] Verify the pill accurately extracts purely the 4-digit Year string from `release_date`.
+- [ ] Ensure the styling utilizes a completely solid dark badge to ground the poster base.
+- [ ] Handle edge cases where the year is entirely unknown or null (do not display 'NaN' or '1970').
+- [ ] Test exact absolute positioning to avoid overlapping with bottom progress bars.
+- [ ] Ensure font size is tiny but highly legible (e.g., `text-xs`).
+
+**9.7 Absolute bottom-edge library progress bar (Gray = Unwatched, Half Orange = Watching, Green = Finished).** (Incomplete)
+
+- [ ] Verify mathematical logic perfectly calculates width percentage based on `completed_episodes / total_episodes`.
+- [ ] Ensure the width transitions correctly (Gray for 0%, Orange for 1-99%, Green strictly for 100%).
+- [ ] Handle edge cases where the show is 'Ended' but only 3 episodes ever aired.
+- [ ] Test absolute positioning locking the bar to the lowest possible pixel of the poster.
+- [ ] Ensure corner radius rounding neatly clips the bar without jutting out as a square.
+
+**9.16 Friendly empty-state illustration/text for libraries with 0 items.** (Incomplete)
+
+- [ ] Verify the exact text encourages the user to 'Scan for Files' or add media.
+- [ ] Ensure the component is perfectly horizontally and vertically centered.
+- [ ] Handle edge cases where a library is empty purely due to aggressive filtering, not a zero-item DB.
+- [ ] Test an appropriate massive, dim Lucide-React icon renders beautifully in the center.
+- [ ] Ensure the 'Hide Completed' toggle explicitly vanishes to avoid UI clutter in this state.
 
 ## Micro-Feature 15: Media Details View (Header & Backdrop)
 
@@ -1122,6 +1186,14 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test the absolute positioning specifically anchors it flush to the bottom corners.
 - [ ] Ensure rounded card corners cleanly clip the sharp edges of the progress bar.
 
+**8.14 'Recently Added' horizontal carousel highlighting new local scans.** (Incomplete)
+
+- [ ] Verify it sorts strictly by the local `id` descending (most recent scans).
+- [ ] Ensure it renders standard 2:3 posters, distinct from the 16:9 Continue Watching cards.
+- [ ] Handle edge cases where newly added items are instantly completed by the user.
+- [ ] Test the carousel limit (e.g., strictly max out at 20 items to prevent infinite scrolling).
+- [ ] Ensure hover overlays correctly trigger the orange Play button over the poster.
+
 ## Micro-Feature 25: UI Checkmarks & Interactive Mutators
 
 **Goal: Allow users to click checkmarks, rate shows, and resume properly.**
@@ -1157,6 +1229,30 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Verify VLC accepts the flag and jumps instantly without dropping video frames.
 - [ ] Test behavior when `last_position` is explicitly 0.
 - [ ] Ensure resuming doesn't break external subtitle file loading.
+
+**11.5 Interactive 5-star clicking component for user ratings.** (Incomplete)
+
+- [ ] Verify hover states exactly fill the hovered star and strictly all stars preceding it.
+- [ ] Ensure clicking instantly triggers the queue to push a UI update into SQLite.
+- [ ] Handle edge cases where a user rapid-clicks stars (debounce logic must prevent database locking).
+- [ ] Test zero-rating functionality (e.g., clicking a filled star again completely unrates it).
+- [ ] Ensure stars precisely utilize the `text-[#FF6B00]` color when active.
+
+**11.6 Instant UI star color mutation on click (Pushes DB update via queue).** (Incomplete)
+
+- [ ] Verify React state mutates the local array instantly without waiting for a Rust callback.
+- [ ] Ensure the queue strictly processes the `UPDATE media SET user_rating` via a dedicated background thread.
+- [ ] Handle edge cases where the SQLite queue completely crashes, seamlessly reverting the UI state.
+- [ ] Test performance when rating 20 shows in 20 seconds.
+- [ ] Ensure no full-page re-renders are triggered by this specific action.
+
+**11.8 '▶ Play Next' global action button (Automatically finds the lowest SxxExx unwatched file).** (Incomplete)
+
+- [ ] Verify Rust querying exactly mimics the complex algorithm from the Dashboard Hero.
+- [ ] Ensure it completely disables if no local files exist for unwatched episodes.
+- [ ] Handle edge cases where episode 3 is missing, but episode 4 exists (it should strictly play episode 4).
+- [ ] Test the exact `last_position` parameter properly routing to VLC.
+- [ ] Ensure the button utilizes the solid vibrant Orange fill.
 
 ## Micro-Feature 26: History/Timeline UI Foundation
 
@@ -1201,6 +1297,30 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Handle edge cases explicitly where the OS lacks a strictly valid timezone (fallback directly to UTC).
 - [ ] Test strict formatting specifically stripping seconds strictly outputting '4:30 PM'.
 - [ ] Ensure backdated explicit string logic purely ignores timezone specifically outputting 'Unknown Time'.
+
+**13.10 Sub-episode pause timestamp tracking text (Paused at 22:15 | 11:30 PM).** (Incomplete)
+
+- [ ] Verify text accurately extracts the specific pause timestamp formatting it perfectly for the UI.
+- [ ] Ensure exact mathematical conversions explicitly output human-readable formats like `1h 22m` or `15m`.
+- [ ] Handle edge cases where the UI specifically completely skips rendering this string if the file was purely marked complete instead of naturally watched.
+- [ ] Test standard explicitly formatting precisely outputting the text cleanly inside the history rows.
+- [ ] Ensure explicitly specifically the text contrasts properly.
+
+**13.11 'My Watch Date vs. Original Air Date' timeline subtext comparison string.** (Incomplete)
+
+- [ ] Verify standard math explicitly subtracts the database history timestamp specifically from the extracted air date.
+- [ ] Ensure specifically the string explicitly renders 'Watched 2 years after airing' perfectly correctly.
+- [ ] Handle edge cases exactly specifically where the math entirely resolves precisely to 0 days (render 'Watched on premiere day').
+- [ ] Test explicitly specifically hiding this string entirely perfectly specifically if the air date is purely completely unknown.
+- [ ] Ensure completely exactly specifically the specific exactly UI renders it elegantly specifically.
+
+**13.12 Click-to-navigate routing from a History entry directly to the Media Details page.** (Incomplete)
+
+- [ ] Verify specific exactly exactly standard React Router specifically explicitly strictly navigating specifically perfectly to the `/media/:id` page.
+- [ ] Ensure specifically precisely perfectly preserving specific entirely strictly scrolling explicitly precisely exactly perfectly specifically exactly correctly entirely.
+- [ ] Handle edge cases strictly exactly entirely specifically perfectly specifically precisely specifically perfectly specifically completely exactly entirely specifically.
+- [ ] Test explicitly specifically clicking explicitly entirely specifically completely perfectly exactly specifically correctly specifically entirely perfectly specifically completely perfectly.
+- [ ] Ensure exactly perfectly entirely completely perfectly exactly completely exactly specifically perfectly completely exactly perfectly completely exactly perfectly specifically perfectly entirely perfectly.
 
 ## Micro-Feature 27: Timeline Grouping (Binge-Blocks)
 
@@ -1273,6 +1393,38 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Handle edge cases where 50 episodes must squeeze into a 28-day February.
 - [ ] Test explicit `is_legacy` boolean strictly being flagged as `1` on all these mass insertions.
 - [ ] Ensure the UI correctly groups these newly inserted blocks accurately under the selected Year/Month.
+
+**14.6 Legacy Binge-Block generation (Creates static, non-expandable cards for old shows).** (Incomplete)
+
+- [ ] Verify specifically that history rows flagged as `is_legacy` entirely bypass the standard 6-hour grouping logic.
+- [ ] Ensure the UI perfectly rolls up hundreds of legacy rows strictly into a singular 'March 2015' static block.
+- [ ] Handle edge cases where expanding specifically does nothing to avoid crashing the DOM with thousands of list items.
+- [ ] Test visual differences specifically applying a 'Archive' icon instead of the vibrant orange play arrow.
+- [ ] Ensure legacy blocks strictly sort beneath precise daily blocks in the timeline.
+
+**14.7 'Legacy' tag UI rendering for library items without specific daily timestamps.** (Incomplete)
+
+- [ ] Verify hovering a completely archived poster accurately renders a strictly gray 'Legacy' badge.
+- [ ] Ensure the 'Last Viewed' math correctly overrides explicitly displaying 'Archived' instead of 'Unknown days ago'.
+- [ ] Handle edge cases where a show contains both Legacy and modern Active history (display the most recent active).
+- [ ] Test library filtering specifically specifically allowing users to hide 'Legacy' items if desired.
+- [ ] Ensure standard text specifically reads 'Backdated' or 'Archived' strictly matching user expectation.
+
+**14.8 'Archive' checkbox conditionally added to global 'Mark All Watched' popup.** (Incomplete)
+
+- [ ] Verify clicking the primary top-level header button clearly exposes this checkbox specifically.
+- [ ] Ensure default state strictly leaves the box unchecked to prevent accidental mass deletion of context.
+- [ ] Handle edge cases explicitly where the entire show strictly spans thousands of episodes (e.g., One Piece).
+- [ ] Test strictly disabling the specific date pickers explicitly if 'Archive' is actively checked.
+- [ ] Ensure clear tooltip text warns the user that this action will permanently lack explicit timeline dates.
+
+**14.9 'Archive' checkbox conditionally added to the 'Add to Tracker' TMDB popup.** (Incomplete)
+
+- [ ] Verify strictly adding a totally new show directly from the TMDB Search results allows instant archiving.
+- [ ] Ensure specifically checking this box instantly downloads all metadata but marks strictly all episodes complete.
+- [ ] Handle edge cases where the show hasn't aired yet (the box should be completely disabled).
+- [ ] Test standard queueing strictly ensuring the metadata entirely finishes downloading before the archive flip.
+- [ ] Ensure the show instantly appears directly in the Library explicitly flagged as finished.
 
 ## Micro-Feature 29: Bulk Data Mutators
 
@@ -1465,6 +1617,86 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Handle edge cases where shows released in the exact same year sort alphabetically via a secondary constraint.
 - [ ] Test behavior with negative dates if legacy formats somehow trigger epoch bounds.
 - [ ] Ensure month and day are completely ignored if only Year sorting is intended.
+
+**9.14 Sort logic: 'My Top Rated' (user_rating DESC).** (Incomplete)
+
+- [ ] Verify shows strictly grouped by their exact integer (e.g., all 5-stars together).
+- [ ] Ensure the secondary constraint automatically sorts the grouped items alphabetically or by ID.
+- [ ] Handle edge cases where 0-star (unrated) shows are strictly relegated to the absolute bottom.
+- [ ] Test rapid UI updates ensuring a newly rated show leaps to the top instantly.
+- [ ] Ensure TMDB `vote_average` is absolutely ignored.
+
+**21.12 Persistent View State: The app remembers if you sorted Movies by Rating and TV by Added, saving it to LocalStorage.** (Incomplete)
+
+- [ ] Save the user's sorting choice in the background every time they change it.
+- [ ] Remember the settings for the Television library separate from the Movie library.
+- [ ] Load these settings silently the very next time the user opens the application.
+- [ ] Apply the same memory to whether the user prefers the grid view or the compact list view.
+- [ ] Make sure this invisible memory feature never accidentally slows down or breaks the app's loading speed.
+
+**21.13 "Clear All Filters" Pill: A floating action button that appears when any complex filters are active.** (Incomplete)
+
+- [ ] Watch carefully to see if the user has turned on more than one tricky filter at the exact same time.
+- [ ] Pop a beautiful, bright button onto the top of the screen offering to clear everything.
+- [ ] Wipe every single filter away instantly when the user clicks the button.
+- [ ] Return the movie library flawlessly back to its normal, unfiltered state.
+- [ ] Hide the bright button instantly the second the library goes back to normal.
+
+**21.14 Results Counter: Subtle text stating "Showing 42 of 150 items".** (Incomplete)
+
+- [ ] Place a very tiny, dim line of text at the top corner of the movie library.
+- [ ] Update the numbers instantly every time a new filter is clicked or a search is typed.
+- [ ] Count precisely how many total movies exist compared to what is currently visible.
+- [ ] Keep the text silent and invisible if the user is simply looking at their entire collection.
+- [ ] Make sure the numbers never accidentally overlap over any important buttons or posters.
+
+**21.15 Intersection Observer Rendering: Posters off-screen are replaced by empty divs to conserve DOM memory.** (Incomplete)
+
+- [ ] Watch silently to see which movie posters disappear off the top or bottom of the screen.
+- [ ] Remove the heavy picture from the computer's memory to keep the app running fast.
+- [ ] Leave a totally invisible, sized empty box in its place so the scrolling doesn't jump or break.
+- [ ] Put the picture right back into the box instantly before the user scrolls back to it.
+- [ ] Make sure the user never accidentally sees the blank boxes while scrolling normally.
+
+**21.16 Image Retry Logic: If a local cached image is corrupted, automatically attempt to re-download it from TMDB.** (Incomplete)
+
+- [ ] Notice instantly if a movie poster picture file is totally broken or won't load properly.
+- [ ] Try quietly in the background to download a fresh copy of the picture from the internet.
+- [ ] Replace the broken picture instantly on the screen the exact second the new one finishes downloading.
+- [ ] Stop trying permanently if the internet is down so the app doesn't freeze or crash.
+- [ ] Show the neat, beautiful gray placeholder box while the app is silently fixing the picture.
+
+**21.17 Type Iconography: In "All Search Results", overlay a tiny Movie clapperboard or TV icon to distinguish media types.** (Incomplete)
+
+- [ ] Look closely at mixed search results to see what kind of media they are.
+- [ ] Place a tiny, incredibly cute television icon in the corner of all the television shows.
+- [ ] Place a tiny movie clapperboard icon in the corner of all the standard feature films.
+- [ ] Keep these icons small so they don't cover up the actual title of the movie.
+- [ ] Hide the icons if the user is already specifically browsing just their TV or Movie libraries.
+
+**21.18 "Unwatched Only" Filter: Distinct from "Hide Completed"—this specifically hides anything you've started.** (Incomplete)
+
+- [ ] Add a brand new checkbox separate from the standard 'Hide Completed' button.
+- [ ] Hide every single movie or show that the user has even watched five minutes of.
+- [ ] Leave only the totally fresh, absolutely untouched movies on the screen.
+- [ ] Help the user easily find something brand new they haven't started yet.
+- [ ] Keep this filter compatible with all the other genre or sorting tools.
+
+**21.19 Library Multi-Select State: Allow users to Ctrl+Click multiple posters to Bulk Remove.** (Incomplete)
+
+- [ ] Let users hold down the Ctrl or Cmd key and click on several different movie posters.
+- [ ] Highlight every single poster they click so it is obvious they are selected.
+- [ ] Pop a new menu at the top of the screen offering a massive 'Delete All' button.
+- [ ] Remove every single chosen movie the instant the big button is pressed.
+- [ ] Un-highlight everything the exact second the user clicks anywhere else on the page.
+
+**21.20 "Pin to Top" Feature: Right-click a show to pin it, ensuring it stays at the top of the grid regardless of sort order.** (Incomplete)
+
+- [ ] Add a neat 'Pin to Top' button directly inside the custom right-click menu.
+- [ ] Move that specific movie poster to the absolute very first spot in the entire library.
+- [ ] Keep it locked in that number one spot even if the user changes how the list is sorted.
+- [ ] Add a tiny little thumbtack icon to the corner of the poster so it is obvious.
+- [ ] Un-pin the poster the second the user clicks the button again.
 
 ## Micro-Feature 33: "Quick-View" Hover Overlays
 
@@ -1762,6 +1994,38 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Skip showing anything if the database only has a summary for the whole show and not this exact season.
 - [ ] Update the text instantly the exact moment the user clicks a different season tab.
 
+**20.13 Micro-Refresh: Option to right-click and "Refresh Data" for a single episode rather than the whole show.** (Incomplete)
+
+- [ ] Give the user an option to update the information specifically for just one single episode.
+- [ ] Add this choice neatly to the beautiful custom right-click menu on the episode row.
+- [ ] Update the title, description, and thumbnail picture instantly without reloading the rest of the page.
+- [ ] Show a tiny spinning circle on just that one row so the user knows it is thinking.
+- [ ] Handle it gracefully if the database still doesn't have any new information to provide.
+
+**20.18 "Copy Path" Quick Action: Right-click an episode to copy the raw C:\... path to clipboard.** (Incomplete)
+
+- [ ] Add a brand new 'Copy File Path' button to the beautiful custom right-click menu.
+- [ ] Save the exact, complete folder path of the video directly to the user's invisible computer clipboard when clicked.
+- [ ] Show a quick, tiny popup message confirming 'Copied to Clipboard!' so they know it worked.
+- [ ] Ensure the path includes the exact drive letter and every single subfolder.
+- [ ] Disable the button if the file is currently marked as missing or deleted.
+
+**20.19 "Show in Explorer" Action: Right-click to open native OS file manager with the file highlighted.** (Incomplete)
+
+- [ ] Add a handy 'Open Folder' button right next to the copy button in the right-click menu.
+- [ ] Open the user's actual computer file browser to the folder where the video is hiding.
+- [ ] Highlight the exact video file automatically so the user doesn't have to search for it among hundreds of other files.
+- [ ] Make sure this works flawlessly on both Windows computers and Mac computers.
+- [ ] Show a polite error explaining the issue if the folder has been renamed or moved.
+
+**20.20 Metadata Warning Icon: A tiny yellow ! if an episode exists but TMDB returned absolutely zero data for it.** (Incomplete)
+
+- [ ] Notice if an episode has a video file ready to play but zero information from the internet database.
+- [ ] Place a very small, bright yellow warning triangle next to the episode title.
+- [ ] Show a small text box explaining 'Information Missing' when the user hovers over the triangle.
+- [ ] Remove the warning triangle instantly if the user successfully uses the refresh button to find the missing details.
+- [ ] Keep the play button functional so the user can still watch their show even without a summary.
+
 ## Micro-Feature 39: Media Granular Data (Part 20c)
 
 **Goal: File-level data and actionable tags.**
@@ -1894,6 +2158,22 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Check that the image displays correctly on the computer's lock screen when the user pauses the video and walks away.
 - [ ] Handle folder names with spaces or special characters safely so the image always loads.
 
+**19.12 VLC Crash Catching: If the VLC.exe exits with a crash code, WatchMark displays a specific error toast.** (Incomplete)
+
+- [ ] Watch the video player closely in the background to see if it closes normally or if it unexpectedly crashes.
+- [ ] Show a helpful, bright red warning notification on the screen if a crash is detected.
+- [ ] Stop the app from saving corrupted pause times if the player crashed while the user was skipping forward.
+- [ ] Provide a small button on the notification to let advanced users view what went wrong.
+- [ ] Ensure the main tracking app remains stable and usable even if the video player fails.
+
+**19.19 VLC Version Logging: Displays detected VLC version in Settings for debugging.** (Incomplete)
+
+- [ ] Ask the video player quietly in the background what version it is currently running.
+- [ ] Read the response cleanly to extract just the version number (like '3.0.18').
+- [ ] Show this number in small, faint text at the bottom of the settings page for easy troubleshooting.
+- [ ] Handle things calmly without crashing if the video player refuses to share its version number.
+- [ ] Update this version number automatically if the user points the app to a different video player folder.
+
 ## Micro-Feature 42: VLC Quality of Life (Part 19c)
 
 **Goal: Managing VLC paths and progress overrides.**
@@ -2017,6 +2297,70 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Hide all history rows that fall outside of that chosen window of time.
 - [ ] Provide quick preset buttons like 'Last Week' or 'Last Month'.
 - [ ] Give the user an easy way to clear the filter and see everything again.
+
+**24.10 Clipboard Sharing: A button to copy a binge log to clipboard formatted for Discord/Reddit (Finished Breaking Bad S1 - 8/10!).** (Incomplete)
+
+- [ ] Add a small 'Share' icon right next to the binge duration text.
+- [ ] Generate a clean, readable text summary when the user clicks the icon.
+- [ ] Include the show name, the season number, and the user's personal star rating in the text.
+- [ ] Save the text directly to their computer clipboard instantly.
+- [ ] Show a quick 'Copied!' message so they know it worked.
+
+**24.11 Rewatch Flagging: If watch_count > 1, history entries get a subtle circular arrow icon indicating a rewatch.** (Incomplete)
+
+- [ ] Check if the user has watched the exact same episode before on an older date.
+- [ ] Add a small, elegant looping arrow icon next to the newest history row.
+- [ ] Help the user easily see at a glance which shows they enjoy repeating.
+- [ ] Provide a small tooltip explaining 'Rewatch' when they hover over the icon.
+- [ ] Ensure the first time they watched it stays normal without the special icon.
+
+**24.12 Rewatch Filter: Toggle history to only show items you have watched multiple times.** (Incomplete)
+
+- [ ] Add a simple toggle switch near the search bar on the history page.
+- [ ] Hide everything except the rows that have the special rewatch arrow icon.
+- [ ] Let the user easily see all their favorite, highly-repeated shows in one place.
+- [ ] Keep the dates and timeline layout intact while this filter is on.
+- [ ] Show a friendly empty state if they have never rewatched anything.
+
+**24.15 Timeline Fast-Scroller: A tiny alphabet/year vertical index on the right edge of the screen to jump instantly to 2018.** (Incomplete)
+
+- [ ] Draw a very thin vertical list of years on the far right side of the history screen.
+- [ ] Let the user click '2018' to instantly jump all the way down the page to that year.
+- [ ] Make the list of years update automatically based on how far back their history goes.
+- [ ] Keep the list stuck to the screen even while the user scrolls normally.
+- [ ] Hide this fast-scroller on narrow mobile screens so it doesn't block the text.
+
+**24.16 Watch Gap String: "Watched 5 years after airing" dynamically calculated string on history rows.** (Incomplete)
+
+- [ ] Compare the date the user watched the episode to the date it originally aired on television.
+- [ ] Calculate the exact number of years or months between those two dates.
+- [ ] Display a fun little string like 'Watched 2 years later' right inside the history row.
+- [ ] Hide the string if they watched it on the exact same day it premiered.
+- [ ] Hide the string if the internet database doesn't know when the episode aired.
+
+**24.17 Accordion Auto-Collapse: Expanding a Binge-Block automatically closes previously opened ones to keep the view clean.** (Incomplete)
+
+- [ ] Notice when the user clicks to open a large group of watched episodes.
+- [ ] Find any other groups that are currently open on the screen and close them smoothly.
+- [ ] Prevent the page from becoming miles long and impossible to navigate.
+- [ ] Keep the scroll position steady so the screen doesn't jump wildly when things close.
+- [ ] Let the user turn this feature off in the settings if they prefer leaving everything open.
+
+**24.18 Midnight Crossover Icon: A tiny moon icon if a single Binge-Block spans across two calendar days.** (Incomplete)
+
+- [ ] Notice if a single continuous viewing session starts before midnight and ends after midnight.
+- [ ] Add a small, elegant crescent moon icon next to the binge duration time.
+- [ ] Let the user know they stayed up incredibly late without being judgmental.
+- [ ] Provide a tooltip explaining 'Spans across midnight' when hovered.
+- [ ] Keep the block safely grouped under the day the viewing session started.
+
+**24.19 "Marathon" Tier Badge: Binge-Blocks exceeding 12 hours receive a special red/gold flame badge.** (Incomplete)
+
+- [ ] Check if the total running time of a single group of episodes goes over twelve hours.
+- [ ] Add an exciting, colorful flame icon to the top of that specific group.
+- [ ] Reward the user for their massive dedication to finishing a story.
+- [ ] Ensure the badge is visually distinct from the standard completion checkmarks.
+- [ ] Hide the badge if the user manually changes the dates and breaks the marathon.
 
 ## Micro-Feature 45: History Data Vis & Export (Part 24b)
 
@@ -2157,6 +2501,38 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Format the numbers cleanly like a standard digital clock so they are incredibly easy to read at a glance.
 - [ ] Make the tooltip follow the mouse left and right along the progress bar.
 - [ ] Hide the numbers instantly again when the mouse moves away.
+
+**23.16 Average Watch Time Widget: Calculates average daily media consumption in minutes.** (Incomplete)
+
+- [ ] Figure out how many minutes of video the user watches on a typical day.
+- [ ] Display this daily average cleanly on the dashboard alongside the other fun statistics.
+- [ ] Format the number beautifully, like '1h 45m per day', instead of a confusing raw number of seconds.
+- [ ] Ensure the math only looks at actual time spent watching, ignoring time where a video was just paused in the background.
+- [ ] Don't let days where the user watched absolutely nothing ruin the math unfairly.
+
+**23.17 Modular Dashboard Layout: Settings toggle to re-order dashboard rows (e.g., move Stats above Recently Added).** (Incomplete)
+
+- [ ] Give the user a simple list in the settings menu showing every row on their main dashboard.
+- [ ] Let them click and drag these rows up and down to change what order they appear in.
+- [ ] Apply the new layout instantly the second they return to the main screen.
+- [ ] Remember this custom order permanently so their dashboard always looks how they like it.
+- [ ] Ensure the giant Hero banner is locked at the very top and cannot be accidentally moved down.
+
+**23.18 "Upcoming Airing" Row: A row for tracked shows that have episodes airing in the next 7 days.** (Incomplete)
+
+- [ ] Check the calendar to see if any television shows the user watches have brand new episodes coming out this week.
+- [ ] Build a special, temporary row on the dashboard exclusively for these upcoming premieres.
+- [ ] Show the movie poster and which day of the week the episode will be available.
+- [ ] Hide this row if nothing the user watches is scheduled to air in the next seven days.
+- [ ] Remove an episode from this row automatically the exact second the air date actually passes.
+
+**23.19 Collapsible Dashboard Sections: Chevron icons to minimize rows you don't care about.** (Incomplete)
+
+- [ ] Add a tiny, subtle arrow icon to the title text of every single row on the dashboard.
+- [ ] Let the user click the arrow to hide all the movie posters inside that specific row instantly.
+- [ ] Slide the rest of the page up smoothly to fill in the space where the posters used to be.
+- [ ] Remember which rows are hidden permanently so they stay closed the next time the app opens.
+- [ ] Flip the arrow upside down so it is obvious the user can click it again to bring the posters back.
 
 ## Micro-Feature 48: Dashboard Extrapolations (Part 23c)
 
@@ -2306,6 +2682,86 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Fill in all the visual checkmarks instantly on the screen so the user sees it worked.
 - [ ] Display a brief warning if the user accidentally tries to mark 50 episodes at the same time.
 
+**7.8 Persistent Global Quick Search input pill centered in the top bar.** (Incomplete)
+
+- [ ] Ensure the input field is shaped exactly as a pill (`rounded-full`).
+- [ ] Verify its background is a dark translucent tone (`bg-black/20`).
+- [ ] Handle edge cases where the user types an impossibly long string.
+- [ ] Test a hotkey (like `Ctrl+K`) perfectly focusing the input instantly.
+- [ ] Ensure an empty state perfectly centers a magnifying glass icon and placeholder text.
+
+**17.12 Global Command Palette: Press Cmd+P to open a quick-action menu (e.g., type ">Scan" to trigger a directory scan).** (Incomplete)
+
+- [ ] Open a handy central menu when the user presses Cmd+P or Ctrl+P.
+- [ ] Show a list of quick actions that filters down instantly as the user types letters.
+- [ ] Start the chosen action immediately when the user presses Enter.
+- [ ] Close the menu the exact second the action begins.
+- [ ] Keep the most popular or frequently used actions right at the very top of the list.
+
+**17.13 Touchpad Swipe Gestures: Swipe left/right on a laptop trackpad to go back/forward in the app history.** (Incomplete)
+
+- [ ] Recognize when a user makes a strong, intentional swipe on their laptop touchpad.
+- [ ] Change pages like a normal web browser does when swiping back or forward.
+- [ ] Show a gentle fading arrow on the edge of the screen to confirm the swipe was noticed.
+- [ ] Ignore horizontal swipes if the user is just trying to scroll through a row of movie posters.
+- [ ] Let users turn off this swipe feature in the settings if they don't like it.
+
+**17.14 Floating Action Button (FAB): A subtle "Jump to Top" arrow appears when scrolling deep into the Library.** (Incomplete)
+
+- [ ] Notice quietly when the user has scrolled significantly far down a very long list of movies.
+- [ ] Show a small, rounded button neatly in the bottom corner of the screen.
+- [ ] Fade the button in smoothly instead of having it appear suddenly.
+- [ ] Scroll the page back up to the very top the moment the user clicks the button.
+- [ ] Keep the button hidden if the page is short enough to see everything at once.
+
+**17.15 Shortcut Cheat Sheet: Press ? anywhere to open a modal displaying all keyboard shortcuts.** (Incomplete)
+
+- [ ] Open a helpful popup listing every keyboard trick when the user presses the '?' key.
+- [ ] Organize the list neatly so it is easy to read at a quick glance.
+- [ ] Keep the popup closed if the user is just trying to type a question mark into the search bar.
+- [ ] Add a simple 'Close' button to hide the list when they are done.
+- [ ] Pause any video that is playing the second this cheat sheet appears.
+
+**17.16 Scroll Memory: Pressing "Back" from a show details page restores your exact scroll position in the Library grid.** (Incomplete)
+
+- [ ] Remember how far down the user had scrolled before they clicked on a movie.
+- [ ] Jump right back to that spot smoothly when they hit the 'Back' button.
+- [ ] Stop the page from awkwardly jumping to the top while the movie posters are loading.
+- [ ] Forget the scroll spot if they click the home button to start a fresh search.
+- [ ] Remember separate scroll spots for the TV library and the Movie library simultaneously.
+
+**17.17 Focus Trapping: When a modal is open, pressing Tab cycles only through modal buttons, preventing the background UI from being highlighted.** (Incomplete)
+
+- [ ] Keep the keyboard focus inside a popup window when one is open.
+- [ ] Loop the focus from the last button in the popup straight back to the first button automatically.
+- [ ] Stop the user from accidentally highlighting buttons on the dark screen behind the popup.
+- [ ] Make sure this works backwards too, if the user holds Shift while pressing Tab.
+- [ ] Give the focus back to the main search bar once the popup is finally closed.
+
+**17.18 Auto-Focus Search: Clicking the "Search TMDB" sidebar tab instantly focuses the input cursor.** (Incomplete)
+
+- [ ] Place the typing cursor directly into the big search box the second the user opens the search page.
+- [ ] Show the blinking line immediately so the user knows they can type without clicking first.
+- [ ] Keep the cursor there patiently even if the rest of the page takes a second to load.
+- [ ] Stop stealing the cursor if the user clicks the search page while already trying to do something else.
+- [ ] Make sure clicking the clear button puts the cursor right back into the box again.
+
+**17.19 Inline Clear Button: A tiny x icon appears inside the search bar when typing, allowing 1-click clearing.** (Incomplete)
+
+- [ ] Show a tiny 'X' mark neatly at the far right edge of the search box.
+- [ ] Keep the 'X' hidden until the user actually types at least one letter.
+- [ ] Wipe the entire search box clean the instant the 'X' is clicked.
+- [ ] Put the typing cursor right back into the clean box automatically so they can try again.
+- [ ] Give the 'X' a very slight highlight when hovered so it feels like a real button.
+
+**17.20 Native Window Dragging: The entire empty space of the top navigation bar acts as a -webkit-app-region: drag zone to move the desktop window.** (Incomplete)
+
+- [ ] Let the user click and hold any empty space at the top of the app to move the whole window.
+- [ ] Stop the window from moving if they click on a button or the search box instead.
+- [ ] Keep the window moving smoothly following the mouse across the screen.
+- [ ] Turn off dragging if the window is already maximized to fill the whole screen.
+- [ ] Let the user double-click the empty space to quickly maximize or shrink the window.
+
 ## Micro-Feature 51: UI Overlays & Cinematic Polish (Part 18a)
 
 **Goal: CSS-heavy visual effects on the core layout.**
@@ -2357,6 +2813,150 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Keep all the boxes shimmering together at the exact same time.
 - [ ] Make the highlight loop endlessly without any jarring jumps or stutters.
 - [ ] Keep the shiny effect neatly inside the rounded corners of the loading boxes.
+
+**6.4 Tailwind backdrop-blur-xl heavy Frosted Glass effects on sidebars.** (Incomplete)
+
+- [ ] Ensure Safari and older browsers that don't support `backdrop-filter` fall back to a solid color.
+- [ ] Verify performance does not tank to 15FPS when scrolling massive lists behind the blur.
+- [ ] Handle edge cases where nested blur components cancel each other out.
+- [ ] Test the sidebar blur over complex, highly detailed hero images.
+- [ ] Ensure the blur radius is strictly consistent across the entire app shell.
+
+**6.5 Tailwind backdrop-blur-md light glass effects on floating elements.** (Incomplete)
+
+- [ ] Apply this specifically to hover tooltips, dropdown menus, and quick-view overlays.
+- [ ] Verify z-index stacking context ensures floating glass always remains on top.
+- [ ] Handle edge cases where clicking through the blurred element accidentally triggers background events.
+- [ ] Test transition speeds of the blur fading in and out (should be < 200ms).
+- [ ] Ensure floating glass elements cast a harsh dark drop shadow to separate from the background.
+
+**6.10 Custom thin, dark styled scrollbars for vertical lists.** (Complete)
+
+- [x] Verify the scrollbar track is entirely transparent or matches `#0D0F14`.
+- [x] Ensure the scrollbar thumb uses a subtle gray that slightly brightens on hover.
+- [x] Handle cross-browser specific CSS (`::-webkit-scrollbar` vs standard `scrollbar-width`).
+- [x] Test that the scrollbar overlay doesn't shift the entire page width when it appears.
+- [x] Ensure standard scrollbar width is incredibly thin (e.g., `4px` or `6px`).
+
+**6.12 Advanced linear gradient fades over all background images for text legibility.** (Incomplete)
+
+- [ ] Verify gradients fade strictly from pure dark at the text origin to transparent at the focal point.
+- [ ] Handle edge cases where an image is entirely white, ensuring the gradient is heavy enough.
+- [ ] Test resizing the window to ensure the gradient dynamically covers the correct percentage.
+- [ ] Ensure gradients do not trigger banding artifacts on low-quality displays.
+- [ ] Verify bottom-to-top gradients exist on all poster cards to make titles readable.
+
+**6.13 'No-Jump' state management (React updates specific DOM nodes without page reloads).** (Incomplete)
+
+- [ ] Verify that clicking 'Mark Watched' instantly morphs the icon without shifting the layout.
+- [ ] Ensure React strictly uses stable `key` props on list items to prevent full DOM recreation.
+- [ ] Handle edge cases where multiple state changes happen in the exact same millisecond.
+- [ ] Test scroll positions remain completely untouched when background data refreshes.
+- [ ] Ensure API syncs update the UI precisely in-place without causing white screen flashes.
+
+**6.14 Pulse/Skeleton animated loading states during API data fetching.** (Incomplete)
+
+- [ ] Verify skeletons precisely match the dimensions of the final loaded component.
+- [ ] Ensure the CSS pulse animation is smooth and synchronized across all active skeletons.
+- [ ] Handle edge cases where the API returns instantly, bypassing the skeleton to prevent a flicker.
+- [ ] Test skeleton rendering when navigating explicitly to a deep-linked URL.
+- [ ] Ensure skeletons utilize the `#1F222A` surface color to blend perfectly with the theme.
+
+**6.15 Custom global 'Turbo-Scroll' implementation (4x-5x mouse wheel multiplier).** (Incomplete)
+
+- [ ] Verify the multiplier is explicitly disabled on components that require precise scrolling (like date pickers).
+- [ ] Ensure trackpad pinch-to-zoom gestures are not accidentally multiplied and broken.
+- [ ] Handle edge cases where custom scrolling completely breaks on Linux Wayland environments.
+- [ ] Test scrolling performance on massive lists (10,000+ items) with the multiplier active.
+- [ ] Ensure the implementation doesn't interfere with Framer Motion scroll-linked animations.
+
+**7.2 Glowing orange vertical line indicator for the 'Active Tab'.** (Incomplete)
+
+- [ ] Ensure the line uses a neon glow effect (e.g., `box-shadow` or Framer Motion aura).
+- [ ] Verify it precisely animates its `y` position between tabs when clicked.
+- [ ] Handle edge cases where no specific tab is logically active (e.g., Settings page).
+- [ ] Test that the line thickness (e.g., `w-1`) perfectly aligns to the absolute left edge.
+- [ ] Ensure the indicator is strictly `#FF6B00`.
+
+**7.3 Text brightening (silver to pure white) for active tabs.** (Incomplete)
+
+- [ ] Verify inactive tabs use `#A0AEC0` (silver) and active use `#FFFFFF`.
+- [ ] Ensure the transition time is smooth (e.g., `duration-200`).
+- [ ] Handle edge cases where an active tab is hovered again (should remain white).
+- [ ] Test keyboard focus also triggers the brighten effect for accessibility.
+- [ ] Ensure icons next to the text also simultaneously brighten to pure white.
+
+**7.4 Hover transitions on sidebar links (color shifts, no boxy backgrounds).** (Incomplete)
+
+- [ ] Ensure hover effects explicitly avoid solid rectangular backgrounds behind text.
+- [ ] Verify the text subtly brightens or shifts on hover without triggering the full 'active' state.
+- [ ] Handle edge cases where rapid movement up and down the sidebar flickers the UI.
+- [ ] Test specific Framer Motion scale effects (e.g., `scale-105`) strictly on the text/icon.
+- [ ] Ensure the padding is large enough to create an easy click target.
+
+**7.7 Top bar background transition (transparent to blurred when scrolled).** (Incomplete)
+
+- [ ] Verify the header is completely transparent when `scrollY === 0` over hero images.
+- [ ] Ensure a heavy `backdrop-blur` and a semi-transparent `#1F222A` background fades in immediately when scrolling starts.
+- [ ] Handle edge cases where rapid scrolling causes the header to flicker between states.
+- [ ] Test the transition duration ensuring the fade is elegant and not abrupt.
+- [ ] Ensure elements strictly behind the header do not suddenly snap or shift.
+
+**7.9 Smooth Framer Motion <AnimatePresence> page cross-fades.** (Incomplete)
+
+- [ ] Verify entering components fade in (`opacity: 1`) while exiting components fade out (`opacity: 0`) simultaneously.
+- [ ] Ensure the duration is swift enough (< 0.3s) to feel instantly responsive.
+- [ ] Handle edge cases where rapid navigation clicks queue up multiple fading animations.
+- [ ] Test nested routes ensuring they do not completely fade out the parent layout shell.
+- [ ] Ensure scroll positions reset to the top precisely when the new page fades in.
+
+**9.3 Framer Motion whileHover={{ scale: 1.05 }} smooth expansion animation.** (Incomplete)
+
+- [ ] Verify the expansion scales from the exact center of the poster without moving adjacent elements.
+- [ ] Ensure standard CSS `transition-transform` is utilized if Framer Motion becomes too heavy for massive grids.
+- [ ] Handle edge cases where rapid zig-zag mouse movements queue up stuttering scale animations.
+- [ ] Test `z-index` strictly pulls the hovered poster above adjacent neighbors.
+- [ ] Ensure the animation is exactly fast enough (e.g., `0.2s`) to feel snappy.
+
+**9.4 Dynamic drop-shadow casting intensity increase on hover.** (Incomplete)
+
+- [ ] Verify the shadow smoothly shifts from a low baseline (e.g., `shadow-md`) to massive intensity (`shadow-2xl`).
+- [ ] Ensure the shadow color is customized to match the `#0D0F14` background cleanly.
+- [ ] Handle edge cases where shadows might be clipped by a parent `overflow-hidden` rule.
+- [ ] Test transition smoothness occurring simultaneously with the `scale` animation.
+- [ ] Ensure the shadow correctly drops down and slightly outwards to simulate floating.
+
+**9.15 Smooth list re-ordering transitions when sorting/filtering.** (Incomplete)
+
+- [ ] Verify `<motion.li layout>` seamlessly animates the precise XY translation of each poster.
+- [ ] Ensure the DOM correctly unmounts filtered items strictly using `<AnimatePresence>` opacity fades.
+- [ ] Handle edge cases where extreme sorting triggers 500 animations simultaneously (must not drop below 30FPS).
+- [ ] Test visual tracking ensuring the user's eye can follow a poster if it moves slightly.
+- [ ] Ensure the animation duration is rapid (e.g., `0.3s`).
+
+**18.12 "Ken Burns" Hero Effect: The Dashboard backdrop slowly scales up (1.00 to 1.05) over 30 seconds for subtle life.** (Incomplete)
+
+- [ ] Make the giant background image grow incredibly slowly over a long period of time.
+- [ ] Have it slowly zoom in and then zoom back out in an endless, gentle loop.
+- [ ] Keep the very center of the image in the middle so it doesn't drift off to the side.
+- [ ] Ensure the movement is smooth without any tiny visual jitters or steps.
+- [ ] Pause the growing the second the user scrolls away so the computer doesn't waste energy.
+
+**18.18 Variable Opacity Stars: Unfilled stars in the rating widget are 20% opacity white, not just gray.** (Incomplete)
+
+- [ ] Make the empty rating stars a very faint, see-through white color instead of dull gray.
+- [ ] Turn them solid and bright immediately when the user hovers over them.
+- [ ] Keep the filled, orange stars solid so they stand out.
+- [ ] Ensure the empty, faint stars are still easy to see against a bright background image.
+- [ ] Color the stars instantly when clicked without waiting for a server to respond.
+
+**18.20 Smooth Accordion Heights: Expanding a Binge-Block animates the height dynamically rather than instantly snapping the layout down.** (Incomplete)
+
+- [ ] Make the history section slide open smoothly to reveal the episodes hidden inside.
+- [ ] Let the area grow as tall as it needs to be to fit the new content.
+- [ ] Give the sliding motion a very slight, natural bounce so it feels organic.
+- [ ] Stop the text inside from looking awkwardly squished while the section is opening.
+- [ ] Slide the section back shut smoothly when the user clicks to close it.
 
 ## Micro-Feature 52: Cinematic Transitions (Part 18b)
 
@@ -2586,6 +3186,87 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Add the episode to the library as if the file name had been normal.
 - [ ] Handle situations where the folder name is also useless or confusing.
 
+**22.16 Inbox Sort by Date: Sort unmatched files by the OS "Date Modified" attribute.** (Incomplete)
+
+- [ ] Give the user a simple button to sort their confusing files by age.
+- [ ] Put the absolutely newest, most recently downloaded files at the top of the list.
+- [ ] Help the user figure out what a file is by remembering when they downloaded it.
+- [ ] Refresh the list instantly when the button is clicked.
+- [ ] Keep the list organized even if the user has thousands of confusing files.
+
+**22.17 Inbox Sort by Size: Sort unmatched files by byte size.** (Incomplete)
+
+- [ ] Add a button to sort the confusing files by how massive they are.
+- [ ] Group massive 4K movies together at one end of the list.
+- [ ] Group tiny preview clips at the other end.
+- [ ] Help the user identify what a file is by looking at its size.
+- [ ] Keep the sorting fast even if the user has a massive hard drive.
+
+**22.18 Inbox Fuzzy Matching: Groups strings with minor typos together (e.g., "The Wrie" and "The Wire").** (Incomplete)
+
+- [ ] Notice when two file names are almost identical.
+- [ ] Group them together in the confusing files list even if one has a small typo.
+- [ ] Help the user fix both files at the exact same time.
+- [ ] Stop grouping files together if they are actually totally different shows.
+- [ ] Make the confusing files list much smaller and easier to manage.
+
+**22.19 Inbox Inline Editing: Allow the user to manually edit the extracted string in the UI before hitting "Search TMDB".** (Incomplete)
+
+- [ ] Let the user click right on the guessed title in the confusing files list.
+- [ ] Turn the text into a totally normal typing box so they can fix spelling mistakes.
+- [ ] Search the internet the second they finish typing the fixed name.
+- [ ] Save the user from opening a massive separate popup window.
+- [ ] Keep the typing box explicit simple and easy to use.
+
+**22.20 Inbox Type Override: A quick toggle to force TMDB to search for a "Movie" if the parser incorrectly guessed "TV".** (Incomplete)
+
+- [ ] Add a tiny, perfect simple button next to the confusing file.
+- [ ] Let the user flip between 'Television' and 'Movie'.
+- [ ] Search the internet again instantly using the brand new category.
+- [ ] Help the user fix mistakes when a movie happens to have a number in its name.
+- [ ] Keep the button explicit out of the way unless the user needs it.
+
+
+**22.16 Inbox Sort by Date: Sort unmatched files by the OS "Date Modified" attribute.** (Incomplete)
+
+- [ ] Give the user a simple button to sort their confusing files by age.
+- [ ] Put the absolutely newest, most recently downloaded files at the top of the list.
+- [ ] Help the user figure out what a file is by remembering when they downloaded it.
+- [ ] Refresh the list instantly when the button is clicked.
+- [ ] Keep the list organized even if the user has thousands of confusing files.
+
+**22.17 Inbox Sort by Size: Sort unmatched files by byte size.** (Incomplete)
+
+- [ ] Add a button to sort the confusing files by how massive they are.
+- [ ] Group massive 4K movies together at one end of the list.
+- [ ] Group tiny preview clips at the other end.
+- [ ] Help the user identify what a file is by looking at its size.
+- [ ] Keep the sorting fast even if the user has a massive hard drive.
+
+**22.18 Inbox Fuzzy Matching: Groups strings with minor typos together (e.g., "The Wrie" and "The Wire").** (Incomplete)
+
+- [ ] Notice when two file names are almost identical.
+- [ ] Group them together in the confusing files list even if one has a small typo.
+- [ ] Help the user fix both files at the exact same time.
+- [ ] Stop grouping files together if they are actually totally different shows.
+- [ ] Make the confusing files list much smaller and easier to manage.
+
+**22.19 Inbox Inline Editing: Allow the user to manually edit the extracted string in the UI before hitting "Search TMDB".** (Incomplete)
+
+- [ ] Let the user click right on the guessed title in the confusing files list.
+- [ ] Turn the text into a totally normal typing box so they can fix spelling mistakes.
+- [ ] Search the internet the second they finish typing the fixed name.
+- [ ] Save the user from opening a massive separate popup window.
+- [ ] Keep the typing box explicit simple and easy to use.
+
+**22.20 Inbox Type Override: A quick toggle to force TMDB to search for a "Movie" if the parser incorrectly guessed "TV".** (Incomplete)
+
+- [ ] Add a tiny, perfect simple button next to the confusing file.
+- [ ] Let the user flip between 'Television' and 'Movie'.
+- [ ] Search the internet again instantly using the brand new category.
+- [ ] Help the user fix mistakes when a movie happens to have a number in its name.
+- [ ] Keep the button explicit out of the way unless the user needs it.
+
 ## Micro-Feature 57: DB Maintenance & Settings Safety (Part 25a)
 
 **Goal: Core configuration, backups, and app themes.**
@@ -2637,6 +3318,167 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Turn all the white text black so it remains easy to read.
 - [ ] Keep the colorful movie posters and accent buttons exactly the same.
 - [ ] Let the app automatically match the light or dark setting of the user's actual computer OS.
+
+**25.7 UI Zoom Scaling: A slider mapping CSS variables to scale the entire UI from 80% to 120%.** (Incomplete)
+
+- [ ] Place a simple slider in the accessibility settings to change the size of the whole app.
+- [ ] Make the text, buttons, and posters grow or shrink smoothly as the slider moves.
+- [ ] Ensure the grid layout adapts intelligently so posters don't get pushed off the edge of the screen.
+- [ ] Help users with large monitors or poor vision make the text comfortable to read.
+- [ ] Keep the default size set to 100 percent for a standard, expected look.
+
+**25.8 Hardware Acceleration Toggle: Exposes Tauri's WebView GPU acceleration settings for low-end machines.** (Incomplete)
+
+- [ ] Add a deep settings switch to turn off heavy graphical features if the app runs slowly.
+- [ ] Require a quick app restart for this specific setting change to take effect.
+- [ ] Warn the user that turning this off might make animations feel slightly less smooth.
+- [ ] Default this setting to 'On' so modern computers get the best possible visual experience.
+- [ ] Help old laptops run the app without overheating or freezing.
+
+**25.16 Global Tooltips Toggle: A master switch to turn off all hover helper-text for expert users.** (Incomplete)
+
+- [ ] Add a simple switch in the settings to disable every single helpful popup box.
+- [ ] Stop the small descriptive text from appearing when hovering over buttons or icons.
+- [ ] Keep the screen looking incredibly clean for users who already know what every button does.
+- [ ] Leave critical warning messages or error popups active so the app remains safe to use.
+- [ ] Turn the tooltips back on instantly if the user changes their mind.
+
+**25.29 Modal Hover Persistence: Ensures hover overlays on posters disappear instantly if a Settings modal is opened over them.** (Incomplete)
+
+- [ ] Notice when a giant popup window, like the settings menu, opens over the main library.
+- [ ] Force any dark hover boxes over the movie posters to vanish immediately.
+- [ ] Keep the screen clean so the hover boxes don't bleed through the blurred popup background.
+- [ ] Prevent the user from accidentally clicking hidden play buttons behind the popup window.
+- [ ] Let the hover boxes work normally again the second the popup is closed.
+
+**25.30 Inbox Scanning Skeletons: Animated placeholder rows in the Inbox while the background Rust scanner is running.** (Incomplete)
+
+- [ ] Show gray, shimmering placeholder rows in the file inbox when a massive folder scan starts.
+- [ ] Let the user know the app is actively working on finding their confusing video files.
+- [ ] Replace the placeholder rows with real file names one by one as the scan finishes them.
+- [ ] Keep the rest of the inbox usable so the user can organize old files while the scan runs.
+- [ ] Remove the placeholders cleanly if the scan finishes and finds absolutely nothing new.
+
+**25.34 / Global Hotkey: Pressing forward-slash instantly selects the quick search bar (Standard web UX).** (Incomplete)
+
+- [ ] Listen for the forward-slash key on the keyboard no matter what page the user is on.
+- [ ] Jump the typing cursor instantly into the top search bar when the key is pressed.
+- [ ] Help power users navigate the app incredibly fast using standard internet shortcuts.
+- [ ] Ignore the shortcut if the user is already typing inside a different text box.
+- [ ] Prevent the forward-slash character from actually being typed into the search box.
+
+**25.35 Global Processing Cursor: Changes cursor to wait (hourglass) during heavy synchronous DB operations.** (Incomplete)
+
+- [ ] Notice when the app asks the database to do a massive job, like importing thousands of files.
+- [ ] Change the mouse pointer into a spinning circle or hourglass icon.
+- [ ] Let the user know the app is thinking and hasn't frozen or crashed.
+- [ ] Prevent the user from clicking important buttons while the database is locked.
+- [ ] Return the mouse pointer to normal the exact millisecond the heavy job finishes.
+
+**25.36 Real-time File Deletion Catching: If a file is deleted via Windows Explorer while WatchMark is open, the app catches the OS FileNotFound error upon clicking Play and updates the icon to ☁️.** (Incomplete)
+
+- [ ] Try to launch the video player when the user clicks the orange play button.
+- [ ] Catch the error quietly if the computer says the file no longer exists.
+- [ ] Swap the play button instantly to a gray cloud icon so the user knows the file is missing.
+- [ ] Show a polite little message explaining the file was moved or deleted outside the app.
+- [ ] Prevent the app from crashing or showing terrifying code errors to the user.
+
+**25.37 Layout Snap Prevention: Uses AnimatePresence mode="popLayout" to ensure when a Binge-Block expands, the elements below it slide smoothly instead of jumping.** (Incomplete)
+
+- [ ] Tell the animation engine to handle layout changes smoothly when things appear or disappear.
+- [ ] Make the history items below a binge block slide down naturally when it opens.
+- [ ] Stop the items from instantly teleporting or snapping jarringly down the screen.
+- [ ] Keep the visual tracking clean so the user's eye can follow the movement.
+- [ ] Ensure the closing animation is just as smooth and pushes things back up naturally.
+
+**25.38 VLC Spawn Loading State: The Orange play button changes to an animated spinner for 0.5s while the VLC .exe boots up.** (Incomplete)
+
+- [ ] Hide the play triangle icon the moment the user clicks the button.
+- [ ] Show a tiny, spinning circle in its place to indicate the app is working.
+- [ ] Keep the spinner visible just long enough to cover the time it takes the video player to open.
+- [ ] Put the play triangle back once the video player confirms it is running.
+- [ ] Make the button unclickable while it is spinning to prevent accidental double-launches.
+
+**25.39 Season Tab Overflow Handling: If a show has 30 seasons, the horizontal season-pill row becomes mouse-draggable.** (Incomplete)
+
+- [ ] Notice if a show has too many seasons to fit neatly on one single line across the screen.
+- [ ] Let the user click and drag the row of season buttons left and right with their mouse.
+- [ ] Hide the ugly scrollbars that computers normally put on sideways lists.
+- [ ] Ensure clicking a tab still changes the season instead of just dragging the row.
+- [ ] Add a subtle shadow on the edge of the screen hinting that there are more seasons hiding over there.
+
+**25.40 Conditional Back-to-Top Button: Appears in the History tab only when scrollY > 2000px.** (Incomplete)
+
+- [ ] Measure exactly how far down the page the user has scrolled on long library lists.
+- [ ] Keep the helpful 'Jump to Top' button completely hidden at the start.
+- [ ] Fade the button into the corner of the screen only when they scroll very deep into the list.
+- [ ] Scroll the page back to the top beautifully and smoothly when the button is clicked.
+- [ ] Fade the button back out once they reach the top of the page again.
+
+**25.41 TMDB API Key Verification Spinner: When saving settings, shows a loader while pinging TMDB to verify the key is actually valid.** (Incomplete)
+
+- [ ] Show a spinning loading icon next to the save button when the user enters a new secret key.
+- [ ] Send a quick, silent test message to the internet database to make sure the key works.
+- [ ] Swap the spinner for a bright green checkmark if the database accepts the key.
+- [ ] Swap the spinner for a red warning icon if the database rejects the key or is offline.
+- [ ] Stop the user from trying to download movie posters if the key is proven to be broken.
+
+**25.42 Empty Season Handling: If a season exists in TMDB but has 0 episodes, the Season Tab is disabled/grayed out in the UI.** (Incomplete)
+
+- [ ] Notice when the internet database lists a season that hasn't actually aired any episodes yet.
+- [ ] Show the button for that season in the list, but color it a dim, inactive gray.
+- [ ] Prevent the user from clicking the button since there is nothing inside it to see.
+- [ ] Add a helpful tooltip explaining 'No episodes available' when they hover over it.
+- [ ] Turn the button bright and clickable automatically the second a new episode is added.
+
+**25.43 Offline Placeholder Avatars: If actor headshots fail to load due to network drops, use a stylized SVGs matching the dark theme.** (Incomplete)
+
+- [ ] Catch the error quietly if the app tries to download an actor's picture but the internet is broken.
+- [ ] Swap the broken image box for a beautiful, dark silhouette icon.
+- [ ] Keep the screen looking polished and professional instead of showing ugly 'image missing' errors.
+- [ ] Match the silhouette style perfectly to the rest of the dark cinematic theme.
+- [ ] Ensure the actor's name underneath remains clearly readable.
+
+**25.44 Watch Time Extrapolation: If a show has no runtime data on TMDB, app calculates average runtime from local video files to estimate "Hours Watched".** (Incomplete)
+
+- [ ] Notice if the internet database completely forgets to list how long a television show's episodes are.
+- [ ] Look at the actual video files on the user's hard drive to see how long they usually run.
+- [ ] Create a smart guess, like '45 minutes', based on those real video files.
+- [ ] Use this smart guess to keep the fun dashboard statistics accurate and unbroken.
+- [ ] Update the guess automatically if the user downloads longer or shorter episodes later.
+
+**25.45 Dynamic "Missing API Key" State: Instead of throwing alerts, the entire "Search" tab shows a beautiful full-screen prompt explaining how to get a free API key with a direct link.** (Incomplete)
+
+- [ ] Check to see if the user has forgotten to enter their secret database key in the settings.
+- [ ] Replace the empty search page with a friendly, welcoming instruction screen.
+- [ ] Explain simply why the key is needed to download movie posters and descriptions.
+- [ ] Provide a giant, clickable link directly to the website where they can sign up for free.
+- [ ] Remove this instruction screen instantly the second a valid key is saved in the settings.
+
+**25.46 Easter Egg / Konami Code: Typing a secret sequence triggers a playful CSS animation or unlocks a secret color theme for fun.** (Incomplete)
+
+- [ ] Listen quietly for a very specific, secret pattern of keyboard presses.
+- [ ] Make sure the sequence doesn't accidentally trigger while the user is typing a real search.
+- [ ] Unlock a silly visual joke, like making the movie posters spin around, when the code is entered.
+- [ ] Add a hidden 'Neon Pink' color theme to the settings menu as a permanent reward.
+- [ ] Keep the easter egg totally harmless so it doesn't break any real app features or data.
+
+
+**25.7 UI Zoom Scaling: A slider mapping CSS variables to scale the entire UI from 80% to 120%.** (Incomplete)
+
+- [ ] Place a simple slider in the accessibility settings to change the size of the whole app.
+- [ ] Make the text, buttons, and posters grow or shrink smoothly as the slider moves.
+- [ ] Ensure the grid layout adapts intelligently so posters don't get pushed off the edge of the screen.
+- [ ] Help users with large monitors or poor vision make the text comfortable to read.
+- [ ] Keep the default size set to 100 percent for a standard, expected look.
+
+**25.8 Hardware Acceleration Toggle: Exposes Tauri's WebView GPU acceleration settings for low-end machines.** (Incomplete)
+
+- [ ] Add a deep settings switch to turn off heavy graphical features if the app runs slowly.
+- [ ] Require a quick app restart for this specific setting change to take effect.
+- [ ] Warn the user that turning this off might make animations feel slightly less smooth.
+- [ ] Default this setting to 'On' so modern computers get the best possible visual experience.
+- [ ] Help old laptops run the app without overheating or freezing.
 
 ## Micro-Feature 58: System Tray & OS Lifecycle (Part 25b)
 
@@ -2969,789 +3811,3 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Help users keep their home internet fast enough for gaming or video calls while movies download.
 - [ ] Allow the user to uncap the limit entirely if they want their movies to finish as fast as possible.
 - [ ] Update the estimated finish time in the download menu to reflect the slower speed limit.
-
-## Micro-Feature Unknown: Uncategorized Items
-
-**3.7 High-resolution primary Poster image extraction.** (Incomplete)
-
-- [ ] Target specific TMDB image width configurations (e.g., `w500` or `original`).
-- [ ] Ensure fallbacks are strictly enforced if the primary locale poster is missing.
-- [ ] Handle corrupt or incomplete image byte streams during download.
-- [ ] Test image fetching on extremely slow connections to ensure timeouts don't hang the app.
-- [ ] Verify that poster dimensions are enforced regardless of the source aspect ratio.
-
-**3.8 High-resolution cinematic Backdrop image extraction.** (Complete)
-
-- [x] Target `w1280` or `original` paths for crisp high-dpi display.
-- [x] Handle edge cases where a show has zero backdrops available on TMDB.
-- [x] Ensure backdrops are completely stripped of textual logos if clean variants exist.
-- [x] Test memory usage when rendering 10+ backdrops in memory simultaneously.
-- [x] Verify backdrop loading states show smooth CSS skeleton pulses.
-
-**3.9 Episode-specific 16:9 still-image extraction.** (Incomplete)
-
-- [ ] Ensure missing episode stills fall back to the show's main backdrop automatically.
-- [ ] Handle API rate limiting strictly, as querying 200 episode images simultaneously will fail.
-- [ ] Test edge cases where the still image is flagged as a spoiler and blurred.
-- [ ] Verify the exact 16:9 crop is maintained in the UI regardless of the raw image.
-- [ ] Ensure cached stills are tied to the specific episode ID.
-
-**3.14 Accurate Runtime/Duration metadata pulling.** (Incomplete)
-
-- [ ] Handle API responses where runtime is an array instead of an integer.
-- [ ] Ensure missing runtimes default to a sensible value (e.g., 0) for math calculations.
-- [ ] Test edge cases where runtimes are extremely long (e.g., 200+ minute movies).
-- [ ] Verify runtime updates dynamically if local file FFmpeg length overrides TMDB data.
-- [ ] Ensure UI cleanly formats 135m as '2h 15m'.
-
-**6.4 Tailwind backdrop-blur-xl heavy Frosted Glass effects on sidebars.** (Incomplete)
-
-- [ ] Ensure Safari and older browsers that don't support `backdrop-filter` fall back to a solid color.
-- [ ] Verify performance does not tank to 15FPS when scrolling massive lists behind the blur.
-- [ ] Handle edge cases where nested blur components cancel each other out.
-- [ ] Test the sidebar blur over complex, highly detailed hero images.
-- [ ] Ensure the blur radius is strictly consistent across the entire app shell.
-
-**6.5 Tailwind backdrop-blur-md light glass effects on floating elements.** (Incomplete)
-
-- [ ] Apply this specifically to hover tooltips, dropdown menus, and quick-view overlays.
-- [ ] Verify z-index stacking context ensures floating glass always remains on top.
-- [ ] Handle edge cases where clicking through the blurred element accidentally triggers background events.
-- [ ] Test transition speeds of the blur fading in and out (should be < 200ms).
-- [ ] Ensure floating glass elements cast a harsh dark drop shadow to separate from the background.
-
-**6.10 Custom thin, dark styled scrollbars for vertical lists.** (Complete)
-
-- [x] Verify the scrollbar track is entirely transparent or matches `#0D0F14`.
-- [x] Ensure the scrollbar thumb uses a subtle gray that slightly brightens on hover.
-- [x] Handle cross-browser specific CSS (`::-webkit-scrollbar` vs standard `scrollbar-width`).
-- [x] Test that the scrollbar overlay doesn't shift the entire page width when it appears.
-- [x] Ensure standard scrollbar width is incredibly thin (e.g., `4px` or `6px`).
-
-**6.12 Advanced linear gradient fades over all background images for text legibility.** (Incomplete)
-
-- [ ] Verify gradients fade strictly from pure dark at the text origin to transparent at the focal point.
-- [ ] Handle edge cases where an image is entirely white, ensuring the gradient is heavy enough.
-- [ ] Test resizing the window to ensure the gradient dynamically covers the correct percentage.
-- [ ] Ensure gradients do not trigger banding artifacts on low-quality displays.
-- [ ] Verify bottom-to-top gradients exist on all poster cards to make titles readable.
-
-**6.13 'No-Jump' state management (React updates specific DOM nodes without page reloads).** (Incomplete)
-
-- [ ] Verify that clicking 'Mark Watched' instantly morphs the icon without shifting the layout.
-- [ ] Ensure React strictly uses stable `key` props on list items to prevent full DOM recreation.
-- [ ] Handle edge cases where multiple state changes happen in the exact same millisecond.
-- [ ] Test scroll positions remain completely untouched when background data refreshes.
-- [ ] Ensure API syncs update the UI precisely in-place without causing white screen flashes.
-
-**6.14 Pulse/Skeleton animated loading states during API data fetching.** (Incomplete)
-
-- [ ] Verify skeletons precisely match the dimensions of the final loaded component.
-- [ ] Ensure the CSS pulse animation is smooth and synchronized across all active skeletons.
-- [ ] Handle edge cases where the API returns instantly, bypassing the skeleton to prevent a flicker.
-- [ ] Test skeleton rendering when navigating explicitly to a deep-linked URL.
-- [ ] Ensure skeletons utilize the `#1F222A` surface color to blend perfectly with the theme.
-
-**6.15 Custom global 'Turbo-Scroll' implementation (4x-5x mouse wheel multiplier).** (Incomplete)
-
-- [ ] Verify the multiplier is explicitly disabled on components that require precise scrolling (like date pickers).
-- [ ] Ensure trackpad pinch-to-zoom gestures are not accidentally multiplied and broken.
-- [ ] Handle edge cases where custom scrolling completely breaks on Linux Wayland environments.
-- [ ] Test scrolling performance on massive lists (10,000+ items) with the multiplier active.
-- [ ] Ensure the implementation doesn't interfere with Framer Motion scroll-linked animations.
-
-**7.2 Glowing orange vertical line indicator for the 'Active Tab'.** (Incomplete)
-
-- [ ] Ensure the line uses a neon glow effect (e.g., `box-shadow` or Framer Motion aura).
-- [ ] Verify it precisely animates its `y` position between tabs when clicked.
-- [ ] Handle edge cases where no specific tab is logically active (e.g., Settings page).
-- [ ] Test that the line thickness (e.g., `w-1`) perfectly aligns to the absolute left edge.
-- [ ] Ensure the indicator is strictly `#FF6B00`.
-
-**7.3 Text brightening (silver to pure white) for active tabs.** (Incomplete)
-
-- [ ] Verify inactive tabs use `#A0AEC0` (silver) and active use `#FFFFFF`.
-- [ ] Ensure the transition time is smooth (e.g., `duration-200`).
-- [ ] Handle edge cases where an active tab is hovered again (should remain white).
-- [ ] Test keyboard focus also triggers the brighten effect for accessibility.
-- [ ] Ensure icons next to the text also simultaneously brighten to pure white.
-
-**7.4 Hover transitions on sidebar links (color shifts, no boxy backgrounds).** (Incomplete)
-
-- [ ] Ensure hover effects explicitly avoid solid rectangular backgrounds behind text.
-- [ ] Verify the text subtly brightens or shifts on hover without triggering the full 'active' state.
-- [ ] Handle edge cases where rapid movement up and down the sidebar flickers the UI.
-- [ ] Test specific Framer Motion scale effects (e.g., `scale-105`) strictly on the text/icon.
-- [ ] Ensure the padding is large enough to create an easy click target.
-
-**7.7 Top bar background transition (transparent to blurred when scrolled).** (Incomplete)
-
-- [ ] Verify the header is completely transparent when `scrollY === 0` over hero images.
-- [ ] Ensure a heavy `backdrop-blur` and a semi-transparent `#1F222A` background fades in immediately when scrolling starts.
-- [ ] Handle edge cases where rapid scrolling causes the header to flicker between states.
-- [ ] Test the transition duration ensuring the fade is elegant and not abrupt.
-- [ ] Ensure elements strictly behind the header do not suddenly snap or shift.
-
-**7.8 Persistent Global Quick Search input pill centered in the top bar.** (Incomplete)
-
-- [ ] Ensure the input field is shaped exactly as a pill (`rounded-full`).
-- [ ] Verify its background is a dark translucent tone (`bg-black/20`).
-- [ ] Handle edge cases where the user types an impossibly long string.
-- [ ] Test a hotkey (like `Ctrl+K`) perfectly focusing the input instantly.
-- [ ] Ensure an empty state perfectly centers a magnifying glass icon and placeholder text.
-
-**7.9 Smooth Framer Motion <AnimatePresence> page cross-fades.** (Incomplete)
-
-- [ ] Verify entering components fade in (`opacity: 1`) while exiting components fade out (`opacity: 0`) simultaneously.
-- [ ] Ensure the duration is swift enough (< 0.3s) to feel instantly responsive.
-- [ ] Handle edge cases where rapid navigation clicks queue up multiple fading animations.
-- [ ] Test nested routes ensuring they do not completely fade out the parent layout shell.
-- [ ] Ensure scroll positions reset to the top precisely when the new page fades in.
-
-**8.14 'Recently Added' horizontal carousel highlighting new local scans.** (Incomplete)
-
-- [ ] Verify it sorts strictly by the local `id` descending (most recent scans).
-- [ ] Ensure it renders standard 2:3 posters, distinct from the 16:9 Continue Watching cards.
-- [ ] Handle edge cases where newly added items are instantly completed by the user.
-- [ ] Test the carousel limit (e.g., strictly max out at 20 items to prevent infinite scrolling).
-- [ ] Ensure hover overlays correctly trigger the orange Play button over the poster.
-
-**9.3 Framer Motion whileHover={{ scale: 1.05 }} smooth expansion animation.** (Incomplete)
-
-- [ ] Verify the expansion scales from the exact center of the poster without moving adjacent elements.
-- [ ] Ensure standard CSS `transition-transform` is utilized if Framer Motion becomes too heavy for massive grids.
-- [ ] Handle edge cases where rapid zig-zag mouse movements queue up stuttering scale animations.
-- [ ] Test `z-index` strictly pulls the hovered poster above adjacent neighbors.
-- [ ] Ensure the animation is exactly fast enough (e.g., `0.2s`) to feel snappy.
-
-**9.4 Dynamic drop-shadow casting intensity increase on hover.** (Incomplete)
-
-- [ ] Verify the shadow smoothly shifts from a low baseline (e.g., `shadow-md`) to massive intensity (`shadow-2xl`).
-- [ ] Ensure the shadow color is customized to match the `#0D0F14` background cleanly.
-- [ ] Handle edge cases where shadows might be clipped by a parent `overflow-hidden` rule.
-- [ ] Test transition smoothness occurring simultaneously with the `scale` animation.
-- [ ] Ensure the shadow correctly drops down and slightly outwards to simulate floating.
-
-**9.5 Always-on Top-Right Star Rating pill (Conditionally rendered if rated > 0).** (Incomplete)
-
-- [ ] Verify the pill is absolutely positioned specifically in the top right corner (`top-2 right-2`).
-- [ ] Ensure it correctly evaluates the `user_rating` column, completely ignoring the TMDB `vote_average`.
-- [ ] Handle edge cases where the value is 0 or null (the pill must completely vanish).
-- [ ] Test the text formatting strictly outputs a string like '★ 4' or '★ 5/5'.
-- [ ] Ensure the background is a translucent black to remain visible on bright white posters.
-
-**9.6 Always-on Bottom-Left Original Release Year pill.** (Incomplete)
-
-- [ ] Verify the pill accurately extracts purely the 4-digit Year string from `release_date`.
-- [ ] Ensure the styling utilizes a completely solid dark badge to ground the poster base.
-- [ ] Handle edge cases where the year is entirely unknown or null (do not display 'NaN' or '1970').
-- [ ] Test exact absolute positioning to avoid overlapping with bottom progress bars.
-- [ ] Ensure font size is tiny but highly legible (e.g., `text-xs`).
-
-**9.7 Absolute bottom-edge library progress bar (Gray = Unwatched, Half Orange = Watching, Green = Finished).** (Incomplete)
-
-- [ ] Verify mathematical logic perfectly calculates width percentage based on `completed_episodes / total_episodes`.
-- [ ] Ensure the width transitions correctly (Gray for 0%, Orange for 1-99%, Green strictly for 100%).
-- [ ] Handle edge cases where the show is 'Ended' but only 3 episodes ever aired.
-- [ ] Test absolute positioning locking the bar to the lowest possible pixel of the poster.
-- [ ] Ensure corner radius rounding neatly clips the bar without jutting out as a square.
-
-**9.14 Sort logic: 'My Top Rated' (user_rating DESC).** (Incomplete)
-
-- [ ] Verify shows strictly grouped by their exact integer (e.g., all 5-stars together).
-- [ ] Ensure the secondary constraint automatically sorts the grouped items alphabetically or by ID.
-- [ ] Handle edge cases where 0-star (unrated) shows are strictly relegated to the absolute bottom.
-- [ ] Test rapid UI updates ensuring a newly rated show leaps to the top instantly.
-- [ ] Ensure TMDB `vote_average` is absolutely ignored.
-
-**9.15 Smooth list re-ordering transitions when sorting/filtering.** (Incomplete)
-
-- [ ] Verify `<motion.li layout>` seamlessly animates the precise XY translation of each poster.
-- [ ] Ensure the DOM correctly unmounts filtered items strictly using `<AnimatePresence>` opacity fades.
-- [ ] Handle edge cases where extreme sorting triggers 500 animations simultaneously (must not drop below 30FPS).
-- [ ] Test visual tracking ensuring the user's eye can follow a poster if it moves slightly.
-- [ ] Ensure the animation duration is rapid (e.g., `0.3s`).
-
-**9.16 Friendly empty-state illustration/text for libraries with 0 items.** (Incomplete)
-
-- [ ] Verify the exact text encourages the user to 'Scan for Files' or add media.
-- [ ] Ensure the component is perfectly horizontally and vertically centered.
-- [ ] Handle edge cases where a library is empty purely due to aggressive filtering, not a zero-item DB.
-- [ ] Test an appropriate massive, dim Lucide-React icon renders beautifully in the center.
-- [ ] Ensure the 'Hide Completed' toggle explicitly vanishes to avoid UI clutter in this state.
-
-**11.5 Interactive 5-star clicking component for user ratings.** (Incomplete)
-
-- [ ] Verify hover states exactly fill the hovered star and strictly all stars preceding it.
-- [ ] Ensure clicking instantly triggers the queue to push a UI update into SQLite.
-- [ ] Handle edge cases where a user rapid-clicks stars (debounce logic must prevent database locking).
-- [ ] Test zero-rating functionality (e.g., clicking a filled star again completely unrates it).
-- [ ] Ensure stars precisely utilize the `text-[#FF6B00]` color when active.
-
-**11.6 Instant UI star color mutation on click (Pushes DB update via queue).** (Incomplete)
-
-- [ ] Verify React state mutates the local array instantly without waiting for a Rust callback.
-- [ ] Ensure the queue strictly processes the `UPDATE media SET user_rating` via a dedicated background thread.
-- [ ] Handle edge cases where the SQLite queue completely crashes, seamlessly reverting the UI state.
-- [ ] Test performance when rating 20 shows in 20 seconds.
-- [ ] Ensure no full-page re-renders are triggered by this specific action.
-
-**11.8 '▶ Play Next' global action button (Automatically finds the lowest SxxExx unwatched file).** (Incomplete)
-
-- [ ] Verify Rust querying exactly mimics the complex algorithm from the Dashboard Hero.
-- [ ] Ensure it completely disables if no local files exist for unwatched episodes.
-- [ ] Handle edge cases where episode 3 is missing, but episode 4 exists (it should strictly play episode 4).
-- [ ] Test the exact `last_position` parameter properly routing to VLC.
-- [ ] Ensure the button utilizes the solid vibrant Orange fill.
-
-**13.10 Sub-episode pause timestamp tracking text (Paused at 22:15 | 11:30 PM).** (Incomplete)
-
-- [ ] Verify text accurately extracts the specific pause timestamp formatting it perfectly for the UI.
-- [ ] Ensure exact mathematical conversions explicitly output human-readable formats like `1h 22m` or `15m`.
-- [ ] Handle edge cases where the UI specifically completely skips rendering this string if the file was purely marked complete instead of naturally watched.
-- [ ] Test standard explicitly formatting precisely outputting the text cleanly inside the history rows.
-- [ ] Ensure explicitly specifically the text contrasts properly.
-
-**13.11 'My Watch Date vs. Original Air Date' timeline subtext comparison string.** (Incomplete)
-
-- [ ] Verify standard math explicitly subtracts the database history timestamp specifically from the extracted air date.
-- [ ] Ensure specifically the string explicitly renders 'Watched 2 years after airing' perfectly correctly.
-- [ ] Handle edge cases exactly specifically where the math entirely resolves precisely to 0 days (render 'Watched on premiere day').
-- [ ] Test explicitly specifically hiding this string entirely perfectly specifically if the air date is purely completely unknown.
-- [ ] Ensure completely exactly specifically the specific exactly UI renders it elegantly specifically.
-
-**13.12 Click-to-navigate routing from a History entry directly to the Media Details page.** (Incomplete)
-
-- [ ] Verify specific exactly exactly standard React Router specifically explicitly strictly navigating specifically perfectly to the `/media/:id` page.
-- [ ] Ensure specifically precisely perfectly preserving specific entirely strictly scrolling explicitly precisely exactly perfectly specifically exactly correctly entirely.
-- [ ] Handle edge cases strictly exactly entirely specifically perfectly specifically precisely specifically perfectly specifically completely exactly entirely specifically.
-- [ ] Test explicitly specifically clicking explicitly entirely specifically completely perfectly exactly specifically correctly specifically entirely perfectly specifically completely perfectly.
-- [ ] Ensure exactly perfectly entirely completely perfectly exactly completely exactly specifically perfectly completely exactly perfectly completely exactly perfectly specifically perfectly entirely perfectly.
-
-**14.6 Legacy Binge-Block generation (Creates static, non-expandable cards for old shows).** (Incomplete)
-
-- [ ] Verify specifically that history rows flagged as `is_legacy` entirely bypass the standard 6-hour grouping logic.
-- [ ] Ensure the UI perfectly rolls up hundreds of legacy rows strictly into a singular 'March 2015' static block.
-- [ ] Handle edge cases where expanding specifically does nothing to avoid crashing the DOM with thousands of list items.
-- [ ] Test visual differences specifically applying a 'Archive' icon instead of the vibrant orange play arrow.
-- [ ] Ensure legacy blocks strictly sort beneath precise daily blocks in the timeline.
-
-**14.7 'Legacy' tag UI rendering for library items without specific daily timestamps.** (Incomplete)
-
-- [ ] Verify hovering a completely archived poster accurately renders a strictly gray 'Legacy' badge.
-- [ ] Ensure the 'Last Viewed' math correctly overrides explicitly displaying 'Archived' instead of 'Unknown days ago'.
-- [ ] Handle edge cases where a show contains both Legacy and modern Active history (display the most recent active).
-- [ ] Test library filtering specifically specifically allowing users to hide 'Legacy' items if desired.
-- [ ] Ensure standard text specifically reads 'Backdated' or 'Archived' strictly matching user expectation.
-
-**14.8 'Archive' checkbox conditionally added to global 'Mark All Watched' popup.** (Incomplete)
-
-- [ ] Verify clicking the primary top-level header button clearly exposes this checkbox specifically.
-- [ ] Ensure default state strictly leaves the box unchecked to prevent accidental mass deletion of context.
-- [ ] Handle edge cases explicitly where the entire show strictly spans thousands of episodes (e.g., One Piece).
-- [ ] Test strictly disabling the specific date pickers explicitly if 'Archive' is actively checked.
-- [ ] Ensure clear tooltip text warns the user that this action will permanently lack explicit timeline dates.
-
-**14.9 'Archive' checkbox conditionally added to the 'Add to Tracker' TMDB popup.** (Incomplete)
-
-- [ ] Verify strictly adding a totally new show directly from the TMDB Search results allows instant archiving.
-- [ ] Ensure specifically checking this box instantly downloads all metadata but marks strictly all episodes complete.
-- [ ] Handle edge cases where the show hasn't aired yet (the box should be completely disabled).
-- [ ] Test standard queueing strictly ensuring the metadata entirely finishes downloading before the archive flip.
-- [ ] Ensure the show instantly appears directly in the Library explicitly flagged as finished.
-
-**17.12 Global Command Palette: Press Cmd+P to open a quick-action menu (e.g., type ">Scan" to trigger a directory scan).** (Incomplete)
-
-- [ ] Open a handy central menu when the user presses Cmd+P or Ctrl+P.
-- [ ] Show a list of quick actions that filters down instantly as the user types letters.
-- [ ] Start the chosen action immediately when the user presses Enter.
-- [ ] Close the menu the exact second the action begins.
-- [ ] Keep the most popular or frequently used actions right at the very top of the list.
-
-**17.13 Touchpad Swipe Gestures: Swipe left/right on a laptop trackpad to go back/forward in the app history.** (Incomplete)
-
-- [ ] Recognize when a user makes a strong, intentional swipe on their laptop touchpad.
-- [ ] Change pages like a normal web browser does when swiping back or forward.
-- [ ] Show a gentle fading arrow on the edge of the screen to confirm the swipe was noticed.
-- [ ] Ignore horizontal swipes if the user is just trying to scroll through a row of movie posters.
-- [ ] Let users turn off this swipe feature in the settings if they don't like it.
-
-**17.14 Floating Action Button (FAB): A subtle "Jump to Top" arrow appears when scrolling deep into the Library.** (Incomplete)
-
-- [ ] Notice quietly when the user has scrolled significantly far down a very long list of movies.
-- [ ] Show a small, rounded button neatly in the bottom corner of the screen.
-- [ ] Fade the button in smoothly instead of having it appear suddenly.
-- [ ] Scroll the page back up to the very top the moment the user clicks the button.
-- [ ] Keep the button hidden if the page is short enough to see everything at once.
-
-**17.15 Shortcut Cheat Sheet: Press ? anywhere to open a modal displaying all keyboard shortcuts.** (Incomplete)
-
-- [ ] Open a helpful popup listing every keyboard trick when the user presses the '?' key.
-- [ ] Organize the list neatly so it is easy to read at a quick glance.
-- [ ] Keep the popup closed if the user is just trying to type a question mark into the search bar.
-- [ ] Add a simple 'Close' button to hide the list when they are done.
-- [ ] Pause any video that is playing the second this cheat sheet appears.
-
-**17.16 Scroll Memory: Pressing "Back" from a show details page restores your exact scroll position in the Library grid.** (Incomplete)
-
-- [ ] Remember how far down the user had scrolled before they clicked on a movie.
-- [ ] Jump right back to that spot smoothly when they hit the 'Back' button.
-- [ ] Stop the page from awkwardly jumping to the top while the movie posters are loading.
-- [ ] Forget the scroll spot if they click the home button to start a fresh search.
-- [ ] Remember separate scroll spots for the TV library and the Movie library simultaneously.
-
-**17.17 Focus Trapping: When a modal is open, pressing Tab cycles only through modal buttons, preventing the background UI from being highlighted.** (Incomplete)
-
-- [ ] Keep the keyboard focus inside a popup window when one is open.
-- [ ] Loop the focus from the last button in the popup straight back to the first button automatically.
-- [ ] Stop the user from accidentally highlighting buttons on the dark screen behind the popup.
-- [ ] Make sure this works backwards too, if the user holds Shift while pressing Tab.
-- [ ] Give the focus back to the main search bar once the popup is finally closed.
-
-**17.18 Auto-Focus Search: Clicking the "Search TMDB" sidebar tab instantly focuses the input cursor.** (Incomplete)
-
-- [ ] Place the typing cursor directly into the big search box the second the user opens the search page.
-- [ ] Show the blinking line immediately so the user knows they can type without clicking first.
-- [ ] Keep the cursor there patiently even if the rest of the page takes a second to load.
-- [ ] Stop stealing the cursor if the user clicks the search page while already trying to do something else.
-- [ ] Make sure clicking the clear button puts the cursor right back into the box again.
-
-**17.19 Inline Clear Button: A tiny x icon appears inside the search bar when typing, allowing 1-click clearing.** (Incomplete)
-
-- [ ] Show a tiny 'X' mark neatly at the far right edge of the search box.
-- [ ] Keep the 'X' hidden until the user actually types at least one letter.
-- [ ] Wipe the entire search box clean the instant the 'X' is clicked.
-- [ ] Put the typing cursor right back into the clean box automatically so they can try again.
-- [ ] Give the 'X' a very slight highlight when hovered so it feels like a real button.
-
-**17.20 Native Window Dragging: The entire empty space of the top navigation bar acts as a -webkit-app-region: drag zone to move the desktop window.** (Incomplete)
-
-- [ ] Let the user click and hold any empty space at the top of the app to move the whole window.
-- [ ] Stop the window from moving if they click on a button or the search box instead.
-- [ ] Keep the window moving smoothly following the mouse across the screen.
-- [ ] Turn off dragging if the window is already maximized to fill the whole screen.
-- [ ] Let the user double-click the empty space to quickly maximize or shrink the window.
-
-**18.12 "Ken Burns" Hero Effect: The Dashboard backdrop slowly scales up (1.00 to 1.05) over 30 seconds for subtle life.** (Incomplete)
-
-- [ ] Make the giant background image grow incredibly slowly over a long period of time.
-- [ ] Have it slowly zoom in and then zoom back out in an endless, gentle loop.
-- [ ] Keep the very center of the image in the middle so it doesn't drift off to the side.
-- [ ] Ensure the movement is smooth without any tiny visual jitters or steps.
-- [ ] Pause the growing the second the user scrolls away so the computer doesn't waste energy.
-
-**18.18 Variable Opacity Stars: Unfilled stars in the rating widget are 20% opacity white, not just gray.** (Incomplete)
-
-- [ ] Make the empty rating stars a very faint, see-through white color instead of dull gray.
-- [ ] Turn them solid and bright immediately when the user hovers over them.
-- [ ] Keep the filled, orange stars solid so they stand out.
-- [ ] Ensure the empty, faint stars are still easy to see against a bright background image.
-- [ ] Color the stars instantly when clicked without waiting for a server to respond.
-
-**18.20 Smooth Accordion Heights: Expanding a Binge-Block animates the height dynamically rather than instantly snapping the layout down.** (Incomplete)
-
-- [ ] Make the history section slide open smoothly to reveal the episodes hidden inside.
-- [ ] Let the area grow as tall as it needs to be to fit the new content.
-- [ ] Give the sliding motion a very slight, natural bounce so it feels organic.
-- [ ] Stop the text inside from looking awkwardly squished while the section is opening.
-- [ ] Slide the section back shut smoothly when the user clicks to close it.
-
-**19.12 VLC Crash Catching: If the VLC.exe exits with a crash code, WatchMark displays a specific error toast.** (Incomplete)
-
-- [ ] Watch the video player closely in the background to see if it closes normally or if it unexpectedly crashes.
-- [ ] Show a helpful, bright red warning notification on the screen if a crash is detected.
-- [ ] Stop the app from saving corrupted pause times if the player crashed while the user was skipping forward.
-- [ ] Provide a small button on the notification to let advanced users view what went wrong.
-- [ ] Ensure the main tracking app remains stable and usable even if the video player fails.
-
-**19.19 VLC Version Logging: Displays detected VLC version in Settings for debugging.** (Incomplete)
-
-- [ ] Ask the video player quietly in the background what version it is currently running.
-- [ ] Read the response cleanly to extract just the version number (like '3.0.18').
-- [ ] Show this number in small, faint text at the bottom of the settings page for easy troubleshooting.
-- [ ] Handle things calmly without crashing if the video player refuses to share its version number.
-- [ ] Update this version number automatically if the user points the app to a different video player folder.
-
-**20.13 Micro-Refresh: Option to right-click and "Refresh Data" for a single episode rather than the whole show.** (Incomplete)
-
-- [ ] Give the user an option to update the information specifically for just one single episode.
-- [ ] Add this choice neatly to the beautiful custom right-click menu on the episode row.
-- [ ] Update the title, description, and thumbnail picture instantly without reloading the rest of the page.
-- [ ] Show a tiny spinning circle on just that one row so the user knows it is thinking.
-- [ ] Handle it gracefully if the database still doesn't have any new information to provide.
-
-**20.18 "Copy Path" Quick Action: Right-click an episode to copy the raw C:\... path to clipboard.** (Incomplete)
-
-- [ ] Add a brand new 'Copy File Path' button to the beautiful custom right-click menu.
-- [ ] Save the exact, complete folder path of the video directly to the user's invisible computer clipboard when clicked.
-- [ ] Show a quick, tiny popup message confirming 'Copied to Clipboard!' so they know it worked.
-- [ ] Ensure the path includes the exact drive letter and every single subfolder.
-- [ ] Disable the button if the file is currently marked as missing or deleted.
-
-**20.19 "Show in Explorer" Action: Right-click to open native OS file manager with the file highlighted.** (Incomplete)
-
-- [ ] Add a handy 'Open Folder' button right next to the copy button in the right-click menu.
-- [ ] Open the user's actual computer file browser to the folder where the video is hiding.
-- [ ] Highlight the exact video file automatically so the user doesn't have to search for it among hundreds of other files.
-- [ ] Make sure this works flawlessly on both Windows computers and Mac computers.
-- [ ] Show a polite error explaining the issue if the folder has been renamed or moved.
-
-**20.20 Metadata Warning Icon: A tiny yellow ! if an episode exists but TMDB returned absolutely zero data for it.** (Incomplete)
-
-- [ ] Notice if an episode has a video file ready to play but zero information from the internet database.
-- [ ] Place a very small, bright yellow warning triangle next to the episode title.
-- [ ] Show a small text box explaining 'Information Missing' when the user hovers over the triangle.
-- [ ] Remove the warning triangle instantly if the user successfully uses the refresh button to find the missing details.
-- [ ] Keep the play button functional so the user can still watch their show even without a summary.
-
-**21.12 Persistent View State: The app remembers if you sorted Movies by Rating and TV by Added, saving it to LocalStorage.** (Incomplete)
-
-- [ ] Save the user's sorting choice in the background every time they change it.
-- [ ] Remember the settings for the Television library separate from the Movie library.
-- [ ] Load these settings silently the very next time the user opens the application.
-- [ ] Apply the same memory to whether the user prefers the grid view or the compact list view.
-- [ ] Make sure this invisible memory feature never accidentally slows down or breaks the app's loading speed.
-
-**21.13 "Clear All Filters" Pill: A floating action button that appears when any complex filters are active.** (Incomplete)
-
-- [ ] Watch carefully to see if the user has turned on more than one tricky filter at the exact same time.
-- [ ] Pop a beautiful, bright button onto the top of the screen offering to clear everything.
-- [ ] Wipe every single filter away instantly when the user clicks the button.
-- [ ] Return the movie library flawlessly back to its normal, unfiltered state.
-- [ ] Hide the bright button instantly the second the library goes back to normal.
-
-**21.14 Results Counter: Subtle text stating "Showing 42 of 150 items".** (Incomplete)
-
-- [ ] Place a very tiny, dim line of text at the top corner of the movie library.
-- [ ] Update the numbers instantly every time a new filter is clicked or a search is typed.
-- [ ] Count precisely how many total movies exist compared to what is currently visible.
-- [ ] Keep the text silent and invisible if the user is simply looking at their entire collection.
-- [ ] Make sure the numbers never accidentally overlap over any important buttons or posters.
-
-**21.15 Intersection Observer Rendering: Posters off-screen are replaced by empty divs to conserve DOM memory.** (Incomplete)
-
-- [ ] Watch silently to see which movie posters disappear off the top or bottom of the screen.
-- [ ] Remove the heavy picture from the computer's memory to keep the app running fast.
-- [ ] Leave a totally invisible, sized empty box in its place so the scrolling doesn't jump or break.
-- [ ] Put the picture right back into the box instantly before the user scrolls back to it.
-- [ ] Make sure the user never accidentally sees the blank boxes while scrolling normally.
-
-**21.16 Image Retry Logic: If a local cached image is corrupted, automatically attempt to re-download it from TMDB.** (Incomplete)
-
-- [ ] Notice instantly if a movie poster picture file is totally broken or won't load properly.
-- [ ] Try quietly in the background to download a fresh copy of the picture from the internet.
-- [ ] Replace the broken picture instantly on the screen the exact second the new one finishes downloading.
-- [ ] Stop trying permanently if the internet is down so the app doesn't freeze or crash.
-- [ ] Show the neat, beautiful gray placeholder box while the app is silently fixing the picture.
-
-**21.17 Type Iconography: In "All Search Results", overlay a tiny Movie clapperboard or TV icon to distinguish media types.** (Incomplete)
-
-- [ ] Look closely at mixed search results to see what kind of media they are.
-- [ ] Place a tiny, incredibly cute television icon in the corner of all the television shows.
-- [ ] Place a tiny movie clapperboard icon in the corner of all the standard feature films.
-- [ ] Keep these icons small so they don't cover up the actual title of the movie.
-- [ ] Hide the icons if the user is already specifically browsing just their TV or Movie libraries.
-
-**21.18 "Unwatched Only" Filter: Distinct from "Hide Completed"—this specifically hides anything you've started.** (Incomplete)
-
-- [ ] Add a brand new checkbox separate from the standard 'Hide Completed' button.
-- [ ] Hide every single movie or show that the user has even watched five minutes of.
-- [ ] Leave only the totally fresh, absolutely untouched movies on the screen.
-- [ ] Help the user easily find something brand new they haven't started yet.
-- [ ] Keep this filter compatible with all the other genre or sorting tools.
-
-**21.19 Library Multi-Select State: Allow users to Ctrl+Click multiple posters to Bulk Remove.** (Incomplete)
-
-- [ ] Let users hold down the Ctrl or Cmd key and click on several different movie posters.
-- [ ] Highlight every single poster they click so it is obvious they are selected.
-- [ ] Pop a new menu at the top of the screen offering a massive 'Delete All' button.
-- [ ] Remove every single chosen movie the instant the big button is pressed.
-- [ ] Un-highlight everything the exact second the user clicks anywhere else on the page.
-
-**21.20 "Pin to Top" Feature: Right-click a show to pin it, ensuring it stays at the top of the grid regardless of sort order.** (Incomplete)
-
-- [ ] Add a neat 'Pin to Top' button directly inside the custom right-click menu.
-- [ ] Move that specific movie poster to the absolute very first spot in the entire library.
-- [ ] Keep it locked in that number one spot even if the user changes how the list is sorted.
-- [ ] Add a tiny little thumbtack icon to the corner of the poster so it is obvious.
-- [ ] Un-pin the poster the second the user clicks the button again.
-
-**22.16 Inbox Sort by Date: Sort unmatched files by the OS "Date Modified" attribute.** (Incomplete)
-
-- [ ] Give the user a simple button to sort their confusing files by age.
-- [ ] Put the absolutely newest, most recently downloaded files at the top of the list.
-- [ ] Help the user figure out what a file is by remembering when they downloaded it.
-- [ ] Refresh the list instantly when the button is clicked.
-- [ ] Keep the list organized even if the user has thousands of confusing files.
-
-**22.17 Inbox Sort by Size: Sort unmatched files by byte size.** (Incomplete)
-
-- [ ] Add a button to sort the confusing files by how massive they are.
-- [ ] Group massive 4K movies together at one end of the list.
-- [ ] Group tiny preview clips at the other end.
-- [ ] Help the user identify what a file is by looking at its size.
-- [ ] Keep the sorting fast even if the user has a massive hard drive.
-
-**22.18 Inbox Fuzzy Matching: Groups strings with minor typos together (e.g., "The Wrie" and "The Wire").** (Incomplete)
-
-- [ ] Notice when two file names are almost identical.
-- [ ] Group them together in the confusing files list even if one has a small typo.
-- [ ] Help the user fix both files at the exact same time.
-- [ ] Stop grouping files together if they are actually totally different shows.
-- [ ] Make the confusing files list much smaller and easier to manage.
-
-**22.19 Inbox Inline Editing: Allow the user to manually edit the extracted string in the UI before hitting "Search TMDB".** (Incomplete)
-
-- [ ] Let the user click right on the guessed title in the confusing files list.
-- [ ] Turn the text into a totally normal typing box so they can fix spelling mistakes.
-- [ ] Search the internet the second they finish typing the fixed name.
-- [ ] Save the user from opening a massive separate popup window.
-- [ ] Keep the typing box explicit simple and easy to use.
-
-**22.20 Inbox Type Override: A quick toggle to force TMDB to search for a "Movie" if the parser incorrectly guessed "TV".** (Incomplete)
-
-- [ ] Add a tiny, perfect simple button next to the confusing file.
-- [ ] Let the user flip between 'Television' and 'Movie'.
-- [ ] Search the internet again instantly using the brand new category.
-- [ ] Help the user fix mistakes when a movie happens to have a number in its name.
-- [ ] Keep the button explicit out of the way unless the user needs it.
-
-**23.16 Average Watch Time Widget: Calculates average daily media consumption in minutes.** (Incomplete)
-
-- [ ] Figure out how many minutes of video the user watches on a typical day.
-- [ ] Display this daily average cleanly on the dashboard alongside the other fun statistics.
-- [ ] Format the number beautifully, like '1h 45m per day', instead of a confusing raw number of seconds.
-- [ ] Ensure the math only looks at actual time spent watching, ignoring time where a video was just paused in the background.
-- [ ] Don't let days where the user watched absolutely nothing ruin the math unfairly.
-
-**23.17 Modular Dashboard Layout: Settings toggle to re-order dashboard rows (e.g., move Stats above Recently Added).** (Incomplete)
-
-- [ ] Give the user a simple list in the settings menu showing every row on their main dashboard.
-- [ ] Let them click and drag these rows up and down to change what order they appear in.
-- [ ] Apply the new layout instantly the second they return to the main screen.
-- [ ] Remember this custom order permanently so their dashboard always looks how they like it.
-- [ ] Ensure the giant Hero banner is locked at the very top and cannot be accidentally moved down.
-
-**23.18 "Upcoming Airing" Row: A row for tracked shows that have episodes airing in the next 7 days.** (Incomplete)
-
-- [ ] Check the calendar to see if any television shows the user watches have brand new episodes coming out this week.
-- [ ] Build a special, temporary row on the dashboard exclusively for these upcoming premieres.
-- [ ] Show the movie poster and which day of the week the episode will be available.
-- [ ] Hide this row if nothing the user watches is scheduled to air in the next seven days.
-- [ ] Remove an episode from this row automatically the exact second the air date actually passes.
-
-**23.19 Collapsible Dashboard Sections: Chevron icons to minimize rows you don't care about.** (Incomplete)
-
-- [ ] Add a tiny, subtle arrow icon to the title text of every single row on the dashboard.
-- [ ] Let the user click the arrow to hide all the movie posters inside that specific row instantly.
-- [ ] Slide the rest of the page up smoothly to fill in the space where the posters used to be.
-- [ ] Remember which rows are hidden permanently so they stay closed the next time the app opens.
-- [ ] Flip the arrow upside down so it is obvious the user can click it again to bring the posters back.
-
-**24.10 Clipboard Sharing: A button to copy a binge log to clipboard formatted for Discord/Reddit (Finished Breaking Bad S1 - 8/10!).** (Incomplete)
-
-- [ ] Add a small 'Share' icon right next to the binge duration text.
-- [ ] Generate a clean, readable text summary when the user clicks the icon.
-- [ ] Include the show name, the season number, and the user's personal star rating in the text.
-- [ ] Save the text directly to their computer clipboard instantly.
-- [ ] Show a quick 'Copied!' message so they know it worked.
-
-**24.11 Rewatch Flagging: If watch_count > 1, history entries get a subtle circular arrow icon indicating a rewatch.** (Incomplete)
-
-- [ ] Check if the user has watched the exact same episode before on an older date.
-- [ ] Add a small, elegant looping arrow icon next to the newest history row.
-- [ ] Help the user easily see at a glance which shows they enjoy repeating.
-- [ ] Provide a small tooltip explaining 'Rewatch' when they hover over the icon.
-- [ ] Ensure the first time they watched it stays normal without the special icon.
-
-**24.12 Rewatch Filter: Toggle history to only show items you have watched multiple times.** (Incomplete)
-
-- [ ] Add a simple toggle switch near the search bar on the history page.
-- [ ] Hide everything except the rows that have the special rewatch arrow icon.
-- [ ] Let the user easily see all their favorite, highly-repeated shows in one place.
-- [ ] Keep the dates and timeline layout intact while this filter is on.
-- [ ] Show a friendly empty state if they have never rewatched anything.
-
-**24.15 Timeline Fast-Scroller: A tiny alphabet/year vertical index on the right edge of the screen to jump instantly to 2018.** (Incomplete)
-
-- [ ] Draw a very thin vertical list of years on the far right side of the history screen.
-- [ ] Let the user click '2018' to instantly jump all the way down the page to that year.
-- [ ] Make the list of years update automatically based on how far back their history goes.
-- [ ] Keep the list stuck to the screen even while the user scrolls normally.
-- [ ] Hide this fast-scroller on narrow mobile screens so it doesn't block the text.
-
-**24.16 Watch Gap String: "Watched 5 years after airing" dynamically calculated string on history rows.** (Incomplete)
-
-- [ ] Compare the date the user watched the episode to the date it originally aired on television.
-- [ ] Calculate the exact number of years or months between those two dates.
-- [ ] Display a fun little string like 'Watched 2 years later' right inside the history row.
-- [ ] Hide the string if they watched it on the exact same day it premiered.
-- [ ] Hide the string if the internet database doesn't know when the episode aired.
-
-**24.17 Accordion Auto-Collapse: Expanding a Binge-Block automatically closes previously opened ones to keep the view clean.** (Incomplete)
-
-- [ ] Notice when the user clicks to open a large group of watched episodes.
-- [ ] Find any other groups that are currently open on the screen and close them smoothly.
-- [ ] Prevent the page from becoming miles long and impossible to navigate.
-- [ ] Keep the scroll position steady so the screen doesn't jump wildly when things close.
-- [ ] Let the user turn this feature off in the settings if they prefer leaving everything open.
-
-**24.18 Midnight Crossover Icon: A tiny moon icon if a single Binge-Block spans across two calendar days.** (Incomplete)
-
-- [ ] Notice if a single continuous viewing session starts before midnight and ends after midnight.
-- [ ] Add a small, elegant crescent moon icon next to the binge duration time.
-- [ ] Let the user know they stayed up incredibly late without being judgmental.
-- [ ] Provide a tooltip explaining 'Spans across midnight' when hovered.
-- [ ] Keep the block safely grouped under the day the viewing session started.
-
-**24.19 "Marathon" Tier Badge: Binge-Blocks exceeding 12 hours receive a special red/gold flame badge.** (Incomplete)
-
-- [ ] Check if the total running time of a single group of episodes goes over twelve hours.
-- [ ] Add an exciting, colorful flame icon to the top of that specific group.
-- [ ] Reward the user for their massive dedication to finishing a story.
-- [ ] Ensure the badge is visually distinct from the standard completion checkmarks.
-- [ ] Hide the badge if the user manually changes the dates and breaks the marathon.
-
-**25.7 UI Zoom Scaling: A slider mapping CSS variables to scale the entire UI from 80% to 120%.** (Incomplete)
-
-- [ ] Place a simple slider in the accessibility settings to change the size of the whole app.
-- [ ] Make the text, buttons, and posters grow or shrink smoothly as the slider moves.
-- [ ] Ensure the grid layout adapts intelligently so posters don't get pushed off the edge of the screen.
-- [ ] Help users with large monitors or poor vision make the text comfortable to read.
-- [ ] Keep the default size set to 100 percent for a standard, expected look.
-
-**25.8 Hardware Acceleration Toggle: Exposes Tauri's WebView GPU acceleration settings for low-end machines.** (Incomplete)
-
-- [ ] Add a deep settings switch to turn off heavy graphical features if the app runs slowly.
-- [ ] Require a quick app restart for this specific setting change to take effect.
-- [ ] Warn the user that turning this off might make animations feel slightly less smooth.
-- [ ] Default this setting to 'On' so modern computers get the best possible visual experience.
-- [ ] Help old laptops run the app without overheating or freezing.
-
-**25.16 Global Tooltips Toggle: A master switch to turn off all hover helper-text for expert users.** (Incomplete)
-
-- [ ] Add a simple switch in the settings to disable every single helpful popup box.
-- [ ] Stop the small descriptive text from appearing when hovering over buttons or icons.
-- [ ] Keep the screen looking incredibly clean for users who already know what every button does.
-- [ ] Leave critical warning messages or error popups active so the app remains safe to use.
-- [ ] Turn the tooltips back on instantly if the user changes their mind.
-
-**25.29 Modal Hover Persistence: Ensures hover overlays on posters disappear instantly if a Settings modal is opened over them.** (Incomplete)
-
-- [ ] Notice when a giant popup window, like the settings menu, opens over the main library.
-- [ ] Force any dark hover boxes over the movie posters to vanish immediately.
-- [ ] Keep the screen clean so the hover boxes don't bleed through the blurred popup background.
-- [ ] Prevent the user from accidentally clicking hidden play buttons behind the popup window.
-- [ ] Let the hover boxes work normally again the second the popup is closed.
-
-**25.30 Inbox Scanning Skeletons: Animated placeholder rows in the Inbox while the background Rust scanner is running.** (Incomplete)
-
-- [ ] Show gray, shimmering placeholder rows in the file inbox when a massive folder scan starts.
-- [ ] Let the user know the app is actively working on finding their confusing video files.
-- [ ] Replace the placeholder rows with real file names one by one as the scan finishes them.
-- [ ] Keep the rest of the inbox usable so the user can organize old files while the scan runs.
-- [ ] Remove the placeholders cleanly if the scan finishes and finds absolutely nothing new.
-
-**25.34 / Global Hotkey: Pressing forward-slash instantly selects the quick search bar (Standard web UX).** (Incomplete)
-
-- [ ] Listen for the forward-slash key on the keyboard no matter what page the user is on.
-- [ ] Jump the typing cursor instantly into the top search bar when the key is pressed.
-- [ ] Help power users navigate the app incredibly fast using standard internet shortcuts.
-- [ ] Ignore the shortcut if the user is already typing inside a different text box.
-- [ ] Prevent the forward-slash character from actually being typed into the search box.
-
-**25.35 Global Processing Cursor: Changes cursor to wait (hourglass) during heavy synchronous DB operations.** (Incomplete)
-
-- [ ] Notice when the app asks the database to do a massive job, like importing thousands of files.
-- [ ] Change the mouse pointer into a spinning circle or hourglass icon.
-- [ ] Let the user know the app is thinking and hasn't frozen or crashed.
-- [ ] Prevent the user from clicking important buttons while the database is locked.
-- [ ] Return the mouse pointer to normal the exact millisecond the heavy job finishes.
-
-**25.36 Real-time File Deletion Catching: If a file is deleted via Windows Explorer while WatchMark is open, the app catches the OS FileNotFound error upon clicking Play and updates the icon to ☁️.** (Incomplete)
-
-- [ ] Try to launch the video player when the user clicks the orange play button.
-- [ ] Catch the error quietly if the computer says the file no longer exists.
-- [ ] Swap the play button instantly to a gray cloud icon so the user knows the file is missing.
-- [ ] Show a polite little message explaining the file was moved or deleted outside the app.
-- [ ] Prevent the app from crashing or showing terrifying code errors to the user.
-
-**25.37 Layout Snap Prevention: Uses AnimatePresence mode="popLayout" to ensure when a Binge-Block expands, the elements below it slide smoothly instead of jumping.** (Incomplete)
-
-- [ ] Tell the animation engine to handle layout changes smoothly when things appear or disappear.
-- [ ] Make the history items below a binge block slide down naturally when it opens.
-- [ ] Stop the items from instantly teleporting or snapping jarringly down the screen.
-- [ ] Keep the visual tracking clean so the user's eye can follow the movement.
-- [ ] Ensure the closing animation is just as smooth and pushes things back up naturally.
-
-**25.38 VLC Spawn Loading State: The Orange play button changes to an animated spinner for 0.5s while the VLC .exe boots up.** (Incomplete)
-
-- [ ] Hide the play triangle icon the moment the user clicks the button.
-- [ ] Show a tiny, spinning circle in its place to indicate the app is working.
-- [ ] Keep the spinner visible just long enough to cover the time it takes the video player to open.
-- [ ] Put the play triangle back once the video player confirms it is running.
-- [ ] Make the button unclickable while it is spinning to prevent accidental double-launches.
-
-**25.39 Season Tab Overflow Handling: If a show has 30 seasons, the horizontal season-pill row becomes mouse-draggable.** (Incomplete)
-
-- [ ] Notice if a show has too many seasons to fit neatly on one single line across the screen.
-- [ ] Let the user click and drag the row of season buttons left and right with their mouse.
-- [ ] Hide the ugly scrollbars that computers normally put on sideways lists.
-- [ ] Ensure clicking a tab still changes the season instead of just dragging the row.
-- [ ] Add a subtle shadow on the edge of the screen hinting that there are more seasons hiding over there.
-
-**25.40 Conditional Back-to-Top Button: Appears in the History tab only when scrollY > 2000px.** (Incomplete)
-
-- [ ] Measure exactly how far down the page the user has scrolled on long library lists.
-- [ ] Keep the helpful 'Jump to Top' button completely hidden at the start.
-- [ ] Fade the button into the corner of the screen only when they scroll very deep into the list.
-- [ ] Scroll the page back to the top beautifully and smoothly when the button is clicked.
-- [ ] Fade the button back out once they reach the top of the page again.
-
-**25.41 TMDB API Key Verification Spinner: When saving settings, shows a loader while pinging TMDB to verify the key is actually valid.** (Incomplete)
-
-- [ ] Show a spinning loading icon next to the save button when the user enters a new secret key.
-- [ ] Send a quick, silent test message to the internet database to make sure the key works.
-- [ ] Swap the spinner for a bright green checkmark if the database accepts the key.
-- [ ] Swap the spinner for a red warning icon if the database rejects the key or is offline.
-- [ ] Stop the user from trying to download movie posters if the key is proven to be broken.
-
-**25.42 Empty Season Handling: If a season exists in TMDB but has 0 episodes, the Season Tab is disabled/grayed out in the UI.** (Incomplete)
-
-- [ ] Notice when the internet database lists a season that hasn't actually aired any episodes yet.
-- [ ] Show the button for that season in the list, but color it a dim, inactive gray.
-- [ ] Prevent the user from clicking the button since there is nothing inside it to see.
-- [ ] Add a helpful tooltip explaining 'No episodes available' when they hover over it.
-- [ ] Turn the button bright and clickable automatically the second a new episode is added.
-
-**25.43 Offline Placeholder Avatars: If actor headshots fail to load due to network drops, use a stylized SVGs matching the dark theme.** (Incomplete)
-
-- [ ] Catch the error quietly if the app tries to download an actor's picture but the internet is broken.
-- [ ] Swap the broken image box for a beautiful, dark silhouette icon.
-- [ ] Keep the screen looking polished and professional instead of showing ugly 'image missing' errors.
-- [ ] Match the silhouette style perfectly to the rest of the dark cinematic theme.
-- [ ] Ensure the actor's name underneath remains clearly readable.
-
-**25.44 Watch Time Extrapolation: If a show has no runtime data on TMDB, app calculates average runtime from local video files to estimate "Hours Watched".** (Incomplete)
-
-- [ ] Notice if the internet database completely forgets to list how long a television show's episodes are.
-- [ ] Look at the actual video files on the user's hard drive to see how long they usually run.
-- [ ] Create a smart guess, like '45 minutes', based on those real video files.
-- [ ] Use this smart guess to keep the fun dashboard statistics accurate and unbroken.
-- [ ] Update the guess automatically if the user downloads longer or shorter episodes later.
-
-**25.45 Dynamic "Missing API Key" State: Instead of throwing alerts, the entire "Search" tab shows a beautiful full-screen prompt explaining how to get a free API key with a direct link.** (Incomplete)
-
-- [ ] Check to see if the user has forgotten to enter their secret database key in the settings.
-- [ ] Replace the empty search page with a friendly, welcoming instruction screen.
-- [ ] Explain simply why the key is needed to download movie posters and descriptions.
-- [ ] Provide a giant, clickable link directly to the website where they can sign up for free.
-- [ ] Remove this instruction screen instantly the second a valid key is saved in the settings.
-
-**25.46 Easter Egg / Konami Code: Typing a secret sequence triggers a playful CSS animation or unlocks a secret color theme for fun.** (Incomplete)
-
-- [ ] Listen quietly for a very specific, secret pattern of keyboard presses.
-- [ ] Make sure the sequence doesn't accidentally trigger while the user is typing a real search.
-- [ ] Unlock a silly visual joke, like making the movie posters spin around, when the code is entered.
-- [ ] Add a hidden 'Neon Pink' color theme to the settings menu as a permanent reward.
-- [ ] Keep the easter egg totally harmless so it doesn't break any real app features or data.
