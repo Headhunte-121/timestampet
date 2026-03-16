@@ -378,10 +378,26 @@ function App() {
                 ← Back
               </button>
             )}
+            {currentView === "search" && !selectedMediaId && (
+              <button
+                onClick={() => handleNav("dashboard")}
+                className="ml-8 px-4 py-2 text-sm font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-2"
+              >
+                ← Back to Home
+              </button>
+            )}
           </div>
 
           {/* Quick Search Pill */}
-          <div className="flex-1 max-w-xl px-4 mx-auto hidden md:block z-10">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (currentView !== "search") {
+                handleNav("search");
+              }
+            }}
+            className="flex-1 max-w-xl px-4 mx-auto hidden md:block z-10"
+          >
             <div className="relative">
               <Icon icon={Search} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
               <input
@@ -392,7 +408,7 @@ function App() {
                 className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-medium"
               />
             </div>
-          </div>
+          </form>
 
           <div className="flex items-center mr-8 gap-4 z-10">
             <button
@@ -412,7 +428,15 @@ function App() {
         >
 
           {/* Mobile search bar if needed, shown conditionally or stacked */}
-          <div className="md:hidden p-4 mt-16">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (currentView !== "search") {
+                handleNav("search");
+              }
+            }}
+            className="md:hidden p-4 mt-16"
+          >
              <div className="relative">
               <Icon icon={Search} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
               <input
@@ -423,7 +447,7 @@ function App() {
                 className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-medium"
               />
             </div>
-          </div>
+          </form>
 
           <AnimatePresence mode="wait">
             {selectedMediaId ? (
@@ -453,7 +477,7 @@ function App() {
                 {currentView === "dashboard" && <Dashboard onMediaSelect={(id: number) => handleNav("dashboard", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
                 {currentView === "tv" && <Library type="TV" onMediaSelect={(id: number) => handleNav("tv", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
                 {currentView === "movies" && <Library type="Movie" onMediaSelect={(id: number) => handleNav("movies", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
-                {currentView === "search" && <SearchTMDB onMediaSelect={(id: number) => handleNav("search", id)} />}
+                {currentView === "search" && <SearchTMDB initialQuery={globalSearchQuery} onMediaSelect={(id: number) => handleNav("search", id)} />}
                 {currentView === "inbox" && <InboxView onMatch={() => setRefreshTrigger(prev => prev + 1)} />}
                 {currentView === "history" && <History />}
                 {currentView === "settings" && <SettingsView setIsDirty={setIsSettingsDirty} setSaveCallback={setSaveSettingsCallback} />}

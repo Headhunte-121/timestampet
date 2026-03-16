@@ -10,7 +10,7 @@ import { invokeWithTimeout } from "../utils/ipc";
 import { AnimatePresence, motion } from "framer-motion";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Loader2, UploadCloud, Sparkles, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Loader2, UploadCloud, Sparkles, CheckCircle2, XCircle, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { documentDir } from '@tauri-apps/api/path';
 import { RestoreConfirmationModal } from "./ui/RestoreConfirmationModal";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
@@ -33,6 +33,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   const [initialSettings, setInitialSettings] = useState<any>(null);
   const [validationState, setValidationState] = useState<'idle' | 'loading' | 'success' | 'error' | 'ratelimit'>('idle');
   const [validationError, setValidationError] = useState<string>('');
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const [settings, setSettings] = useState<any>({
     vlc_path: "",
@@ -173,11 +174,13 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
 
           if (res.success) {
               setValidationState('success');
+              toast.success("API Key Valid!");
           } else {
               if (res.error_msg && res.error_msg.startsWith("RATE_LIMIT:")) {
                   const retryAfter = parseInt(res.error_msg.split(":")[1]) || 1;
                   setValidationState('ratelimit');
                   setValidationError(`Key is valid, but TMDB is busy. Retrying in ${retryAfter} seconds.`);
+                  toast.error(`TMDB is busy. Retrying in ${retryAfter} seconds.`);
                   setTimeout(() => {
                       if (settings.tmdb_api_key === res.sanitized_key) {
                           validateApiKey(res.sanitized_key);
@@ -185,12 +188,16 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                   }, retryAfter * 1000);
               } else {
                   setValidationState('error');
-                  setValidationError(res.error_msg || "Invalid API Key");
+                  const errMsg = res.error_msg || "Invalid API Key";
+                  setValidationError(errMsg);
+                  toast.error(errMsg);
               }
           }
       } catch (e: any) {
           setValidationState('error');
-          setValidationError(e.toString());
+          const errMsg = e.toString();
+          setValidationError(errMsg);
+          toast.error(errMsg);
       }
   };
 
@@ -429,12 +436,19 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                         <div>
                             <div className="relative">
                                 <input
-                                    type="password"
+                                    type={showApiKey ? "text" : "password"}
                                     value={settings.tmdb_api_key}
                                     onChange={e => updateSetting('tmdb_api_key', e.target.value)}
-                                    className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none pr-12"
+                                    className="w-full bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none pr-24"
                                     placeholder="ey..."
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowApiKey(!showApiKey)}
+                                    className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                                >
+                                    {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                                     <AnimatePresence mode="wait">
                                         {validationState === 'loading' && (
@@ -460,11 +474,30 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                     </AnimatePresence>
                                 </div>
                             </div>
-                            {validationError && (
-                                <p className={cn("text-xs mt-2", validationState === 'ratelimit' ? "text-yellow-500" : "text-red-500")}>
-                                    {validationError}
-                                </p>
-                            )}
+                            <div className="mt-4 flex items-center justify-between">
+                                {validationError ? (
+                                    <p className={cn("text-xs", validationState === 'ratelimit' ? "text-yellow-500" : "text-red-500")}>
+                                        {validationError}
+                                    </p>
+                                ) : (
+                                    <span />
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => validateApiKey(settings.tmdb_api_key)}
+                                    disabled={validationState === 'loading' || !settings.tmdb_api_key}
+                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 font-bold rounded-lg transition-colors text-white text-sm disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {validationState === 'loading' ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin text-[#FF6B00]" />
+                                            Pinging TMDB...
+                                        </>
+                                    ) : (
+                                        "Test Connection"
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
