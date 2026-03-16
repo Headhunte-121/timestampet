@@ -54,6 +54,7 @@ pub async fn vlc_heartbeat(
     start_dt_str: String,
     app_handle: AppHandle,
 ) {
+    tracing::info!("[VLC] 💓 Establishing VLC Heartbeat connection...");
     let mut high_water_mark: f64 = 0.0;
     let mut last_time_seconds: f64 = 0.0;
     let mut pause_count: i32 = 0;
@@ -175,6 +176,7 @@ pub async fn vlc_heartbeat(
         let is_within_10s = final_runtime_seconds > 0.0 && (final_runtime_seconds - last_time_seconds) <= 10.0;
 
         if high_water_mark > 0.90 || is_within_10s {
+            tracing::info!("[BACKEND] 🧠 Math evaluated >90% watched. Marking episode 'Completed'.");
             let _ = conn.execute(
                 "UPDATE Episodes SET watch_count = watch_count + 1, status = 'Completed', last_position = 0 WHERE id = ?",
                 params![episode_id],
@@ -184,6 +186,7 @@ pub async fn vlc_heartbeat(
                 params![end_dt_str, episode_id, start_dt_str, session_id],
             );
         } else if high_water_mark > 0.05 {
+            tracing::info!("[BACKEND] 🧠 Math evaluated <90% watched. Saving pause state as 'Watching'.");
             let _ = conn.execute(
                 "UPDATE Episodes SET status = 'Watching', last_position = ? WHERE id = ? AND status != 'Completed'",
                 params![last_time_seconds as i32, episode_id],
@@ -193,6 +196,7 @@ pub async fn vlc_heartbeat(
                 params![high_water_mark, end_dt_str, episode_id, start_dt_str, session_id],
             );
         } else {
+            tracing::info!("[BACKEND] 🧠 Math evaluated <5% watched. Abandoning session tracking.");
             let _ = conn.execute(
                 "DELETE FROM History WHERE episode_id=? AND timestamp=? AND session_id=?",
                 params![episode_id, start_dt_str, session_id],
@@ -217,6 +221,7 @@ pub async fn play_episode_cmd(
     last_position: i32,
     state: tauri::State<'_, crate::commands::AppState>,
 ) -> Result<(), AppError> {
+    tracing::info!("[VLC] 🎬 Preparing to launch VLC player...");
     if let Ok(mut cache) = state.stats_cache.write() {
         *cache = None;
     }

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/useAppStore";
 import { useTaskStore } from "../store/useTaskStore";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
 import { invokeWithTimeout } from "../utils/ipc";

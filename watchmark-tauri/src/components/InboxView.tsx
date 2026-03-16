@@ -2,7 +2,7 @@ import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { FolderSearch, Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { open } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
 import { invokeWithTimeout } from "../utils/ipc";

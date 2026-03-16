@@ -7,7 +7,7 @@ import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { useAppStore } from "./store/useAppStore";
 import { useTaskStore } from "./store/useTaskStore";
 import Dashboard from "./components/Dashboard";
-import { toast } from "sonner";
+import { toast } from "./utils/toast";
 import Library from "./components/Library";
 import SearchTMDB from "./components/SearchTMDB";
 import History from "./components/History";

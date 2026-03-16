@@ -42,5 +42,24 @@ export const logger = {
     inboxIgnore: (msg: string) => console.log(`[INBOX] 🗑️ User clicked 'Ignore'. Blacklisting folder path: ${msg}.`),
 
     // 7. General Debug
-    debug: (msg: string) => console.log(`[DEBUG] 🐛 ${msg}`)
+    debug: (msg: string) => {
+        const text = `[DEBUG] 🐛 ${msg}`;
+        console.log(text);
+        logToBackend("debug", text);
+    },
+
+    // 8. Toasts
+    toast: (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
+        let emoji = '🍞';
+        if (type === 'success') emoji = '✅';
+        if (type === 'error') emoji = '🚨';
+        const text = `[UI] ${emoji} Displaying ${type} toast: "${msg}"`;
+        if (type === 'error') {
+            console.error(text);
+            logToBackend("error", text);
+        } else {
+            console.info(text);
+            logToBackend("info", text);
+        }
+    }
 };

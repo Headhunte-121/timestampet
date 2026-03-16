@@ -628,6 +628,7 @@ pub async fn export_database(
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(app, state))]
 pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
+    tracing::info!("[BACKEND] 🧠 Extracting detailed Media and Season data...");
     let mut backdrop_size = "w1280".to_string();
     if let Ok(Some(monitor)) = app.primary_monitor() {
         if monitor.scale_factor() > 1.0 {
@@ -1597,6 +1598,7 @@ pub async fn archive_season(
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(app, state))]
 pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
+    tracing::info!("[BACKEND] 🧠 Reading SQLite database to build Dashboard layout...");
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
     let token = CancellationToken::new();
@@ -1622,6 +1624,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
             let conn = crate::db::get_readonly_connection()?;
 
         // 1. Hero Episode
+        tracing::info!("[BACKEND] 🧠 Reading SQLite database to find your most recently watched show...");
         let mut hero_stmt = conn.prepare(
             "
             SELECT e.media_id, MAX(h.timestamp) as last_watched
@@ -1703,6 +1706,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
         }
 
         // 2. Up Next (Active Shows)
+        tracing::info!("[BACKEND] 🧠 Looking for active shows to put in your 'Up Next' queue...");
         let mut cw_stmt = conn.prepare(
             "
             SELECT m.id as media_id
@@ -1967,6 +1971,7 @@ pub async fn get_library_data(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Media>, AppError> {
+    tracing::info!("[BACKEND] 🧠 Preparing Library data...");
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
     let token = CancellationToken::new();
@@ -1988,6 +1993,7 @@ pub async fn get_library_data(
 
     let result = tokio::task::spawn_blocking(move || {
         handle_panic(std::panic::AssertUnwindSafe(|| {
+            tracing::info!("[BACKEND] 🧠 Filtering and sorting library data...");
             let conn = crate::db::get_readonly_connection()?;
 
             let mut base_query = "
@@ -2433,6 +2439,8 @@ pub async fn perform_tmdb_search(request_id: String, query: String, page: Option
 
         let p = page.unwrap_or(1);
 
+        tracing::info!("[NET] 🌐 Sending search query to TMDB API...");
+
         tokio::select! {
             _ = token.cancelled() => {
                 Err(AppError::Custom("Search Task Cancelled".to_string()))
@@ -2488,6 +2496,7 @@ pub async fn assign_unmatched_to_tracker(
         return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
     }
 
+    tracing::info!("[BACKEND] 🧠 Fetching TMDB metadata to resolve unmatched local files...");
     let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
     let details_res: Result<Value, AppError> = match crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await {
         Ok(res) => Ok(res),
