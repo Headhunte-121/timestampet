@@ -109,18 +109,49 @@ export default function InboxView({ onMatch }: any) {
 
   const triggerScan = async () => {
     try {
+      let defaultPath;
+      try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const settings: any = await invoke('get_settings');
+          if (settings?.last_scanned_path) {
+              defaultPath = settings.last_scanned_path;
+          } else {
+              const { videoDir } = await import('@tauri-apps/api/path');
+              defaultPath = await videoDir();
+          }
+      } catch (e) {
+          console.warn("Could not load default path for scanner:", e);
+      }
+
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Select Directory to Scan"
+        title: "Select Directory to Scan",
+        defaultPath
       });
 
-      if (selected && typeof selected === 'string') {
+      if (!selected) return;
+
+      if (typeof selected === 'string') {
         setScanning(true);
         try {
             const res = await invokeWithTimeout<number>("run_scan_directory", { directory: selected }, 300000);
             toast.success(`Found ${res} new unmatched files.`);
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                const settings: any = await invoke('get_settings');
+                settings.last_scanned_path = selected;
+                await invoke('save_settings', { settings });
+            } catch (e) {
+                console.warn("Failed to save last_scanned_path:", e);
+            }
             fetchUnmatched();
+        } catch (scanErr: any) {
+            if (scanErr?.type === "AccessDenied" || scanErr?.code === "ACCESS_DENIED") {
+              toast.error(`Access Denied: WatchMark lacks permissions for ${scanErr.path}`);
+            } else {
+              throw scanErr;
+            }
         } finally {
             setScanning(false);
         }

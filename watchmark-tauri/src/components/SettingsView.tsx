@@ -50,7 +50,8 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     auto_resume: true,
     auto_scan_on_boot: false,
     global_log_level: "info",
-    module_logs: {}
+    module_logs: {},
+    last_scanned_path: ""
   });
 
   const [availableModules, setAvailableModules] = useState<Record<string, string>>({});
@@ -203,12 +204,27 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
 
   const runScan = async () => {
     try {
+      let defaultPath;
+      if (settings?.last_scanned_path) {
+          defaultPath = settings.last_scanned_path;
+      } else {
+          try {
+              const { videoDir } = await import('@tauri-apps/api/path');
+              defaultPath = await videoDir();
+          } catch (e) {
+              console.warn("Could not get video dir:", e);
+          }
+      }
+
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Select Directory to Scan"
+        title: "Select Directory to Scan",
+        defaultPath
       });
-      if (selected && typeof selected === 'string') {
+      if (!selected) return;
+
+      if (typeof selected === 'string') {
         logger.click("the 'Run Scan' button");
         setScanStatus("Scan started...");
         setScanning(true);
@@ -217,12 +233,17 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
           .then((count: number) => {
             logger.ipcSuccess(`Scan complete. Found ${count} unmatched files.`);
             toast.success(`Scan complete. Found ${count} unmatched files.`);
+            setSettings({ ...settings, last_scanned_path: selected });
             setScanStatus("");
             setScanning(false);
           })
           .catch((e: any) => {
             logger.error("Scan Failed", e);
-            toast.error("Error during scan: " + e);
+            if (e?.type === "AccessDenied" || e?.code === "ACCESS_DENIED") {
+              toast.error(`Access Denied: WatchMark lacks permissions for ${e.path}`);
+            } else {
+              toast.error("Error during scan: " + e);
+            }
             setScanStatus("");
             setScanning(false);
           });

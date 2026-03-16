@@ -2432,6 +2432,19 @@ pub async fn run_scan_directory(
     directory: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<i32, AppError> {
+    if !std::fs::metadata(&directory).map(|m| m.is_dir()).unwrap_or(false) {
+        return Err(AppError::Custom("Selected path is not a valid directory.".to_string()));
+    }
+
+    if let Err(e) = std::fs::read_dir(&directory) {
+        if e.kind() == std::io::ErrorKind::PermissionDenied {
+            return Err(AppError::AccessDenied {
+                code: "ACCESS_DENIED".to_string(),
+                path: directory,
+            });
+        }
+    }
+
     if state.is_maintenance_mode.load(Ordering::SeqCst) {
         return Err(AppError::Custom("System Busy: Maintenance mode is currently active.".to_string()));
     }

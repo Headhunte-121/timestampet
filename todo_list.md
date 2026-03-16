@@ -502,13 +502,13 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Pick a folder on the hard drive and find video files.**
 
-**2.1 Native OS directory selection dialog.** (Incomplete)
+**2.1 Native OS directory selection dialog.** (Complete)
 
-- [ ] Ensure dialog strictly restricts selection to directories, not individual files.
-- [ ] Handle edge cases where the user cancels the dialog (should fail gracefully).
-- [ ] Test behavior when a selected directory is read-only or restricted by the OS.
-- [ ] Verify default paths open to logical locations (e.g., user's Video folder).
-- [ ] Handle edge cases where a network drive is selected and suddenly disconnects.
+- [x] Ensure dialog strictly restricts selection to directories, not individual files.
+- [x] Handle edge cases where the user cancels the dialog (should fail gracefully).
+- [x] Test behavior when a selected directory is read-only or restricted by the OS.
+- [x] Verify default paths open to logical locations (e.g., user's Video folder).
+- [x] Handle edge cases where a network drive is selected and suddenly disconnects.
 
 **2.2 Recursive subfolder deep-scanning.** (Incomplete)
 

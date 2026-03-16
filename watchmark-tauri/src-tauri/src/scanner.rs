@@ -178,14 +178,38 @@ pub fn scan_directory(
         }
     }) {
         let path = entry.path();
-        if path.is_file() {
+
+        // Timeout-wrapped metadata read (for network drives)
+        let (is_file, file_size) = {
+            let p = path.to_path_buf();
+            let p_clone = p.clone();
+            let (tx_meta, rx_meta) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let meta = std::fs::metadata(&p_clone);
+                let _ = tx_meta.send(meta);
+            });
+            match rx_meta.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(Ok(m)) => (m.is_file(), m.len() as i64),
+                Ok(Err(e)) => {
+                    tracing::warn!("Failed to read metadata for {}: {}", p.display(), e);
+                    continue; // Skip this file
+                }
+                Err(_) => {
+                    return Err(rusqlite::Error::SqliteFailure(
+                        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_IOERR),
+                        Some("Drive Disconnected or timed out during scan".to_string()),
+                    ));
+                }
+            }
+        };
+
+        if is_file {
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                 if VIDEO_EXTENSIONS.contains(&ext.to_lowercase().as_str()) {
                     let filename = path.file_name().unwrap().to_string_lossy().to_string();
                     let (series_name, season_num, episode_num) = parse_filename(&filename);
                     let str_path = path.to_string_lossy().to_string();
 
-                    let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) as i64;
                     if file_size == 0 {
                         tracing::warn!("Bit-Rot or Empty File Detected: {}", str_path);
                     }

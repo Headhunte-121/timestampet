@@ -349,6 +349,12 @@ pub struct Settings {
     pub last_backup_error: String,
     #[serde(default = "default_high_performance_mode")]
     pub high_performance_mode: bool,
+    #[serde(default = "default_empty_string")]
+    pub last_scanned_path: String,
+}
+
+fn default_empty_string() -> String {
+    "".to_string()
 }
 
 fn default_width() -> i32 { 1280 }
@@ -397,6 +403,7 @@ impl Default for Settings {
             high_performance_mode: default_high_performance_mode(),
             is_fullscreen: default_false(),
             is_maximized: default_false(),
+            last_scanned_path: default_empty_string(),
         }
     }
 }
