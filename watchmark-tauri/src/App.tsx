@@ -50,6 +50,9 @@ function App() {
   const importTotal = useTaskStore((state) => state.total);
   const activeSyncs = useTaskStore((state) => state.activeSyncs);
 
+  // Focus state for applying native signal (grayscale/opacity) when out of focus
+  const [isFocused, setIsFocused] = useState(true);
+
   useEffect(() => {
     logger.app("WatchMark Frontend successfully mounted.");
     initializeSettings();
@@ -110,6 +113,12 @@ function App() {
       setRefreshTrigger(prev => prev + 1);
     });
 
+    const unlistenResize = listen("tauri://resize", () => {
+      // Trigger a forced reflow pass on window resize or restore
+      // By slightly mutating the refresh trigger, we force components like Library and Intersection Observers to recalculate
+      window.dispatchEvent(new Event('resize'));
+    });
+
     const unlistenProgress = listen<{ progress: number; total: number; isImporting: boolean }>(
       "history-import-progress",
       (event) => {
@@ -146,12 +155,23 @@ function App() {
         );
     });
 
+    const unlistenFocus = listen("tauri://focus", () => {
+      setIsFocused(true);
+    });
+
+    const unlistenBlur = listen("tauri://blur", () => {
+      setIsFocused(false);
+    });
+
     return () => {
       unlisten.then(fn => fn());
+      unlistenResize.then(fn => fn());
       unlistenProgress.then(fn => fn());
       unlistenSyncProgress.then(fn => fn());
       unlistenDbFailed.then(fn => fn());
       unlistenApiFailed.then(fn => fn());
+      unlistenFocus.then(fn => fn());
+      unlistenBlur.then(fn => fn());
     };
   }, []);
 
@@ -238,9 +258,10 @@ function App() {
         animate={{ x: isMobileMenuOpen ? 0 : (window.innerWidth < 1024 ? "-100%" : 0) }}
         transition={{ type: "spring", bounce: 0, duration: 0.4 }}
         className={cn(
-          "fixed lg:relative z-50 h-full flex flex-col sidebar-parent",
+          "fixed lg:relative z-50 h-full flex flex-col sidebar-parent transition-all duration-300",
           "w-64 min-w-[256px] max-w-[256px]",
-          "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5 lg:translate-x-0"
+          "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5 lg:translate-x-0",
+          !isFocused ? "grayscale-[20%] opacity-90" : "grayscale-0 opacity-100"
         )}
       >
         <div className="h-16 flex-shrink-0 flex items-center justify-center py-8">
@@ -334,11 +355,14 @@ function App() {
         )}
 
         {/* Top Global Navigation Bar */}
-        <header className={cn(
-          "absolute top-0 left-0 right-0 z-40 h-16 flex-shrink-0 flex items-center justify-between px-4 transition-colors duration-300 border-b border-white/5",
-          isHeaderScrolled ? "bg-[#0D0F14]/80 backdrop-blur-md" : "bg-transparent"
-        )}>
-          <div className="flex items-center">
+        <header
+          data-tauri-drag-region
+          className={cn(
+            "absolute top-0 left-0 right-0 z-40 h-16 flex-shrink-0 flex items-center justify-between px-4 transition-colors duration-300 border-b border-white/5 select-none",
+            isHeaderScrolled ? "bg-[#0D0F14]/80 backdrop-blur-md" : "bg-transparent"
+          )}
+        >
+          <div className="flex items-center z-10">
             {/* Hamburger Menu for Mobile */}
             <button
               onClick={() => setIsMobileMenuOpen(true)}
@@ -357,7 +381,7 @@ function App() {
           </div>
 
           {/* Quick Search Pill */}
-          <div className="flex-1 max-w-xl px-4 mx-auto hidden md:block">
+          <div className="flex-1 max-w-xl px-4 mx-auto hidden md:block z-10">
             <div className="relative">
               <Icon icon={Search} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
               <input
@@ -370,7 +394,7 @@ function App() {
             </div>
           </div>
 
-          <div className="flex items-center mr-8 gap-4">
+          <div className="flex items-center mr-8 gap-4 z-10">
             <button
               onClick={() => handleNav("settings")}
               className="p-2 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors focus:outline-none"

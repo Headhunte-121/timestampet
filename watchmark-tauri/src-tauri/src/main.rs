@@ -129,6 +129,33 @@ fn main() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let app_handle = window.app_handle().clone();
+
+                // Save window bounds before exiting
+                if let Ok(outer_pos) = window.outer_position() {
+                    if let Ok(outer_size) = window.inner_size() {
+                        if let Some(state) = app_handle.try_state::<commands::AppState>() {
+                            if let Ok(mut settings) = state.settings.write() {
+                                let is_maximized = window.is_maximized().unwrap_or(false);
+                                let is_fullscreen = window.is_fullscreen().unwrap_or(false);
+
+                                settings.x = outer_pos.x;
+                                settings.y = outer_pos.y;
+                                settings.is_maximized = is_maximized;
+                                settings.is_fullscreen = is_fullscreen;
+
+                                if !is_maximized && !is_fullscreen {
+                                    let scale_factor = window.scale_factor().unwrap_or(1.0);
+                                    settings.width = (outer_size.width as f64 / scale_factor) as i32;
+                                    settings.height = (outer_size.height as f64 / scale_factor) as i32;
+                                }
+
+                                let _ = crate::settings::save_settings(&*settings);
+                            }
+                        }
+                    }
+                }
+
+
                 if let Some(state) = app_handle.try_state::<commands::AppState>() {
                     let db_queue = state.db_queue.clone();
 
@@ -146,6 +173,53 @@ fn main() {
         })
         .setup(move |app| {
             tracing::info!("[APP] 🚀 Tauri setup hook triggered. Initializing state...");
+
+            // 0. Restore Window Geometry
+            let window = app.get_webview_window("main").unwrap();
+            let mut x = initial_settings.x;
+            let mut y = initial_settings.y;
+            let width = initial_settings.width;
+            let height = initial_settings.height;
+
+            if x != -1 && y != -1 {
+                let mut on_screen = false;
+                if let Ok(monitors) = window.available_monitors() {
+                    for monitor in monitors {
+                        let position = monitor.position();
+                        let size = monitor.size();
+
+                        let is_x_visible = x >= position.x && x < (position.x + size.width as i32);
+                        let is_y_visible = y >= position.y && y < (position.y + size.height as i32);
+                        if is_x_visible && is_y_visible {
+                            on_screen = true;
+                            break;
+                        }
+                    }
+                }
+
+                if !on_screen {
+                    // Fallback to center on primary
+                    if let Ok(Some(monitor)) = window.primary_monitor() {
+                        let position = monitor.position();
+                        let size = monitor.size();
+                        x = position.x + (size.width as i32 - width) / 2;
+                        y = position.y + (size.height as i32 - height) / 2;
+                    }
+                }
+
+                let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+            }
+
+            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: width as f64, height: height as f64 }));
+
+            if initial_settings.is_maximized {
+                let _ = window.maximize();
+            }
+
+            if initial_settings.is_fullscreen {
+                let _ = window.set_fullscreen(true);
+            }
+
 
             // 1. Boot-Time Filesystem Guard
             let app_data_dir = db::get_app_data_dir();

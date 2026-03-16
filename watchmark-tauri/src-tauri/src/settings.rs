@@ -53,9 +53,9 @@ pub fn load_settings() -> Result<Settings, String> {
         Ok(content) => {
             match serde_json::from_str::<Settings>(&content) {
                 Ok(mut settings) => {
-                    // Fix bounds if corrupted
-                    if settings.width <= 0 { settings.width = 1280; }
-                    if settings.height <= 0 { settings.height = 800; }
+                    // Fix bounds if corrupted (Sanity Clamp)
+                    if settings.width < 800 { settings.width = 800; }
+                    if settings.height < 600 { settings.height = 600; }
 
                     // Recover API key
                     let mut found_key = false;

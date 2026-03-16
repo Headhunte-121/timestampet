@@ -62,7 +62,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
         </div>
       </div>
 
-      <motion.div layout className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+      <motion.div layout className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         <AnimatePresence mode="popLayout">
           {filteredData.map((item, i) => {
             const isInitialStagger = i < 20;
