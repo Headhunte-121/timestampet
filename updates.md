@@ -432,8 +432,7 @@ Implemented global rate limit management and staggered iterative background fetc
 * **6.7 Modern Inter sans-serif font family integration**: Added `.tabular-nums` class and confirmed standard anti-aliasing behavior in `index.css`. Tailwind is already configured correctly for the `Inter` font stack.
 * **6.10 Custom thin, dark styled scrollbars**: Upgraded `::-webkit-scrollbar` with a 6px layout. Implemented `rgba(42, 45, 53, 0.4)` pseudo-opacity on the thumb track so it blends over the `#0D0F14` background cleanly, transitioning to the primary orange `#FF6B00` on hover.
 * **6.11 Lucide-React high-fidelity vector icon integration**: Created centralized `Icon.tsx` component wrapper for all Lucide-React icons that strictly sets `strokeWidth=1.5` and `aria-hidden=true` to maintain globally consistent crisp stroke weights. Added `mix-blend-mode: multiply` edge case fallback to `img` CSS rules.
-## [7.1, 7.5, 7.6, 7.7, 7.8] Update Sidebar, Top Navigation, and Logo UI to match architectural specs
+## [7.1, 7.5, 7.6] Update Sidebar, Top Navigation, and Logo UI to match architectural specs
 - Fixed sidebar with w-64, backdrop-blur-xl and mobile drawer with hamburger trigger
 - Unified Sidebar Logo with stylized Play icon (#FF6B00) and proper negative spacing
 - New Sticky Top Global Navigation Bar with scrolling opacity and properly spaced elements
-- Global App.tsx Refactoring to handle resize logic and scroll states correctly

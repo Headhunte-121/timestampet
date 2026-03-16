@@ -816,21 +816,21 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test that the `<- Back` button perfectly aligns on the left axis inside this bar.
 - [x] Ensure the user profile/settings icon aligns perfectly on the right axis.
 
-**7.7 Top bar background transition (transparent to blurred when scrolled).** (Complete)
+**7.7 Top bar background transition (transparent to blurred when scrolled).** (Incomplete)
 
-- [x] Verify the header is completely transparent when `scrollY === 0` over hero images.
-- [x] Ensure a heavy `backdrop-blur` and a semi-transparent `#1F222A` background fades in immediately when scrolling starts.
-- [x] Handle edge cases where rapid scrolling causes the header to flicker between states.
-- [x] Test the transition duration ensuring the fade is elegant and not abrupt.
-- [x] Ensure elements strictly behind the header do not suddenly snap or shift.
+- [ ] Verify the header is completely transparent when `scrollY === 0` over hero images.
+- [ ] Ensure a heavy `backdrop-blur` and a semi-transparent `#1F222A` background fades in immediately when scrolling starts.
+- [ ] Handle edge cases where rapid scrolling causes the header to flicker between states.
+- [ ] Test the transition duration ensuring the fade is elegant and not abrupt.
+- [ ] Ensure elements strictly behind the header do not suddenly snap or shift.
 
-**7.8 Persistent Global Quick Search input pill centered in the top bar.** (Complete)
+**7.8 Persistent Global Quick Search input pill centered in the top bar.** (Incomplete)
 
-- [x] Ensure the input field is shaped exactly as a pill (`rounded-full`).
-- [x] Verify its background is a dark translucent tone (`bg-black/20`).
-- [x] Handle edge cases where the user types an impossibly long string.
-- [x] Test a hotkey (like `Ctrl+K`) perfectly focusing the input instantly.
-- [x] Ensure an empty state perfectly centers a magnifying glass icon and placeholder text.
+- [ ] Ensure the input field is shaped exactly as a pill (`rounded-full`).
+- [ ] Verify its background is a dark translucent tone (`bg-black/20`).
+- [ ] Handle edge cases where the user types an impossibly long string.
+- [ ] Test a hotkey (like `Ctrl+K`) perfectly focusing the input instantly.
+- [ ] Ensure an empty state perfectly centers a magnifying glass icon and placeholder text.
 
 **7.9 Smooth Framer Motion <AnimatePresence> page cross-fades.** (Incomplete)
 
