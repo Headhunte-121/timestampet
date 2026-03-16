@@ -768,13 +768,13 @@ This document represents the complete functional blueprint and state of the Watc
 
 ## 🧭 Part 7: The Application Shell & Navigation (Incomplete)
 
-**7.1 Fixed, full-height frosted glass Sidebar (w-64).** (Incomplete)
+**7.1 Fixed, full-height frosted glass Sidebar (w-64).** (Complete)
 
-- [ ] Ensure the sidebar width is exactly 16rem/256px consistently across views.
-- [ ] Verify the sidebar overlays or displaces the main content area correctly on resize.
-- [ ] Handle edge cases on narrow window widths where a hamburger menu might be preferred.
-- [ ] Test the `backdrop-blur-xl` on the sidebar over moving or heavily colored video elements.
-- [ ] Ensure scroll bars inside the sidebar are strictly hidden unless hovering.
+- [x] Ensure the sidebar width is exactly 16rem/256px consistently across views.
+- [x] Verify the sidebar overlays or displaces the main content area correctly on resize.
+- [x] Handle edge cases on narrow window widths where a hamburger menu might be preferred.
+- [x] Test the `backdrop-blur-xl` on the sidebar over moving or heavily colored video elements.
+- [x] Ensure scroll bars inside the sidebar are strictly hidden unless hovering.
 
 **7.2 Glowing orange vertical line indicator for the 'Active Tab'.** (Incomplete)
 
@@ -800,21 +800,21 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Test specific Framer Motion scale effects (e.g., `scale-105`) strictly on the text/icon.
 - [ ] Ensure the padding is large enough to create an easy click target.
 
-**7.5 Unified sidebar Logo featuring a stylized Play icon.** (Incomplete)
+**7.5 Unified sidebar Logo featuring a stylized Play icon.** (Complete)
 
-- [ ] Ensure the logo SVG is razor sharp at all resolutions and precisely centered in the header.
-- [ ] Verify the stylized Play icon seamlessly incorporates the primary `#FF6B00` orange.
-- [ ] Handle edge cases where the app is resized vertically causing the logo to overlap content.
-- [ ] Test clicking the logo reliably routes the user back to the Dashboard.
-- [ ] Ensure the logo is visually isolated with proper margins from the top edge.
+- [x] Ensure the logo SVG is razor sharp at all resolutions and precisely centered in the header.
+- [x] Verify the stylized Play icon seamlessly incorporates the primary `#FF6B00` orange.
+- [x] Handle edge cases where the app is resized vertically causing the logo to overlap content.
+- [x] Test clicking the logo reliably routes the user back to the Dashboard.
+- [x] Ensure the logo is visually isolated with proper margins from the top edge.
 
-**7.6 Top global navigation bar (sticky top-0).** (Incomplete)
+**7.6 Top global navigation bar (sticky top-0).** (Complete)
 
-- [ ] Ensure the bar is exactly 64px in height across the entire app.
-- [ ] Verify its `z-index` strictly places it above all scrolling content but below modals.
-- [ ] Handle edge cases where content bleeds through the edges of the sticky header.
-- [ ] Test that the `<- Back` button perfectly aligns on the left axis inside this bar.
-- [ ] Ensure the user profile/settings icon aligns perfectly on the right axis.
+- [x] Ensure the bar is exactly 64px in height across the entire app.
+- [x] Verify its `z-index` strictly places it above all scrolling content but below modals.
+- [x] Handle edge cases where content bleeds through the edges of the sticky header.
+- [x] Test that the `<- Back` button perfectly aligns on the left axis inside this bar.
+- [x] Ensure the user profile/settings icon aligns perfectly on the right axis.
 
 **7.7 Top bar background transition (transparent to blurred when scrolled).** (Incomplete)
 
