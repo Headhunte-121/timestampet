@@ -9,7 +9,7 @@ import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Lock } from "lucide-rea
 import { useUiStore } from "../store/uiStore";
 import { useTaskStore } from "../store/useTaskStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { StarRating } from "./ui/StarRating";
 import { useAppStore } from "../store/useAppStore";
 import { cn } from "../App";
@@ -68,7 +68,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           }
         }
       })
-      .catch(e => logger.error("Failed to fetch media details", e));
+      .catch(console.error);
   }, [mediaId, refreshTrigger, asyncInvoke]);
 
   if (!data) {

@@ -197,5 +197,20 @@ export const logger = {
         const text = `[DEBUG] 🐛 ${msg}`;
         console.log(text);
         logToBackend("debug", text);
+    },
+
+    // 8. Toasts
+    toast: (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
+        let emoji = '🍞';
+        if (type === 'success') emoji = '✅';
+        if (type === 'error') emoji = '🚨';
+        const text = `[UI] ${emoji} Displaying ${type} toast: "${msg}"`;
+        if (type === 'error') {
+            console.error(text);
+            logToBackend("error", text);
+        } else {
+            console.info(text);
+            logToBackend("info", text);
+        }
     }
 };
