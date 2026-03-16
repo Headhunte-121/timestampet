@@ -33,6 +33,7 @@ where
         Int(i32),
         Float(f64),
         String(String),
+        Array(Vec<i32>),
         Null,
     }
 
@@ -44,6 +45,13 @@ where
                 Ok(0)
             } else {
                 s.parse::<i32>().or_else(|_| s.parse::<f64>().map(|f| f.round() as i32)).or(Ok(0))
+            }
+        }
+        Ok(RawRuntime::Array(arr)) => {
+            if !arr.is_empty() {
+                Ok(arr[0])
+            } else {
+                Ok(0)
             }
         }
         Ok(RawRuntime::Null) | Err(_) => Ok(0),

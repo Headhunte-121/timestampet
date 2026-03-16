@@ -1,6 +1,7 @@
 import { logger } from "../utils/logger";
 import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
+import { formatRuntime } from "../utils/dateFormatter";
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
@@ -119,13 +120,13 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     return Math.min(100, progress);
   };
 
-  const filteredCW: EpisodeExtended[] = data.cw_eps?.filter(ep =>
+  const filteredCW: EpisodeExtended[] = data.cw_eps?.filter((ep: any) =>
     !searchQuery ||
     ep.show_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ep.title?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  const filteredRecent = data.recent_media?.filter(m =>
+  const filteredRecent = data.recent_media?.filter((m: any) =>
     !searchQuery ||
     m.title?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -212,21 +213,26 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             </div>
 
             {data.hero_ep.status === "Watching" && data.hero_ep.runtime > 0 && (
-              <div className="w-64 h-1.5 bg-white/20 rounded-full mt-6 overflow-hidden flex">
-                {(() => {
-                  const progress = calculateProgress(data.hero_ep.last_position, data.hero_ep.runtime);
-                  if (progress <= 0) return null;
-                  return (
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${progress}%`,
-                        minWidth: "2px",
-                        backgroundColor: progress >= 90 ? "#1b5e20" : "#FF6B00"
-                      }}
-                    />
-                  );
-                })()}
+              <div className="flex flex-col mt-6">
+                <div className="text-sm font-bold text-white mb-2">
+                  {formatRuntime(Math.max(0, data.hero_ep.runtime - Math.floor((data.hero_ep.last_position || 0) / 60)))} remaining
+                </div>
+                <div className="w-64 h-1.5 bg-white/20 rounded-full overflow-hidden flex">
+                  {(() => {
+                    const progress = calculateProgress(data.hero_ep.last_position, data.hero_ep.runtime);
+                    if (progress <= 0) return null;
+                    return (
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${progress}%`,
+                          minWidth: "2px",
+                          backgroundColor: progress >= 90 ? "#1b5e20" : "#FF6B00"
+                        }}
+                      />
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </div>
@@ -244,7 +250,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Continue Watching</h2>
           <motion.div layout className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x">
             <AnimatePresence mode="popLayout">
-            {filteredCW.map((ep) => {
+            {filteredCW.map((ep: any) => {
               const progress = calculateProgress(ep.last_position, ep.runtime);
 
               const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
@@ -335,7 +341,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Recently Added</h2>
           <motion.div layout className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
             <AnimatePresence mode="popLayout">
-            {filteredRecent.map((media) => {
+            {filteredRecent.map((media: any) => {
               const posterUrl = media.poster_path ? formatImagePath(media.poster_path, "w500") : "";
 
               return (

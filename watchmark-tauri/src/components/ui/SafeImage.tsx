@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { motion } from 'framer-motion';
+import { Eye } from 'lucide-react';
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   srcPath: string;
@@ -194,27 +195,46 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
   }
 
   const shouldBlur = potentialSpoiler && !isCompleted && !isRevealed;
-  const blurClass = shouldBlur ? 'backdrop-filter backdrop-blur-[25px]' : '';
-  const transitionClass = 'transition-[filter] duration-300 ease-in';
-  const filterStyle = shouldBlur ? { filter: 'blur(25px)' } : { filter: 'blur(0px)' };
-
   const commonClasses = `${className || ''} ${isFallbackImage ? 'brightness-75' : ''}`;
-  const objectPositionClass = type === 'still' ? 'object-[center_20%]' : '';
+  const objectPositionClass = type === 'still' ? 'object-center' : '';
 
   return (
     <div
-        className={`relative w-full h-full overflow-hidden ${type === 'still' ? 'aspect-video' : ''} ${blurClass}`}
+        className={`relative w-full h-full overflow-hidden ${type === 'still' ? 'aspect-video' : ''}`}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
     >
-      <motion.img
-        src={imgSrc!}
-        alt={altText}
-        className={`${commonClasses} w-full h-full object-cover ${objectPositionClass} ${transitionClass}`}
-        style={filterStyle}
-        onError={handleImageError}
-        {...rest as any}
-      />
+      <motion.div
+        className="w-full h-full absolute inset-0 z-0"
+        initial={false}
+        animate={{ filter: shouldBlur ? 'blur(20px)' : 'blur(0px)' }}
+        transition={{ duration: 0.3 }}
+      >
+        <img
+          src={imgSrc!}
+          alt={altText}
+          className={`${commonClasses} w-full h-full object-cover ${objectPositionClass}`}
+          onError={handleImageError}
+          {...rest as any}
+        />
+      </motion.div>
+
+      {shouldBlur && (
+         <div
+           className="absolute inset-0 flex items-center justify-center z-20 cursor-pointer transition-colors"
+           onClick={(e) => {
+             e.preventDefault();
+             e.stopPropagation();
+             setIsRevealed(true);
+           }}
+           title="Show Still"
+         >
+           <div className="bg-black/40 hover:bg-black/60 p-3 rounded-full backdrop-blur-md transition-colors shadow-xl border border-white/10">
+               <Eye className="w-6 h-6 text-white drop-shadow-lg opacity-80 hover:opacity-100 transition-opacity" />
+           </div>
+         </div>
+      )}
+
       {isFallbackImage && type === 'still' && (
          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
            <span className="text-white font-bold text-3xl drop-shadow-lg tracking-wider uppercase opacity-90">

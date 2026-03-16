@@ -503,3 +503,20 @@ Implemented robust native OS window frame integrations and window geometry resto
 ## 3.7 High-resolution primary Poster extraction
 - Configured the Rust `ImageConfig` struct to query active `app.primary_monitor().scale_factor()` resolution limits identically across both `poster_size` and `backdrop_size` variables.
 - Integrated precise high-DPI scaling directly across internal TMDB download caches (`original` resolution on >1.0 scales vs standard `w500` fallbacks on 1.0).
+## Micro-Feature 7: TMDB Search Execution & UI updates
+- Added offline mode detection (16.4) and UI notification using native onLine and Rust Heartbeat.
+- Formatted TMDB search results in a responsive grid, with filtering toggles and special handling for 1-2 item lists (16.5).
+- Enhanced SafeImage component for robust Image Load Error Handling, swapping failed urls with fallbacks and hiding broken image icons (16.12).
+
+## Micro-Feature 8: TMDB Deep Data Fetching
+- Implemented `Media Asset Resolver` to gracefully fall back to the show's backdrop if an episode's still image is missing.
+- Added strict API rate-limiting via a Tokio `Semaphore` for concurrent background image downloads to prevent TMDB 429 bans, spacing fetches correctly.
+- Enabled cinematic spoiler blurring logic for un-watched episode stills with a Lucide Eye toggle icon.
+- Enforced 16:9 aspect ratio across all episode UI using `aspect-video` and `object-cover`.
+- Tied cached episode still files directly to the internal SQLite `episode_id` for accurate removal and cache validation.
+- Implemented array parsing and sensible fallback logic for missing runtimes from TMDB.
+
+## Micro-Feature 34 & 21: Accurate Runtime & VLC State Math
+- Integrated `formatRuntime` utility to intelligently format UI minute durations to cinematic h/m display on Dashboard and Media Details.
+- Added dynamic FFmpeg duration override during VLC heartbeat checking if the local file length differs from the TMDB estimated runtime by > 2 minutes.
+- Secured Dashboard metrics against null runtimes using proper `COALESCE` arithmetic in SQL aggregates.

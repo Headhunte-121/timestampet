@@ -397,6 +397,18 @@ pub async fn get_media_details(
         );
         obj.insert("collection_id".to_string(), Value::Null);
         obj.insert("collection_name".to_string(), Value::Null);
+
+        // Try to get a global average runtime for TV shows
+        let mut global_runtime = 0;
+        if let Some(runtimes) = r["episode_run_time"].as_array() {
+            if !runtimes.is_empty() {
+                global_runtime = runtimes[0].as_i64().unwrap_or(0) as i32;
+            }
+        }
+        obj.insert(
+            "global_runtime".to_string(),
+            Value::Number(serde_json::Number::from(global_runtime)),
+        );
     } else {
         obj.insert(
             "total_episodes".to_string(),
@@ -792,3 +804,7 @@ mod tmdb_tests_3_4;
 #[cfg(test)]
 #[path = "tmdb_tests_3_5.rs"]
 mod tmdb_tests_3_5;
+
+lazy_static::lazy_static! {
+    pub static ref GLOBAL_IMAGE_SEMAPHORE: tokio::sync::Semaphore = tokio::sync::Semaphore::new(5);
+}
