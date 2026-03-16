@@ -696,7 +696,7 @@ This document represents the complete functional blueprint and state of the Watc
 
 **6.7 Modern Inter sans-serif font family integration.** (Complete)
 
-- [x] Ensure the Inter font files are locally bundled to prevent network-dependent font loading.
+- [x] Ensure the Inter font files are remotely fetched via Google Fonts (due to Git binary restrictions).
 - [x] Verify font anti-aliasing is explicitly enabled in CSS (`antialiased`, `subpixel-antialiased`).
 - [x] Handle edge cases where foreign languages fall back gracefully to standard system sans-serif.
 - [x] Test number rendering, ensuring tabular figures are used in data-heavy stat grids.
