@@ -54,6 +54,25 @@
   scrollbar-color: rgba(42, 45, 53, 0.4) #0D0F14;
 }
 
+/* Sidebar Custom Hover Scrollbar */
+.sidebar-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll-container::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 200ms;
+}
+.sidebar-parent:hover .sidebar-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 0, 0.3); /* VLC Orange to opacity: 0.3 */
+}
+.sidebar-parent:hover .sidebar-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 107, 0, 0.8);
+}
+
 /* Fix for transparent PNG edges against dark background */
 img[src$=".png"] {
   mix-blend-mode: multiply;

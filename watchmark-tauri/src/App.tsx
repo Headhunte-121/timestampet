@@ -186,6 +186,7 @@ function App() {
   };
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
 
   return (
     <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
@@ -205,13 +206,14 @@ function App() {
       </AnimatePresence>
 
       {/* Glassy Sidebar */}
-      <aside
+      <motion.aside
+        initial={false}
+        animate={{ x: isMobileMenuOpen ? 0 : (window.innerWidth < 1024 ? "-100%" : 0) }}
+        transition={{ type: "spring", bounce: 0, duration: 0.4 }}
         className={cn(
-          "fixed lg:relative z-50 h-full flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0",
+          "fixed lg:relative z-50 h-full flex flex-col sidebar-parent",
           "w-64 min-w-[256px] max-w-[256px]",
-          "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5",
-          "hover:scrollbar-default scrollbar-hide",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+          "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5 lg:translate-x-0"
         )}
       >
         <div className="h-16 flex-shrink-0 flex items-center justify-center py-8">
@@ -232,7 +234,7 @@ function App() {
           </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide hover:scrollbar-default">
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide sidebar-scroll-container">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -270,7 +272,7 @@ function App() {
             Settings
           </button>
         </div>
-      </aside>
+      </motion.aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative overflow-hidden min-w-0">
@@ -305,7 +307,10 @@ function App() {
         )}
 
         {/* Top Global Navigation Bar */}
-        <header className="absolute top-0 left-0 right-0 z-40 h-16 flex-shrink-0 flex items-center justify-between px-4 transition-colors duration-300 bg-transparent hover:bg-[#0D0F14]/80 hover:backdrop-blur-md border-b border-white/5">
+        <header className={cn(
+          "absolute top-0 left-0 right-0 z-40 h-16 flex-shrink-0 flex items-center justify-between px-4 transition-colors duration-300 border-b border-white/5",
+          isHeaderScrolled ? "bg-[#0D0F14]/80 backdrop-blur-md" : "bg-transparent"
+        )}>
           <div className="flex items-center">
             {/* Hamburger Menu for Mobile */}
             <button
@@ -343,7 +348,7 @@ function App() {
               onClick={() => handleNav("settings")}
               className="p-2 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors focus:outline-none"
             >
-              <Icon icon={Settings} className="w-5 h-5" />
+              <Icon icon={Settings} className="w-5 h-5" size={20} />
             </button>
           </div>
         </header>
@@ -351,15 +356,7 @@ function App() {
         <div
           className="flex-1 overflow-y-auto relative"
           onScroll={(e) => {
-            const target = e.currentTarget;
-            const header = target.previousElementSibling;
-            if (header && target.scrollTop > 10) {
-              header.classList.add('bg-[#0D0F14]/80', 'backdrop-blur-md');
-              header.classList.remove('bg-transparent');
-            } else if (header) {
-              header.classList.remove('bg-[#0D0F14]/80', 'backdrop-blur-md');
-              header.classList.add('bg-transparent');
-            }
+            setIsHeaderScrolled(e.currentTarget.scrollTop > 10);
           }}
         >
 
