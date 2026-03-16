@@ -31,7 +31,7 @@ export default function History() {
         setPage(pageNum);
       }
     } catch (e) {
-      logger.error("Failed to load history", e);
+      console.error(e);
     } finally {
       setLoading(false);
     }

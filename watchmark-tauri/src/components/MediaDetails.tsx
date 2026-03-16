@@ -68,7 +68,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           }
         }
       })
-      .catch(e => logger.error("Failed to fetch media details", e));
+      .catch(console.error);
   }, [mediaId, refreshTrigger, asyncInvoke]);
 
   if (!data) {

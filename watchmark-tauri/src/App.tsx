@@ -8,7 +8,6 @@ import { useAppStore } from "./store/useAppStore";
 import { useTaskStore } from "./store/useTaskStore";
 import Dashboard from "./components/Dashboard";
 import { toast } from "sonner";
-import { logger } from "./utils/logger";
 import Library from "./components/Library";
 import SearchTMDB from "./components/SearchTMDB";
 import History from "./components/History";
@@ -20,6 +19,7 @@ import { Modal } from "./components/ui/Modal";
 import { ProcessingModal } from "./components/ui/ProcessingModal";
 import { OptimizationModal } from "./components/ui/OptimizationModal";
 import { useAsyncInvoke } from "./hooks/useAsyncInvoke";
+import { logger } from "./utils/logger";
 import { Icon } from "./components/ui/Icon";
 
 export function cn(...inputs: ClassValue[]) {
@@ -38,6 +38,10 @@ function App() {
   const [isSettingsDirty, setIsSettingsDirty] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<{ view: View | null, mediaId: number | null } | null>(null);
   const [saveSettingsCallback, setSaveSettingsCallback] = useState<(() => Promise<boolean>) | null>(null);
+
+  // Navigation layout state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
 
   // Refresh UI hook
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -70,11 +74,11 @@ function App() {
                 toast.success(`Library Restored! ${totalItems} shows and ${hCount} history entries recovered.`, { duration: 5000 });
                 setRefreshTrigger(prev => prev + 1);
             }).catch(e => {
-                logger.error("Failed to fetch restored stats", e);
+                console.error("Failed to fetch restored stats:", e);
                 toast.success("Library Restored Successfully!");
                 setRefreshTrigger(prev => prev + 1);
             });
-        }).catch(e => logger.error("Failed to import invoke", e));
+        }).catch(e => console.error("Failed to import invoke:", e));
     }
   }, [initializeSettings]);
 
@@ -184,9 +188,6 @@ function App() {
   const cancelNavigation = () => {
       setPendingNavigation(null);
   };
-
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
 
   return (
     <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>

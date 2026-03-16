@@ -28,10 +28,12 @@ export function useAsyncInvoke() {
       enhancedArgs = { ...args, requestId: request_id };
     }
 
-    // Pass raw args so logger can parse them specifically
-    const rawContext = Object.keys(args).length > 0 ? args : undefined;
+    // Generate context string for better logging
+    const contextStr = Object.keys(args).length > 0
+      ? JSON.stringify(args).substring(0, 50) + (JSON.stringify(args).length > 50 ? '...' : '')
+      : 'no args';
 
-    logger.ipcSend(cmd, rawContext, isCancelable ? request_id : undefined);
+    logger.ipcSend(cmd, contextStr, isCancelable ? request_id : undefined);
 
     try {
       const result = await invokeWithTimeout<T>(cmd, enhancedArgs, timeoutMs);
@@ -49,7 +51,7 @@ export function useAsyncInvoke() {
         // Unmounted before promise resolved
         if (isCancelable) {
             logger.ipcCancel(request_id, "User left the page");
-            invoke('cancel_task', { requestId: request_id }).catch(err => logger.error(`Failed to cancel background task ${request_id}`, err));
+            invoke('cancel_task', { requestId: request_id }).catch(console.error);
         }
         return null; // Silently discard
       }
@@ -58,12 +60,13 @@ export function useAsyncInvoke() {
       if (!isMounted.current) {
         if (isCancelable) {
           logger.ipcCancel(request_id, "User left the page during failure");
-          invoke('cancel_task', { requestId: request_id }).catch(err => logger.error(`Failed to cancel background task ${request_id}`, err));
+          invoke('cancel_task', { requestId: request_id }).catch(console.error);
         }
         return null;
       }
 
-      logger.error(`Command '${cmd}' failed`, e);
+      const errorStr = e && typeof e === 'object' && e.message ? e.message : String(e);
+      logger.error(`Command '${cmd}' failed`, errorStr);
       throw e;
     }
   }, []);

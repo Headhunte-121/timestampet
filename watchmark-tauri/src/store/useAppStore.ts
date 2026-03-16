@@ -37,7 +37,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       set({ isCinemaMode: mode, initialized: true });
     } catch (e) {
-      logger.error("Failed to initialize settings", e);
+      console.error("Failed to initialize settings:", e);
       set({ initialized: true });
     }
   }

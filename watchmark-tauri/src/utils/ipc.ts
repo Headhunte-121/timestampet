@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { logger } from "./logger";
 
 /**
  * A wrapper around Tauri's invoke that enforces a strict timeout.
@@ -29,13 +28,13 @@ export async function invokeWithTimeout<T>(
     ]);
     return result as T;
   } catch (error: any) {
-    logger.error(`Error in invokeWithTimeout for ${cmd}`, error);
+    console.error(`Error in invokeWithTimeout for ${cmd}:`, error);
 
     let errMessage = error instanceof Error ? error.message : (typeof error === "string" ? error : JSON.stringify(error));
 
     // Specifically catch Data Mismatches or bounds issues and highlight them
     if (errMessage.includes("Data Mismatch") || errMessage.includes("out of range")) {
-      logger.warn(`[IPC Type Mismatch Warning] -> ${cmd}: ${errMessage}`);
+      console.warn(`[IPC Type Mismatch Warning] -> ${cmd}:`, errMessage);
       errMessage = `Backend mismatch: ${errMessage}`;
     }
 

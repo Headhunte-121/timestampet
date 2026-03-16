@@ -73,7 +73,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
         if (res) setData(res);
       })
       .catch((err) => {
-        logger.error("Failed to load dashboard data", err);
+        console.error("Failed to load dashboard data:", err);
         // Fallback or empty state if needed
       });
   }, [refreshTrigger, asyncInvoke]);
