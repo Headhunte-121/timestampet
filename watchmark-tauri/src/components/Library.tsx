@@ -4,6 +4,7 @@ import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star } from "lucide-react";
+import { formatLocaleDate } from "../utils/dateFormatter";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
@@ -111,7 +112,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
               <h3 className="text-white font-bold leading-tight mb-1">{item.title}</h3>
               <p className="text-xs text-gray-300 mb-2">
-                {item.is_date_known ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}
+                {item.is_date_known ? (item.is_exact_date ? formatLocaleDate(item.release_date) : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}
               </p>
 
               <div className="flex items-center gap-1 text-[#FF6B00] text-sm font-bold mb-1">
@@ -133,11 +134,11 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
             </div>
 
             {/* Progress Bar */}
-            {item.total_episodes > 0 && (
+            {(item.total_available ?? item.total_episodes) > 0 && (
               <div className="absolute bottom-0 left-0 w-full h-1.5 bg-black/80 z-20">
                 <div
-                  className={`h-full ${item.completed_eps === item.total_episodes ? 'bg-green-500' : 'bg-[#FF6B00]'}`}
-                  style={{ width: `${Math.min(100, (item.completed_eps / item.total_episodes) * 100)}%` }}
+                  className={`h-full ${item.completed_eps === (item.total_available ?? item.total_episodes) ? 'bg-green-500' : 'bg-[#FF6B00]'}`}
+                  style={{ width: `${Math.min(100, (item.completed_eps / (item.total_available ?? item.total_episodes)) * 100)}%` }}
                 />
               </div>
             )}

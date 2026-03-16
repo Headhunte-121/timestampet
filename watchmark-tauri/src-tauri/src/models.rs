@@ -145,6 +145,7 @@ pub struct Media {
     pub poster_path: String,
     pub backdrop_path: String,
     pub total_episodes: i32,
+    pub total_available: Option<i32>,
     pub status: String,
     pub vote_average: f64,
     pub user_rating: Option<i32>,

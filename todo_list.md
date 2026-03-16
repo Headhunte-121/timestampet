@@ -442,37 +442,37 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test canceling a fetch operation halfway if the user deletes the show.
 - [x] Provide UI progress bars for massive shows with hundreds of episodes.
 
-**3.12 Original Release Date / First Air Date extraction.** (Incomplete)
+**3.12 Original Release Date / First Air Date extraction.** (Complete)
 
-- [ ] Parse 'YYYY-MM-DD' formats strictly into the SQLite `release_date` column.
-- [ ] Handle edge cases where only the Year ('YYYY') is returned.
-- [ ] Ensure null air dates do not crash the sorting algorithms.
-- [ ] Test timeline timezone conversions if exact UTC timestamps are provided.
-- [ ] Verify release dates update correctly if a 'TBD' show gets an official date.
+- [x] Parse 'YYYY-MM-DD' formats strictly into the SQLite `release_date` column.
+- [x] Handle edge cases where only the Year ('YYYY') is returned.
+- [x] Ensure null air dates do not crash the sorting algorithms.
+- [x] Test timeline timezone conversions if exact UTC timestamps are provided.
+- [x] Verify release dates update correctly if a 'TBD' show gets an official date.
 
-**3.13 Specific Episode Air Date tracking.** (Incomplete)
+**3.13 Specific Episode Air Date tracking.** (Complete)
 
-- [ ] Ensure episodes aired in the future are visually flagged as 'Unaired' in the UI.
-- [ ] Handle edge cases where episode 3 airs before episode 2.
-- [ ] Verify sorting inside season tabs strictly follows the `episode_num` regardless of air date.
-- [ ] Test missing air dates to ensure they default to the bottom of sorting arrays.
-- [ ] Ensure mathematical calculations (e.g., 'Aired 5 years ago') handle leap years safely.
+- [x] Ensure episodes aired in the future are visually flagged as 'Unaired' in the UI.
+- [x] Handle edge cases where episode 3 airs before episode 2.
+- [x] Verify sorting inside season tabs strictly follows the `episode_num` regardless of air date.
+- [x] Test missing air dates to ensure they default to the bottom of sorting arrays.
+- [x] Ensure mathematical calculations (e.g., 'Aired 5 years ago') handle leap years safely.
 
-**3.15 Total Episode count aggregation.** (Incomplete)
+**3.15 Total Episode count aggregation.** (Complete)
 
-- [ ] Ensure 'Specials' (Season 0) do not inflate the standard episode count artificially.
-- [ ] Handle edge cases where TMDB lists unaired episodes in the total count.
-- [ ] Verify real-time completion percentages update properly when new episodes are added.
-- [ ] Test aggregation math against locally tracked vs globally available numbers.
-- [ ] Ensure discrepancies between local files and TMDB counts highlight missing files.
+- [x] Ensure 'Specials' (Season 0) do not inflate the standard episode count artificially.
+- [x] Handle edge cases where TMDB lists unaired episodes in the total count.
+- [x] Verify real-time completion percentages update properly when new episodes are added.
+- [x] Test aggregation math against locally tracked vs globally available numbers.
+- [x] Ensure discrepancies between local files and TMDB counts highlight missing files.
 
-**3.7 High-resolution primary Poster image extraction.** (Incomplete)
+**3.7 High-resolution primary Poster image extraction.** (Complete)
 
-- [ ] Target specific TMDB image width configurations (e.g., `w500` or `original`).
-- [ ] Ensure fallbacks are strictly enforced if the primary locale poster is missing.
-- [ ] Handle corrupt or incomplete image byte streams during download.
-- [ ] Test image fetching on extremely slow connections to ensure timeouts don't hang the app.
-- [ ] Verify that poster dimensions are enforced regardless of the source aspect ratio.
+- [x] Target specific TMDB image width configurations (e.g., `w500` or `original`).
+- [x] Ensure fallbacks are strictly enforced if the primary locale poster is missing.
+- [x] Handle corrupt or incomplete image byte streams during download.
+- [x] Test image fetching on extremely slow connections to ensure timeouts don't hang the app.
+- [x] Verify that poster dimensions are enforced regardless of the source aspect ratio.
 
 **3.8 High-resolution cinematic Backdrop image extraction.** (Complete)
 

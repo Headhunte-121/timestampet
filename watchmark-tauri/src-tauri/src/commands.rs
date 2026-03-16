@@ -635,9 +635,11 @@ pub async fn export_database(
 pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
     tracing::info!("[BACKEND] 🧠 Extracting detailed Media and Season data...");
     let mut backdrop_size = "w1280".to_string();
+    let mut _poster_size = "w500".to_string();
     if let Ok(Some(monitor)) = app.primary_monitor() {
         if monitor.scale_factor() > 1.0 {
             backdrop_size = "original".to_string();
+            _poster_size = "original".to_string();
         }
     }
     let high_performance_mode = state.settings.read().unwrap().high_performance_mode;
@@ -721,13 +723,23 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
             // Watched count
             let watched_eps: i32 = conn
                 .query_row(
-                    "SELECT COUNT(*) FROM Episodes WHERE media_id=? AND status='Completed'",
+                    "SELECT COUNT(*) FROM Episodes WHERE media_id=? AND status='Completed' AND season_num > 0",
                     params![media_id],
                     |r| r.get(0),
                 )
                 .unwrap_or(0);
 
             m["completed_eps"] = json!(watched_eps);
+
+            let total_available: i32 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM Episodes WHERE media_id=? AND season_num > 0 AND (air_date IS NULL OR air_date = '' OR air_date <= date('now'))",
+                    params![media_id],
+                    |r| r.get(0),
+                )
+                .unwrap_or(m["total_episodes"].as_i64().unwrap_or(0) as i32);
+
+            m["total_available"] = json!(total_available);
 
             let mut seasons = vec![];
             if m_type == "TV" {
@@ -883,13 +895,16 @@ pub async fn add_to_tracker(
 
     // Detect High-DPI displays dynamically for backdrop high-resolution support
     let mut backdrop_size = "w1280".to_string();
+    let mut poster_size = "w500".to_string();
     if let Ok(Some(monitor)) = app.primary_monitor() {
         if monitor.scale_factor() > 1.0 {
             backdrop_size = "original".to_string();
+            poster_size = "original".to_string();
         }
     }
     let image_config = crate::tmdb::ImageConfig {
         backdrop_size,
+        poster_size,
     };
 
     // Spawn a dedicated background task that does NOT block the main thread and can handle async fetch loops
@@ -917,10 +932,11 @@ pub async fn add_to_tracker(
                         if !poster.trim().is_empty() {
                             let poster_str = poster.to_string();
                             let failed_queue = failed_syncs_clone.clone();
+                            let size = image_config.poster_size.clone();
                             tokio::spawn(async move {
-                                if crate::tmdb::download_image(&poster_str, "w500", high_performance_mode).await.is_none() {
+                                if crate::tmdb::download_image(&poster_str, &size, high_performance_mode).await.is_none() {
                                     if let Ok(mut queue) = failed_queue.write() {
-                                        queue.insert((poster_str, "w500".to_string()));
+                                        queue.insert((poster_str, size.clone()));
                                     }
                                 }
                             });
@@ -1616,9 +1632,11 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
     let stats_cache = state.stats_cache.clone();
 
     let mut backdrop_size = "w1280".to_string();
+    let mut poster_size = "w500".to_string();
     if let Ok(Some(monitor)) = app.primary_monitor() {
         if monitor.scale_factor() > 1.0 {
             backdrop_size = "original".to_string();
+            poster_size = "original".to_string();
         }
     }
 
@@ -1637,7 +1655,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
             JOIN Episodes e ON h.episode_id = e.id
             WHERE EXISTS (
                 SELECT 1 FROM Episodes e2
-                WHERE e2.media_id = e.media_id AND e2.status IN ('Watching', 'Unwatched')
+                WHERE e2.media_id = e.media_id AND e2.status IN ('Watching', 'Unwatched') AND e2.season_num > 0 AND (e2.air_date IS NULL OR e2.air_date = '' OR e2.air_date <= date('now'))
             )
             GROUP BY e.media_id
             ORDER BY last_watched DESC
@@ -1701,7 +1719,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                         })(),
                         "poster_path": (|| {
                             let raw = ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default();
-                            crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                            crate::tmdb::resolve_local_poster_path(&raw, &poster_size, high_performance_mode).unwrap_or(raw)
                         })(),
                         "file_path": ep_row.get::<_, Option<String>>(19).unwrap_or_default(),
                         "media_type": ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default(),
@@ -1716,8 +1734,8 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
             "
             SELECT m.id as media_id
             FROM Media m
-            WHERE (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') > 0
-              AND (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') < m.total_episodes
+            WHERE (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed' AND season_num > 0) > 0
+              AND (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed' AND season_num > 0) < (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND season_num > 0 AND (air_date IS NULL OR air_date = '' OR air_date <= date('now')))
         ",
         )?;
 
@@ -1805,7 +1823,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                             })(),
                             "poster_path": (|| {
                                 let raw = ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default();
-                                crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                                crate::tmdb::resolve_local_poster_path(&raw, &poster_size, high_performance_mode).unwrap_or(raw)
                             })(),
                             "file_path": ep_row.get::<_, Option<String>>(19).unwrap_or_default(),
                             "media_type": ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default(),
@@ -1819,10 +1837,11 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
         let mut ra_stmt = conn.prepare(
             "
             SELECT m.*,
-                   (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') as completed_eps,
+                   (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed' AND season_num > 0) as completed_eps,
                    (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched,
                    (SELECT MIN(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as min_year,
-                   (SELECT MAX(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as max_year
+                   (SELECT MAX(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as max_year,
+                   (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND season_num > 0 AND (air_date IS NULL OR air_date = '' OR air_date <= date('now'))) as total_available
             FROM Media m
             ORDER BY m.id DESC LIMIT 15
         ",
@@ -1861,7 +1880,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                 poster_path: (|| {
                     let raw: Option<String> = row.get(5)?;
                     let p = raw.unwrap_or_default();
-                    Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p))
+                    Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&p, &poster_size, high_performance_mode).unwrap_or(p))
                 })()?,
                 backdrop_path: (|| {
                     let raw: String = row.get(6)?;
@@ -1884,6 +1903,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
                 last_watched: row.get::<_, Option<String>>(19)?.unwrap_or_default(),
                 min_year: row.get::<_, Option<String>>(20)?.unwrap_or_default(),
                 max_year: row.get::<_, Option<String>>(21)?.unwrap_or_default(),
+                total_available: Some(row.get::<_, Option<i32>>(22)?.unwrap_or(0)),
                 collection_parts: None,
                 seasons: Vec::new(),
                 episodes: Vec::new(),
@@ -1921,7 +1941,7 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
 
             let shows_completed: i32 = conn
                 .query_row(
-                    "SELECT COUNT(*) as c FROM Media WHERE status = 'Completed' OR (SELECT COUNT(*) FROM Episodes WHERE media_id = Media.id AND status = 'Completed') = Media.total_episodes",
+                    "SELECT COUNT(*) as c FROM Media WHERE status = 'Completed' OR (SELECT COUNT(*) FROM Episodes WHERE media_id = Media.id AND status = 'Completed' AND season_num > 0) = (SELECT COUNT(*) FROM Episodes WHERE media_id = Media.id AND season_num > 0 AND (air_date IS NULL OR air_date = '' OR air_date <= date('now')))",
                     [],
                     |r| r.get(0),
                 )
@@ -1989,9 +2009,11 @@ pub async fn get_library_data(
     let _stats_cache = state.stats_cache.clone();
 
     let mut backdrop_size = "w1280".to_string();
+    let mut poster_size = "w500".to_string();
     if let Ok(Some(monitor)) = app.primary_monitor() {
         if monitor.scale_factor() > 1.0 {
             backdrop_size = "original".to_string();
+            poster_size = "original".to_string();
         }
     }
     let high_performance_mode = state.settings.read().unwrap().high_performance_mode;
@@ -2003,10 +2025,11 @@ pub async fn get_library_data(
 
             let mut base_query = "
                 SELECT m.*,
-                       (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') as completed_eps,
+                       (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed' AND season_num > 0) as completed_eps,
                        (SELECT MAX(timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched,
                        (SELECT MIN(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as min_year,
-                       (SELECT MAX(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as max_year
+                       (SELECT MAX(air_date) FROM Episodes WHERE media_id = m.id AND air_date IS NOT NULL AND air_date != '') as max_year,
+                       (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND season_num > 0 AND (air_date IS NULL OR air_date = '' OR air_date <= date('now'))) as total_available
                 FROM Media m
             ".to_string();
 
@@ -2019,7 +2042,7 @@ pub async fn get_library_data(
             }
 
             if hide_completed {
-                where_clauses.push("(SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed') < m.total_episodes".to_string());
+                where_clauses.push("(SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND status = 'Completed' AND season_num > 0) < (SELECT COUNT(*) FROM Episodes WHERE media_id = m.id AND season_num > 0 AND (air_date IS NULL OR air_date = '' OR air_date <= date('now'))) ".to_string());
             }
 
             if !where_clauses.is_empty() {
@@ -2093,7 +2116,7 @@ pub async fn get_library_data(
                     poster_path: (|| {
                         let raw: Option<String> = row.get(5)?;
                         let p = raw.unwrap_or_default();
-                        Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&p, "w500", high_performance_mode).unwrap_or(p))
+                        Ok::<_, rusqlite::Error>(crate::tmdb::resolve_local_poster_path(&p, &poster_size, high_performance_mode).unwrap_or(p))
                     })()?,
                     backdrop_path: (|| {
                         let raw: String = row.get(6)?;
@@ -2116,6 +2139,7 @@ pub async fn get_library_data(
                     last_watched: row.get::<_, Option<i64>>(19)?.map(|v| v.to_string()).unwrap_or_default(),
                     min_year: row.get::<_, Option<String>>(20)?.unwrap_or_default(),
                     max_year: row.get::<_, Option<String>>(21)?.unwrap_or_default(),
+                    total_available: Some(row.get::<_, Option<i32>>(22)?.unwrap_or(0)),
                     collection_parts: None,
                     seasons: Vec::new(),
                     episodes: Vec::new(),
@@ -2218,7 +2242,7 @@ pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(state))]
-pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Option<u32>, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Option<u32>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
     let token = CancellationToken::new();
@@ -2229,6 +2253,13 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
 
     let cancel_tokens = state.cancel_tokens.clone();
     let high_performance_mode = state.settings.read().unwrap().high_performance_mode;
+
+    let mut poster_size = "w500".to_string();
+    if let Ok(Some(monitor)) = app.primary_monitor() {
+        if monitor.scale_factor() > 1.0 {
+            poster_size = "original".to_string();
+        }
+    }
 
     let result = tokio::task::spawn_blocking(move || {
         handle_panic(std::panic::AssertUnwindSafe(|| {
@@ -2317,7 +2348,7 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                     "show_title": row.get::<_, Option<String>>(19)?.unwrap_or_default(),
                     "poster_path": (|| {
                         let raw = row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default();
-                        crate::tmdb::resolve_local_poster_path(&raw, "w500", high_performance_mode).unwrap_or(raw)
+                        crate::tmdb::resolve_local_poster_path(&raw, &poster_size, high_performance_mode).unwrap_or(raw)
                     })(),
                     "backdrop_path": (|| {
                         let raw = row.get::<_, Option<String>>(21).unwrap_or_default().unwrap_or_default();
@@ -2523,13 +2554,16 @@ pub async fn assign_unmatched_to_tracker(
 
     // Detect High-DPI displays dynamically for backdrop high-resolution support
     let mut backdrop_size = "w1280".to_string();
+    let mut poster_size = "w500".to_string();
     if let Ok(Some(monitor)) = app.primary_monitor() {
         if monitor.scale_factor() > 1.0 {
             backdrop_size = "original".to_string();
+            poster_size = "original".to_string();
         }
     }
     let image_config = crate::tmdb::ImageConfig {
         backdrop_size,
+        poster_size,
     };
 
     let task = tokio::task::spawn(async move {
@@ -2585,10 +2619,11 @@ pub async fn assign_unmatched_to_tracker(
                 let poster_str = poster.to_string();
                 if !poster_str.is_empty() {
                     let failed_queue = failed_syncs_clone.clone();
+                    let size = image_config.poster_size.clone();
                     tokio::spawn(async move {
-                        if crate::tmdb::download_image(&poster_str, "w500", high_performance_mode).await.is_none() {
+                        if crate::tmdb::download_image(&poster_str, &size, high_performance_mode).await.is_none() {
                             if let Ok(mut queue) = failed_queue.write() {
-                                queue.insert((poster_str, "w500".to_string()));
+                                queue.insert((poster_str, size.clone()));
                             }
                         }
                     });

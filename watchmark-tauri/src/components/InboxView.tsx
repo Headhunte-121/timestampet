@@ -2,6 +2,7 @@ import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { FolderSearch, Search, X } from "lucide-react";
+import { formatLocaleDate } from "../utils/dateFormatter";
 import { toast } from "../utils/toast";
 import { open } from "@tauri-apps/plugin-dialog";
 import { formatWindowsPath } from "../utils/pathUtils";
@@ -327,7 +328,7 @@ export default function InboxView({ onMatch }: any) {
                       <div className="p-4">
                         <h3 className="text-white font-bold text-sm truncate">{item.title}</h3>
                         <p className="text-xs text-[#FF6B00] font-bold uppercase mt-1">
-                          {item.type} • <span className="text-gray-500">{item.is_date_known ? (item.is_exact_date ? item.release_date : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
+                          {item.type} • <span className="text-gray-500">{item.is_date_known ? (item.is_exact_date ? formatLocaleDate(item.release_date) : item.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
                         </p>
                       </div>
                     </div>

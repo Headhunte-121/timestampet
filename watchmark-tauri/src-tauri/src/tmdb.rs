@@ -12,12 +12,14 @@ use crate::db::get_app_data_dir;
 #[derive(Clone, Debug)]
 pub struct ImageConfig {
     pub backdrop_size: String,
+    pub poster_size: String,
 }
 
 impl Default for ImageConfig {
     fn default() -> Self {
         Self {
             backdrop_size: "w1280".to_string(),
+            poster_size: "w500".to_string(),
         }
     }
 }
