@@ -6,7 +6,6 @@
 use crate::network::NetworkManager;
 use crate::error::AppError;
 use reqwest_middleware::Error as MiddlewareError;
-use reqwest::Error as ReqwestError;
 
 #[tokio::test]
 async fn test_https_enforcement() {
@@ -116,7 +115,7 @@ mod tests_feature_3_3 {
 #[tokio::test]
 async fn test_error_mapping() {
     // Generate a timeout error to test the mapping
-    let network_manager = NetworkManager::new();
+    let _network_manager = NetworkManager::new();
 
     // We can simulate a timeout by setting a very short timeout and hitting a slow endpoint,
     // or just checking if AppError::NetworkTimeout serializes properly as required by React.

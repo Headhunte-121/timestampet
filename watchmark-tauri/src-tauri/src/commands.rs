@@ -1457,7 +1457,7 @@ pub async fn add_to_tracker(
                 if let Ok(col) = crate::tmdb::get_collection_details(&api_key, c_id as i32).await {
                     let _ = tokio::task::spawn_blocking(move || {
                         handle_panic(|| {
-                            if let Ok(mut conn) = get_db_connection() {
+                            if let Ok(conn) = get_db_connection() {
                                 let parts_str = col.get("parts").map(|p| p.to_string()).unwrap_or_else(|| "[]".to_string());
                                 let _ = conn.execute(
                                     "INSERT INTO Collections (id, name, overview, poster_path, backdrop_path, parts)
@@ -2464,8 +2464,7 @@ pub async fn run_scan_directory(
     let task = tokio::task::spawn_blocking(move || {
         #[cfg(windows)]
         {
-            use winapi::um::processthreadsapi::{SetThreadPriority, GetCurrentThread};
-            use winapi::um::winbase::THREAD_PRIORITY_BELOW_NORMAL;
+            use windows_sys::Win32::System::Threading::{SetThreadPriority, GetCurrentThread, THREAD_PRIORITY_BELOW_NORMAL};
             unsafe {
                 SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
             }
@@ -3054,7 +3053,7 @@ pub async fn assign_unmatched_to_tracker(
 
                                             if let Ok(inserted_eps) = res {
                                                 if !inserted_eps.is_empty() {
-                                                    let is_active_season = true; // In retry block, just process it since it's a fallback
+                                                    let _is_active_season = true; // In retry block, just process it since it's a fallback
                                                     let token_clone = token.clone();
 
                                                     let download_future = async move {
@@ -3183,7 +3182,7 @@ pub async fn assign_unmatched_to_tracker(
                 if let Ok(col) = crate::tmdb::get_collection_details(&api_key, c_id as i32).await {
                     let _ = tokio::task::spawn_blocking(move || {
                         handle_panic(|| {
-                            if let Ok(mut conn) = get_db_connection() {
+                                if let Ok(conn) = get_db_connection() {
                                 let parts_str = col.get("parts").map(|p| p.to_string()).unwrap_or_else(|| "[]".to_string());
                                 let _ = conn.execute(
                                     "INSERT INTO Collections (id, name, overview, poster_path, backdrop_path, parts)

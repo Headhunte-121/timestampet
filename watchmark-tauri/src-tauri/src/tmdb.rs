@@ -156,7 +156,7 @@ pub async fn search_media(api_key: &str, query: &str, page: u32) -> Result<Vec<V
                 "synopsis".to_string(),
                 Value::String(crate::sanitizer::sanitize_text(item["overview"].as_str().unwrap_or(""), "No overview available.")),
             );
-            let original_language = item["original_language"].as_str().unwrap_or("xx"); // random default if missing
+            let _original_language = item["original_language"].as_str().unwrap_or("xx"); // random default if missing
 
             // Note: search/multi does not easily return all images.
             // But if TMDB provides null for poster_path under en-US, we can't fetch it without an extra request.

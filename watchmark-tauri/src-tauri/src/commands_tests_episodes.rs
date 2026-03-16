@@ -4,10 +4,8 @@
 // 3. No raw println! allowed.
 
 use crate::db::{get_db_connection, init_db};
-use crate::commands::get_media_details_db;
 use std::sync::Once;
 use rusqlite::params;
-use tauri::Manager;
 
 static INIT: Once = Once::new();
 

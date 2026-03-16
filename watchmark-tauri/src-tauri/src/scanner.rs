@@ -9,9 +9,12 @@ use std::path::Path;
 use tauri::{AppHandle, Emitter};
 use walkdir::WalkDir;
 
-const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"];
-
 use std::sync::OnceLock;
+
+#[cfg(windows)]
+use std::os::windows::io::AsRawHandle;
+#[cfg(windows)]
+use windows_sys::Win32::Storage::FileSystem::{GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION};
 
 static LEADING_BRACKET: OnceLock<Regex> = OnceLock::new();
 static TRAILING_BRACKET: OnceLock<Regex> = OnceLock::new();
@@ -210,10 +213,11 @@ pub fn scan_directory(
         }
         #[cfg(windows)]
         {
-            use std::os::windows::fs::MetadataExt;
-            if let Ok(meta) = std::fs::metadata(&path) {
-                if let Some(ino) = meta.file_index() {
-                    let id = (meta.volume_serial_number().unwrap_or(0), ino);
+            if let Ok(file) = std::fs::File::open(&path) {
+                let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+                if unsafe { GetFileInformationByHandle(file.as_raw_handle() as isize, &mut info) } != 0 {
+                    let file_index = (info.nFileIndexHigh as u64) << 32 | (info.nFileIndexLow as u64);
+                    let id = (info.dwVolumeSerialNumber, file_index);
                     if !visited_inodes.insert(id) {
                         tracing::warn!("Circular symlink detected, skipping: {}", path.display());
                         continue;
