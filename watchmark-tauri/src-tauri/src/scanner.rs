@@ -19,6 +19,10 @@ use windows_sys::Win32::Storage::FileSystem::{GetFileInformationByHandle, BY_HAN
 static LEADING_BRACKET: OnceLock<Regex> = OnceLock::new();
 static TRAILING_BRACKET: OnceLock<Regex> = OnceLock::new();
 static METADATA_TAGS: OnceLock<Regex> = OnceLock::new();
+static JUNK_DICTIONARY: OnceLock<Regex> = OnceLock::new();
+static PROTECTED_DOTS: OnceLock<Regex> = OnceLock::new();
+static TRAILING_VACUUM: OnceLock<Regex> = OnceLock::new();
+static MULTI_SPACE: OnceLock<Regex> = OnceLock::new();
 
 pub fn clean_anime_release_tags(name: &str) -> String {
     let leading = LEADING_BRACKET.get_or_init(|| Regex::new(r"^[\[\(][^\]\)]+[\]\)]\s*").unwrap());
@@ -42,7 +46,46 @@ pub fn clean_anime_release_tags(name: &str) -> String {
     cleaned.trim().to_string()
 }
 
-pub fn parse_filename(filename: &str) -> (Option<String>, Option<i32>, Option<i32>) {
+pub fn clean_string(name: &str) -> String {
+    let mut cleaned = name.to_string();
+
+    // 1. Technical Token Stripping (Codecs & Resolutions)
+    let junk_regex = JUNK_DICTIONARY.get_or_init(|| {
+        Regex::new(r"(?i)\b(x264|x265|hevc|aac|dts|bluray|webrip|720p|1080p|4k|2160p|1080i|2160i)\b").unwrap()
+    });
+    cleaned = junk_regex.replace_all(&cleaned, "").to_string();
+
+    // 2. Delimiter Normalization (Expansion Protection)
+    // Protect dots surrounded by letters (e.g. "Mr. Robot" or "S.H.I.E.L.D.")
+    let protected_dots_regex = PROTECTED_DOTS.get_or_init(|| {
+        Regex::new(r"([a-zA-Z])\.([a-zA-Z ]|$)").unwrap()
+    });
+
+    let mut old = String::new();
+    while old != cleaned {
+        old = cleaned.clone();
+        cleaned = protected_dots_regex.replace_all(&cleaned, "${1}%%DOT%%${2}").to_string();
+    }
+
+    cleaned = cleaned.replace('.', " ").replace('_', " ");
+    cleaned = cleaned.replace("%%DOT%%", ".");
+
+    // 3. Geometry Trimming
+    // Vacuum: strips any trailing hyphens, brackets, or multiple consecutive spaces.
+    let trailing_vacuum = TRAILING_VACUUM.get_or_init(|| {
+        Regex::new(r"[\-\[\]\(\)\s]+$").unwrap()
+    });
+    cleaned = trailing_vacuum.replace_all(&cleaned, "").to_string();
+
+    let multi_space = MULTI_SPACE.get_or_init(|| {
+        Regex::new(r"\s{2,}").unwrap()
+    });
+    cleaned = multi_space.replace_all(&cleaned, " ").to_string();
+
+    cleaned.trim().to_string()
+}
+
+pub fn parse_filename(filename: &str) -> (Option<String>, Option<i32>, Vec<i32>) {
     let base_name = Path::new(filename)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -50,46 +93,108 @@ pub fn parse_filename(filename: &str) -> (Option<String>, Option<i32>, Option<i3
 
     let base_name_cleaned = clean_anime_release_tags(base_name);
 
-    // Try TV show format first: S01E01
-    let pattern_tv = Regex::new(r"^(.*?)[ \.\-_]*[sS](\d{1,2})[ \.\-_]*[eE](\d{1,3})").unwrap();
+    // Try standard TV format first: S01E01, S1E5, S01E01-E02
+    let pattern_tv = Regex::new(r"^(.*?)[ \.\-_]+(?i:s)(\d{1,2})[ \.\-_]*(?i:e)(\d{1,3})(?:[ \.\-_]*(?:-|(?i:e)|(?i:ep))(\d{1,3}))?(?:[ \.\-_\[\(].*)?$").unwrap();
     if let Some(caps) = pattern_tv.captures(&base_name_cleaned) {
         let raw_series = caps.get(1).map_or("", |m| m.as_str());
         let season_num = caps.get(2).and_then(|m| m.as_str().parse::<i32>().ok());
         let episode_num = caps.get(3).and_then(|m| m.as_str().parse::<i32>().ok());
+        let episode_range_end = caps.get(4).and_then(|m| m.as_str().parse::<i32>().ok());
 
-        let mut series_name = raw_series.replace(&['.', '_'][..], " ").trim().to_string();
-        let year_regex = Regex::new(r" (19|20)\d{2}$").unwrap();
-        series_name = year_regex.replace(&series_name, "").trim().to_string();
+        let mut episodes = Vec::new();
+        if let Some(start) = episode_num {
+            episodes.push(start);
+            if let Some(end) = episode_range_end {
+                if end > start && end <= start + 100 {
+                    for e in (start + 1)..=end {
+                        episodes.push(e);
+                    }
+                }
+            }
+        }
 
+        let series_name = clean_string(raw_series);
         if !series_name.is_empty() {
-            return (Some(series_name), season_num, episode_num);
+            return (Some(series_name), season_num, episodes);
+        }
+    }
+
+    // Try Anime bracketed format: [01][105] or [S01E05]
+    let pattern_bracketed = Regex::new(r"^(.*?)\[(?i:s)?(\d{1,2})\]\[(?i:e)?(\d{1,3})\](?:[ \.\-_\[\(].*)?$").unwrap();
+    if let Some(caps) = pattern_bracketed.captures(&base_name_cleaned) {
+        let raw_series = caps.get(1).map_or("", |m| m.as_str());
+        let season_num = caps.get(2).and_then(|m| m.as_str().parse::<i32>().ok());
+        let episode_num = caps.get(3).and_then(|m| m.as_str().parse::<i32>().ok());
+        let mut episodes = Vec::new();
+        if let Some(start) = episode_num {
+            episodes.push(start);
+        }
+
+        let series_name = clean_string(raw_series);
+        if !series_name.is_empty() {
+            return (Some(series_name), season_num, episodes);
+        }
+    }
+
+    // Natural Language: Season X Episode Y
+    let pattern_natural = Regex::new(r"(?i)^(.*?)[ \.\-_]*season[ \.\-_]*(\d{1,2})[ \.\-_]*episode[ \.\-_]*(\d{1,3})(?:[ \.\-_\[\(].*)?$").unwrap();
+    if let Some(caps) = pattern_natural.captures(&base_name_cleaned) {
+        let raw_series = caps.get(1).map_or("", |m| m.as_str());
+        let season_num = caps.get(2).and_then(|m| m.as_str().parse::<i32>().ok());
+        let episode_num = caps.get(3).and_then(|m| m.as_str().parse::<i32>().ok());
+        let mut episodes = Vec::new();
+        if let Some(start) = episode_num {
+            episodes.push(start);
+        }
+
+        let series_name = clean_string(raw_series);
+        if !series_name.is_empty() {
+            return (Some(series_name), season_num, episodes);
         }
     }
 
     // Try Movie format: Title (Year) or just Title.Year
-    let pattern_movie = Regex::new(r"^(.*?)[ \.\-_\[\(]*(19\d{2}|20\d{2})[\]\)]*").unwrap();
+    // Match greedy so we get the LAST 4-digit year.
+    // It captures group 1 as the title and group 2 as the year (from 1888 to ~2029).
+    let pattern_movie = Regex::new(r"^(.*)[\.\s\(\[]+(18[8-9]\d|19\d{2}|20[0-2]\d)[\)\]]*.*$").unwrap();
     if let Some(caps) = pattern_movie.captures(&base_name_cleaned) {
         let raw_movie = caps.get(1).map_or("", |m| m.as_str());
-        let movie_name = raw_movie.replace(&['.', '_'][..], " ").trim().to_string();
+        // Do string cleaning on the extracted title to remove any remaining resolution tags, dots, etc.
+        let movie_name = clean_string(raw_movie);
         if !movie_name.is_empty() {
-            return (Some(movie_name), None, None);
+            return (Some(movie_name), None, vec![]);
         }
     }
 
-    // Anime Absolute Episode Number Fallback
-    // Format: [Group] Show Name - 01 [Hash] -> Already cleaned to "Show Name - 01"
-    let pattern_anime = Regex::new(r"^(.*?)[ \.\-_]+(\d{1,4})$").unwrap();
-    if let Some(caps) = pattern_anime.captures(&base_name_cleaned) {
+    // Year-based fallback (2023.10.05) or (2023-10-05) - Date-Pattern Fallback
+    // Return empty episodes. Mapped to Inbox Triage.
+    let pattern_date = Regex::new(r"^(.*?)[ \.\-_\[\(]+(\d{4})[ \.\-_](\d{2})[ \.\-_](\d{2})(?:[ \.\-_\[\(].*)?$").unwrap();
+    if let Some(caps) = pattern_date.captures(&base_name_cleaned) {
+        let raw_series = caps.get(1).map_or("", |m| m.as_str());
+        let series_name = clean_string(raw_series);
+        if !series_name.is_empty() {
+            return (Some(series_name), None, vec![]);
+        }
+    }
+
+    // Absolute episode numbering
+    let pattern_absolute = Regex::new(r"^(.*?)[ \.\-_]+(\d{3})(?:[ \.\-_\[\(].*)?$").unwrap();
+    if let Some(caps) = pattern_absolute.captures(&base_name_cleaned) {
         let raw_series = caps.get(1).map_or("", |m| m.as_str());
         let episode_num = caps.get(2).and_then(|m| m.as_str().parse::<i32>().ok());
-        let series_name = raw_series.replace(&['.', '_'][..], " ").trim().to_string();
+        let mut episodes = Vec::new();
+        if let Some(start) = episode_num {
+            episodes.push(start);
+        }
 
+        let series_name = clean_string(raw_series);
         if !series_name.is_empty() {
-            return (Some(series_name), Some(1), episode_num);
+            // Flag for Inbox Triage by returning None for Season
+            return (Some(series_name), None, episodes);
         }
     }
 
-    (None, None, None)
+    (None, None, vec![])
 }
 
 pub fn is_too_generic(name: &str) -> bool {
@@ -315,44 +420,51 @@ pub fn scan_directory(
                             s_name.chars().filter(|c| c.is_alphanumeric()).collect();
                         let safe_series = safe_series.to_lowercase();
 
-                        if let (Some(s_num), Some(e_num)) = (season_num, episode_num) {
-                            // TV Show Match
-                            let mut stmt =
-                                tx.prepare("SELECT id, title FROM Media WHERE type='TV'")?;
-                            let shows = stmt.query_map([], |row| {
-                                Ok((
-                                    row.get::<_, i32>(0)?,
-                                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                                ))
-                            })?;
+                        if let (Some(s_num), episodes) = (season_num, &episode_num) {
+                            if !episodes.is_empty() {
+                                // TV Show Match
+                                let mut stmt =
+                                    tx.prepare("SELECT id, title FROM Media WHERE type='TV'")?;
+                                let shows = stmt.query_map([], |row| {
+                                    Ok((
+                                        row.get::<_, i32>(0)?,
+                                        row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                                    ))
+                                })?;
 
-                            let mut matched_media_id = None;
-                            for (id, title) in shows.flatten() {
-                                let safe_db_name: String = title
-                                    .chars()
-                                    .filter(|c| c.is_alphanumeric())
-                                    .collect::<String>()
-                                    .to_lowercase();
+                                let mut matched_media_id = None;
+                                for (id, title) in shows.flatten() {
+                                    let safe_db_name: String = title
+                                        .chars()
+                                        .filter(|c| c.is_alphanumeric())
+                                        .collect::<String>()
+                                        .to_lowercase();
 
-                                if safe_series == safe_db_name
-                                    || safe_db_name.contains(&safe_series)
-                                    || safe_series.contains(&safe_db_name)
-                                {
-                                    matched_media_id = Some(id);
-                                    break;
+                                    if safe_series == safe_db_name
+                                        || safe_db_name.contains(&safe_series)
+                                        || safe_series.contains(&safe_db_name)
+                                    {
+                                        matched_media_id = Some(id);
+                                        break;
+                                    }
                                 }
-                            }
 
-                            if let Some(m_id) = matched_media_id {
-                                let mut ep_stmt = tx.prepare(
-                                    "SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? AND ep_num = ?"
-                                )?;
-                                let mut rows = ep_stmt.query(params![m_id, s_num, e_num])?;
-                                if let Ok(Some(row)) = rows.next() {
-                                    matched_ep_id = Some(row.get(0)?);
+                                if let Some(m_id) = matched_media_id {
+                                    let mut ep_stmt = tx.prepare(
+                                        "SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? AND ep_num = ?"
+                                    )?;
+                                    let mut rows = ep_stmt.query(params![m_id, s_num, episodes[0]])?;
+                                    if let Ok(Some(row)) = rows.next() {
+                                        matched_ep_id = Some(row.get(0)?);
+                                    }
                                 }
+                            } else {
+                                // Fallback for episode list empty but season present (should not happen with our parser)
+                                // We can just fall through to the movie matching block.
                             }
-                        } else {
+                        }
+
+                        if matched_ep_id.is_none() && season_num.is_none() {
                             // Movie Match
                             let mut stmt =
                                 tx.prepare("SELECT id, title FROM Media WHERE type='Movie'")?;
@@ -390,36 +502,73 @@ pub fn scan_directory(
                     }
 
                     if let Some(ep_id) = matched_ep_id {
-                        // Collision Detection: Automatic Heuristic (Larger Wins)
-                        let mut existing_size: i64 = -1;
-                        let mut update_needed = true;
-
-                        if let Ok(mut stmt) = tx.prepare("SELECT file_size FROM Local_Files WHERE episode_id = ?") {
+                        // For ranges: If we matched S01E01-E02, `episode_num` contains `[1, 2]`.
+                        // We should map ALL episodes in `episode_num` to this same file.
+                        // First we need to find the `media_id` which matched `ep_id`.
+                        let mut m_id: Option<i32> = None;
+                        if let Ok(mut stmt) = tx.prepare("SELECT media_id FROM Episodes WHERE id = ?") {
                             if let Ok(mut rows) = stmt.query(params![ep_id]) {
                                 if let Ok(Some(row)) = rows.next() {
-                                    existing_size = row.get(0).unwrap_or(0);
-                                } else {
-                                    // Row doesn't exist, we must insert
+                                    m_id = Some(row.get(0).unwrap_or(0));
                                 }
                             }
                         }
 
-                        if existing_size != -1 {
-                            if file_size <= existing_size {
-                                update_needed = false;
-                            } else {
-                                tracing::info!("Auto-replaced episode_id {} with larger file: {} ({} bytes > {} bytes)", ep_id, str_path, file_size, existing_size);
+                        let mut matched_ep_ids = Vec::new();
+                        matched_ep_ids.push(ep_id);
+
+                        if let Some(m_id) = m_id {
+                            if let Some(s_num) = season_num {
+                                if episode_num.len() > 1 {
+                                    if let Ok(mut ep_stmt) = tx.prepare(
+                                        "SELECT id, ep_num FROM Episodes WHERE media_id = ? AND season_num = ?"
+                                    ) {
+                                        if let Ok(mut rows) = ep_stmt.query(params![m_id, s_num]) {
+                                            while let Ok(Some(row)) = rows.next() {
+                                                let eid: i32 = row.get(0).unwrap_or(0);
+                                                let enum_val: i32 = row.get(1).unwrap_or(0);
+                                                if episode_num.contains(&enum_val) && eid != ep_id {
+                                                    matched_ep_ids.push(eid);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 
-                        if update_needed {
-                            let _ = tx.execute(
-                                "INSERT INTO Local_Files (episode_id, file_path, file_size) VALUES (?, ?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path, file_size=excluded.file_size",
-                                params![ep_id, &str_path, file_size],
-                            );
+                        for e_id in matched_ep_ids {
+                            // Collision Detection: Automatic Heuristic (Larger Wins)
+                            let mut existing_size: i64 = -1;
+                            let mut update_needed = true;
 
-                            // Auto-Migration: If it's matched mid-scan, ensure we wipe it from Unmatched_Files so it doesn't stay in Inbox
-                            let _ = tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![&str_path]);
+                            if let Ok(mut stmt) = tx.prepare("SELECT file_size FROM Local_Files WHERE episode_id = ?") {
+                                if let Ok(mut rows) = stmt.query(params![e_id]) {
+                                    if let Ok(Some(row)) = rows.next() {
+                                        existing_size = row.get(0).unwrap_or(0);
+                                    } else {
+                                        // Row doesn't exist, we must insert
+                                    }
+                                }
+                            }
+
+                            if existing_size != -1 {
+                                if file_size <= existing_size {
+                                    update_needed = false;
+                                } else {
+                                    tracing::info!("Auto-replaced episode_id {} with larger file: {} ({} bytes > {} bytes)", e_id, str_path, file_size, existing_size);
+                                }
+                            }
+
+                            if update_needed {
+                                let _ = tx.execute(
+                                    "INSERT INTO Local_Files (episode_id, file_path, file_size) VALUES (?, ?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path, file_size=excluded.file_size",
+                                    params![e_id, &str_path, file_size],
+                                );
+
+                                // Auto-Migration: If it's matched mid-scan, ensure we wipe it from Unmatched_Files so it doesn't stay in Inbox
+                                let _ = tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![&str_path]);
+                            }
                         }
                     } else {
                         // We must first ensure it doesn't already exist as a mapped path in Local_Files
@@ -465,7 +614,7 @@ pub fn scan_directory(
                                 filename.clone(),
                                 series_name.clone(),
                                 season_num,
-                                episode_num,
+                                episode_num.get(0).copied(), // we store the first matched episode number in the inbox
                                 clean_group_key,
                                 group_key_clone,
                             ));
