@@ -1199,37 +1199,37 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Allow users to click checkmarks, rate shows, and resume properly.**
 
-**12.4 In-place Checkmark toggle button (○ Unwatched -> ✓ Solid Green Completed).** (Incomplete)
+**12.4 In-place Checkmark toggle button (○ Unwatched -> ✓ Solid Green Completed).** (Complete)
 
-- [ ] Verify empty circles explicitly indicate strictly unwatched status.
-- [ ] Ensure clicking instantly fills the circle and swaps strictly to a Green check icon.
-- [ ] Handle edge cases where rapid spam-clicking creates a race condition with DB inserts/deletes.
-- [ ] Test mouse-enter hover slightly dimming the circle to indicate interactivity.
-- [ ] Ensure clicking purely toggles status without accidentally launching VLC playback.
+- [x] Verify empty circles explicitly indicate strictly unwatched status.
+- [x] Ensure clicking instantly fills the circle and swaps strictly to a Green check icon.
+- [x] Handle edge cases where rapid spam-clicking creates a race condition with DB inserts/deletes.
+- [x] Test mouse-enter hover slightly dimming the circle to indicate interactivity.
+- [x] Ensure clicking purely toggles status without accidentally launching VLC playback.
 
-**12.5 In-place Watch Progress mathematical update (Badge increments sync with checkmark clicks).** (Incomplete)
+**12.5 In-place Watch Progress mathematical update (Badge increments sync with checkmark clicks).** (Complete)
 
-- [ ] Verify clicking the specific row instantly increments the massive global Progress Badge located in the header.
-- [ ] Ensure un-checking strictly decrements the Badge exactly in real-time.
-- [ ] Handle edge cases where toggling the final episode specifically flips the entire show specifically to 'Completed'.
-- [ ] Test React `useEffect` logic safely bypassing full page re-renders.
-- [ ] Ensure math syncs directly to the Library poster progress bar specifically upon exiting the view.
+- [x] Verify clicking the specific row instantly increments the massive global Progress Badge located in the header.
+- [x] Ensure un-checking strictly decrements the Badge exactly in real-time.
+- [x] Handle edge cases where toggling the final episode specifically flips the entire show specifically to 'Completed'.
+- [x] Test React `useEffect` logic safely bypassing full page re-renders.
+- [x] Ensure math syncs directly to the Library poster progress bar specifically upon exiting the view.
 
-**12.12 Half-Watched state icon (◐) generation for paused episodes.** (Incomplete)
+**12.12 Half-Watched state icon (◐) generation for paused episodes.** (Complete)
 
-- [ ] Verify exactly replacing the specific circle-check specifically with a Half-Circle icon if `last_position` > 0.
-- [ ] Ensure standard orange strictly colors the half-circle specifically to indicate 'In Progress'.
-- [ ] Handle edge cases where specific `last_position` is perfectly 0 or specifically exceeds length.
-- [ ] Test clicking strictly resumes playback automatically from that exact position.
-- [ ] Ensure the UI specifically defaults to unwatched strictly if the progress is < 5%.
+- [x] Verify exactly replacing the specific circle-check specifically with a Half-Circle icon if `last_position` > 0.
+- [x] Ensure standard orange strictly colors the half-circle specifically to indicate 'In Progress'.
+- [x] Handle edge cases where specific `last_position` is perfectly 0 or specifically exceeds length.
+- [x] Test clicking strictly resumes playback automatically from that exact position.
+- [x] Ensure the UI specifically defaults to unwatched strictly if the progress is < 5%.
 
-**4.5 Passing the --start-time CLI argument for exact-second resuming.** (Incomplete)
+**4.5 Passing the --start-time CLI argument for exact-second resuming.** (Complete)
 
-- [ ] Ensure the database value `last_position` is properly converted to a raw integer string.
-- [ ] Handle edge cases where `last_position` is within 5 seconds of the end of the video.
-- [ ] Verify VLC accepts the flag and jumps instantly without dropping video frames.
-- [ ] Test behavior when `last_position` is explicitly 0.
-- [ ] Ensure resuming doesn't break external subtitle file loading.
+- [x] Ensure the database value `last_position` is properly converted to a raw integer string.
+- [x] Handle edge cases where `last_position` is within 5 seconds of the end of the video.
+- [x] Verify VLC accepts the flag and jumps instantly without dropping video frames.
+- [x] Test behavior when `last_position` is explicitly 0.
+- [x] Ensure resuming doesn't break external subtitle file loading.
 
 **11.5 Interactive 5-star clicking component for user ratings.** (Incomplete)
 
