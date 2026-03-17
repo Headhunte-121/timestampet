@@ -14,9 +14,15 @@ use std::process::Stdio;
 use crate::db::get_db_connection;
 use crate::error::AppError;
 use crate::network::NETWORK_MANAGER;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
+use std::net::TcpListener;
+use tokio::io::AsyncReadExt;
 
 lazy_static::lazy_static! {
     static ref ACTIVE_VLC: Mutex<Option<u32>> = Mutex::new(None);
+    static ref VLC_PORT: Mutex<u16> = Mutex::new(8080);
+    static ref VLC_PASSWORD: Mutex<String> = Mutex::new(String::new());
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -52,55 +58,105 @@ pub async fn kill_active_vlc() {
     }
 }
 
-pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Option<Child> {
+pub fn is_legacy_vlc(vlc_path: &str) -> bool {
+    if let Ok(output) = std::process::Command::new(vlc_path).arg("--version").output() {
+        let version_str = String::from_utf8_lossy(&output.stdout);
+        return version_str.contains("VLC media player 2.");
+    }
+    false
+}
+
+pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<Child, AppError> {
+    // Generate a secure 16-character alphanumeric password
+    let password: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(16)
+        .map(char::from)
+        .collect();
+
+    // Perform a socket probe to find a free port between 8080 and 8090
+    let mut port = 8080;
+    loop {
+        if TcpListener::bind(("127.0.0.1", port)).is_ok() {
+            break;
+        }
+        port += 1;
+        if port > 8090 {
+            return Err(AppError::Custom("Could not find a free port for VLC HTTP interface.".to_string()));
+        }
+    }
+
+    {
+        let mut p_lock = VLC_PORT.lock().unwrap();
+        *p_lock = port;
+        let mut pw_lock = VLC_PASSWORD.lock().unwrap();
+        *pw_lock = password.clone();
+    }
+
     // Determine path based on OS logic (Verbatim for Windows)
     #[cfg(windows)]
-    let safe_file_path = if file_path.starts_with(r"\\?\") || file_path.starts_with(r"\\.\") {
-        file_path.to_string()
+    let safe_file_path = if file_path.starts_with(r"\\?\") {
+        // The ? gets URI-encoded by VLC and breaks playback.
+        // Strip the verbatim prefix for VLC compatibility.
+        file_path[4..].to_string()
     } else {
-        // Adding UNC verbatim prefix for long path support
-        if file_path.starts_with(r"\\") {
-            format!(r"\\?\UNC\{}", &file_path[2..])
-        } else {
-            format!(r"\\?\{}", file_path)
-        }
+        file_path.to_string()
     };
 
     #[cfg(unix)]
     let safe_file_path = file_path.to_string();
 
+    let legacy_auth = is_legacy_vlc(vlc_path);
+
     // Verify existence immediately before spawning to prevent ghost spawns
     if !std::path::Path::new(file_path).exists() {
         tracing::error!("[VLC] 🚨 File not found right before spawn: {}", file_path);
-        return None;
+        return Err(AppError::Custom("FILE_NOT_FOUND".to_string()));
     }
 
     let mut cmd = Command::new(vlc_path);
 
-    // Deadlock-free process spawning
+    // Capture stderr to check for binding/auth errors, while ignoring stdout
     cmd.stdout(Stdio::null())
-       .stderr(Stdio::null());
+       .stderr(Stdio::piped());
 
     cmd.arg(&safe_file_path)
         .arg("--extraintf=http")
-        .arg("--http-port=8080")
-        .arg("--http-password=watchmark");
+        .arg(format!("--http-port={}", port))
+        .arg("--http-host=127.0.0.1");
+
+    if legacy_auth {
+        cmd.arg(format!("--http-password={}", password));
+    } else {
+        cmd.arg(format!("--http-password={}", password));
+    }
 
     if start_time > 0 {
         cmd.arg(format!("--start-time={}", start_time));
     }
 
-    cmd.spawn().ok()
+    cmd.spawn().map_err(|e| AppError::Custom(format!("Failed to start VLC: {}", e)))
 }
 
 pub async fn get_vlc_status() -> Option<Value> {
+    let (port, password) = {
+        let p_lock = VLC_PORT.lock().unwrap();
+        let pw_lock = VLC_PASSWORD.lock().unwrap();
+        (*p_lock, pw_lock.clone())
+    };
+
+    if password.is_empty() {
+        return None;
+    }
+
     if let Ok(res) = NETWORK_MANAGER.local_client
-        .get("http://127.0.0.1:8080/requests/status.json")
-        .basic_auth("", Some("watchmark"))
+        .get(&format!("http://127.0.0.1:{}/requests/status.json", port))
+        .timeout(Duration::from_secs(1))
+        .basic_auth("", Some(password))
         .send()
         .await
     {
-        if let Ok(json) = res.json().await {
+        if let Ok(json) = res.json::<Value>().await {
             return Some(json);
         }
     }
@@ -144,10 +200,24 @@ pub async fn vlc_heartbeat(
 
     let mut has_overridden_runtime = false;
 
+    let mut is_initial_probe = true;
+    let probe_start = std::time::Instant::now();
+
     loop {
+        let tick_duration = if is_initial_probe {
+            Duration::from_millis(200)
+        } else {
+            Duration::from_secs(5)
+        };
+
         tokio::select! {
-            _ = interval.tick() => {
+            _ = tokio::time::sleep(tick_duration) => {
+                if is_initial_probe && probe_start.elapsed() > Duration::from_secs(3) {
+                    is_initial_probe = false;
+                }
+
                 if let Some(status) = get_vlc_status().await {
+                    is_initial_probe = false;
                     consecutive_failures = 0;
 
                     let length = status["length"].as_f64().unwrap_or(0.0);
@@ -218,19 +288,35 @@ pub async fn vlc_heartbeat(
                         }
                     }
                 } else {
-                    consecutive_failures += 1;
-                    if consecutive_failures >= 3 {
-                        // Assume VLC has crashed or disconnected
-                        break;
+                    if !is_initial_probe {
+                        consecutive_failures += 1;
+                        if consecutive_failures >= 3 {
+                            // Assume VLC has crashed or disconnected
+                            tracing::warn!("[VLC] ⚠️ Heartbeat missed 3 times. Assuming disconnect.");
+                            break;
+                        }
                     }
                 }
             }
             status = proc.wait() => {
                 // VLC process has exited
-                let _ = status;
+                tracing::info!("[VLC] 🛑 VLC Process terminated with status: {:?}", status);
+                if let Ok(exit_status) = status {
+                    if !exit_status.success() {
+                        let _ = app_handle.emit("vlc-crashed", serde_json::json!({
+                            "message": "Playback Interrupted"
+                        }));
+                    }
+                }
                 break;
             }
         }
+    }
+
+    // Clear password from memory when session ends
+    {
+        let mut pw_lock = VLC_PASSWORD.lock().unwrap();
+        *pw_lock = String::new();
     }
 
     let end_dt_str = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
@@ -328,11 +414,45 @@ pub async fn play_episode_cmd(
 
     kill_active_vlc().await;
 
-    if let Some(proc) = play_in_vlc(&canonical_vlc.to_string_lossy(), &file_path, start_sec) {
-        let mut session_id = uuid::Uuid::new_v4().to_string();
-        let start_dt_str = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    match play_in_vlc(&canonical_vlc.to_string_lossy(), &file_path, start_sec) {
+        Ok(mut proc) => {
+            // Non-blocking loop to check stderr for 2 seconds
+            if let Some(mut stderr) = proc.stderr.take() {
+                let start_time = std::time::Instant::now();
+                let mut error_detected = false;
+                let mut buffer = [0; 1024];
 
-        {
+                while start_time.elapsed() < Duration::from_secs(2) {
+                    if let Ok(bytes_read) = tokio::time::timeout(Duration::from_millis(100), stderr.read(&mut buffer)).await {
+                        if let Ok(n) = bytes_read {
+                            if n > 0 {
+                                let err_str = String::from_utf8_lossy(&buffer[..n]).to_lowercase();
+                                if err_str.contains("password") || err_str.contains("bind") || err_str.contains("error") {
+                                    error_detected = true;
+                                    break;
+                                }
+                            } else {
+                                break; // EOF
+                            }
+                        }
+                    }
+
+                    // Check if heartbeat is already responding, meaning VLC is fully up and running
+                    if get_vlc_status().await.is_some() {
+                        break;
+                    }
+                }
+
+                if error_detected {
+                    let _ = proc.kill().await;
+                    return Err(AppError::Custom("VLC_AUTH_ERROR".to_string()));
+                }
+            }
+
+            let mut session_id = uuid::Uuid::new_v4().to_string();
+            let start_dt_str = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+
+            {
             let conn = get_db_connection()?;
 
             // Auto-binge detection logic
@@ -386,39 +506,34 @@ pub async fn play_episode_cmd(
                 }
             }
 
-            if status == "Watching" {
-                let _ = conn.execute(
-                    "UPDATE Episodes SET status='Watching' WHERE id=?",
-                    params![episode_id],
-                )?;
-            }
-        } // `conn` dropped here
+                if status == "Watching" {
+                    let _ = conn.execute(
+                        "UPDATE Episodes SET status='Watching' WHERE id=?",
+                        params![episode_id],
+                    )?;
+                }
+            } // `conn` dropped here
 
-        let proc_id = proc.id();
-        if let Some(pid) = proc_id {
-            let mut lock = ACTIVE_VLC.lock().unwrap();
-            *lock = Some(pid);
-        }
-
-        tokio::spawn(async move {
-            vlc_heartbeat(proc, episode_id, session_id, start_dt_str, app_handle).await;
-
-            // Clean up PID when process naturally exits, but only if it's OUR process
+            let proc_id = proc.id();
             if let Some(pid) = proc_id {
                 let mut lock = ACTIVE_VLC.lock().unwrap();
-                if *lock == Some(pid) {
-                    *lock = None;
-                }
+                *lock = Some(pid);
             }
-        });
 
-        Ok(())
-    } else {
-        // If file doesn't exist, play_in_vlc returns None. We must return FILE_NOT_FOUND.
-        if !std::path::Path::new(&file_path).exists() {
-            Err(AppError::Custom("FILE_NOT_FOUND".to_string()))
-        } else {
-            Err(AppError::Custom("Failed to start VLC".to_string()))
+            tokio::spawn(async move {
+                vlc_heartbeat(proc, episode_id, session_id, start_dt_str, app_handle).await;
+
+                // Clean up PID when process naturally exits, but only if it's OUR process
+                if let Some(pid) = proc_id {
+                    let mut lock = ACTIVE_VLC.lock().unwrap();
+                    if *lock == Some(pid) {
+                        *lock = None;
+                    }
+                }
+            });
+
+            Ok(())
         }
+        Err(e) => Err(e)
     }
 }

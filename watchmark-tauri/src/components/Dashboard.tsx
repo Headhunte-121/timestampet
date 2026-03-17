@@ -188,7 +188,11 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     logger.ipcSuccess("VLC successfully launched. Waiting for heartbeat...");
                   }).catch(e => {
                     logger.error("VLC Launch Failed", e);
-                    alert(e);
+                    if (e === "VLC_AUTH_ERROR") {
+                      toast.error("VLC Authentication Error: Failed to inject dynamic password or bind to port.", { duration: 8000 });
+                    } else {
+                      toast.error(`VLC Launch Failed: ${e}`);
+                    }
                   });
                 }}
                 disabled={!data.hero_ep.file_path}
@@ -320,7 +324,11 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                            logger.ipcSuccess("VLC successfully launched. Waiting for heartbeat...");
                         }).catch(err => {
                            logger.error("VLC Launch Failed", err);
-                           alert(err);
+                           if (err === "VLC_AUTH_ERROR") {
+                             toast.error("VLC Authentication Error: Failed to inject dynamic password or bind to port.", { duration: 8000 });
+                           } else {
+                             toast.error(`VLC Launch Failed: ${err}`);
+                           }
                         });
                       }}
                       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-[#FF6B00] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 z-20 hover:bg-[#E66000]"
