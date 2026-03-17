@@ -44,14 +44,14 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
-            className="bg-transparent text-white outline-none font-medium px-2 py-1"
+            className="bg-transparent text-white outline-none font-normal px-2 py-1"
           >
             {sortOptions.map(opt => <option key={opt} value={opt} className="bg-[#1F222A]">{opt}</option>)}
           </select>
 
           <div className="w-px h-6 bg-white/10" />
 
-          <label className="flex items-center gap-2 cursor-pointer px-2 text-sm font-medium text-gray-300 hover:text-white transition-colors">
+          <label className="flex items-center gap-2 cursor-pointer px-2 text-sm font-normal text-gray-300 hover:text-white transition-colors">
             <input
               type="checkbox"
               checked={hideCompleted}
@@ -125,13 +125,13 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               </div>
 
               {/* Static badges */}
-              <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-xl text-xs font-bold text-[#FF6B00] shadow-md group-hover:opacity-0 transition-opacity flex items-center gap-1">
+              <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-xl text-xs font-bold text-[#FF6B00] shadow-md group-hover:opacity-0 transition-opacity flex items-center gap-1 tabular-nums">
                 {item.user_rating === 0 ? '0.0' : '★'} {item.user_rating !== null ? `${(item.user_rating / 2).toFixed(1)}/5` : 'Unrated'}
               </div>
 
               <div className="absolute bottom-4 left-4 z-20 pointer-events-none group-hover:opacity-0 transition-opacity">
                  {item.is_date_known && (
-                    <span className="px-2 py-1 bg-[#1F222A] text-xs font-bold rounded-lg shadow-md">{item.release_date.substring(0, 4)}</span>
+                    <span className="px-2 py-1 bg-[#1F222A] text-xs font-bold rounded-lg shadow-md tabular-nums">{item.release_date.substring(0, 4)}</span>
                  )}
               </div>
 

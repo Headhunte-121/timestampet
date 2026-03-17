@@ -195,7 +195,7 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
                 setResults([]);
               }
             }}
-            className="w-full bg-[#1F222A] text-white pl-12 pr-12 py-4 rounded-xl border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-inner font-medium text-lg disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+            className="w-full bg-[#1F222A] text-white pl-12 pr-12 py-4 rounded-xl border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-inner font-normal text-lg disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
           />
           {query.length > 0 && (
             <button
@@ -271,7 +271,7 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
 
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 z-20">
               <h3 className="text-white font-bold leading-tight mb-1 line-clamp-2">{item.title}</h3>
-              <p className="text-xs text-gray-300 mb-4 uppercase tracking-wider font-bold flex items-center gap-2">
+              <p className="text-xs text-gray-300 mb-4 uppercase tracking-wider font-bold flex items-center gap-2 tabular-nums">
                  <span>{item.is_date_known ? (item.type === "TV" ? `${item.release_date.substring(0, 4)}–` : (item.is_exact_date ? formatLocaleDate(item.release_date) : item.release_date.substring(0, 4))) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
               </p>
 

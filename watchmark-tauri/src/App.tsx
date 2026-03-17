@@ -339,7 +339,7 @@ function App() {
               key={item.id}
               onClick={() => { handleNav(item.id); setIsMobileMenuOpen(false); }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-200 relative overflow-hidden",
                 currentView === item.id && !selectedMediaId
                   ? "text-white bg-gradient-to-r from-white/5 to-transparent"
                   : "text-muted hover:text-white hover:bg-white/5"
@@ -358,7 +358,7 @@ function App() {
           <button
             onClick={() => { handleNav("settings"); setIsMobileMenuOpen(false); }}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden",
+              "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-200 relative overflow-hidden",
               currentView === "settings" && !selectedMediaId
                 ? "text-white bg-gradient-to-r from-white/5 to-transparent"
                 : "text-muted hover:text-white hover:bg-white/5"
@@ -439,7 +439,7 @@ function App() {
             {selectedMediaId && (
               <button
                 onClick={() => handleNav(currentView)}
-                className="ml-8 px-4 py-2 text-sm font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-2"
+                className="ml-8 px-4 py-2 text-sm font-normal text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-2"
               >
                 ← Back
               </button>
@@ -447,7 +447,7 @@ function App() {
             {currentView === "search" && !selectedMediaId && (
               <button
                 onClick={() => handleNav("dashboard")}
-                className="ml-8 px-4 py-2 text-sm font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-2"
+                className="ml-8 px-4 py-2 text-sm font-normal text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-2"
               >
                 ← Back to Home
               </button>
@@ -471,7 +471,7 @@ function App() {
                 placeholder="Quick Search..."
                 value={globalSearchQuery}
                 onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-medium"
+                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-normal"
               />
             </div>
           </form>
@@ -510,7 +510,7 @@ function App() {
                 placeholder="Quick Search..."
                 value={globalSearchQuery}
                 onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-medium"
+                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-normal"
               />
             </div>
           </form>

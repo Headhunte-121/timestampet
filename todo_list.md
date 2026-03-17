@@ -711,8 +711,9 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Verify `h1`, `h2`, and `h3` tags globally default to `#FFFFFF`.
 - [x] Ensure `p` and `span` tags globally default to a silver tone (e.g., `#A0AEC0`).
 - [x] Handle edge cases where text is rendered over extremely bright poster images (require shadows).
-- [x] Test font weights, strictly using `font-bold` for headers and `font-normal` for body.
+- [x] Test font weights, strictly using `font-bold` for headers and `font-normal` for body, avoiding medium weights.
 - [x] Ensure letter spacing (tracking) is slightly tightened on massive hero text.
+- [x] Use Tabular Figures for stats and numbers.
 
 **6.8 Perfect rounded-xl and rounded-2xl corner radii.** (Incomplete)
 
