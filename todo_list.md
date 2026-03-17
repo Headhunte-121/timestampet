@@ -767,29 +767,29 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: The top half of a specific Show/Movie details page.**
 
-**11.1 Custom <- Back button overlaying the header.** (Incomplete)
+**11.1 Custom <- Back button overlaying the header.** (Complete)
 
-- [ ] Verify the button strictly floats in the top-left corner using absolute or sticky positioning.
-- [ ] Ensure it utilizes a translucent, dark pill shape specifically contrasting the background banner.
-- [ ] Handle edge cases where rapid clicking breaks the history stack in React Router.
-- [ ] Test keyboard accessibility specifically focusing this button upon load.
-- [ ] Ensure hovering slightly brightens the pill and scales the arrow.
+- [x] Verify the button strictly floats in the top-left corner using absolute or sticky positioning.
+- [x] Ensure it utilizes a translucent, dark pill shape specifically contrasting the background banner.
+- [x] Handle edge cases where rapid clicking breaks the history stack in React Router.
+- [x] Test keyboard accessibility specifically focusing this button upon load.
+- [x] Ensure hovering slightly brightens the pill and scales the arrow.
 
-**11.2 Massive 400px height cinematic backdrop banner.** (Incomplete)
+**11.2 Massive 400px height cinematic backdrop banner.** (Complete)
 
-- [ ] Verify the precise height (`h-96` or similar) perfectly anchors the top third of the page.
-- [ ] Ensure `object-cover` strictly prevents stretching of low-resolution horizontal images.
-- [ ] Handle edge cases where no backdrop exists (use a massive CSS linear gradient strictly matching the theme).
-- [ ] Test the heavy gradient overlay seamlessly fading the bottom edge into pure `#0D0F14`.
-- [ ] Ensure rapid image switching cross-fades gracefully instead of flashing white.
+- [x] Verify the precise height (`h-96` or similar) perfectly anchors the top third of the page.
+- [x] Ensure `object-cover` strictly prevents stretching of low-resolution horizontal images.
+- [x] Handle edge cases where no backdrop exists (use a massive CSS linear gradient strictly matching the theme).
+- [x] Test the heavy gradient overlay seamlessly fading the bottom edge into pure `#0D0F14`.
+- [x] Ensure rapid image switching cross-fades gracefully instead of flashing white.
 
-**11.3 Overlapping, left-aligned vertical main poster for depth.** (Incomplete)
+**11.3 Overlapping, left-aligned vertical main poster for depth.** (Complete)
 
-- [ ] Verify negative top margins (`-mt-24` or similar) pull the poster strictly upward over the backdrop edge.
-- [ ] Ensure a thick, harsh drop-shadow separates the poster drastically from the image behind it.
-- [ ] Handle edge cases where the main poster image completely fails to load (display the generic dark block).
-- [ ] Test width constraints to ensure standard 2:3 scaling strictly matches Library views.
-- [ ] Ensure alignment correctly positions the poster adjacent to the primary title block.
+- [x] Verify negative top margins (`-mt-24` or similar) pull the poster strictly upward over the backdrop edge.
+- [x] Ensure a thick, harsh drop-shadow separates the poster drastically from the image behind it.
+- [x] Handle edge cases where the main poster image completely fails to load (display the generic dark block).
+- [x] Test width constraints to ensure standard 2:3 scaling strictly matches Library views.
+- [x] Ensure alignment correctly positions the poster adjacent to the primary title block.
 
 ## Micro-Feature 16: Media Details View (Info & Tabs)
 
