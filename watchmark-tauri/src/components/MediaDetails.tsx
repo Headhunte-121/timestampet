@@ -94,8 +94,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       setTimeout(() => setIsBackDisabled(false), 500);
 
       if (window.history.length <= 2) {
-         // Fallback if history is missing or user deep-linked
-         window.location.hash = "#/";
+         window.location.hash = "#/dashboard";
       } else {
          onBack();
       }
@@ -154,12 +153,11 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           tabIndex={0}
           aria-label="Return to Library"
           whileHover={{
-              scale: 1.05,
               backgroundColor: "rgba(0, 0, 0, 0.6)"
           }}
           className="absolute top-6 left-6 z-50 flex items-center justify-center p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-all shadow-lg outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14] sticky group"
         >
-          <div className="group-hover:scale-125 transition-transform duration-200">
+          <div className="group-hover:scale-[1.2] transition-transform duration-200">
             <ArrowLeft className="w-6 h-6 text-white" />
           </div>
         </motion.button>
@@ -173,7 +171,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
           style={{ filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.9))" }}
-          className="relative w-64 shrink-0 rounded-2xl overflow-hidden border border-white/10 aspect-[2/3]"
+          className="relative w-64 shrink-0 rounded-2xl overflow-hidden border border-white/10 aspect-[2/3] -mt-40"
         >
           <SafeImage
             srcPath={data.poster_path ? formatImagePath(data.poster_path, "w500") : ""}
@@ -194,7 +192,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="flex-1 max-w-4xl"
+          className="flex-1 max-w-4xl pt-8"
         >
           <h1 className="text-6xl font-extrabold tracking-tight text-white mb-4 drop-shadow-lg">
             {data.title}
