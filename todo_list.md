@@ -919,53 +919,53 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Send the file path from React to Rust, and open VLC.**
 
-**16.10 VLC Executable Path text input.** (Incomplete)
+**16.10 VLC Executable Path text input.** (Complete)
 
-- [ ] Verify the string perfectly maps directly to the Rust backend execution parameter.
-- [ ] Ensure visual error styling if the user inputs a path to a non-existent file.
-- [ ] Handle edge cases specifically targeting Windows path formats vs Unix path formats.
-- [ ] Test auto-detection 'Restore Default' logic dynamically finding VLC if the path is entirely deleted.
-- [ ] Ensure relative paths strictly convert to absolute paths based on the application root.
+- [x] Verify the string perfectly maps directly to the Rust backend execution parameter.
+- [x] Ensure visual error styling if the user inputs a path to a non-existent file.
+- [x] Handle edge cases specifically targeting Windows path formats vs Unix path formats.
+- [x] Test auto-detection 'Restore Default' logic dynamically finding VLC if the path is entirely deleted.
+- [x] Ensure relative paths strictly convert to absolute paths based on the application root.
 
-**16.11 Native OS File Explorer browse window specifically for locating the VLC .exe / .app.** (Incomplete)
+**16.11 Native OS File Explorer browse window specifically for locating the VLC .exe / .app.** (Complete)
 
-- [ ] Verify clicking 'Browse' strictly spawns the native OS file picker window.
-- [ ] Ensure the window specifically filters only for executables (`.exe` on Windows, `.app` on Mac).
-- [ ] Handle edge cases where the user cancels the OS dialog (the input value should remain untouched).
-- [ ] Test inserting the returned absolute string precisely back into the React input field.
-- [ ] Ensure the action does not freeze the React UI main thread.
+- [x] Verify clicking 'Browse' strictly spawns the native OS file picker window.
+- [x] Ensure the window specifically filters only for executables (`.exe` on Windows, `.app` on Mac).
+- [x] Handle edge cases where the user cancels the OS dialog (the input value should remain untouched).
+- [x] Test inserting the returned absolute string precisely back into the React input field.
+- [x] Ensure the action does not freeze the React UI main thread.
 
-**4.1 Auto-detection of VLC installation paths across OS defaults.** (Incomplete)
+**4.1 Auto-detection of VLC installation paths across OS defaults.** (Complete)
 
-- [ ] Ensure fallback checks for default `C:\Program Files\VideoLAN\VLC\vlc.exe` on Windows.
-- [ ] Ensure checks for `/Applications/VLC.app/Contents/MacOS/VLC` on macOS.
-- [ ] Verify `/usr/bin/vlc` or snap/flatpak paths on Linux.
-- [ ] Handle edge cases where VLC is installed but the executable is restricted.
-- [ ] Provide a clear fatal error UI if automatic detection completely fails.
+- [x] Ensure fallback checks for default `C:\Program Files\VideoLAN\VLC\vlc.exe` on Windows.
+- [x] Ensure checks for `/Applications/VLC.app/Contents/MacOS/VLC` on macOS.
+- [x] Verify `/usr/bin/vlc` or snap/flatpak paths on Linux.
+- [x] Handle edge cases where VLC is installed but the executable is restricted.
+- [x] Provide a clear fatal error UI if automatic detection completely fails.
 
-**4.2 Manual VLC executable path override in Settings.** (Incomplete)
+**4.2 Manual VLC executable path override in Settings.** (Complete)
 
-- [ ] Provide a file picker dialog strictly filtering for executable files.
-- [ ] Handle edge cases where the user selects a non-VLC executable.
-- [ ] Ensure manual paths are saved persistently to JSON and override auto-detection.
-- [ ] Verify that changing the path does not require an app restart.
-- [ ] Test behavior if the manually specified path is deleted or moved externally.
+- [x] Provide a file picker dialog strictly filtering for executable files.
+- [x] Handle edge cases where the user selects a non-VLC executable.
+- [x] Ensure manual paths are saved persistently to JSON and override auto-detection.
+- [x] Verify that changing the path does not require an app restart.
+- [x] Test behavior if the manually specified path is deleted or moved externally.
 
-**4.3 Spawning VLC as a detached external background process.** (Incomplete)
+**4.3 Spawning VLC as a detached external background process.** (Complete)
 
-- [ ] Ensure closing the WatchMark app gracefully kills the spawned VLC instance (or leaves it running based on preference).
-- [ ] Handle edge cases where VLC takes an unusually long time to spawn.
-- [ ] Verify the external process doesn't lock the local video file from being renamed.
-- [ ] Test spawning multiple VLC instances concurrently (should be prevented).
-- [ ] Ensure Rust strictly uses `Command::new` without capturing standard output to prevent deadlocks.
+- [x] Ensure closing the WatchMark app gracefully kills the spawned VLC instance (or leaves it running based on preference).
+- [x] Handle edge cases where VLC takes an unusually long time to spawn.
+- [x] Verify the external process doesn't lock the local video file from being renamed.
+- [x] Test spawning multiple VLC instances concurrently (should be prevented).
+- [x] Ensure Rust strictly uses `Command::new` without capturing standard output to prevent deadlocks.
 
-**4.4 Passing secure local file paths directly to the VLC Command Line.** (Incomplete)
+**4.4 Passing secure local file paths directly to the VLC Command Line.** (Complete)
 
-- [ ] Handle absolute paths containing spaces, foreign characters, and emojis safely.
-- [ ] Ensure network drive paths (`//SERVER/Share`) are formatted correctly for VLC.
-- [ ] Test escaping shell characters (quotes, ampersands) to prevent command injection.
-- [ ] Verify long paths exceeding Windows 256-character limits are handled.
-- [ ] Handle edge cases where the file was deleted immediately prior to clicking Play.
+- [x] Handle absolute paths containing spaces, foreign characters, and emojis safely.
+- [x] Ensure network drive paths (`//SERVER/Share`) are formatted correctly for VLC.
+- [x] Test escaping shell characters (quotes, ampersands) to prevent command injection.
+- [x] Verify long paths exceeding Windows 256-character limits are handled.
+- [x] Handle edge cases where the file was deleted immediately prior to clicking Play.
 
 **1.9 Seamless IPC (Inter-Process Communication) bridging via Tauri invoke.** (Complete)
 

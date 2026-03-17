@@ -6,22 +6,82 @@
 use rusqlite::params;
 use serde_json::Value;
 use std::time::Duration;
+use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use tokio::process::{Child, Command};
+use std::process::Stdio;
 
 use crate::db::get_db_connection;
 use crate::error::AppError;
 use crate::network::NETWORK_MANAGER;
+
+lazy_static::lazy_static! {
+    static ref ACTIVE_VLC: Mutex<Option<u32>> = Mutex::new(None);
+}
 
 #[derive(Clone, serde::Serialize)]
 struct RefreshPayload {
     message: String,
 }
 
+pub async fn kill_active_vlc() {
+    let pid_to_kill = {
+        let mut lock = ACTIVE_VLC.lock().unwrap();
+        lock.take()
+    };
+
+    if let Some(pid) = pid_to_kill {
+        tracing::info!("[VLC] 🛑 Killing previous VLC instance (PID {})...", pid);
+        #[cfg(unix)]
+        {
+            let _ = Command::new("kill")
+                .arg("-9")
+                .arg(pid.to_string())
+                .status()
+                .await;
+        }
+        #[cfg(windows)]
+        {
+            let _ = Command::new("taskkill")
+                .arg("/F")
+                .arg("/PID")
+                .arg(pid.to_string())
+                .status()
+                .await;
+        }
+    }
+}
+
 pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Option<Child> {
+    // Determine path based on OS logic (Verbatim for Windows)
+    #[cfg(windows)]
+    let safe_file_path = if file_path.starts_with(r"\\?\") || file_path.starts_with(r"\\.\") {
+        file_path.to_string()
+    } else {
+        // Adding UNC verbatim prefix for long path support
+        if file_path.starts_with(r"\\") {
+            format!(r"\\?\UNC\{}", &file_path[2..])
+        } else {
+            format!(r"\\?\{}", file_path)
+        }
+    };
+
+    #[cfg(unix)]
+    let safe_file_path = file_path.to_string();
+
+    // Verify existence immediately before spawning to prevent ghost spawns
+    if !std::path::Path::new(file_path).exists() {
+        tracing::error!("[VLC] 🚨 File not found right before spawn: {}", file_path);
+        return None;
+    }
+
     let mut cmd = Command::new(vlc_path);
 
-    cmd.arg(file_path)
+    // Deadlock-free process spawning
+    cmd.stdout(Stdio::null())
+       .stderr(Stdio::null());
+
+    cmd.arg(&safe_file_path)
         .arg("--extraintf=http")
         .arg("--http-port=8080")
         .arg("--http-password=watchmark");
@@ -266,6 +326,8 @@ pub async fn play_episode_cmd(
 
     let start_sec = if last_position > 0 { last_position } else { 0 };
 
+    kill_active_vlc().await;
+
     if let Some(proc) = play_in_vlc(&canonical_vlc.to_string_lossy(), &file_path, start_sec) {
         let mut session_id = uuid::Uuid::new_v4().to_string();
         let start_dt_str = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
@@ -332,12 +394,31 @@ pub async fn play_episode_cmd(
             }
         } // `conn` dropped here
 
+        let proc_id = proc.id();
+        if let Some(pid) = proc_id {
+            let mut lock = ACTIVE_VLC.lock().unwrap();
+            *lock = Some(pid);
+        }
+
         tokio::spawn(async move {
             vlc_heartbeat(proc, episode_id, session_id, start_dt_str, app_handle).await;
+
+            // Clean up PID when process naturally exits, but only if it's OUR process
+            if let Some(pid) = proc_id {
+                let mut lock = ACTIVE_VLC.lock().unwrap();
+                if *lock == Some(pid) {
+                    *lock = None;
+                }
+            }
         });
 
         Ok(())
     } else {
-        Err(AppError::Custom("Failed to start VLC".to_string()))
+        // If file doesn't exist, play_in_vlc returns None. We must return FILE_NOT_FOUND.
+        if !std::path::Path::new(&file_path).exists() {
+            Err(AppError::Custom("FILE_NOT_FOUND".to_string()))
+        } else {
+            Err(AppError::Custom("Failed to start VLC".to_string()))
+        }
     }
 }
