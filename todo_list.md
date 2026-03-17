@@ -891,29 +891,29 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Show which episodes actually have video files on the hard drive.**
 
-**12.10 Circular Orange 'Play' icon-button strictly for episodes with linked local files.** (Incomplete)
+**12.10 Circular Orange 'Play' icon-button strictly for episodes with linked local files.** (Complete)
 
-- [ ] Verify specifically the presence of a strictly valid `local_path` entirely activates this specific button.
-- [ ] Ensure standard vibrant Orange fill specifically draws immediate focus.
-- [ ] Handle edge cases where hovering accurately expands the circle scaling specifically `110%`.
-- [ ] Test clicking correctly passes specific SxxExx and file path strictly to the VLC Rust process.
-- [ ] Ensure the button anchors specifically to the far right vertical center.
+- [x] Verify specifically the presence of a strictly valid `local_path` entirely activates this specific button.
+- [x] Ensure standard vibrant Orange fill specifically draws immediate focus.
+- [x] Handle edge cases where hovering accurately expands the circle scaling specifically `110%`.
+- [x] Test clicking correctly passes specific SxxExx and file path strictly to the VLC Rust process.
+- [x] Ensure the button anchors specifically to the far right vertical center.
 
-**12.11 Disabled Gray '☁️ Cloud' icon visually indicating the local file is missing/deleted.** (Incomplete)
+**12.11 Disabled Gray '☁️ Cloud' icon visually indicating the local file is missing/deleted.** (Complete)
 
-- [ ] Verify exactly substituting the standard Play triangle exclusively with a Cloud SVG.
-- [ ] Ensure standard colors strictly utilize a heavy, dim gray (`text-gray-600`) exactly indicating 'Unavailable'.
-- [ ] Handle edge cases where the user clicked specifically anyway (strictly do nothing, prevent UI crashes).
-- [ ] Test explicit tooltip rendering ensuring it distinctly warns 'No File Found'.
-- [ ] Ensure this completely replaces the play icon cleanly without shifting row dimensions.
+- [x] Verify exactly substituting the standard Play triangle exclusively with a Cloud SVG.
+- [x] Ensure standard colors strictly utilize a heavy, dim gray (`text-gray-600`) exactly indicating 'Unavailable'.
+- [x] Handle edge cases where the user clicked specifically anyway (strictly do nothing, prevent UI crashes).
+- [x] Test explicit tooltip rendering ensuring it distinctly warns 'No File Found'.
+- [x] Ensure this completely replaces the play icon cleanly without shifting row dimensions.
 
-**16.6 Real-time cross-checking against the local DB to disable '+ Add' buttons and display green '✓ In Library' badges for already tracked media.** (Incomplete)
+**16.6 Real-time cross-checking against the local DB to disable '+ Add' buttons and display green '✓ In Library' badges for already tracked media.** (Complete)
 
-- [ ] Verify every remote search result explicitly checks its TMDB ID against the local SQLite store.
-- [ ] Ensure matching shows render a distinct, non-clickable visual indicator (e.g., 'Added').
-- [ ] Handle edge cases where a user removes a show locally, ensuring the search UI accurately reenables the Add button.
-- [ ] Test performance overhead when cross-referencing hundreds of search results simultaneously.
-- [ ] Ensure adding a show dynamically triggers a visual shift on the specific card without refreshing the entire list.
+- [x] Verify every remote search result explicitly checks its TMDB ID against the local SQLite store.
+- [x] Ensure matching shows render a distinct, non-clickable visual indicator (e.g., 'Added').
+- [x] Handle edge cases where a user removes a show locally, ensuring the search UI accurately reenables the Add button.
+- [x] Test performance overhead when cross-referencing hundreds of search results simultaneously.
+- [x] Ensure adding a show dynamically triggers a visual shift on the specific card without refreshing the entire list.
 
 ## Micro-Feature 19: VLC Spawning & IPC Bridge
 
