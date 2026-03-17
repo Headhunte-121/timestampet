@@ -2608,7 +2608,59 @@ pub async fn perform_tmdb_search(request_id: String, query: String, page: Option
 }
 
 #[tauri::command]
-#[tracing::instrument(level = "debug", skip(app, state))]
+#[tracing::instrument(level = "debug")]
+pub async fn get_next_episode_to_play(
+    media_id: i32,
+) -> Result<Option<Value>, AppError> {
+    let conn = get_db_connection().map_err(|e| {
+        tracing::error!("Failed to get DB connection: {}", e);
+        AppError::Custom(e.to_string())
+    })?;
+
+    // Find the first unwatched episode in order (lowest season_num > 0, then lowest ep_num)
+    let query = "
+        SELECT e.id, e.season_num, e.ep_num, lf.file_path, e.last_position, e.status
+        FROM Episodes e
+        LEFT JOIN Local_Files lf ON e.id = lf.episode_id
+        WHERE e.media_id = ? AND e.season_num > 0 AND e.status != 'Completed'
+        ORDER BY e.season_num ASC, e.ep_num ASC
+    ";
+
+    let mut stmt = conn.prepare(query).map_err(|e| AppError::Custom(e.to_string()))?;
+
+    let mut rows = stmt.query([media_id]).map_err(|e| AppError::Custom(e.to_string()))?;
+
+    let mut ideal_missing_ep_num = None;
+
+    while let Some(row) = rows.next().map_err(|e| AppError::Custom(e.to_string()))? {
+        let episode_id: i32 = row.get(0).unwrap_or(0);
+        let season_num: i32 = row.get(1).unwrap_or(0);
+        let ep_num: i32 = row.get(2).unwrap_or(0);
+        let file_path: Option<String> = row.get(3).unwrap_or(None);
+        let last_position: f64 = row.get(4).unwrap_or(0.0);
+
+        if let Some(path) = file_path {
+            let is_gap = ideal_missing_ep_num.is_some();
+            return Ok(Some(json!({
+                "episode_id": episode_id,
+                "season_num": season_num,
+                "ep_num": ep_num,
+                "file_path": path,
+                "last_position": last_position,
+                "is_gap": is_gap,
+                "missing_ep_num": ideal_missing_ep_num
+            })));
+        } else {
+            if ideal_missing_ep_num.is_none() {
+                ideal_missing_ep_num = Some(ep_num);
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+#[tauri::command]
 pub async fn assign_unmatched_to_tracker(
     request_id: String,
     tmdb_id: String,

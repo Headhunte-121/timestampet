@@ -1,7 +1,7 @@
 import { logger } from "../utils/logger";
 import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,6 +33,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const [isBackDisabled, setIsBackDisabled] = useState(false);
   const processingRef = useRef<Set<number>>(new Set());
   const [completedCountDiff, setCompletedCountDiff] = useState<number>(0);
+  const [nextEpisodeInfo, setNextEpisodeInfo] = useState<any>(null);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -108,6 +109,14 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         }
       })
       .catch(console.error);
+
+    asyncInvoke("get_next_episode_to_play", { mediaId })
+      .then((res: any) => {
+        setNextEpisodeInfo(res);
+      })
+      .catch((err) => {
+        logger.error("Failed to fetch next episode to play", err);
+      });
   }, [mediaId, refreshTrigger, asyncInvoke]);
 
   if (!data) {
@@ -298,19 +307,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             <div className="flex flex-col items-center bg-[#1F222A] border border-[#2A2D35] rounded-xl px-4 py-3 min-w-[140px]">
               <span className="text-[#8E929C] text-[10px] font-bold tracking-widest uppercase mb-1">MY RATING</span>
               <div className="mt-0.5">
-                <StarRating
-                  rating={data.user_rating}
-                  onChange={(rating) => {
-                    logger.click(`'Rating' changed to ${rating} stars`);
-                    setData((prev: any) => ({ ...prev, user_rating: rating }));
-                    logger.ipcSend("update_media_rating", `Rating ${rating}`);
-                    invoke("update_media_rating", { mediaId: data.id, rating })
-                      .catch((err: any) => {
-                        logger.error("Rating Update Failed", err);
-                        toast.error("Failed to update rating");
-                      });
-                  }}
-                />
+                <InteractiveStarRating initialRating={data.user_rating} mediaId={data.id} />
               </div>
             </div>
           </div>
@@ -400,11 +397,39 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               </div>
             ) : (
               <button
-                onClick={() => toast.success("Play Next algorithm is not implemented yet. Scroll down to play an episode.")}
-                className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] hover:bg-[#E66000] text-white font-bold rounded-full transition-all shadow-lg shadow-orange-500/20 hover:scale-105"
+                onClick={() => {
+                  if (!nextEpisodeInfo) return;
+                  logger.click(`'Play Next' -> S${nextEpisodeInfo.season_num}E${nextEpisodeInfo.ep_num}`);
+                  invoke("play_episode_cmd", {
+                    episodeId: nextEpisodeInfo.episode_id,
+                    filePath: nextEpisodeInfo.file_path,
+                    lastPosition: nextEpisodeInfo.last_position,
+                  }).catch(err => {
+                    toast.error(`VLC Launch Failed: ${err}`);
+                  });
+                }}
+                disabled={!nextEpisodeInfo}
+                title={!nextEpisodeInfo ? "No unwatched episodes with local files available." : ""}
+                className={cn(
+                  "flex items-center gap-2 px-8 py-4 font-bold rounded-full transition-all shadow-lg",
+                  !nextEpisodeInfo
+                    ? "bg-gray-500/50 text-gray-400 cursor-not-allowed pointer-events-none"
+                    : "bg-[#FF6B00] hover:bg-[#E66000] text-white shadow-[0_4px_14px_0_rgba(255,107,0,0.39)] hover:scale-105 active:scale-95"
+                )}
               >
-               
-                <Icon icon={Play} fill="currentColor" /> Play Next
+                {!nextEpisodeInfo ? (
+                  <CloudOff className="w-5 h-5 text-gray-400" />
+                ) : (
+                  <Icon icon={Play} className="w-5 h-5" strokeWidth={2.5} fill="currentColor" />
+                )}
+                <div className="flex flex-col items-start">
+                  <span>Play Next</span>
+                  {nextEpisodeInfo?.is_gap && nextEpisodeInfo?.missing_ep_num && (
+                    <span className="text-[10px] opacity-80 font-normal leading-tight">
+                      Episode {nextEpisodeInfo.missing_ep_num} missing. Playing Episode {nextEpisodeInfo.ep_num}.
+                    </span>
+                  )}
+                </div>
               </button>
             )}
             <button
@@ -587,6 +612,41 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
     </motion.div>
   );
 }
+
+const InteractiveStarRating = React.memo(({ initialRating, mediaId }: { initialRating: number | null, mediaId: number }) => {
+  const [rating, setRating] = useState(initialRating);
+  const [isShaking, setIsShaking] = useState(false);
+
+  useEffect(() => {
+    setRating(initialRating);
+  }, [initialRating]);
+
+  return (
+    <motion.div
+      animate={isShaking ? { x: [-5, 5, -5, 5, 0] } : {}}
+      transition={{ duration: 0.4 }}
+    >
+      <StarRating
+        rating={rating}
+        onChange={async (newRating) => {
+          const prevRating = rating;
+          setRating(newRating); // Optimistic UI
+          try {
+            logger.click(`'Rating' changed to ${newRating} stars`);
+            logger.ipcSend("update_media_rating", `Rating ${newRating}`);
+            await invoke("update_media_rating", { mediaId, rating: newRating });
+          } catch (err: any) {
+            logger.error("Rating Update Failed", err);
+            toast.error("Failed to update rating");
+            setRating(prevRating); // Roll Back
+            setIsShaking(true);
+            setTimeout(() => setIsShaking(false), 500);
+          }
+        }}
+      />
+    </motion.div>
+  );
+});
 
 function EpisodeRow({ ep, data, mediaId, setContextMenu, processingRef, completedCountDiff, setCompletedCountDiff }: any) {
   const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
