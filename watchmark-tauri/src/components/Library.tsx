@@ -28,10 +28,14 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
 
   const sortOptions = ["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated", "Sort by TMDB Rating"];
 
+  const isFiltered = hideCompleted || searchQuery !== "";
+
   const filteredData = data.filter(item =>
     !searchQuery ||
     item.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const isDbEmpty = data.length === 0 && !isFiltered;
 
   return (
     <div className="px-6 py-24 pb-24 max-w-[1800px] mx-auto">
@@ -40,7 +44,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
           {type === "TV" ? "TV Shows" : "Movies"}
         </h1>
 
-        {data.length > 0 && (
+        {!isDbEmpty && (
           <div className="flex items-center gap-4 bg-[#1F222A]/80 backdrop-blur-md p-2 rounded-xl border border-white/5">
             <select
               value={sortBy}
@@ -190,9 +194,9 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
         </AnimatePresence>
         {filteredData.length === 0 && (
           <div className="col-span-full flex flex-col items-center justify-center min-h-[400px] w-full py-20 text-center">
-            {data.length === 0 ? (
+            {isDbEmpty ? (
               <>
-                <Icon icon={type === "TV" ? LibraryIcon : Film} className="w-20 h-20 text-white/5 mb-6" />
+                <Icon icon={type === "TV" ? LibraryIcon : Film} size={80} className="text-white/5 mb-6" />
                 <h2 className="text-2xl font-bold text-white mb-2">Your library is currently empty.</h2>
                 <p className="text-[#A0AEC0] max-w-md mx-auto">
                   Start by scanning a local folder or searching for a show to add to your tracker.
@@ -200,7 +204,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               </>
             ) : (
               <>
-                <Icon icon={type === "TV" ? LibraryIcon : Film} className="w-20 h-20 text-white/5 mb-6" />
+                <Icon icon={type === "TV" ? LibraryIcon : Film} size={80} className="text-white/5 mb-6" />
                 <h2 className="text-2xl font-bold text-white mb-2">No Results</h2>
                 <p className="text-[#A0AEC0] max-w-md mx-auto mb-6">
                   Try adjusting your filters or search terms to find what you're looking for.
