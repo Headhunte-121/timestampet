@@ -1051,37 +1051,37 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Write the VLC time back to the SQLite database.**
 
-**4.13 >90% Auto-Completion Logic: Automatically marks episode watched and increments history.** (Complete)
+**4.13 >90% Auto-Completion Logic: Automatically marks episode watched and increments history.** (Incomplete)
 
-- [x] Ensure reaching 90.00% strictly triggers a database `INSERT` to History.
-- [x] Verify the episode status instantly shifts to 'Completed'.
-- [x] Handle edge cases where the user seeks past 90%, rewinds, and stops.
-- [x] Test rapid scrubbing to the end of the video to bypass actual viewing.
-- [x] Ensure the UI updates immediately to reflect the completed state globally.
+- [ ] Ensure reaching 90.00% strictly triggers a database `INSERT` to History.
+- [ ] Verify the episode status instantly shifts to 'Completed'.
+- [ ] Handle edge cases where the user seeks past 90%, rewinds, and stops.
+- [ ] Test rapid scrubbing to the end of the video to bypass actual viewing.
+- [ ] Ensure the UI updates immediately to reflect the completed state globally.
 
-**4.14 <90% Resume Logic: Saves the exact last_position to the database.** (Complete)
+**4.14 <90% Resume Logic: Saves the exact last_position to the database.** (Incomplete)
 
-- [x] Ensure the exact final second is recorded in the `last_position` column.
-- [x] Handle edge cases where the user watched 89.9% (should still resume).
-- [x] Verify the progress bar UI updates directly relative to this position.
-- [x] Test consecutive resume sessions updating the same position value accurately.
-- [x] Ensure zero-second positions reset the status entirely if manually triggered.
+- [ ] Ensure the exact final second is recorded in the `last_position` column.
+- [ ] Handle edge cases where the user watched 89.9% (should still resume).
+- [ ] Verify the progress bar UI updates directly relative to this position.
+- [ ] Test consecutive resume sessions updating the same position value accurately.
+- [ ] Ensure zero-second positions reset the status entirely if manually triggered.
 
-**4.16 Real-time IPC event emission to React to update the UI the second VLC closes.** (Complete)
+**4.16 Real-time IPC event emission to React to update the UI the second VLC closes.** (Incomplete)
 
-- [x] Emit a custom `vlc-closed` payload cleanly to the React listener.
-- [x] Ensure React instantly triggers a DB refetch to update all UI statuses.
-- [x] Handle edge cases where the React component was unmounted during playback.
-- [x] Verify no ghost events duplicate the refresh action.
-- [x] Test the latency between VLC closing and the React UI fully updating.
+- [ ] Emit a custom `vlc-closed` payload cleanly to the React listener.
+- [ ] Ensure React instantly triggers a DB refetch to update all UI statuses.
+- [ ] Handle edge cases where the React component was unmounted during playback.
+- [ ] Verify no ghost events duplicate the refresh action.
+- [ ] Test the latency between VLC closing and the React UI fully updating.
 
-**4.17 Minimum threshold safety (ignoring accidental clicks watched for <5%).** (Complete)
+**4.17 Minimum threshold safety (ignoring accidental clicks watched for <5%).** (Incomplete)
 
-- [x] Ensure closing the video before 5% does not overwrite previous progress.
-- [x] Handle edge cases where a user starts a video by mistake and instantly closes it.
-- [x] Verify that >5% strictly engages the resume logic tracking.
-- [x] Test edge cases where an episode is less than 5 minutes long.
-- [x] Ensure UI cleanly ignores these short sessions without rendering messy history rows.
+- [ ] Ensure closing the video before 5% does not overwrite previous progress.
+- [ ] Handle edge cases where a user starts a video by mistake and instantly closes it.
+- [ ] Verify that >5% strictly engages the resume logic tracking.
+- [ ] Test edge cases where an episode is less than 5 minutes long.
+- [ ] Ensure UI cleanly ignores these short sessions without rendering messy history rows.
 
 ## Micro-Feature 23: Dashboard Hero Section
 

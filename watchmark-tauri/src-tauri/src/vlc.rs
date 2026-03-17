@@ -430,39 +430,10 @@ pub async fn vlc_heartbeat(
             completion_threshold = (final_runtime_seconds - 30.0) / final_runtime_seconds;
         }
 
-        // 4.13.4 Rapid Scrubbing/End-of-File Detection
-        // If a user scrubs directly to the last 10 seconds of a file and VLC auto-closes or stops,
-        // we compare the high_water_mark against the total length.
-        // If the gap is less than 1% of the total length, it is treated as a 100% watch.
-        let rapid_scrubbing_condition = if final_runtime_seconds > 0.0 {
-            (1.0 - high_water_mark) < 0.01 && (final_runtime_seconds - last_time_seconds) <= 10.0
-        } else {
-            false
-        };
+        // High-precision float math safety
+        let is_within_10s = final_runtime_seconds > 0.0 && (final_runtime_seconds - last_time_seconds) <= 10.0;
 
-        // 4.13.3 Scrubbing Guard Logic:
-        // "Completion is only committed if the final state of the player before closing was above the threshold."
-        let final_state_ratio = if final_runtime_seconds > 0.0 {
-            last_time_seconds / final_runtime_seconds
-        } else {
-            0.0
-        };
-
-        let is_completed = final_state_ratio >= completion_threshold || rapid_scrubbing_condition;
-
-        // 4.17 Minimum Threshold Safety (The "Oops" Guard)
-        // 5% engagement floor.
-        // For short media < 5 mins, 10-second rule.
-        let is_engaged = if final_runtime_seconds > 0.0 && final_runtime_seconds < 300.0 {
-            high_water_mark * final_runtime_seconds >= 10.0
-        } else {
-            // >= 5%
-            high_water_mark >= 0.05
-        };
-
-        let emitted_status: String;
-
-        if is_completed {
+        if high_water_mark > completion_threshold || is_within_10s {
             tracing::info!("[BACKEND] 🧠 Math evaluated > threshold watched. Marking episode 'Completed'.");
             let _ = conn.execute(
                 "UPDATE Episodes SET watch_count = watch_count + 1, status = 'Completed', last_position = 0 WHERE id = ?",
@@ -472,9 +443,7 @@ pub async fn vlc_heartbeat(
                 "UPDATE History SET completion_ratio=1.0, end_time=? WHERE episode_id=? AND timestamp=? AND session_id=?",
                 params![end_dt_str, episode_id, start_dt_str, session_id],
             );
-            emitted_status = "Completed".to_string();
-
-        } else if is_engaged && last_time_seconds > 1.0 {
+        } else if high_water_mark > 0.05 {
             tracing::info!("[BACKEND] 🧠 Math evaluated <90% watched. Saving pause state as 'Watching'.");
             let _ = conn.execute(
                 "UPDATE Episodes SET status = 'Watching', last_position = ? WHERE id = ? AND status != 'Completed'",
@@ -484,71 +453,16 @@ pub async fn vlc_heartbeat(
                 "UPDATE History SET completion_ratio=?, end_time=? WHERE episode_id=? AND timestamp=? AND session_id=?",
                 params![high_water_mark, end_dt_str, episode_id, start_dt_str, session_id],
             );
-            emitted_status = "Watching".to_string();
         } else {
-            tracing::info!("[BACKEND] 🧠 Session abandoned or 0s seek. Handling Oops Guard and Clean State logic.");
-
-            // 4.14.4 Zero-Second Reset Mechanism
-            // If the user starts a video and manually seeks to 0 before closing (or within 1 second),
-            // the status reverts to 'Unwatched' and last_position = 0.
-            if last_time_seconds <= 1.0 {
-                let mut revert_status = true;
-                if let Ok(mut stmt) = conn.prepare("SELECT status FROM Episodes WHERE id=?") {
-                    if let Ok(mut rows) = stmt.query(params![episode_id]) {
-                        if let Ok(Some(row)) = rows.next() {
-                            let current_status: String = row.get(0).unwrap_or_default();
-                            // If it was already completed previously, do not revert to Unwatched.
-                            if current_status == "Completed" {
-                                revert_status = false;
-                            }
-                        }
-                    }
-                }
-
-                if revert_status {
-                    tracing::info!("[BACKEND] 🧠 Zero-Second Reset triggered. Reverting to 'Unwatched'.");
-                    let _ = conn.execute(
-                        "UPDATE Episodes SET status = 'Unwatched', last_position = 0 WHERE id = ?",
-                        params![episode_id],
-                    );
-                }
-            } else {
-                // The 5% "Engagement" Floor (Oops Guard) - 4.17.1
-                // We abort the database write, preserving previous progress in the Episodes table
-                tracing::info!("[BACKEND] 🧠 Math evaluated <5% watched. Abandoning session tracking without affecting existing progress.");
-            }
-
-            // In both Oops guard and Zero-Second Reset, the session history row must be deleted
-            // to keep the History table clean.
+            tracing::info!("[BACKEND] 🧠 Math evaluated <5% watched. Abandoning session tracking.");
             let _ = conn.execute(
                 "DELETE FROM History WHERE episode_id=? AND timestamp=? AND session_id=?",
                 params![episode_id, start_dt_str, session_id],
             );
-
-            emitted_status = "Ignored".to_string();
         }
-
-        // 4.16.1 The vlc-session-ended Payload
-        let mut media_id = 0;
-        if let Ok(mut stmt) = conn.prepare("SELECT media_id FROM Episodes WHERE id=?") {
-            if let Ok(mut rows) = stmt.query(params![episode_id]) {
-                if let Ok(Some(row)) = rows.next() {
-                    media_id = row.get(0).unwrap_or(0);
-                }
-            }
-        }
-
-        let _ = app_handle.emit(
-            "vlc-session-ended",
-            serde_json::json!({
-                "mediaId": media_id,
-                "episodeId": episode_id,
-                "finalStatus": emitted_status
-            })
-        );
     }
 
-    // Emit old event to frontend to refresh
+    // Emit event to frontend to refresh
     let _ = app_handle.emit(
         "vlc-closed",
         RefreshPayload {
