@@ -128,7 +128,30 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<C
     cmd.arg(format!("--http-password={}", password));
 
     if start_time > 0 {
-        cmd.arg(format!("--start-time={}", start_time));
+        // End-of-Stream safety buffer
+        // Let's get the file duration if possible, or assume it's fine for now.
+        // Actually, we pass start_time. If we know the runtime, we could bound it.
+        // As a simple safety measure based on prompt: "If last_position is within 5 seconds of the video's total duration... backend forces the --start-time to 0"
+        // Since we don't have total duration here directly easily without another DB call,
+        // we should either do the DB call or trust that `last_position` is already sanitized.
+        // The DB call was done elsewhere, but let's do a quick DB check here.
+        let mut final_start_time = start_time;
+        if let Ok(conn) = crate::db::get_db_connection() {
+            if let Ok(mut stmt) = conn.prepare("SELECT runtime FROM Episodes WHERE id = (SELECT episode_id FROM Local_Files WHERE file_path = ? LIMIT 1)") {
+                if let Ok(mut rows) = stmt.query(rusqlite::params![file_path]) {
+                    if let Ok(Some(row)) = rows.next() {
+                        let runtime_mins: i32 = row.get(0).unwrap_or(0);
+                        let runtime_secs = runtime_mins * 60;
+                        if runtime_secs > 0 && start_time >= (runtime_secs - 5) {
+                            final_start_time = 0;
+                        }
+                    }
+                }
+            }
+        }
+        if final_start_time > 0 {
+            cmd.arg(format!("--start-time={}", final_start_time));
+        }
     }
 
     cmd.spawn().map_err(|e| AppError::Custom(format!("Failed to start VLC: {}", e)))

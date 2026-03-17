@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Calendar } from "lucide-react";
+import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Calendar, CheckCircle2, Circle, CircleDashed } from "lucide-react";
 import { formatLocaleDate, formatRuntime } from "../utils/dateFormatter";
 import { useUiStore } from "../store/uiStore";
 import { useTaskStore } from "../store/useTaskStore";
@@ -31,6 +31,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const asyncInvoke = useAsyncInvoke();
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const [isBackDisabled, setIsBackDisabled] = useState(false);
+  const processingRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -120,6 +121,12 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       if (isBackDisabled) return;
       setIsBackDisabled(true);
       setTimeout(() => setIsBackDisabled(false), 500);
+
+      // Emit local event to prompt a refetch of library view if completion counts drifted
+      if (completedCountDiff !== 0) {
+        const { emit } = require('@tauri-apps/api/event');
+        emit('UPDATE_LIBRARY_POSTER', { mediaId });
+      }
 
       if (window.history.length <= 2) {
          window.location.hash = "#/dashboard";
@@ -229,25 +236,36 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             </h1>
             {(() => {
               const watched = data.episodes?.filter((e: any) => e.status === "Completed").length || 0;
-              const total = data.episodes?.length || 0;
+              const total = data.episodes?.filter((e: any) => e.season_num > 0)?.length || 0; // Exclude specials from total math
 
               if (data.type === "TV" && total > 0) {
-                if (data.is_archived || watched === total) {
+                if (data.is_archived || watched >= total) {
                   return (
-                    <div className="px-3 py-1 bg-emerald-500/20 text-emerald-500 rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap">
-                      Completed
-                    </div>
+                    <motion.div
+                      key="completed"
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: [1, 1.1, 1], opacity: 1 }}
+                      transition={{ duration: 0.4 }}
+                      className="px-3 py-1 bg-emerald-500/20 text-emerald-500 rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap"
+                    >
+                      {watched} / {total} Eps • Completed
+                    </motion.div>
                   );
                 } else if (watched > 0) {
                   return (
-                    <div className="px-3 py-1 bg-[#FF6B00]/20 text-[#FF6B00] rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap">
-                      Watching
-                    </div>
+                    <motion.div
+                      key="watching"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="px-3 py-1 bg-[#FF6B00]/20 text-[#FF6B00] rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap"
+                    >
+                      {watched} / {total} Eps • Watching
+                    </motion.div>
                   );
                 } else {
                   return (
                     <div className="px-3 py-1 bg-white/10 text-gray-300 rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap">
-                      Unwatched
+                      {watched} / {total} Eps • Unwatched
                     </div>
                   );
                 }
@@ -534,9 +552,54 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             </div>
           ) : (
             data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => {
-             const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
-             const fallbackUrl = data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : "";
-             return (
+             return <EpisodeRow key={ep.id} ep={ep} data={data} mediaId={mediaId} setContextMenu={setContextMenu} processingRef={processingRef} completedCountDiff={completedCountDiff} setCompletedCountDiff={setCompletedCountDiff} />
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-[#2A2D35] border border-white/10 shadow-2xl rounded-lg py-2 z-50 min-w-[160px]"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-white/10 text-red-400 text-sm flex items-center gap-2"
+            onClick={async () => {
+              logger.click(`'Unlink Local File' context menu for Episode ${contextMenu.epId}`);
+              try {
+                await invoke("remove_local_link", { episodeId: contextMenu.epId });
+                logger.ipcSuccess(`Local link removed from Episode ${contextMenu.epId}.`);
+                toast.success("Local link removed.");
+                asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
+              } catch (e: any) {
+                logger.error("Remove Link Failed", e);
+                toast.error(`Failed to remove link: ${e}`);
+              }
+            }}
+          >
+            <Icon icon={CloudOff} className="w-4 h-4" /> Unlink Local File
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function EpisodeRow({ ep, data, mediaId, setContextMenu, processingRef, completedCountDiff, setCompletedCountDiff }: any) {
+  const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
+  const fallbackUrl = data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : "";
+  const [localStatus, setLocalStatus] = useState(ep.status);
+  const [localLastPosition, setLocalLastPosition] = useState(ep.last_position);
+
+  // Sync if prop updates from a full refresh
+  useEffect(() => {
+    setLocalStatus(ep.status);
+    setLocalLastPosition(ep.last_position);
+  }, [ep.status, ep.last_position]);
+
+  return (
                <motion.div
                  key={ep.id}
                  whileHover={{ scale: 1.02, backgroundColor: "#252830" }}
@@ -669,25 +732,65 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     <button
                       onClick={async (e) => {
                         e.stopPropagation();
+                        if (processingRef.current.has(ep.id)) return;
+                        processingRef.current.add(ep.id);
+
                         logger.click(`'Toggle Status' on Episode S${ep.season_num}E${ep.ep_num}`);
+
+                        // Optimistic UI Update: Local state only
+                        const isCompleting = localStatus !== 'Completed';
+                        setLocalStatus(isCompleting ? 'Completed' : 'Unwatched');
+                        if (!isCompleting) setLocalLastPosition(0);
+                        setCompletedCountDiff((prev: number) => prev + (isCompleting ? 1 : -1));
+
                         logger.ipcSend("toggle_episode_status", `Episode ${ep.id}`);
                         try {
                           await invoke("toggle_episode_status", { episodeId: ep.id });
                           logger.ipcSuccess(`Episode status toggled.`);
-                          asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
                         } catch (err: any) {
                           logger.error("Episode Toggle Failed", err);
                           toast.error(`Failed to update status: ${err}`);
+                          // Revert on error
+                          setLocalStatus(ep.status);
+                          setLocalLastPosition(ep.last_position);
+                          setCompletedCountDiff((prev: number) => prev - (isCompleting ? 1 : -1));
+                        } finally {
+                          processingRef.current.delete(ep.id);
                         }
                       }}
-                      className={`w-8 h-8 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${ep.status === 'Completed' ? 'border-green-500 bg-green-500/20 text-green-500' : 'border-gray-600 hover:border-green-500 hover:bg-green-500/20'}`}>
-                      {ep.status === 'Completed' ? "✓" : <div className="w-3 h-3 rounded-full bg-transparent" />}
+                      className={`w-8 h-8 shrink-0 flex items-center justify-center transition-colors`}
+                    >
+                      {localStatus === 'Completed' ? (
+                        <CheckCircle2 className="w-6 h-6 text-[#10B981] fill-[#10B981]/20" strokeWidth={1.5} />
+                      ) : localLastPosition > 0 && (localLastPosition / (ep.runtime * 60)) >= 0.05 && (localLastPosition / (ep.runtime * 60)) <= 0.90 ? (
+                        <CircleDashed
+                          className="w-6 h-6 text-[#FF6B00] hover:text-[#FF6B00]/80 transition-colors"
+                          strokeWidth={1.5}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (ep.file_path) {
+                              logger.click(`'Resume from history' on Episode S${ep.season_num}E${ep.ep_num}`);
+                              invoke("play_episode_cmd", {
+                                episodeId: ep.id,
+                                filePath: ep.file_path,
+                                lastPosition: localLastPosition,
+                              }).catch(err => {
+                                toast.error(`VLC Launch Failed: ${err}`);
+                              });
+                            } else {
+                              toast.error("Local file missing. Scan your directory to re-link.");
+                            }
+                          }}
+                        />
+                      ) : (
+                        <Circle className="w-6 h-6 text-white/20 hover:text-white/60 transition-colors" strokeWidth={1.5} />
+                      )}
                     </button>
                     <div className="flex-1 flex items-center min-w-0 truncate">
                       <span className="text-[#8E929C] font-black tabular-nums mr-2">
                         {ep.ep_num}.
                       </span>
-                      <h3 className={`text-xl font-bold truncate transition-colors ${ep.status === 'Completed' ? 'text-muted font-normal' : 'text-white group-hover:text-[#FF6B00]'}`}>
+                      <h3 className={`text-xl font-bold truncate transition-colors ${localStatus === 'Completed' ? 'text-muted font-normal' : 'text-white group-hover:text-[#FF6B00]'}`}>
                         {ep.title || `Episode ${ep.ep_num}`}
                       </h3>
                     </div>
@@ -712,37 +815,5 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                  </p>
                </div>
              </motion.div>
-             );
-          })
-          )}
-        </div>
-      </div>
-
-      {/* Context Menu */}
-      {contextMenu && (
-        <div
-          className="fixed bg-[#2A2D35] border border-white/10 shadow-2xl rounded-lg py-2 z-50 min-w-[160px]"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-white/10 text-red-400 text-sm flex items-center gap-2"
-            onClick={async () => {
-              logger.click(`'Unlink Local File' context menu for Episode ${contextMenu.epId}`);
-              try {
-                await invoke("remove_local_link", { episodeId: contextMenu.epId });
-                logger.ipcSuccess(`Local link removed from Episode ${contextMenu.epId}.`);
-                toast.success("Local link removed.");
-                asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
-              } catch (e: any) {
-                logger.error("Remove Link Failed", e);
-                toast.error(`Failed to remove link: ${e}`);
-              }
-            }}
-          >
-            <Icon icon={CloudOff} className="w-4 h-4" /> Unlink Local File
-          </button>
-        </div>
-      )}
-    </motion.div>
   );
 }
