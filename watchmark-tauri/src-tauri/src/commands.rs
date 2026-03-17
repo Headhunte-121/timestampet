@@ -3386,6 +3386,90 @@ mod commands_tests_episodes;
 mod commands_tests_feature_3_6;
 
 #[tauri::command]
+#[tracing::instrument(level = "debug")]
+pub fn check_path_exists(path: String) -> Result<Option<String>, AppError> {
+    let path_buf = std::path::PathBuf::from(&path);
+
+    // Resolve relative to absolute if needed
+    let resolved = if path_buf.is_relative() {
+        std::env::current_dir().unwrap_or_default().join(path_buf)
+    } else {
+        path_buf
+    };
+
+    if resolved.exists() {
+        // Normalize the path
+        if let Ok(canonical) = dunce::canonicalize(&resolved) {
+            return Ok(Some(canonical.to_string_lossy().into_owned()));
+        }
+        return Ok(Some(resolved.to_string_lossy().into_owned()));
+    }
+
+    Ok(None)
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug")]
+pub fn auto_detect_vlc() -> Result<Option<String>, AppError> {
+    let mut paths: Vec<std::path::PathBuf> = Vec::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(prog_files) = std::env::var("ProgramFiles") {
+            paths.push(std::path::PathBuf::from(format!(r"{}\VideoLAN\VLC\vlc.exe", prog_files)));
+        }
+        if let Ok(prog_files_x86) = std::env::var("ProgramFiles(x86)") {
+            paths.push(std::path::PathBuf::from(format!(r"{}\VideoLAN\VLC\vlc.exe", prog_files_x86)));
+        }
+        if let Ok(app_data) = std::env::var("LOCALAPPDATA") {
+            paths.push(std::path::PathBuf::from(format!(r"{}\Programs\VLC\vlc.exe", app_data)));
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        paths.push(std::path::PathBuf::from("/Applications/VLC.app/Contents/MacOS/VLC"));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        paths.push(std::path::PathBuf::from("/usr/bin/vlc"));
+        paths.push(std::path::PathBuf::from("/usr/local/bin/vlc"));
+        paths.push(std::path::PathBuf::from("/var/lib/flatpak/exports/bin/org.videolan.VLC"));
+        paths.push(std::path::PathBuf::from("/snap/bin/vlc"));
+    }
+
+    for path in paths {
+        if path.exists() {
+            // Check execute permissions
+            if let Ok(metadata) = std::fs::metadata(&path) {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let permissions = metadata.permissions();
+                    if permissions.mode() & 0o111 != 0 {
+                        if let Ok(canonical) = dunce::canonicalize(&path) {
+                            return Ok(Some(canonical.to_string_lossy().into_owned()));
+                        }
+                    }
+                }
+
+                #[cfg(windows)]
+                {
+                    // Simple check for Windows (can attempt to open with read_execute later if needed)
+                    // Currently relying on standard execute checks by trusting the .exe extension and existence
+                    if let Ok(canonical) = dunce::canonicalize(&path) {
+                        return Ok(Some(canonical.to_string_lossy().into_owned()));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+#[tauri::command]
 pub fn frontend_log(level: String, message: String, context: Option<String>) {
     let msg = match context {
         Some(c) => format!("{} | Context: {}", message, c),

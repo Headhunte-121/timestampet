@@ -625,3 +625,12 @@ Implemented features 12.1, 12.2, 12.6, 12.7, 12.8, and 12.9 to style the Media D
 - **16.6 Real-time DB cross-checking in Search results**: Rearchitected `SearchTMDB.tsx` to cross-reference search results against the local database in real-time. On mount, the component fetches all tracked media IDs and caches them in a `Set` for `O(1)` lookups. Items already in the library have their "+ Add" button replaced with a static, non-clickable `bg-emerald-500/20 text-emerald-500` "✓ IN LIBRARY" pill.
 - **Real-time Sync**: The search view now actively listens to the global `media-deleted` Tauri event. When a show is removed elsewhere in the app, the component dynamically re-fetches the local cache, instantly reverting the green pill back to an active orange "+ Add" button without requiring a page refresh.
 - **Three-State Add Button**: The "Add to Tracker" button in search results now gracefully transitions through three states: Default (Orange), Pending (pulsing gray "Adding..." while Rust fetches data), and Final (Emerald "✓ In Library" upon successful DB commit).
+
+### Micro-Feature 19 Update: VLC Execution Pipeline & Spawning
+* Implemented live path validation using 500ms debounce directly in the `SettingsView` component with visual feedback representing valid or invalid states via Lucide icons and border coloring.
+* Enhanced backend command `check_path_exists` to use `dunce` to normalize paths, verifying both existence and converting relative to absolute paths, returning the validated path to React.
+* Developed `auto_detect_vlc` backend command utilizing environment variables (`%ProgramFiles%`, `%ProgramFiles(x86)%`) and execution permissions fallback handling across Windows, Linux, and macOS platforms.
+* Configured native OS dialog configuration in frontend for browsing executables securely using OS-specific filters, complete with gracefully ignored cancellations.
+* Upgraded backend `vlc.rs` to spawn VLC as a detached external process (`Stdio::null()`) completely unblocking the app execution.
+* Instituted instance concurrency locks in `vlc.rs` through `ACTIVE_VLC` tracking process IDs (`proc.id()`), and using `kill_active_vlc` leveraging `sysinfo` OS-based signals (`kill -9`, `taskkill`) to enforce isolated instances.
+* Fortified execution pipeline with explicit file existence checks immediately preceding playback execution, returning `FILE_NOT_FOUND` errors gracefully handled via toast notifications, to eliminate ghost VLC spawn tasks.

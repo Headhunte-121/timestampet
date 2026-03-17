@@ -10,7 +10,7 @@ import { invokeWithTimeout } from "../utils/ipc";
 import { AnimatePresence, motion } from "framer-motion";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Loader2, UploadCloud, Sparkles, CheckCircle2, XCircle, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Loader2, UploadCloud, Sparkles, CheckCircle2, XCircle, AlertTriangle, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { documentDir } from '@tauri-apps/api/path';
 import { RestoreConfirmationModal } from "./ui/RestoreConfirmationModal";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
@@ -34,6 +34,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   const [validationState, setValidationState] = useState<'idle' | 'loading' | 'success' | 'error' | 'ratelimit'>('idle');
   const [validationError, setValidationError] = useState<string>('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [vlcValidationState, setVlcValidationState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const [settings, setSettings] = useState<any>({
     vlc_path: "",
@@ -163,6 +164,60 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
       return () => clearTimeout(timer);
   }, [settings.tmdb_api_key]);
 
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          if (settings.vlc_path !== '') {
+              validateVlcPath(settings.vlc_path);
+          } else {
+              setVlcValidationState('idle');
+          }
+      }, 500);
+
+      return () => clearTimeout(timer);
+  }, [settings.vlc_path]);
+
+  const validateVlcPath = async (path: string) => {
+      setVlcValidationState('loading');
+      try {
+          const resolvedPath: string | null = await invoke("check_path_exists", { path });
+          if (resolvedPath) {
+              if (resolvedPath !== path) {
+                  // Wait slightly to not clobber user typing immediately
+                  setTimeout(() => {
+                      setSettings((prev: any) => {
+                          if (prev.vlc_path === path) {
+                              return { ...prev, vlc_path: formatWindowsPath(resolvedPath) };
+                          }
+                          return prev;
+                      });
+                  }, 1000);
+              }
+              setVlcValidationState('success');
+          } else {
+              setVlcValidationState('error');
+          }
+      } catch (e) {
+          console.error("VLC Path validation failed:", e);
+          setVlcValidationState('error');
+      }
+  };
+
+  const handleRestoreDefaultVlc = async () => {
+      try {
+          const detectedPath: string | null = await invoke("auto_detect_vlc");
+          if (detectedPath) {
+              const formattedPath = formatWindowsPath(detectedPath);
+              updateSetting('vlc_path', formattedPath);
+              toast.success("Found default VLC installation!");
+          } else {
+              toast.error("Could not auto-detect VLC on your system.");
+          }
+      } catch (e) {
+          console.error("Auto detect failed:", e);
+          toast.error("Auto-detect failed.");
+      }
+  };
+
   const validateApiKey = async (keyToValidate: string) => {
       setValidationState('loading');
       setValidationError('');
@@ -258,13 +313,22 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     }
   };
 
+  const [isBrowsingVlc, setIsBrowsingVlc] = useState(false);
+
   const browseVlcPath = async () => {
+    setIsBrowsingVlc(true);
     try {
+      const isWindows = navigator.userAgent.includes("Win");
+      const isMac = navigator.userAgent.includes("Mac");
+
+      const filterExtensions = isWindows ? ['exe'] : isMac ? ['app'] : ['bin', 'sh', 'AppImage'];
+      const filterName = isWindows ? 'Executable' : isMac ? 'Application' : 'Binary';
+
       const selected = await open({
         directory: false,
         multiple: false,
         title: "Select VLC Executable",
-        filters: [{ name: 'Executable', extensions: ['exe', 'app', 'bin'] }]
+        filters: [{ name: filterName, extensions: filterExtensions }]
       });
       if (selected && typeof selected === 'string') {
         setSettings({ ...settings, vlc_path: formatWindowsPath(selected) });
@@ -275,6 +339,8 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
       } else {
         toast.error("Error opening dialog: " + e);
       }
+    } finally {
+        setIsBrowsingVlc(false);
     }
   };
 
@@ -528,14 +594,52 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                             <p className="text-xs text-gray-500 mt-1">Absolute path to your local VLC installation.</p>
                         </div>
                         <div className="flex gap-4">
-                            <input
-                                type="text"
-                                value={formatWindowsPath(settings.vlc_path)}
-                                onChange={e => updateSetting('vlc_path', e.target.value)}
-                                className="flex-1 bg-black/40 text-white px-4 py-3 rounded-xl border border-white/10 focus:border-[#FF6B00] outline-none"
-                                placeholder="C:\Program Files\VideoLAN\VLC\vlc.exe"
-                            />
-                            <button onClick={browseVlcPath} className="px-6 py-3 bg-white/10 hover:bg-white/20 font-bold rounded-xl transition-colors text-white">
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    value={settings.vlc_path}
+                                    onChange={e => updateSetting('vlc_path', e.target.value)}
+                                    className={cn(
+                                        "w-full bg-black/40 text-white px-4 py-3 rounded-xl border focus:outline-none transition-colors pr-10",
+                                        vlcValidationState === 'error'
+                                            ? "border-[#b71c1c] animate-pulse"
+                                            : "border-white/10 focus:border-[#FF6B00]"
+                                    )}
+                                    placeholder="C:\Program Files\VideoLAN\VLC\vlc.exe"
+                                />
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <AnimatePresence mode="wait">
+                                        {vlcValidationState === 'loading' && (
+                                            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                                                <Loader2 className="w-4 h-4 animate-spin text-[#FF6B00]" />
+                                            </motion.div>
+                                        )}
+                                        {vlcValidationState === 'success' && (
+                                            <motion.div key="success" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                                                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                            </motion.div>
+                                        )}
+                                        {vlcValidationState === 'error' && (
+                                            <motion.div key="error" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                                                <AlertCircle className="w-4 h-4 text-[#b71c1c]" />
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                                <div className="mt-2 flex gap-2">
+                                    <button onClick={handleRestoreDefaultVlc} className="text-xs text-gray-500 hover:text-white transition-colors">
+                                        Restore Default
+                                    </button>
+                                </div>
+                            </div>
+                            <button
+                                onClick={browseVlcPath}
+                                disabled={isBrowsingVlc}
+                                className={cn(
+                                    "px-6 py-3 h-[46px] font-bold rounded-xl transition-colors text-white",
+                                    isBrowsingVlc ? "bg-white/5 text-gray-500 cursor-not-allowed" : "bg-white/10 hover:bg-white/20"
+                                )}
+                            >
                                 Browse
                             </button>
                         </div>

@@ -720,6 +720,8 @@ fn main() {
             commands::export_database,
             commands::prepare_restore,
             commands::frontend_log,
+            commands::check_path_exists,
+            commands::auto_detect_vlc,
             vlc::play_episode_cmd,
             commands::link_manual_file,
         ])
