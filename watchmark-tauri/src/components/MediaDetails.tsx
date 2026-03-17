@@ -157,12 +157,11 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               scale: 1.05,
               backgroundColor: "rgba(0, 0, 0, 0.6)"
           }}
-          className="absolute top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white transition-all shadow-lg outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14] sticky-or-absolute"
+          className="absolute top-6 left-6 z-50 flex items-center justify-center p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-all shadow-lg outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14] sticky group"
         >
-          <motion.div whileHover={{ scale: 1.2 }}>
-            <ArrowLeft className="w-5 h-5 text-white" />
-          </motion.div>
-          <span className="font-bold text-sm text-white pr-2">Back</span>
+          <div className="group-hover:scale-125 transition-transform duration-200">
+            <ArrowLeft className="w-6 h-6 text-white" />
+          </div>
         </motion.button>
       </div>
 
