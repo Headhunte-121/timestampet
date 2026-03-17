@@ -622,7 +622,13 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                               episodeId: ep.id,
                               filePath: ep.file_path,
                               lastPosition: ep.last_position,
-                            }).catch(e => toast.error(e));
+                            }).catch(e => {
+                                if (e === "VLC_AUTH_ERROR") {
+                                  toast.error("VLC Authentication Error: Failed to inject dynamic password or bind to port.", { duration: 8000 });
+                                } else {
+                                  toast.error(`VLC Launch Failed: ${e}`);
+                                }
+                            });
                           }}
                           className="w-12 h-12 flex items-center justify-center rounded-full bg-[#FF6B00] text-white shadow-[0_0_10px_rgba(255,107,0,0.3)] transition-shadow"
                         >

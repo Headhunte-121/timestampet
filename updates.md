@@ -634,3 +634,22 @@ Implemented features 12.1, 12.2, 12.6, 12.7, 12.8, and 12.9 to style the Media D
 * Upgraded backend `vlc.rs` to spawn VLC as a detached external process (`Stdio::null()`) completely unblocking the app execution.
 * Instituted instance concurrency locks in `vlc.rs` through `ACTIVE_VLC` tracking process IDs (`proc.id()`), and using `kill_active_vlc` leveraging `sysinfo` OS-based signals (`kill -9`, `taskkill`) to enforce isolated instances.
 * Fortified execution pipeline with explicit file existence checks immediately preceding playback execution, returning `FILE_NOT_FOUND` errors gracefully handled via toast notifications, to eliminate ghost VLC spawn tasks.
+
+### Tasks 4.6, 4.7, 4.8, and 4.15: VLC HTTP Interface Bridge & Process Monitoring
+**Implemented Updates & Logic Additions:**
+1. **Dynamic Port Binding & Password Injection (4.6 & 4.7):**
+   - Implemented dynamic port probing to bind VLC's HTTP server to the first available port between `8080` and `8090`. This ensures zero collision with other active services.
+   - Introduced a `rand::distributions::Alphanumeric` based secure 16-character randomized password generation upon every launch.
+   - Forced loopback binding (`--http-host=127.0.0.1`) to prevent Windows Firewall from unnecessarily triggering blocking alerts.
+   - The password and port are saved in memory globally during the active `play_episode_cmd` execution.
+   - Re-introduced a legacy fallback path: the backend now checks `vlc --version` for the presence of the `VLC media player 2.` substring and properly maps the legacy auth arguments if necessary.
+
+2. **Performance Improvements to the Heartbeat (4.8):**
+   - Deprecated the repetitive initialization of `reqwest::Client` during the 200ms initial probing and the standard 5000ms loop. We now leverage the shared global `NETWORK_MANAGER.local_client` to enhance resource utilization and avoid memory leaks.
+   - Wrapped all `get_vlc_status` async calls inside a strict 1-second `.timeout()` configuration to prevent indefinite blocking inside `tokio::select!`.
+
+3. **Stderr Failure Monitoring & Process Termination (4.15):**
+   - Configured the subprocess payload to `Stdio::piped()` specifically for `stderr`.
+   - Included an asynchronous read buffer mechanism parsing output strings over the first 2 seconds. If a string includes `"password"`, `"error"`, or `"bind"`, it automatically tears down the process and returns the UI a precise `"VLC_AUTH_ERROR"`.
+   - Upgraded process termination handling (`status = proc.wait()`). If the VLC process panics or drops an error frame natively, it bubbles a `vlc-crashed` IPC payload with `"Playback Interrupted"` which is caught by the frontend interface to maintain total visual parity.
+   - UI Toasts were integrated into `MediaDetails.tsx` and `Dashboard.tsx` to explicitly present localized strings for these new Authentication and Connection failures.

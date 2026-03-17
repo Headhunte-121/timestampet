@@ -979,37 +979,37 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Establish the 2-way communication loop with VLC.**
 
-**4.6 Programmatically enabling VLC's local HTTP interface (--extraintf http).** (Incomplete)
+**4.6 Programmatically enabling VLC's local HTTP interface (--extraintf http).** (Complete)
 
-- [ ] Ensure the `--http-port` flag explicitly defines a specific port (e.g., 8080).
-- [ ] Handle edge cases where port 8080 is already in use by another application.
-- [ ] Verify the `--http-password` is dynamically injected securely per session.
-- [ ] Test OS firewall popups preventing the HTTP interface from binding.
-- [ ] Ensure the interface binds strictly to `localhost/127.0.0.1` to prevent network snooping.
+- [x] Ensure the `--http-port` flag explicitly defines a specific port (e.g., 8080).
+- [x] Handle edge cases where port 8080 is already in use by another application.
+- [x] Verify the `--http-password` is dynamically injected securely per session.
+- [x] Test OS firewall popups preventing the HTTP interface from binding.
+- [x] Ensure the interface binds strictly to `localhost/127.0.0.1` to prevent network snooping.
 
-**4.7 Injecting a secure, randomized custom HTTP password for the session.** (Incomplete)
+**4.7 Injecting a secure, randomized custom HTTP password for the session.** (Complete)
 
-- [ ] Generate a random alphanumeric 16-character string on every playback event.
-- [ ] Ensure Rust securely holds the password in memory for polling.
-- [ ] Handle edge cases where password injection fails to parse in VLC.
-- [ ] Verify older VLC versions support the specific password syntax flag.
-- [ ] Test unauthorized external queries to the port to ensure rejection.
+- [x] Generate a random alphanumeric 16-character string on every playback event.
+- [x] Ensure Rust securely holds the password in memory for polling.
+- [x] Handle edge cases where password injection fails to parse in VLC.
+- [x] Verify older VLC versions support the specific password syntax flag.
+- [x] Test unauthorized external queries to the port to ensure rejection.
 
-**4.8 Rust-based HTTP polling loop triggering every 5000ms.** (Incomplete)
+**4.8 Rust-based HTTP polling loop triggering every 5000ms.** (Complete)
 
-- [ ] Ensure the thread sleeps correctly without blocking Tauri's main event loop.
-- [ ] Handle connection refused errors gracefully while VLC is still booting up.
-- [ ] Verify timeout limits on the HTTP request prevent hanging the thread.
-- [ ] Test behavior when the system goes to sleep during the polling loop.
-- [ ] Ensure the polling frequency can be configured via a strict constant.
+- [x] Ensure the thread sleeps correctly without blocking Tauri's main event loop.
+- [x] Handle connection refused errors gracefully while VLC is still booting up.
+- [x] Verify timeout limits on the HTTP request prevent hanging the thread.
+- [x] Test behavior when the system goes to sleep during the polling loop.
+- [x] Ensure the polling frequency can be configured via a strict constant.
 
-**4.15 Process termination detection (Rust knows instantly when the user closes the VLC window).** (Incomplete)
+**4.15 Process termination detection (Rust knows instantly when the user closes the VLC window).** (Complete)
 
-- [ ] Ensure `Child::wait()` or process monitoring instantly detects termination.
-- [ ] Handle edge cases where VLC crashes or is forcefully killed by the OS.
-- [ ] Verify the HTTP poller instantly halts when the process dies.
-- [ ] Test behavior when multiple instances accidentally exist.
-- [ ] Ensure final database commits occur before the process thread fully drops.
+- [x] Ensure `Child::wait()` or process monitoring instantly detects termination.
+- [x] Handle edge cases where VLC crashes or is forcefully killed by the OS.
+- [x] Verify the HTTP poller instantly halts when the process dies.
+- [x] Test behavior when multiple instances accidentally exist.
+- [x] Ensure final database commits occur before the process thread fully drops.
 
 ## Micro-Feature 21: VLC State & Math Sync
 
