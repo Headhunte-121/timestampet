@@ -4,7 +4,7 @@ import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Calendar } from "lucide-react";
 import { formatLocaleDate, formatRuntime } from "../utils/dateFormatter";
 import { useUiStore } from "../store/uiStore";
@@ -29,6 +29,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const isAnimatingRef = useRef(false);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, epId: number } | null>(null);
   const asyncInvoke = useAsyncInvoke();
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const [isBackDisabled, setIsBackDisabled] = useState(false);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -60,6 +62,12 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   }, [mediaId, onBack, setProcessing]);
 
   useEffect(() => {
+    if (backButtonRef.current) {
+        backButtonRef.current.focus();
+    }
+  }, []);
+
+  useEffect(() => {
     asyncInvoke("get_media_details_db", { mediaId })
       .then((res: any) => {
         if (res) {
@@ -80,6 +88,19 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
     );
   }
 
+  const handleBackClick = () => {
+      if (isBackDisabled) return;
+      setIsBackDisabled(true);
+      setTimeout(() => setIsBackDisabled(false), 500);
+
+      if (window.history.length <= 2) {
+         // Fallback if history is missing or user deep-linked
+         window.location.hash = "#/";
+      } else {
+         onBack();
+      }
+  };
+
   return (
     <motion.div
       initial={{ x: "10%", opacity: 0 }}
@@ -89,7 +110,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       className="relative min-h-screen pb-32"
     >
       {/* Edge-to-edge Hero Banner */}
-      <div className="relative w-full h-[50vh] min-h-[400px]">
+      <div className="relative w-full h-[400px]">
         {syncProgress !== undefined && (
           <div className="absolute top-0 left-0 w-full h-1 z-50 bg-black/50">
             <motion.div
@@ -99,34 +120,61 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             />
           </div>
         )}
-        <div className="absolute inset-0">
-          <SafeImage
-            srcPath={data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : ""}
-            fallbackSrcPath={data.backdrop_fallback ? formatImagePath(data.backdrop_fallback, "w1280") : undefined}
-            type="backdrop"
-            altText="Backdrop"
-            className="w-full h-full object-cover opacity-60"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0D0F14] via-[#0D0F14]/40 to-transparent" />
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+             key={data.backdrop_path || 'fallback'}
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             transition={{ duration: 0.4 }}
+             className="absolute inset-0"
+          >
+            <SafeImage
+              srcPath={data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : ""}
+              fallbackSrcPath={data.backdrop_fallback ? formatImagePath(data.backdrop_fallback, "w1280") : undefined}
+              type="backdrop"
+              altText="Backdrop"
+              className="w-full h-full object-cover"
+            />
+            {/* Body-Merge gradient overlay */}
+            <div
+               className="absolute inset-0"
+               style={{
+                   background: 'linear-gradient(to bottom, transparent 0%, rgba(13, 15, 20, 0.6) 70%, #0D0F14 100%)'
+               }}
+            />
+          </motion.div>
+        </AnimatePresence>
 
         {/* Back Button */}
-        <button
-          onClick={onBack}
-          className="absolute top-8 left-8 z-50 p-3 bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full text-white transition-all shadow-lg"
+        <motion.button
+          ref={backButtonRef}
+          onClick={handleBackClick}
+          disabled={isBackDisabled}
+          tabIndex={0}
+          aria-label="Return to Library"
+          whileHover={{
+              scale: 1.05,
+              backgroundColor: "rgba(0, 0, 0, 0.6)"
+          }}
+          className="absolute top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white transition-all shadow-lg outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14] sticky-or-absolute"
         >
-          <ArrowLeft className="w-6 h-6" />
-        </button>
+          <motion.div whileHover={{ scale: 1.2 }}>
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </motion.div>
+          <span className="font-bold text-sm text-white pr-2">Back</span>
+        </motion.button>
       </div>
 
       {/* Content Area */}
-      <div className="relative z-10 px-12 -mt-48 flex gap-12 items-start">
+      <div className="relative z-10 px-12 -mt-40 flex gap-12 items-center">
         {/* Poster (overlapping banner) */}
         <motion.div
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="relative w-64 shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10 aspect-[2/3]"
+          style={{ filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.9))" }}
+          className="relative w-64 shrink-0 rounded-2xl overflow-hidden border border-white/10 aspect-[2/3]"
         >
           <SafeImage
             srcPath={data.poster_path ? formatImagePath(data.poster_path, "w500") : ""}
@@ -147,7 +195,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="pt-16 flex-1 max-w-4xl"
+          className="flex-1 max-w-4xl"
         >
           <h1 className="text-6xl font-extrabold tracking-tight text-white mb-4 drop-shadow-lg">
             {data.title}
