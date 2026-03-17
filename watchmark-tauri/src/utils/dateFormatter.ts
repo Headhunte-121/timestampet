@@ -23,3 +23,12 @@ export function formatRuntime(minutes: number): string {
   const m = minutes % 60;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
+
+export function formatRemainingTime(remainingSeconds: number): string {
+  if (remainingSeconds < 60) return `Less than 1m remaining`;
+  const totalMinutes = Math.floor(remainingSeconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes}m remaining`;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return m === 0 ? `${h}h remaining` : `${h}h ${m}m remaining`;
+}

@@ -1,11 +1,11 @@
 import { logger } from "../utils/logger";
 import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
-import { formatRuntime } from "../utils/dateFormatter";
-import { useState, useEffect } from "react";
+import { formatRemainingTime } from "../utils/dateFormatter";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Star } from "lucide-react";
+import { Play, Star, Loader2 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
@@ -69,6 +69,7 @@ interface EpisodeExtended extends Episode {
 export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery = "" }: { onMediaSelect: (id: number) => void, refreshTrigger: number, searchQuery?: string }) {
   const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [isVlcLaunching, setIsVlcLaunching] = useState(false);
   const asyncInvoke = useAsyncInvoke();
   const cwScroll = useHorizontalScroll<HTMLDivElement>();
   const recentScroll = useHorizontalScroll<HTMLDivElement>();
@@ -122,8 +123,15 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
   const calculateProgress = (lastPos: number, runtimeMins: number) => {
     if (runtimeMins <= 0) return 0;
     const progress = (lastPos / (runtimeMins * 60)) * 100;
-    return Math.min(100, progress);
+    return Math.max(0, Math.min(100, progress));
   };
+
+  const heroRemainingTime = useMemo(() => {
+    if (!data?.hero_ep) return null;
+    const totalSeconds = data.hero_ep.runtime * 60;
+    const remainingSeconds = Math.max(0, totalSeconds - (data.hero_ep.last_position || 0));
+    return formatRemainingTime(remainingSeconds);
+  }, [data?.hero_ep]);
 
   const filteredCW: EpisodeExtended[] = data.cw_eps?.filter((ep: any) =>
     !searchQuery ||
@@ -184,8 +192,13 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             </p>
 
             <div className="flex items-center gap-4">
-              <button
+              <motion.button
+                whileHover={data.hero_ep.file_path ? { scale: 1.05 } : {}}
+                whileTap={data.hero_ep.file_path ? { scale: 0.95 } : {}}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
                 onClick={() => {
+                  if (isVlcLaunching) return;
+                  setIsVlcLaunching(true);
                   logger.click(`'Resume' on Hero (${data.hero_ep!.show_title} S${data.hero_ep!.season_num}E${data.hero_ep!.ep_num})`);
                   logger.ipcSend("play_episode_cmd", `Episode ${data.hero_ep!.id}`);
                   invoke("play_episode_cmd", {
@@ -194,7 +207,11 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     lastPosition: data.hero_ep!.last_position,
                   }).then(() => {
                     logger.ipcSuccess("VLC successfully launched. Waiting for heartbeat...");
+                    // A proper implementation would listen to a VLC event,
+                    // but we'll reset after a short timeout to prevent getting stuck
+                    setTimeout(() => setIsVlcLaunching(false), 2000);
                   }).catch(e => {
+                    setIsVlcLaunching(false);
                     logger.error("VLC Launch Failed", e);
                     if (e === "VLC_AUTH_ERROR") {
                       toast.error("VLC Authentication Error: Failed to inject dynamic password or bind to port.", { duration: 8000 });
@@ -204,20 +221,26 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   });
                 }}
                 disabled={!data.hero_ep.file_path}
-                className={`flex items-center gap-2 px-8 py-3 rounded-lg font-bold transition-all duration-300 ${
+                className={`flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold uppercase tracking-wider transition-colors duration-300 ${
                   data.hero_ep.file_path
-                    ? "bg-[#FF6B00] hover:bg-[#E66000] text-white hover:scale-105"
-                    : "bg-red-900/50 text-red-200 cursor-not-allowed"
+                    ? "bg-[#FF6B00] hover:bg-[#FF8533] text-white"
+                    : "bg-gray-700 opacity-50 text-gray-300 cursor-not-allowed"
                 }`}
+                style={data.hero_ep.file_path ? { boxShadow: "0 4px 14px 0 rgba(255, 107, 0, 0.39)" } : {}}
               >
                 {data.hero_ep.file_path ? (
-                  <>
-                    <Icon icon={Play} fill="currentColor" className="w-5 h-5" /> Play Next
-                  </>
+                  isVlcLaunching ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                  ) : (
+                    <>
+                      <Icon icon={Play} fill="currentColor" className="w-5 h-5" />
+                      {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume" : "Play"}
+                    </>
+                  )
                 ) : (
-                  "❌ Missing File"
+                  "File Missing"
                 )}
-              </button>
+              </motion.button>
               <button
                 onClick={() => {
                     logger.click(`'More Info' for Hero (${data.hero_ep!.show_title})`);
@@ -230,21 +253,20 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             </div>
 
             {data.hero_ep.status === "Watching" && data.hero_ep.runtime > 0 && (
-              <div className="flex flex-col mt-6">
+              <div className="flex flex-col mt-4">
                 <div className="text-sm font-bold text-white mb-2">
-                  {formatRuntime(Math.max(0, data.hero_ep.runtime - Math.floor((data.hero_ep.last_position || 0) / 60)))} remaining
+                  {heroRemainingTime}
                 </div>
-                <div className="w-64 h-1.5 bg-white/20 rounded-full overflow-hidden flex">
+                <div className="w-64 h-1.5 bg-white/20 overflow-hidden flex">
                   {(() => {
                     const progress = calculateProgress(data.hero_ep.last_position, data.hero_ep.runtime);
                     if (progress <= 0) return null;
                     return (
                       <div
-                        className="h-full rounded-full"
+                        className="h-full"
                         style={{
                           width: `${progress}%`,
-                          minWidth: "2px",
-                          backgroundColor: progress >= 90 ? "#1b5e20" : "#FF6B00"
+                          backgroundColor: "#FF6B00"
                         }}
                       />
                     );
@@ -281,7 +303,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
               <ChevronRight className="w-8 h-8" />
           </button>
 
-          <motion.div ref={cwScroll.elRef} layout className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory pr-[20%]">
+          <motion.div ref={cwScroll.elRef} layout className={`flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory pr-[20%] ${filteredCW.length <= 2 ? 'justify-start max-w-full' : ''}`}>
             <AnimatePresence mode="popLayout">
             {filteredCW.map((ep: any) => {
               const progress = calculateProgress(ep.last_position, ep.runtime);
@@ -302,21 +324,37 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                       onMediaSelect(ep.media_id);
                   }}
                   whileHover={isCinemaMode ? { scale: 1.02 } : {}}
-                  className="flex-none min-w-[320px] bg-[#1F222A] rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative transform-gpu focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14]"
+                  className="flex-none min-w-[320px] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative transform-gpu focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14]"
                 >
-                  <div className="w-full h-[180px] relative overflow-hidden bg-black/40">
-                    <SafeImage
-                      srcPath={stillUrl}
-                      fallbackSrcPath={fallbackUrl}
-                      type="still"
-                      episodeNumber={ep.ep_num}
-                      title={ep.show_title || "Unknown Show"}
-                      altText={ep.show_title || "Show Thumbnail"}
-                      isFallbackImage={ep.is_fallback_image}
-                      potentialSpoiler={ep.potential_spoiler}
-                      isCompleted={ep.status === "Completed"}
-                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
-                    />
+                  <div className="w-full aspect-video relative overflow-hidden bg-[#1F222A]">
+                    {/* Render Image with blur fallback logic built-in to safeImage for still types, but let's ensure styling per 8.12 */}
+                    {!ep.still_path ? (
+                      <div className="relative w-full h-full">
+                        <SafeImage
+                          srcPath={fallbackUrl}
+                          type="backdrop"
+                          altText={ep.show_title || "Show Thumbnail"}
+                          className="w-full h-full object-cover filter blur-[15px] brightness-50"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                           <span className="text-3xl font-bold text-white drop-shadow-md tracking-widest">EP {ep.ep_num}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <SafeImage
+                        srcPath={stillUrl}
+                        fallbackSrcPath={fallbackUrl}
+                        type="still"
+                        episodeNumber={ep.ep_num}
+                        title={ep.show_title || "Unknown Show"}
+                        altText={ep.show_title || "Show Thumbnail"}
+                        isFallbackImage={ep.is_fallback_image}
+                        potentialSpoiler={ep.potential_spoiler}
+                        isCompleted={ep.status === "Completed"}
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
+                      />
+                    )}
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
                     <button
@@ -345,20 +383,23 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     </button>
                   </div>
 
-                  {ep.status === "Watching" && ep.runtime > 0 && progress > 0 && (
-                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20 flex">
-                      <div
-                        className="h-full"
-                        style={{
-                          width: `${progress}%`,
-                          minWidth: "2px",
-                          backgroundColor: progress >= 90 ? "#1b5e20" : "#FF6B00"
-                        }}
-                      />
-                    </div>
-                  )}
+                  <div className="absolute bottom-0 left-0 w-full h-1 z-10">
+                    {progress < 5 ? (
+                      <div className="h-full w-full" style={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }} />
+                    ) : (
+                      <div className="h-full bg-white/10 w-full flex">
+                        <div
+                          className="h-full"
+                          style={{
+                            width: `${progress}%`,
+                            backgroundColor: progress >= 90 ? "#1b5e20" : "#FF6B00"
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
 
-                  <div className="p-4 flex justify-between items-center bg-[#1F222A]">
+                  <div className="p-4 flex justify-between items-center bg-[#1F222A] relative z-20">
                     <h3 className="font-bold text-white truncate pr-2">{ep.show_title || "Unknown Show"}</h3>
                     <span className="text-xs font-normal text-muted whitespace-nowrap tabular-nums">
                       {ep.media_type === "TV" ? `S${ep.season_num}E${ep.ep_num}` : (ep.title || "No Title")}
@@ -421,10 +462,21 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     className="w-full h-full object-cover"
                   />
 
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-sm">
-                    <div className="w-14 h-14 bg-[#FF6B00] text-white rounded-full flex items-center justify-center shadow-lg shadow-black/50 scale-75 group-hover:scale-100 transition-transform duration-300">
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center backdrop-blur-sm">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        logger.click(`Play Next on Recent (${media.title})`);
+                        invoke("play_next_episode_cmd", { mediaId: media.id }).then(() => {
+                           logger.ipcSuccess("VLC Play Next launched");
+                        }).catch(err => {
+                           toast.error(`Play Next Failed: ${err}`);
+                        });
+                      }}
+                      className="w-14 h-14 bg-[#FF6B00] text-white rounded-full flex items-center justify-center shadow-lg shadow-[#FF6B00]/30 scale-75 group-hover:scale-100 transition-all duration-300 hover:scale-110 hover:bg-[#E66000]"
+                    >
                       <Icon icon={Play} fill="currentColor" className="w-6 h-6 ml-1" />
-                    </div>
+                    </button>
                   </div>
 
                   {/* Always-on Top-Right Star Rating pill */}

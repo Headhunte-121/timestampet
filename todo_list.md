@@ -1139,61 +1139,61 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Build the horizontal queue of active shows.**
 
-**8.7 Prominent Hero '▶ Resume' action button.** (Incomplete)
+**8.7 Prominent Hero '▶ Resume' action button.** (Complete)
 
-- [ ] Ensure the button features a distinct orange background and bold text.
-- [ ] Verify clicking instantly triggers the Rust VLC spawn command with the correct local path.
-- [ ] Handle edge cases where the file was deleted (button should instantly disable or grey out).
-- [ ] Test hover scaling animations ensuring the button feels highly tactile.
-- [ ] Ensure the button provides clear visual feedback (pulse/spinner) if VLC takes a second to boot.
+- [x] Ensure the button features a distinct orange background and bold text.
+- [x] Verify clicking instantly triggers the Rust VLC spawn command with the correct local path.
+- [x] Handle edge cases where the file was deleted (button should instantly disable or grey out).
+- [x] Test hover scaling animations ensuring the button feels highly tactile.
+- [x] Ensure the button provides clear visual feedback (pulse/spinner) if VLC takes a second to boot.
 
-**8.8 Hero precise progress bar rendering exact minutes remaining.** (Incomplete)
+**8.8 Hero precise progress bar rendering exact minutes remaining.** (Complete)
 
-- [ ] Verify mathematical logic accurately subtracts `last_position` from `total_runtime`.
-- [ ] Ensure the string formats cleanly (e.g., '22m remaining' instead of '1320s remaining').
-- [ ] Handle edge cases where `last_position` is somehow larger than the runtime (display 0m).
-- [ ] Test the visual bar width perfectly maps to the calculated percentage.
-- [ ] Ensure the progress bar strictly anchors to the bottom of the action button row.
+- [x] Verify mathematical logic accurately subtracts `last_position` from `total_runtime`.
+- [x] Ensure the string formats cleanly (e.g., '22m remaining' instead of '1320s remaining').
+- [x] Handle edge cases where `last_position` is somehow larger than the runtime (display 0m).
+- [x] Test the visual bar width perfectly maps to the calculated percentage.
+- [x] Ensure the progress bar strictly anchors to the bottom of the action button row.
 
-**8.10 'Continue Watching' horizontal smart queue section.** (Incomplete)
+**8.10 'Continue Watching' horizontal smart queue section.** (Complete)
 
-- [ ] Verify the horizontal row utilizes hidden scrollbars and enables swiping.
-- [ ] Ensure the section strictly filters out shows that are 100% completed or completely unwatched.
-- [ ] Handle edge cases where only 1 show is active (should center or pad the card beautifully).
-- [ ] Test horizontal mouse-wheel capture accurately converts vertical scroll inputs into a horizontal slide.
-- [ ] Ensure empty states completely hide this section from the Dashboard entirely.
+- [x] Verify the horizontal row utilizes hidden scrollbars and enables swiping.
+- [x] Ensure the section strictly filters out shows that are 100% completed or completely unwatched.
+- [x] Handle edge cases where only 1 show is active (should center or pad the card beautifully).
+- [x] Test horizontal mouse-wheel capture accurately converts vertical scroll inputs into a horizontal slide.
+- [x] Ensure empty states completely hide this section from the Dashboard entirely.
 
-**8.11 Dynamic generation of 'Next unwatched episode' cards for all active shows.** (Incomplete)
+**8.11 Dynamic generation of 'Next unwatched episode' cards for all active shows.** (Complete)
 
-- [ ] Verify database queries correctly calculate the exact SxxExx needed per active show.
-- [ ] Ensure UI strictly fetches the 16:9 still image specific to that exact unwatched episode.
-- [ ] Handle edge cases where multiple shows are binge-watched simultaneously (sort by last activity).
-- [ ] Test the title overlay perfectly combines Show Name + 'S1:E2'.
-- [ ] Ensure clicking the card directly launches VLC without navigating to the details page.
+- [x] Verify database queries correctly calculate the exact SxxExx needed per active show.
+- [x] Ensure UI strictly fetches the 16:9 still image specific to that exact unwatched episode.
+- [x] Handle edge cases where multiple shows are binge-watched simultaneously (sort by last activity).
+- [x] Test the title overlay perfectly combines Show Name + 'S1:E2'.
+- [x] Ensure clicking the card directly launches VLC without navigating to the details page.
 
-**8.12 16:9 episode-specific still image cards in Continue Watching.** (Incomplete)
+**8.12 16:9 episode-specific still image cards in Continue Watching.** (Complete)
 
-- [ ] Ensure the CSS aspect ratio strictly forces a `16/9` box regardless of the raw asset size.
-- [ ] Verify fallback logic correctly blurs the show backdrop if the specific episode still is missing.
-- [ ] Handle edge cases where TMDB returned a 4:3 image, ensuring it is strictly centered and cropped.
-- [ ] Test image caching ensures the carousel loads instantly without network flicker.
-- [ ] Ensure the cards feature the standard `#1F222A` backing to prevent transparent holes.
+- [x] Ensure the CSS aspect ratio strictly forces a `16/9` box regardless of the raw asset size.
+- [x] Verify fallback logic correctly blurs the show backdrop if the specific episode still is missing.
+- [x] Handle edge cases where TMDB returned a 4:3 image, ensuring it is strictly centered and cropped.
+- [x] Test image caching ensures the carousel loads instantly without network flicker.
+- [x] Ensure the cards feature the standard `#1F222A` backing to prevent transparent holes.
 
-**8.13 Bottom-edge progress line on Continue Watching cards.** (Incomplete)
+**8.13 Bottom-edge progress line on Continue Watching cards.** (Complete)
 
-- [ ] Verify the line height is extremely thin (e.g., `h-1` or `h-2`).
-- [ ] Ensure it strictly uses `#FF6B00` to indicate partially watched progress.
-- [ ] Handle edge cases where the episode is 0% watched (should show a pure gray track).
-- [ ] Test the absolute positioning specifically anchors it flush to the bottom corners.
-- [ ] Ensure rounded card corners cleanly clip the sharp edges of the progress bar.
+- [x] Verify the line height is extremely thin (e.g., `h-1` or `h-2`).
+- [x] Ensure it strictly uses `#FF6B00` to indicate partially watched progress.
+- [x] Handle edge cases where the episode is 0% watched (should show a pure gray track).
+- [x] Test the absolute positioning specifically anchors it flush to the bottom corners.
+- [x] Ensure rounded card corners cleanly clip the sharp edges of the progress bar.
 
-**8.14 'Recently Added' horizontal carousel highlighting new local scans.** (Incomplete)
+**8.14 'Recently Added' horizontal carousel highlighting new local scans.** (Complete)
 
-- [ ] Verify it sorts strictly by the local `id` descending (most recent scans).
-- [ ] Ensure it renders standard 2:3 posters, distinct from the 16:9 Continue Watching cards.
-- [ ] Handle edge cases where newly added items are instantly completed by the user.
-- [ ] Test the carousel limit (e.g., strictly max out at 20 items to prevent infinite scrolling).
-- [ ] Ensure hover overlays correctly trigger the orange Play button over the poster.
+- [x] Verify it sorts strictly by the local `id` descending (most recent scans).
+- [x] Ensure it renders standard 2:3 posters, distinct from the 16:9 Continue Watching cards.
+- [x] Handle edge cases where newly added items are instantly completed by the user.
+- [x] Test the carousel limit (e.g., strictly max out at 20 items to prevent infinite scrolling).
+- [x] Ensure hover overlays correctly trigger the orange Play button over the poster.
 
 ## Micro-Feature 25: UI Checkmarks & Interactive Mutators
 
