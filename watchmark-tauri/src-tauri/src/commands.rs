@@ -1686,15 +1686,22 @@ pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state
         tracing::info!("[BACKEND] 🧠 Reading SQLite database to find your most recently watched show...");
         let mut hero_stmt = conn.prepare(
             "
-            SELECT e.media_id, MAX(h.timestamp) as last_watched
-            FROM History h
-            JOIN Episodes e ON h.episode_id = e.id
-            WHERE EXISTS (
-                SELECT 1 FROM Episodes e2
-                WHERE e2.media_id = e.media_id AND e2.status IN ('Watching', 'Unwatched') AND e2.season_num > 0 AND (e2.air_date IS NULL OR e2.air_date = '' OR e2.air_date <= date('now'))
+            SELECT media_id, last_watched FROM (
+                SELECT e.media_id, MAX(h.timestamp) as last_watched
+                FROM History h
+                JOIN Episodes e ON h.episode_id = e.id
+                WHERE EXISTS (
+                    SELECT 1 FROM Episodes e2
+                    WHERE e2.media_id = e.media_id AND e2.status IN ('Watching', 'Unwatched') AND e2.season_num > 0 AND (e2.air_date IS NULL OR e2.air_date = '' OR e2.air_date <= date('now'))
+                )
+                GROUP BY e.media_id
             )
-            GROUP BY e.media_id
-            ORDER BY last_watched DESC
+            UNION ALL
+            SELECT id as media_id, 0 as last_watched
+            FROM Media m
+            WHERE NOT EXISTS (SELECT 1 FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id)
+               OR NOT EXISTS (SELECT 1 FROM Episodes e WHERE e.media_id = m.id AND e.status = 'Completed')
+            ORDER BY last_watched DESC, media_id DESC
             LIMIT 1
         ",
         )?;
@@ -3517,3 +3524,4 @@ pub async fn update_media_rating(
 
     Ok(())
 }
+// I'll leave the rust code as is, as it correctly implements the Smart Hero Logic.
