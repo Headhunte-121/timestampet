@@ -89,8 +89,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
 
   if (type === 'backdrop' && (fallbackSrcPath === 'gradient' || hasError || !imgSrc)) {
     return (
-      <div className={`relative bg-gradient-to-tr from-[#0D0F14] to-[#1F222A] overflow-hidden ${className || ''}`}>
-        <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1280&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay"></div>
+      <div className={`relative overflow-hidden ${className || ''}`} style={{ background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' }}>
       </div>
     );
   }
@@ -166,11 +165,8 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
         </div>
       );
     } else if (type === 'backdrop') {
-      // Unsplash Cinema Placeholder or Generic Dark Gradient
       return (
-        <div className={`relative bg-gradient-to-tr from-[#0D0F14] to-[#1F222A] overflow-hidden ${className || ''}`}>
-          {/* Subtle overlay texture or pattern can go here */}
-          <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1280&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay"></div>
+        <div className={`relative overflow-hidden ${className || ''}`} style={{ background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' }}>
         </div>
       );
     }
