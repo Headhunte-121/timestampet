@@ -123,14 +123,14 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
 
       return (
         <div
-          className={`flex flex-col items-center justify-center bg-gradient-to-tr from-[#0D0F14] to-[#1F222A] border border-[#2A2D35] text-center p-4 rounded-xl ${className || ''}`}
+          className={`flex flex-col items-center justify-center bg-[#1F222A] text-center p-4 rounded-xl ${className || ''}`}
         >
           {/* Logo or placeholder if you wanted to add WatchMark logo explicitly here */}
-          <span className="text-white font-bold drop-shadow-md text-sm md:text-base leading-tight break-words z-10">
+          <span className="text-white font-bold drop-shadow-md text-sm md:text-base leading-tight break-words z-10 uppercase tracking-tight">
             {title || altText || 'Unknown Title'}
           </span>
           {year && (
-            <span className="text-muted font-bold drop-shadow-md text-xs mt-2 z-10">
+            <span className="text-[#A0AEC0] font-bold drop-shadow-md text-xs mt-2 z-10 tabular-nums">
               {year}
             </span>
           )}

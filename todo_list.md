@@ -690,29 +690,30 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Render the database shows as a beautiful grid of posters.**
 
-**9.1 Highly responsive, auto-wrapping poster grid layout.** (Incomplete)
+**9.1 Highly responsive, auto-wrapping poster grid layout.** (Complete)
 
-- [ ] Verify CSS Grid `repeat(auto-fill, minmax(180px, 1fr))` naturally expands across monitors.
-- [ ] Ensure the gap between posters is consistently applied (e.g., `gap-6` or `gap-8`).
-- [ ] Handle edge cases on ultra-wide 4K monitors (e.g., limit max columns or grid width to prevent absurdity).
-- [ ] Test the rendering performance of 5,000 grids loaded instantly via virtual mapping.
-- [ ] Ensure vertical layout shift is completely absent when posters lazy-load.
+- [x] Verify CSS Grid `repeat(auto-fill, minmax(180px, 1fr))` naturally expands across monitors.
+- [x] Ensure the gap between posters is consistently applied (e.g., `gap-6` or `gap-8`).
+- [x] Handle edge cases on ultra-wide 4K monitors (e.g., limit max columns or grid width to prevent absurdity).
+- [x] Test the rendering performance of 5,000 grids loaded instantly via virtual mapping.
+- [x] Ensure vertical layout shift is completely absent when posters lazy-load.
 
-**9.2 Strict 2:3 cinematic poster aspect ratio enforcement.** (Incomplete)
+**9.2 Strict 2:3 cinematic poster aspect ratio enforcement.** (Complete)
 
-- [ ] Verify `aspect-[2/3]` strictly forces the container height relative to the computed width.
-- [ ] Ensure images strictly use `object-cover` so mismatched posters never stretch horizontally.
-- [ ] Handle edge cases where a poster completely fails to load (display the show title centered on a dark box).
-- [ ] Test rounded corners are strictly preserved without being overridden by the child image.
-- [ ] Ensure the ratio holds firm during browser resize events.
+- [x] Verify `aspect-[2/3]` strictly forces the container height relative to the computed width.
+- [x] Ensure images strictly use `object-cover` so mismatched posters never stretch horizontally.
+- [x] Handle edge cases where a poster completely fails to load (display the show title centered on a dark box).
+- [x] Test rounded corners are strictly preserved without being overridden by the child image.
+- [x] Ensure the ratio holds firm during browser resize events.
 
-**6.6 High-contrast typography hierarchy (Pure white headers, silver body text).** (Incomplete)
+**6.6 High-contrast typography hierarchy (Pure white headers, silver body text).** (Complete)
 
-- [ ] Verify `h1`, `h2`, and `h3` tags globally default to `#FFFFFF`.
-- [ ] Ensure `p` and `span` tags globally default to a silver tone (e.g., `#A0AEC0`).
-- [ ] Handle edge cases where text is rendered over extremely bright poster images (require shadows).
-- [ ] Test font weights, strictly using `font-bold` for headers and `font-normal` for body.
-- [ ] Ensure letter spacing (tracking) is slightly tightened on massive hero text.
+- [x] Verify `h1`, `h2`, and `h3` tags globally default to `#FFFFFF`.
+- [x] Ensure `p` and `span` tags globally default to a silver tone (e.g., `#A0AEC0`).
+- [x] Handle edge cases where text is rendered over extremely bright poster images (require shadows).
+- [x] Test font weights, strictly using `font-bold` for headers and `font-normal` for body, avoiding medium weights.
+- [x] Ensure letter spacing (tracking) is slightly tightened on massive hero text.
+- [x] Use Tabular Figures for stats and numbers.
 
 **6.8 Perfect rounded-xl and rounded-2xl corner radii.** (Incomplete)
 

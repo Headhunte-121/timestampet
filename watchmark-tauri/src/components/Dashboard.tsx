@@ -155,16 +155,17 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             // SafeImage now returns a wrapper div when type="backdrop" containing motion.img
           />
           {/* Layered directional gradient: Bottom-left pure black fading up to top-right transparent */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] via-[#0D0F14]/80 to-transparent" />
 
-          <div className="absolute bottom-8 left-8 w-full max-w-2xl z-10">
-            <h2 className="text-[#FF6B00] font-bold tracking-widest text-xs mb-2 uppercase drop-shadow-md">
+          <div className="absolute bottom-8 left-8 w-full max-w-2xl z-10 text-double-guard">
+            <h2 className="text-[#FF6B00] font-bold tracking-widest text-xs mb-2 uppercase text-double-guard">
               {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume Session" : "Up Next"}
             </h2>
-            <h1 className="text-5xl font-black text-white mb-2 tracking-tight truncate drop-shadow-lg">
+            <h1 className="text-5xl font-black text-white mb-2 tracking-tighter truncate text-double-guard">
               {data.hero_ep.show_title || "Unknown Show"}
             </h1>
-            <p className="text-lg text-muted mb-6 truncate drop-shadow-md font-medium">
+            <p className="text-lg text-muted mb-6 truncate font-normal text-double-guard">
               {data.hero_ep.media_type === "TV"
                 ? `S${String(data.hero_ep.season_num).padStart(2, '0')}E${String(data.hero_ep.ep_num).padStart(2, '0')} - ${data.hero_ep.title || 'Unknown Episode'}`
                 : data.hero_ep.title || "No Title"}
@@ -323,7 +324,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
 
                   <div className="p-4 flex justify-between items-center bg-[#1F222A]">
                     <h3 className="font-bold text-white truncate pr-2">{ep.show_title || "Unknown Show"}</h3>
-                    <span className="text-xs font-medium text-muted whitespace-nowrap">
+                    <span className="text-xs font-normal text-muted whitespace-nowrap tabular-nums">
                       {ep.media_type === "TV" ? `S${ep.season_num}E${ep.ep_num}` : (ep.title || "No Title")}
                     </span>
                   </div>
@@ -398,16 +399,16 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Your Stats</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
-          <h3 className="text-sm font-medium text-muted uppercase tracking-widest mb-2">Shows Tracked</h3>
-          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md">{data.stats.shows_completed}</p>
+          <h3 className="text-sm font-normal text-muted uppercase tracking-widest mb-2">Shows Tracked</h3>
+          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md tabular-nums">{data.stats.shows_completed}</p>
         </div>
         <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
-          <h3 className="text-sm font-medium text-muted uppercase tracking-widest mb-2">Hours Watched</h3>
-          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md">{data.stats.hrs_watched}</p>
+          <h3 className="text-sm font-normal text-muted uppercase tracking-widest mb-2">Hours Watched</h3>
+          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md tabular-nums">{data.stats.hrs_watched}</p>
         </div>
         <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
-          <h3 className="text-sm font-medium text-muted uppercase tracking-widest mb-2">Average Rating</h3>
-          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md flex items-center justify-center gap-2">
+          <h3 className="text-sm font-normal text-muted uppercase tracking-widest mb-2">Average Rating</h3>
+          <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md flex items-center justify-center gap-2 tabular-nums">
             <Icon icon={Star} className="w-8 h-8 fill-current" /> {data.stats.avg_rating.toFixed(1)}
           </p>
         </div>
