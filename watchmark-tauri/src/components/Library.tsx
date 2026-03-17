@@ -127,8 +127,14 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                   {item.status && <><span className="mx-1">•</span> <span className="uppercase text-[10px] tracking-wider">{item.status}</span></>}
                 </p>
 
-                <div className="flex items-center justify-center gap-1 text-[#FF6B00] text-sm font-bold mb-1">
-                   {item.user_rating === 0 ? <span className="font-bold">0.0</span> : <Icon icon={Star} className="w-4 h-4 fill-current" />} {item.user_rating !== null ? `${(item.user_rating / 2).toFixed(1)}/5` : 'Unrated'}
+                <div className="flex items-center justify-center gap-1 text-[#F5C518] text-sm font-bold mb-1">
+                   {item.vote_average === null || item.vote_average === undefined || item.vote_average === 0 ? (
+                      <span className="font-bold text-muted tracking-widest text-xs px-1">NR</span>
+                   ) : (
+                      <>
+                         <Icon icon={Star} className="w-4 h-4 fill-current" /> {Number(item.vote_average).toFixed(1)}/10
+                      </>
+                   )}
                 </div>
 
                 <p className="text-xs text-[#8E929C] line-clamp-2 text-center mt-2 mx-2">
