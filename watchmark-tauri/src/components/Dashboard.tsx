@@ -85,6 +85,13 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       });
   }, [refreshTrigger, asyncInvoke]);
 
+    const heroRemainingTime = useMemo(() => {
+    if (!data?.hero_ep) return null;
+    const totalSeconds = data.hero_ep.runtime * 60;
+    const remainingSeconds = Math.max(0, totalSeconds - (data.hero_ep.last_position || 0));
+    return formatRemainingTime(remainingSeconds);
+  }, [data?.hero_ep]);
+  
   if (!data) {
     // Skeleton Loading State
     return (
@@ -126,12 +133,6 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     return Math.max(0, Math.min(100, progress));
   };
 
-  const heroRemainingTime = useMemo(() => {
-    if (!data?.hero_ep) return null;
-    const totalSeconds = data.hero_ep.runtime * 60;
-    const remainingSeconds = Math.max(0, totalSeconds - (data.hero_ep.last_position || 0));
-    return formatRemainingTime(remainingSeconds);
-  }, [data?.hero_ep]);
 
   const filteredCW: EpisodeExtended[] = data.cw_eps?.filter((ep: any) =>
     !searchQuery ||
