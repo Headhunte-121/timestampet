@@ -73,7 +73,35 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         if (res) {
           setData(res);
           if (res.seasons && res.seasons.length > 0) {
-            setActiveSeason(res.seasons[0]);
+            let selected = res.seasons.includes(1) ? 1 : res.seasons[0];
+            if (res.episodes && res.episodes.length > 0) {
+              const unwatchedEps = res.episodes.filter((ep: any) => ep.status !== "Completed");
+              if (unwatchedEps.length > 0) {
+                // Find the lowest season num among unwatched
+                const unwatchedSeasons = unwatchedEps.map((ep: any) => ep.season_num).filter((s: number) => s !== 0);
+                if (unwatchedSeasons.length > 0) {
+                  selected = Math.min(...unwatchedSeasons);
+                } else {
+                  // If only specials are unwatched, we can pick 0 or default to 1
+                  if (res.seasons.includes(1)) {
+                    selected = 1;
+                  } else {
+                    selected = unwatchedEps[0].season_num;
+                  }
+                }
+              }
+            }
+            // Fallback: If 1 doesn't exist and no unwatched, just pick the first season that isn't 0 if possible
+            if (res.episodes && res.episodes.every((ep: any) => ep.status === "Completed")) {
+              const nonZeroSeasons = res.seasons.filter((s: number) => s !== 0);
+              selected = nonZeroSeasons.length > 0 ? nonZeroSeasons[0] : res.seasons[0];
+              // Prefer Season 1 if it exists
+              if (res.seasons.includes(1)) {
+                selected = 1;
+              }
+            }
+
+            setActiveSeason(selected);
           }
         }
       })
@@ -437,16 +465,19 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               <div key={s} className="relative mr-2 group inline-block">
                 {s === activeSeason && (
                   <motion.div
-                    layoutId="activeSeasonTab"
+                    layoutId="activeSeason"
                     className="absolute inset-0 bg-[#1F222A] rounded-full"
                     initial={false}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30, duration: 0.2 }}
                   />
                 )}
                 <button
-                  onClick={() => setActiveSeason(s)}
+                  onClick={() => {
+                    if (s === activeSeason) return;
+                    setActiveSeason(s);
+                  }}
                   className={`relative px-6 py-2 rounded-full font-bold transition-colors whitespace-nowrap ${
-                    s === activeSeason ? 'text-white' : 'text-[#A0AEC0] group-hover:bg-white/5'
+                    s === activeSeason ? 'text-[#FFFFFF] bg-transparent' : 'text-[#8E929C] bg-transparent hover:text-white'
                   }`}
                 >
                   {s === 0 ? "Specials" : `Season ${s}`}
@@ -457,8 +488,52 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         )}
 
 
-        <div className="grid gap-4 max-w-5xl">
-          {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => {
+        <div className="grid gap-4 max-w-5xl min-h-[60vh]">
+          {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center col-span-full">
+              <h2 className="text-xl font-bold text-white mb-6">
+                {activeSeason === 0 ? "No special features or pilots found." : "No episodes found for this season."}
+              </h2>
+              <button
+                onClick={async () => {
+                  if (!isApiAuthorized) {
+                    toast.error("API Key required to refresh data.");
+                    return;
+                  }
+                  if (isOffline) {
+                    toast.error("Cannot refresh data while offline.");
+                    return;
+                  }
+                  logger.click(`'Refresh Data' for '${data.title}' season ${activeSeason}`);
+                  setIsRefreshing(true);
+                  try {
+                    await invoke("sync_season", { mediaId: data.id, seasonNum: activeSeason });
+                    const res: any = await asyncInvoke("get_media_details_db", { mediaId });
+                    if (res) {
+                      setData(res);
+                      logger.ipcSuccess(`Season ${activeSeason} data refreshed for '${data.title}'.`);
+                    }
+                    toast.success("Data Refreshed Successfully");
+                  } catch (e: any) {
+                    logger.error("Season Refresh Failed", e);
+                    toast.error(`Refresh Failed: ${e}`);
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+                disabled={isRefreshing || !isApiAuthorized || isOffline}
+                className={cn(
+                  "flex items-center gap-2 px-8 py-4 font-bold rounded-full transition-all shadow-lg",
+                  isRefreshing || !isApiAuthorized || isOffline
+                    ? "bg-white/5 text-gray-500 cursor-not-allowed opacity-50 grayscale pointer-events-none"
+                    : "bg-[#FF6B00] hover:bg-[#FF8533] text-white hover:scale-105 shadow-orange-500/20"
+                )}
+              >
+                <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} /> Refresh Data
+              </button>
+            </div>
+          ) : (
+            data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => {
              const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
              const fallbackUrl = data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : "";
              return (
@@ -603,9 +678,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                </div>
              </div>
              );
-          })}
-          {(!data.episodes || data.episodes.length === 0) && (
-              <div className="p-8 text-gray-500">No episodes found for this media.</div>
+          })
           )}
         </div>
       </div>

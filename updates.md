@@ -602,3 +602,12 @@ Implemented robust native OS window frame integrations and window geometry resto
 - Implemented Dual Rating Display panel (TMDB Score vs. User Score) for media metadata layout, formatting Global Rating to one decimal and My Rating correctly to 5 stars (with 40% empty opacity when unrated).
 - Added an "Overall show progress badge" right next to the show title with green (Completed), orange (Watching), and gray (Unwatched) color-coding.
 - Refactored the Season Tabs to scroll horizontally (`flex-row`, `overflow-x-auto`, `whitespace-nowrap`) and masked the right edge with a black-to-transparent linear gradient. Implemented momentum side-scrolling via mouse wheel events.
+
+
+### 11.15 Active Season State logic & 11.16 Empty state handling if TMDB fails to return episode data.
+* Added complex intelligent default selection logic to `setActiveSeason` in `MediaDetails` to find the lowest season num containing unwatched episodes, defaulting gracefully to Season 1.
+* Standardized styling for season tabs: inactive tabs use  text with a transparent background, active tabs use a pure  white on an  background using Framer Motion's `layoutId="activeSeason"` to cross-slide.
+* Suppressed redundant click execution on the active season tab.
+* Injected a `min-h-[60vh]` into the main episode grid container so that empty lists don't collapse the layout or shift elements.
+* Designed a centralized, semantic empty-state container explicitly explaining missing episodes for the active season, parsing 'Season 0' as 'Specials' if applicable.
+* Inserted a high-contrast `#FF6B00` VLC Orange "Refresh Data" button into the empty-state fallback UI to allow inline database syncing via `sync_season`.

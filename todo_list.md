@@ -819,21 +819,21 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test tab clicking cleanly shifting the active state specifically without shifting adjacent tabs.
 - [x] Ensure padding perfectly aligns the first tab specifically with the episode list beneath it.
 
-**11.15 Active Season State logic (White text, dark background transition).** (Incomplete)
+**11.15 Active Season State logic (White text, dark background transition).** (Complete)
 
-- [ ] Verify inactive tabs use completely transparent backgrounds with silver text.
-- [ ] Ensure active tabs use specifically `#1F222A` backing with pure white text.
-- [ ] Handle edge cases where clicking an identical tab ignores re-rendering.
-- [ ] Test layout shifting when swapping entirely to a season with zero episodes.
-- [ ] Ensure default behavior strictly selects 'Season 1' or the earliest unwatched season automatically on page load.
+- [x] Verify inactive tabs use completely transparent backgrounds with silver text.
+- [x] Ensure active tabs use specifically `#1F222A` backing with pure white text.
+- [x] Handle edge cases where clicking an identical tab ignores re-rendering.
+- [x] Test layout shifting when swapping entirely to a season with zero episodes.
+- [x] Ensure default behavior strictly selects 'Season 1' or the earliest unwatched season automatically on page load.
 
-**11.16 Empty state handling if TMDB fails to return episode data.** (Incomplete)
+**11.16 Empty state handling if TMDB fails to return episode data.** (Complete)
 
-- [ ] Verify a massive, friendly 'No episodes found for this season' message centers horizontally.
-- [ ] Ensure it explicitly offers a specific 'Refresh Data' button strictly beneath it.
-- [ ] Handle edge cases where the database genuinely contains a 'Season 0' with zero specials currently known.
-- [ ] Test rendering ensuring the blank space matches the typical height of a standard list.
-- [ ] Ensure the active season tab still cleanly displays regardless.
+- [x] Verify a massive, friendly 'No episodes found for this season' message centers horizontally.
+- [x] Ensure it explicitly offers a specific 'Refresh Data' button strictly beneath it.
+- [x] Handle edge cases where the database genuinely contains a 'Season 0' with zero specials currently known.
+- [x] Test rendering ensuring the blank space matches the typical height of a standard list.
+- [x] Ensure the active season tab still cleanly displays regardless.
 
 ## Micro-Feature 17: Episode List UI
 
