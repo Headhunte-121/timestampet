@@ -153,9 +153,11 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               {/* Absolute bottom-edge library progress bar */}
               {(() => {
                 const totalEps = item.total_available ?? item.total_episodes ?? 0;
-                if (totalEps <= 0) return null;
                 const completedEps = item.completed_eps ?? 0;
-                let width = (completedEps / totalEps) * 100;
+                let width = 0;
+                if (totalEps > 0) {
+                   width = (completedEps / totalEps) * 100;
+                }
                 if (isNaN(width)) width = 0;
                 width = Math.min(100, Math.max(0, width));
 
@@ -167,7 +169,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                 let styleWidth = `${width}%`;
 
                 return (
-                  <div className="absolute bottom-0 left-0 right-0 h-1 z-20 overflow-hidden rounded-b-xl bg-white/10">
+                  <div className="absolute bottom-0 left-0 right-0 h-1 z-20 bg-white/10">
                     <motion.div
                       className={`h-full ${bgColorClass}`}
                       style={{
@@ -199,7 +201,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
             ) : (
               <>
                 <Icon icon={type === "TV" ? LibraryIcon : Film} className="w-20 h-20 text-white/5 mb-6" />
-                <h2 className="text-2xl font-bold text-white mb-2">No matches found.</h2>
+                <h2 className="text-2xl font-bold text-white mb-2">No Results</h2>
                 <p className="text-[#A0AEC0] max-w-md mx-auto mb-6">
                   Try adjusting your filters or search terms to find what you're looking for.
                 </p>
