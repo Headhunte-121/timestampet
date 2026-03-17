@@ -739,29 +739,29 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test the text formatting strictly outputs a string like '★ 4' or '★ 5/5'.
 - [x] Ensure the background is a translucent black to remain visible on bright white posters.
 
-**9.6 Always-on Bottom-Left Original Release Year pill.** (Incomplete)
+**9.6 Always-on Bottom-Left Original Release Year pill.** (Complete)
 
-- [ ] Verify the pill accurately extracts purely the 4-digit Year string from `release_date`.
-- [ ] Ensure the styling utilizes a completely solid dark badge to ground the poster base.
-- [ ] Handle edge cases where the year is entirely unknown or null (do not display 'NaN' or '1970').
-- [ ] Test exact absolute positioning to avoid overlapping with bottom progress bars.
-- [ ] Ensure font size is tiny but highly legible (e.g., `text-xs`).
+- [x] Verify the pill accurately extracts purely the 4-digit Year string from `release_date`.
+- [x] Ensure the styling utilizes a completely solid dark badge to ground the poster base.
+- [x] Handle edge cases where the year is entirely unknown or null (do not display 'NaN' or '1970').
+- [x] Test exact absolute positioning to avoid overlapping with bottom progress bars.
+- [x] Ensure font size is tiny but highly legible (e.g., `text-xs`).
 
-**9.7 Absolute bottom-edge library progress bar (Gray = Unwatched, Half Orange = Watching, Green = Finished).** (Incomplete)
+**9.7 Absolute bottom-edge library progress bar (Gray = Unwatched, Half Orange = Watching, Green = Finished).** (Complete)
 
-- [ ] Verify mathematical logic perfectly calculates width percentage based on `completed_episodes / total_episodes`.
-- [ ] Ensure the width transitions correctly (Gray for 0%, Orange for 1-99%, Green strictly for 100%).
-- [ ] Handle edge cases where the show is 'Ended' but only 3 episodes ever aired.
-- [ ] Test absolute positioning locking the bar to the lowest possible pixel of the poster.
-- [ ] Ensure corner radius rounding neatly clips the bar without jutting out as a square.
+- [x] Verify mathematical logic perfectly calculates width percentage based on `completed_episodes / total_episodes`.
+- [x] Ensure the width transitions correctly (Gray for 0%, Orange for 1-99%, Green strictly for 100%).
+- [x] Handle edge cases where the show is 'Ended' but only 3 episodes ever aired.
+- [x] Test absolute positioning locking the bar to the lowest possible pixel of the poster.
+- [x] Ensure corner radius rounding neatly clips the bar without jutting out as a square.
 
-**9.16 Friendly empty-state illustration/text for libraries with 0 items.** (Incomplete)
+**9.16 Friendly empty-state illustration/text for libraries with 0 items.** (Complete)
 
-- [ ] Verify the exact text encourages the user to 'Scan for Files' or add media.
-- [ ] Ensure the component is perfectly horizontally and vertically centered.
-- [ ] Handle edge cases where a library is empty purely due to aggressive filtering, not a zero-item DB.
-- [ ] Test an appropriate massive, dim Lucide-React icon renders beautifully in the center.
-- [ ] Ensure the 'Hide Completed' toggle explicitly vanishes to avoid UI clutter in this state.
+- [x] Verify the exact text encourages the user to 'Scan for Files' or add media.
+- [x] Ensure the component is perfectly horizontally and vertically centered.
+- [x] Handle edge cases where a library is empty purely due to aggressive filtering, not a zero-item DB.
+- [x] Test an appropriate massive, dim Lucide-React icon renders beautifully in the center.
+- [x] Ensure the 'Hide Completed' toggle explicitly vanishes to avoid UI clutter in this state.
 
 ## Micro-Feature 15: Media Details View (Header & Backdrop)
 

@@ -3,14 +3,14 @@ import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star } from "lucide-react";
+import { Star, Library as LibraryIcon, Film } from "lucide-react";
 import { formatLocaleDate } from "../utils/dateFormatter";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
 import { VirtualPoster } from "./ui/VirtualPoster";
 
-export default function Library({ type, onMediaSelect, refreshTrigger, searchQuery = "" }: any) {
+export default function Library({ type, onMediaSelect, refreshTrigger, searchQuery = "", onSearchQueryChange }: any) {
   const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("Recently Added");
@@ -40,27 +40,29 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
           {type === "TV" ? "TV Shows" : "Movies"}
         </h1>
 
-        <div className="flex items-center gap-4 bg-[#1F222A]/80 backdrop-blur-md p-2 rounded-xl border border-white/5">
-          <select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            className="bg-transparent text-white outline-none font-normal px-2 py-1"
-          >
-            {sortOptions.map(opt => <option key={opt} value={opt} className="bg-[#1F222A]">{opt}</option>)}
-          </select>
+        {data.length > 0 && (
+          <div className="flex items-center gap-4 bg-[#1F222A]/80 backdrop-blur-md p-2 rounded-xl border border-white/5">
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value)}
+              className="bg-transparent text-white outline-none font-normal px-2 py-1"
+            >
+              {sortOptions.map(opt => <option key={opt} value={opt} className="bg-[#1F222A]">{opt}</option>)}
+            </select>
 
-          <div className="w-px h-6 bg-white/10" />
+            <div className="w-px h-6 bg-white/10" />
 
-          <label className="flex items-center gap-2 cursor-pointer px-2 text-sm font-normal text-gray-300 hover:text-white transition-colors">
-            <input
-              type="checkbox"
-              checked={hideCompleted}
-              onChange={e => setHideCompleted(e.target.checked)}
-              className="accent-[#FF6B00] w-4 h-4 rounded focus:ring-[#FF6B00]"
-            />
-            Hide Completed
-          </label>
-        </div>
+            <label className="flex items-center gap-2 cursor-pointer px-2 text-sm font-normal text-gray-300 hover:text-white transition-colors">
+              <input
+                type="checkbox"
+                checked={hideCompleted}
+                onChange={e => setHideCompleted(e.target.checked)}
+                className="accent-[#FF6B00] w-4 h-4 rounded focus:ring-[#FF6B00]"
+              />
+              Hide Completed
+            </label>
+          </div>
+        )}
       </div>
 
       <motion.div layout className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6 md:gap-8">
@@ -139,29 +141,80 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                 </div>
               )}
 
-              <div className="absolute bottom-4 left-4 z-20 pointer-events-none group-hover:opacity-0 transition-opacity">
-                 {item.is_date_known && (
-                    <span className="px-2 py-1 bg-[#1F222A] text-xs font-bold rounded-lg shadow-md tabular-nums">{item.release_date.substring(0, 4)}</span>
+              {/* Always-on Bottom-Left Original Release Year pill */}
+              <div className="absolute bottom-2 left-0 z-20 pointer-events-none group-hover:opacity-0 transition-opacity">
+                 {item.is_date_known && item.release_date && item.release_date.split('-')[0] && item.release_date.split('-')[0] !== "0000" && (
+                    <span className="px-2 py-1 bg-[#0D0F14] text-[10px] sm:text-xs font-bold tracking-wider text-white rounded-r-md tabular-nums">
+                      {item.release_date.split('-')[0]}
+                    </span>
                  )}
               </div>
 
-              {/* Progress Bar */}
-              {(item.total_available ?? item.total_episodes) > 0 && (
-                <div className="absolute bottom-0 left-0 w-full h-1.5 bg-black/80 z-20 overflow-hidden">
-                  <div
-                    className={`h-full ${item.completed_eps === (item.total_available ?? item.total_episodes) ? 'bg-green-500' : 'bg-[#FF6B00]'}`}
-                    style={{ width: `${Math.min(100, (item.completed_eps / (item.total_available ?? item.total_episodes)) * 100)}%` }}
-                  />
-                </div>
-              )}
+              {/* Absolute bottom-edge library progress bar */}
+              {(() => {
+                const totalEps = item.total_available ?? item.total_episodes ?? 0;
+                if (totalEps <= 0) return null;
+                const completedEps = item.completed_eps ?? 0;
+                let width = (completedEps / totalEps) * 100;
+                if (isNaN(width)) width = 0;
+                width = Math.min(100, Math.max(0, width));
+
+                let bgColorClass = "bg-transparent"; // Fallback
+                if (width > 0 && width < 100) bgColorClass = "bg-[#FF6B00]"; // In-Progress
+                else if (width >= 100) bgColorClass = "bg-[#1b5e20]"; // Finished
+
+                // For shows with few episodes: Min-width of 2px for partially watched
+                let styleWidth = `${width}%`;
+
+                return (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 z-20 overflow-hidden rounded-b-xl bg-white/10">
+                    <motion.div
+                      className={`h-full ${bgColorClass}`}
+                      style={{
+                        width: styleWidth,
+                        minWidth: (width > 0 && width < 100) ? '2px' : '0px'
+                      }}
+                      initial={{ width: 0 }}
+                      animate={{ width: styleWidth }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                );
+              })()}
                 </motion.div>
               </VirtualPoster>
             );
           })}
         </AnimatePresence>
         {filteredData.length === 0 && (
-          <div className="col-span-full py-32 text-center text-gray-500 text-lg">
-            No media found in this view.
+          <div className="col-span-full flex flex-col items-center justify-center min-h-[400px] w-full py-20 text-center">
+            {data.length === 0 ? (
+              <>
+                <Icon icon={type === "TV" ? LibraryIcon : Film} className="w-20 h-20 text-white/5 mb-6" />
+                <h2 className="text-2xl font-bold text-white mb-2">Your library is currently empty.</h2>
+                <p className="text-[#A0AEC0] max-w-md mx-auto">
+                  Start by scanning a local folder or searching for a show to add to your tracker.
+                </p>
+              </>
+            ) : (
+              <>
+                <Icon icon={type === "TV" ? LibraryIcon : Film} className="w-20 h-20 text-white/5 mb-6" />
+                <h2 className="text-2xl font-bold text-white mb-2">No matches found.</h2>
+                <p className="text-[#A0AEC0] max-w-md mx-auto mb-6">
+                  Try adjusting your filters or search terms to find what you're looking for.
+                </p>
+                <button
+                  onClick={() => {
+                    if (onSearchQueryChange) onSearchQueryChange("");
+                    setHideCompleted(false);
+                    setSortBy("Recently Added");
+                  }}
+                  className="px-6 py-2 bg-[#FF6B00] hover:bg-[#FF8533] text-white font-bold rounded-xl transition-colors shadow-lg"
+                >
+                  Clear All Filters
+                </button>
+              </>
+            )}
           </div>
         )}
       </motion.div>
