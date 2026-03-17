@@ -572,10 +572,12 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                         </div>
                       </div>
                     ) : (
-                      <button
-                        onClick={async () => {
-                          logger.click(`'Play' on Episode S${ep.season_num}E${ep.ep_num}`);
-                          if (ep.file_path) {
+                      ep.file_path ? (
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                          onClick={async () => {
+                            logger.click(`'Play' on Episode S${ep.season_num}E${ep.ep_num}`);
                             try {
                                 const validation: any = await invoke("validate_and_hash_file", { episodeId: ep.id, filePath: ep.file_path });
                                 if (validation.status === "missing" || validation.status === "corrupted") {
@@ -621,13 +623,19 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                               filePath: ep.file_path,
                               lastPosition: ep.last_position,
                             }).catch(e => toast.error(e));
-                          } else {
-                            toast.error("Missing File Path. Scan directory to match file.");
-                          }
-                        }}
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white scale-75 hover:scale-100 transition-transform shadow-lg ${ep.file_path ? 'bg-[#FF6B00] shadow-orange-500/30' : 'bg-gray-600 shadow-gray-500/30'}`}>
-                        {ep.file_path ? <Icon icon={Play} className="w-5 h-5 ml-1" fill="currentColor" /> : <Icon icon={CloudOff} className="w-5 h-5" />}
-                      </button>
+                          }}
+                          className="w-12 h-12 flex items-center justify-center rounded-full bg-[#FF6B00] text-white shadow-[0_0_10px_rgba(255,107,0,0.3)] transition-shadow"
+                        >
+                          <Icon icon={Play} className="w-5 h-5 ml-1" fill="currentColor" />
+                        </motion.button>
+                      ) : (
+                        <div className="group/tooltip relative w-12 h-12 flex items-center justify-center rounded-full">
+                          <Icon icon={CloudOff} className="w-5 h-5 text-gray-600" />
+                          <div className="absolute -top-10 scale-0 group-hover/tooltip:scale-100 transition-transform bg-black/80 backdrop-blur-md text-white text-xs px-3 py-1 rounded-md whitespace-nowrap">
+                            Local file missing. Scan your directory to re-link.
+                          </div>
+                        </div>
+                      )
                     )}
                  </div>
                  {ep.status === "Watching" && ep.runtime > 0 && (

@@ -9,6 +9,8 @@ import { toast } from "../utils/toast";
 import { useAppStore } from "../store/useAppStore";
 import { cn } from "../App";
 import { SafeImage } from "./ui/SafeImage";
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -38,6 +40,31 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
   const observer = useRef<IntersectionObserver | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [filterType, setFilterType] = useState<"All" | "TV" | "Movies">("All");
+  const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
+  const [addingIds, setAddingIds] = useState<Set<string>>(new Set());
+
+  // Fetch local media cache on mount
+  useEffect(() => {
+    async function fetchTrackedIds() {
+        try {
+            const data: any[] = await invoke("get_library_data_db", { sortBy: "Recently Added", filter: "All" });
+            const ids = new Set(data.map(m => `${m.type}-${m.tmdb_id}`));
+            setTrackedIds(ids);
+        } catch (e) {
+            console.error("Failed to fetch library for tracked IDs", e);
+        }
+    }
+    fetchTrackedIds();
+
+    // Subscribe to MediaDeleted event to update tracked IDs real-time
+    const unlisten = listen("media-deleted", (_event: any) => {
+        fetchTrackedIds();
+    });
+
+    return () => {
+        unlisten.then(f => f());
+    };
+  }, []);
 
   useEffect(() => {
     // Initial page-load auto-focus
@@ -275,29 +302,51 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
                  <span>{item.is_date_known ? (item.type === "TV" ? `${item.release_date.substring(0, 4)}–` : (item.is_exact_date ? formatLocaleDate(item.release_date) : item.release_date.substring(0, 4))) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
               </p>
 
-              <button
-                onClick={() => {
-                  logger.click(`'+ Add to Tracker' for '${item.title}'`);
-                  setLoading(true);
-                  asyncInvoke("add_to_tracker", {
-                    tmdbId: item.tmdb_id,
-                    mediaType: item.type,
-                    archive: false
-                  }).then(() => {
-                    logger.ipcSuccess(`'${item.title}' added successfully.`);
-                    toast.success("Added to Tracker!");
-                    setLoading(false);
-                  }).catch((e: any) => {
-                    const errStr = typeof e === 'object' && e.message ? e.message : String(e);
-                    logger.error("Add to Tracker Failed", errStr);
-                    toast.error("Error: " + errStr);
-                    setLoading(false);
-                  });
-                }}
-                className="w-full py-2 bg-[#FF6B00] text-white font-bold rounded-lg hover:bg-[#E66000] transition-colors"
-              >
-                + Add to Tracker
-              </button>
+              {trackedIds.has(`${item.type}-${item.tmdb_id}`) ? (
+                <div className="w-full py-2 bg-emerald-500/20 text-emerald-500 font-bold rounded-lg flex items-center justify-center gap-2 pointer-events-none">
+                  <span className="text-emerald-500 font-black">✓</span> IN LIBRARY
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    logger.click(`'+ Add to Tracker' for '${item.title}'`);
+                    const itemId = `${item.type}-${item.tmdb_id}`;
+                    setAddingIds(prev => new Set(prev).add(itemId));
+                    asyncInvoke("add_to_tracker", {
+                      tmdbId: item.tmdb_id,
+                      mediaType: item.type,
+                      archive: false
+                    }).then(() => {
+                      logger.ipcSuccess(`'${item.title}' added successfully.`);
+                      toast.success("Added to Tracker!");
+                      setTrackedIds(prev => new Set(prev).add(itemId));
+                      setAddingIds(prev => {
+                          const next = new Set(prev);
+                          next.delete(itemId);
+                          return next;
+                      });
+                    }).catch((e: any) => {
+                      const errStr = typeof e === 'object' && e.message ? e.message : String(e);
+                      logger.error("Add to Tracker Failed", errStr);
+                      toast.error("Error: " + errStr);
+                      setAddingIds(prev => {
+                          const next = new Set(prev);
+                          next.delete(itemId);
+                          return next;
+                      });
+                    });
+                  }}
+                  disabled={addingIds.has(`${item.type}-${item.tmdb_id}`)}
+                  className={cn(
+                    "w-full py-2 font-bold rounded-lg transition-colors flex items-center justify-center",
+                    addingIds.has(`${item.type}-${item.tmdb_id}`)
+                      ? "bg-gray-400 text-white cursor-wait opacity-80 animate-pulse"
+                      : "bg-[#FF6B00] text-white hover:bg-[#E66000]"
+                  )}
+                >
+                  {addingIds.has(`${item.type}-${item.tmdb_id}`) ? "Adding..." : "+ Add to Tracker"}
+                </button>
+              )}
             </div>
           </motion.div>
         ))}
