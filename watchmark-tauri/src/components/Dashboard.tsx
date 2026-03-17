@@ -69,6 +69,8 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
   const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<DashboardData | null>(null);
   const asyncInvoke = useAsyncInvoke();
+  const cwScroll = useHorizontalScroll<HTMLDivElement>();
+  const recentScroll = useHorizontalScroll<HTMLDivElement>();
 
   useEffect(() => {
     asyncInvoke<DashboardData>("get_dashboard_data")
@@ -132,9 +134,6 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     !searchQuery ||
     m.title?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
-
-  const cwScroll = useHorizontalScroll<HTMLDivElement>();
-  const recentScroll = useHorizontalScroll<HTMLDivElement>();
 
   return (
     <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide">
