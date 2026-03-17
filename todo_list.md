@@ -795,29 +795,29 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: The middle metadata section and Season navigation.**
 
-**11.4 Dual Rating Display panel (TMDB Score vs. User Score).** (Incomplete)
+**11.4 Dual Rating Display panel (TMDB Score vs. User Score).** (Complete)
 
-- [ ] Verify the layout utilizes two cleanly separated blocks side-by-side or stacked vertically.
-- [ ] Ensure the TMDB score prominently features a gold star and formats specifically to one decimal place.
-- [ ] Handle edge cases where one score is completely absent without breaking grid alignment.
-- [ ] Test UI distinction clearly identifying 'Global Rating' vs 'My Rating'.
-- [ ] Ensure font sizes are extremely legible to quickly glance at numbers.
+- [x] Verify the layout utilizes two cleanly separated blocks side-by-side or stacked vertically.
+- [x] Ensure the TMDB score prominently features a gold star and formats specifically to one decimal place.
+- [x] Handle edge cases where one score is completely absent without breaking grid alignment.
+- [x] Test UI distinction clearly identifying 'Global Rating' vs 'My Rating'.
+- [x] Ensure font sizes are extremely legible to quickly glance at numbers.
 
-**11.7 Overall show progress badge (Dynamic text and color: Orange/Green).** (Incomplete)
+**11.7 Overall show progress badge (Dynamic text and color: Orange/Green).** (Complete)
 
-- [ ] Verify mathematical tracking dynamically identifies 'Unwatched' (Gray), 'Watching' (Orange), and 'Completed' (Green).
-- [ ] Ensure the badge prominently renders directly adjacent to the main Title header.
-- [ ] Handle edge cases where mathematical drift breaks the 100% logic (strictly check exact episode match).
-- [ ] Test 'Archived' functionality automatically flipping this badge completely to Green.
-- [ ] Ensure font tracking is extremely dense (e.g., `tracking-wide uppercase text-sm`).
+- [x] Verify mathematical tracking dynamically identifies 'Unwatched' (Gray), 'Watching' (Orange), and 'Completed' (Green).
+- [x] Ensure the badge prominently renders directly adjacent to the main Title header.
+- [x] Handle edge cases where mathematical drift breaks the 100% logic (strictly check exact episode match).
+- [x] Test 'Archived' functionality automatically flipping this badge completely to Green.
+- [x] Ensure font tracking is extremely dense (e.g., `tracking-wide uppercase text-sm`).
 
-**11.14 Horizontal scrolling pill-style Season Tabs.** (Incomplete)
+**11.14 Horizontal scrolling pill-style Season Tabs.** (Complete)
 
-- [ ] Verify `flex flex-row overflow-x-auto overflow-y-hidden whitespace-nowrap` perfectly layouts a single smooth line.
-- [ ] Ensure hidden scrollbars (via specific plugins) completely mask the ugly browser defaults.
-- [ ] Handle edge cases where a show has 45 seasons, ensuring smooth mouse wheel side-scrolling.
-- [ ] Test tab clicking cleanly shifting the active state specifically without shifting adjacent tabs.
-- [ ] Ensure padding perfectly aligns the first tab specifically with the episode list beneath it.
+- [x] Verify `flex flex-row overflow-x-auto overflow-y-hidden whitespace-nowrap` perfectly layouts a single smooth line.
+- [x] Ensure hidden scrollbars (via specific plugins) completely mask the ugly browser defaults.
+- [x] Handle edge cases where a show has 45 seasons, ensuring smooth mouse wheel side-scrolling.
+- [x] Test tab clicking cleanly shifting the active state specifically without shifting adjacent tabs.
+- [x] Ensure padding perfectly aligns the first tab specifically with the episode list beneath it.
 
 **11.15 Active Season State logic (White text, dark background transition).** (Incomplete)
 

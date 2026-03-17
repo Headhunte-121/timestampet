@@ -194,48 +194,80 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           transition={{ delay: 0.3 }}
           className="flex-1 max-w-4xl pt-8"
         >
-          <h1 className="text-6xl font-extrabold tracking-tight text-white mb-4 drop-shadow-lg">
-            {data.title}
-          </h1>
+
+          <div className="flex items-center gap-4 mb-4">
+            <h1 className="text-6xl font-extrabold tracking-tight text-white drop-shadow-lg">
+              {data.title}
+            </h1>
+            {(() => {
+              const watched = data.episodes?.filter((e: any) => e.status === "Completed").length || 0;
+              const total = data.episodes?.length || 0;
+
+              if (data.type === "TV" && total > 0) {
+                if (data.is_archived || watched === total) {
+                  return (
+                    <div className="px-3 py-1 bg-emerald-500/20 text-emerald-500 rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap">
+                      Completed
+                    </div>
+                  );
+                } else if (watched > 0) {
+                  return (
+                    <div className="px-3 py-1 bg-[#FF6B00]/20 text-[#FF6B00] rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap">
+                      Watching
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="px-3 py-1 bg-white/10 text-gray-300 rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap">
+                      Unwatched
+                    </div>
+                  );
+                }
+              }
+              return null;
+            })()}
+          </div>
+
 
           <div className="flex items-center gap-4 mb-3 text-sm font-bold tracking-wider flex-wrap">
             <span className={`px-3 py-1 rounded-md backdrop-blur-md text-white ${data.type === 'Unknown' ? 'bg-red-500/80' : 'bg-white/10'}`}>
               {data.type}
             </span>
             <span className="text-gray-300">Aired: {data.is_date_known ? (data.is_exact_date ? formatLocaleDate(data.release_date) : data.release_date.substring(0, 4)) : <span className="px-1.5 py-0.5 bg-gray-800 rounded text-xs font-semibold uppercase tracking-wider text-muted">TBD</span>}</span>
-            <span className="flex items-center gap-1 text-[#F5C518] bg-black/50 px-3 py-1 rounded-full min-w-[70px] justify-center text-center">
-              {data.vote_average === null || data.vote_average === undefined ? (
-                <span className="font-bold text-muted tracking-widest text-[10px] px-1">NO DATA</span>
-              ) : data.vote_average === 0 ? (
-                <span className="font-bold text-muted tracking-widest text-[10px] px-1">NR</span>
-              ) : (
-                <>
-                  <Icon icon={Star} className="w-4 h-4 fill-current" /> {Number(data.vote_average).toFixed(1)}
-                </>
-              )}
-            </span>
 
-            <div className="flex items-center gap-2 bg-black/50 px-3 py-1 rounded-md">
-              {data.user_rating === 0 && (
-                <span className="text-orange-500 font-bold bg-white/10 px-2 py-0.5 rounded text-xs mr-2">
-                  0.0
-                </span>
+          <div className="flex flex-row gap-4 mb-6">
+            <div className="flex flex-col items-center bg-[#1F222A] border border-[#2A2D35] rounded-xl px-4 py-3 min-w-[120px]">
+              <span className="text-[#8E929C] text-[10px] font-bold tracking-widest uppercase mb-1">GLOBAL RATING</span>
+              {data.vote_average === null || data.vote_average === undefined || data.vote_average === 0 ? (
+                <span className="font-bold text-muted text-xl tabular-nums">NR</span>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xl font-bold tabular-nums text-white">
+                  <Icon icon={Star} className="w-5 h-5 text-[#F5C518] fill-[#F5C518]" />
+                  {Number(data.vote_average).toFixed(1)}
+                </div>
               )}
-              <span className="text-muted mr-2 text-xs">My Rating:</span>
-              <StarRating
-                rating={data.user_rating}
-                onChange={(rating) => {
-                  logger.click(`'Rating' changed to ${rating} stars`);
-                  setData((prev: any) => ({ ...prev, user_rating: rating }));
-                  logger.ipcSend("update_media_rating", `Rating ${rating}`);
-                  invoke("update_media_rating", { mediaId: data.id, rating })
-                    .catch((err: any) => {
-                      logger.error("Rating Update Failed", err);
-                      toast.error("Failed to update rating");
-                    });
-                }}
-              />
             </div>
+
+            <div className="flex flex-col items-center bg-[#1F222A] border border-[#2A2D35] rounded-xl px-4 py-3 min-w-[140px]">
+              <span className="text-[#8E929C] text-[10px] font-bold tracking-widest uppercase mb-1">MY RATING</span>
+              <div className="mt-0.5">
+                <StarRating
+                  rating={data.user_rating}
+                  onChange={(rating) => {
+                    logger.click(`'Rating' changed to ${rating} stars`);
+                    setData((prev: any) => ({ ...prev, user_rating: rating }));
+                    logger.ipcSend("update_media_rating", `Rating ${rating}`);
+                    invoke("update_media_rating", { mediaId: data.id, rating })
+                      .catch((err: any) => {
+                        logger.error("Rating Update Failed", err);
+                        toast.error("Failed to update rating");
+                      });
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
 
             {data.networks && data.networks.trim() !== "" && (
               <div className="flex items-center text-muted bg-white/5 px-3 py-1 rounded-md text-xs font-bold border border-white/10 uppercase">
@@ -389,21 +421,41 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       {/* Episodes List (Mocked structure) */}
       <div className="mt-24 px-12">
         {/* Season Tabs */}
+
         {data.type === "TV" && data.seasons && (
-          <div className="flex flex-wrap gap-2 mb-8">
+          <div
+            className="flex flex-row overflow-x-auto overflow-y-hidden whitespace-nowrap scrollbar-hide mb-8 pl-10 -ml-10"
+            style={{
+              maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)'
+            }}
+            onWheel={(e) => {
+              e.currentTarget.scrollLeft += e.deltaY;
+            }}
+          >
             {data.seasons.map((s: number) => (
-              <button
-                key={s}
-                onClick={() => setActiveSeason(s)}
-                className={`px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap ${
-                  s === activeSeason ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/20' : 'bg-white/5 hover:bg-white/10 text-gray-300'
-                }`}
-              >
-                {s === 0 ? "Specials" : `Season ${s}`}
-              </button>
+              <div key={s} className="relative mr-2 group inline-block">
+                {s === activeSeason && (
+                  <motion.div
+                    layoutId="activeSeasonTab"
+                    className="absolute inset-0 bg-[#1F222A] rounded-full"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
+                )}
+                <button
+                  onClick={() => setActiveSeason(s)}
+                  className={`relative px-6 py-2 rounded-full font-bold transition-colors whitespace-nowrap ${
+                    s === activeSeason ? 'text-white' : 'text-[#A0AEC0] group-hover:bg-white/5'
+                  }`}
+                >
+                  {s === 0 ? "Specials" : `Season ${s}`}
+                </button>
+              </div>
             ))}
           </div>
         )}
+
 
         <div className="grid gap-4 max-w-5xl">
           {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => {

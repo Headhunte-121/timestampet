@@ -47,13 +47,13 @@ export function StarRating({ rating, onChange }: StarRatingProps) {
         return (
           <div
             key={index}
-            className="relative cursor-pointer w-6 h-6"
+            className="relative cursor-pointer w-5 h-5"
             onMouseMove={(e) => handleMouseMove(e, index)}
             onClick={(e) => handleClick(e, index)}
           >
             {/* Background Empty Star */}
             <Star
-              className={cn("absolute inset-0 w-6 h-6 text-gray-500", rating === null && hoverRating === null ? "opacity-50" : "")}
+              className={cn("absolute inset-0 w-5 h-5", rating === null && hoverRating === null ? "text-white/40" : "text-gray-500")}
               fill="none"
               strokeWidth={1.5}
             />
@@ -63,7 +63,7 @@ export function StarRating({ rating, onChange }: StarRatingProps) {
                 className="absolute inset-0 overflow-hidden"
                 style={{ width: isHalf ? "50%" : "100%" }}
               >
-                <Icon icon={Star} className="w-6 h-6 text-orange-500 fill-orange-500" strokeWidth={1.5} />
+                <Icon icon={Star} className="w-5 h-5 text-orange-500 fill-orange-500" strokeWidth={1.5} />
               </div>
             )}
           </div>
