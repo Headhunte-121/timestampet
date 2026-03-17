@@ -1015,37 +1015,37 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Read the live playback time from VLC.**
 
-**4.9 Real-time fetching of current playback time (in exact seconds).** (Incomplete)
+**4.9 Real-time fetching of current playback time (in exact seconds).** (Complete)
 
-- [ ] Parse the XML/JSON response from VLC safely handling missing nodes.
-- [ ] Ensure the time value correctly updates local memory state.
-- [ ] Handle edge cases where VLC reports negative time or garbage data during seeking.
-- [ ] Test rapid seeking by the user to ensure the poller captures the final position.
-- [ ] Verify performance overhead of parsing the payload every 5 seconds.
+- [x] Parse the XML/JSON response from VLC safely handling missing nodes.
+- [x] Ensure the time value correctly updates local memory state.
+- [x] Handle edge cases where VLC reports negative time or garbage data during seeking.
+- [x] Test rapid seeking by the user to ensure the poller captures the final position.
+- [x] Verify performance overhead of parsing the payload every 5 seconds.
 
-**4.10 Real-time fetching of total video length.** (Incomplete)
+**4.10 Real-time fetching of total video length.** (Complete)
 
-- [ ] Ensure the length accurately reflects the local file, overriding TMDB runtime.
-- [ ] Handle edge cases where VLC reports a length of 0 (e.g., corrupted file index).
-- [ ] Test files with variable frame rates that might cause length fluctuations.
-- [ ] Verify the database is actively updated with the precise local length.
-- [ ] Ensure UI calculations rely on this precise length immediately upon playback.
+- [x] Ensure the length accurately reflects the local file, overriding TMDB runtime.
+- [x] Handle edge cases where VLC reports a length of 0 (e.g., corrupted file index).
+- [x] Test files with variable frame rates that might cause length fluctuations.
+- [x] Verify the database is actively updated with the precise local length.
+- [x] Ensure UI calculations rely on this precise length immediately upon playback.
 
-**4.11 Playback state monitoring (playing, paused, stopped).** (Incomplete)
+**4.11 Playback state monitoring (playing, paused, stopped).** (Complete)
 
-- [ ] Ensure specific logic triggers specifically when the state shifts to 'paused'.
-- [ ] Handle edge cases where the user rapidly spam-clicks pause/play.
-- [ ] Verify 'stopped' events instantly finalize session logic and DB commits.
-- [ ] Test behavior when playback reaches the absolute end of the file automatically.
-- [ ] Ensure state strings from VLC are case-insensitively matched.
+- [x] Ensure specific logic triggers specifically when the state shifts to 'paused'.
+- [x] Handle edge cases where the user rapidly spam-clicks pause/play.
+- [x] Verify 'stopped' events instantly finalize session logic and DB commits.
+- [x] Test behavior when playback reaches the absolute end of the file automatically.
+- [x] Ensure state strings from VLC are case-insensitively matched.
 
-**4.12 Real-time mathematical completion percentage calculation.** (Incomplete)
+**4.12 Real-time mathematical completion percentage calculation.** (Complete)
 
-- [ ] Ensure floating point math errors don't trigger false completions.
-- [ ] Handle edge cases where total length is 0 (prevent divide by zero exceptions).
-- [ ] Verify the percentage is calculated based on exact seconds, not rough minutes.
-- [ ] Test calculations on incredibly short files (e.g., 2-minute clips).
-- [ ] Ensure the percentage is logged accurately in the DB session row.
+- [x] Ensure floating point math errors don't trigger false completions.
+- [x] Handle edge cases where total length is 0 (prevent divide by zero exceptions).
+- [x] Verify the percentage is calculated based on exact seconds, not rough minutes.
+- [x] Test calculations on incredibly short files (e.g., 2-minute clips).
+- [x] Ensure the percentage is logged accurately in the DB session row.
 
 ## Micro-Feature 22: Resume & Completion Logic (The Tracker)
 

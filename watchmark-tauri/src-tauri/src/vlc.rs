@@ -4,10 +4,10 @@
 // 3. No raw println! allowed.
 
 use rusqlite::params;
-use serde_json::Value;
+use serde_json::json;
 use std::time::Duration;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::process::{Child, Command};
 use std::process::Stdio;
 
@@ -58,14 +58,6 @@ pub async fn kill_active_vlc() {
     }
 }
 
-pub fn is_legacy_vlc(vlc_path: &str) -> bool {
-    if let Ok(output) = std::process::Command::new(vlc_path).arg("--version").output() {
-        let version_str = String::from_utf8_lossy(&output.stdout);
-        return version_str.contains("VLC media player 2.");
-    }
-    false
-}
-
 pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<Child, AppError> {
     // Generate a secure 16-character alphanumeric password
     let password: String = rand::thread_rng()
@@ -106,15 +98,23 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<C
     #[cfg(unix)]
     let safe_file_path = file_path.to_string();
 
-    let legacy_auth = is_legacy_vlc(vlc_path);
-
     // Verify existence immediately before spawning to prevent ghost spawns
     if !std::path::Path::new(file_path).exists() {
         tracing::error!("[VLC] 🚨 File not found right before spawn: {}", file_path);
         return Err(AppError::Custom("FILE_NOT_FOUND".to_string()));
     }
 
-    let mut cmd = Command::new(vlc_path);
+    #[allow(unused_mut)]
+    let mut std_cmd = std::process::Command::new(vlc_path);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW = 0x08000000
+        std_cmd.creation_flags(0x08000000);
+    }
+
+    let mut cmd = Command::from(std_cmd);
 
     // Capture stderr to check for binding/auth errors, while ignoring stdout
     cmd.stdout(Stdio::null())
@@ -125,11 +125,7 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<C
         .arg(format!("--http-port={}", port))
         .arg("--http-host=127.0.0.1");
 
-    if legacy_auth {
-        cmd.arg(format!("--http-password={}", password));
-    } else {
-        cmd.arg(format!("--http-password={}", password));
-    }
+    cmd.arg(format!("--http-password={}", password));
 
     if start_time > 0 {
         cmd.arg(format!("--start-time={}", start_time));
@@ -138,7 +134,14 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<C
     cmd.spawn().map_err(|e| AppError::Custom(format!("Failed to start VLC: {}", e)))
 }
 
-pub async fn get_vlc_status() -> Option<Value> {
+#[derive(serde::Deserialize)]
+pub struct VlcStatus {
+    pub length: Option<f64>,
+    pub time: Option<f64>,
+    pub state: Option<String>,
+}
+
+pub async fn get_vlc_status() -> Option<VlcStatus> {
     let (port, password) = {
         let p_lock = VLC_PORT.lock().unwrap();
         let pw_lock = VLC_PASSWORD.lock().unwrap();
@@ -156,7 +159,7 @@ pub async fn get_vlc_status() -> Option<Value> {
         .send()
         .await
     {
-        if let Ok(json) = res.json::<Value>().await {
+        if let Ok(json) = res.json::<VlcStatus>().await {
             return Some(json);
         }
     }
@@ -176,6 +179,10 @@ pub async fn vlc_heartbeat(
     let mut pause_count: i32 = 0;
     let mut was_paused: bool = false;
     let mut consecutive_failures: i32 = 0;
+
+    // Session Snapshot for frontend sync
+    // Not actually used by frontend yet but maintains state
+    let mut session_snapshot_time: f64 = 0.0;
 
     // Track state for throttling writes
     let mut last_written_time_seconds: f64 = 0.0;
@@ -202,13 +209,24 @@ pub async fn vlc_heartbeat(
 
     let mut is_initial_probe = true;
     let probe_start = std::time::Instant::now();
+    let mut in_high_res_mode = false;
+    let mut high_res_end_time = std::time::Instant::now();
+
+    let mut length_averaging_buffer: Vec<f64> = Vec::new();
+    let mut stable_state_time = std::time::Instant::now();
 
     loop {
         let tick_duration = if is_initial_probe {
             Duration::from_millis(200)
+        } else if in_high_res_mode {
+            Duration::from_millis(500)
         } else {
             Duration::from_secs(5)
         };
+
+        if in_high_res_mode && std::time::Instant::now() > high_res_end_time {
+            in_high_res_mode = false;
+        }
 
         tokio::select! {
             _ = tokio::time::sleep(tick_duration) => {
@@ -220,26 +238,78 @@ pub async fn vlc_heartbeat(
                     is_initial_probe = false;
                     consecutive_failures = 0;
 
-                    let length = status["length"].as_f64().unwrap_or(0.0);
-                    let time = status["time"].as_f64().unwrap_or(0.0);
+                    let length = status.length.unwrap_or(0.0);
+                    let raw_time = status.time;
+
+                    // Negative time and garbage data filtration
+                    let time = match raw_time {
+                        Some(t) if t >= 0.0 => {
+                            if length > 0.0 && t > length {
+                                session_snapshot_time // Overflow, discard and keep previous
+                            } else {
+                                t
+                            }
+                        },
+                        _ => session_snapshot_time // Negative or missing node, discard and keep previous
+                    };
+
+                    // High-frequency capture during rapid seeking
+                    if (time - session_snapshot_time).abs() > 10.0 && !is_initial_probe {
+                        in_high_res_mode = true;
+                        high_res_end_time = std::time::Instant::now() + Duration::from_secs(2);
+                    }
+
+                    session_snapshot_time = time;
+
+                    // Sync with frontend state
+                    if let Ok(mut live_time) = app_handle.state::<crate::commands::AppState>().live_playback_time.write() {
+                        *live_time = session_snapshot_time;
+                    }
 
                     if length > 0.0 && !has_overridden_runtime {
-                        let length_minutes = (length / 60.0).round();
-                        if (length_minutes - stored_runtime_minutes).abs() > 2.0 {
-                            tracing::info!("[VLC] 🔄 Local file length ({:?}m) differs from TMDB ({:?}m). Overriding.", length_minutes, stored_runtime_minutes);
-                            if let Ok(conn) = get_db_connection() {
-                                let _ = conn.execute(
-                                    "UPDATE Episodes SET runtime=? WHERE id=?",
-                                    params![length_minutes as i32, episode_id],
-                                );
+                        length_averaging_buffer.push(length);
+
+                        if length_averaging_buffer.len() >= 3 {
+                            // Check if consistent
+                            let mut consistent = true;
+                            let first_len = length_averaging_buffer[0];
+                            for l in &length_averaging_buffer {
+                                if (*l - first_len).abs() > 1.0 {
+                                    consistent = false;
+                                    break;
+                                }
                             }
-                            stored_runtime_minutes = length_minutes;
+
+                            if consistent {
+                                let length_minutes = (first_len / 60.0).round();
+                                if (length_minutes - stored_runtime_minutes).abs() > 2.0 {
+                                    tracing::info!("[VLC] 🔄 Local file length ({:?}m) differs from TMDB ({:?}m). Overriding.", length_minutes, stored_runtime_minutes);
+                                    if let Ok(conn) = get_db_connection() {
+                                        let _ = conn.execute(
+                                            "UPDATE Episodes SET runtime=? WHERE id=?",
+                                            params![length_minutes as i32, episode_id],
+                                        );
+                                    }
+                                    stored_runtime_minutes = length_minutes;
+                                }
+                                has_overridden_runtime = true;
+                            } else {
+                                // If inconsistent, clear buffer and try again
+                                length_averaging_buffer.clear();
+                            }
                         }
-                        has_overridden_runtime = true;
+                    } else if length == 0.0 {
+                        // Handle Live Stream or corrupted index
+                        tracing::warn!("[VLC] ⚠️ VLC reported length 0. Activating fallback.");
+                        let _ = app_handle.emit("vlc-livestream-fallback", json!({ "episode_id": episode_id }));
                     }
 
                     if length > 0.0 {
-                        let pos = time / length;
+                        // Math logic uses f64 clamping.
+                        let mut pos = time / length;
+                        if pos < 0.0 { pos = 0.0; }
+                        if pos > 1.0 { pos = 1.0; }
+
                         if pos > high_water_mark {
                             high_water_mark = pos;
                         }
@@ -256,19 +326,30 @@ pub async fn vlc_heartbeat(
                             time
                         };
 
-                        let state = status["state"].as_str().unwrap_or("");
-                        let is_paused = state == "paused";
+                        let current_state = status.state.unwrap_or_default().to_lowercase();
 
-                        if is_paused && !was_paused {
-                            pause_count += 1;
-                        }
+                        let is_paused = current_state == "paused";
+                        let is_stopped = current_state == "stopped";
+                        let mut newly_paused = false;
 
                         let time_jumped = (clamped_time - last_written_time_seconds).abs() > 30.0;
                         let time_to_flush = last_flush_time.elapsed() >= Duration::from_secs(300);
 
-                        // Trigger a write if paused, significant jump, or 5-min flush
-                        let should_commit = (is_paused && !was_paused) || time_jumped || time_to_flush;
-                        was_paused = is_paused;
+                        let state_changed = is_paused != was_paused;
+                        let lockout_active = stable_state_time.elapsed() < std::time::Duration::from_millis(1000);
+
+                        // Rapid "Spam-Click" State Debouncing
+                        if state_changed && !lockout_active {
+                            stable_state_time = std::time::Instant::now();
+                            was_paused = is_paused;
+                            if is_paused {
+                                pause_count += 1;
+                                newly_paused = true;
+                            }
+                        }
+
+                        let should_commit = newly_paused || time_jumped || time_to_flush || is_stopped;
+
                         last_time_seconds = clamped_time;
 
                         if should_commit {
@@ -285,6 +366,12 @@ pub async fn vlc_heartbeat(
                                     params![high_water_mark, pause_count, episode_id, start_dt_str, session_id],
                                 );
                             }
+                        }
+
+                        if is_stopped {
+                            // "Session Closure" protocol
+                            tracing::info!("[VLC] 🛑 VLC reported 'stopped' state. Committing and ending session.");
+                            break;
                         }
                     }
                 } else {
@@ -336,10 +423,18 @@ pub async fn vlc_heartbeat(
         }
 
         let final_runtime_seconds = final_runtime_minutes * 60.0;
+
+        let mut completion_threshold = 0.90;
+        // Handling short-form media (clips) < 5 minutes
+        if final_runtime_seconds > 0.0 && final_runtime_seconds < 300.0 {
+            completion_threshold = (final_runtime_seconds - 30.0) / final_runtime_seconds;
+        }
+
+        // High-precision float math safety
         let is_within_10s = final_runtime_seconds > 0.0 && (final_runtime_seconds - last_time_seconds) <= 10.0;
 
-        if high_water_mark > 0.90 || is_within_10s {
-            tracing::info!("[BACKEND] 🧠 Math evaluated >90% watched. Marking episode 'Completed'.");
+        if high_water_mark > completion_threshold || is_within_10s {
+            tracing::info!("[BACKEND] 🧠 Math evaluated > threshold watched. Marking episode 'Completed'.");
             let _ = conn.execute(
                 "UPDATE Episodes SET watch_count = watch_count + 1, status = 'Completed', last_position = 0 WHERE id = ?",
                 params![episode_id],

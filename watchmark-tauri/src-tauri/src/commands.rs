@@ -185,6 +185,7 @@ pub struct AppState {
     pub failed_image_syncs: Arc<RwLock<std::collections::HashSet<(String, String)>>>,
     pub is_scan_cancelled: Arc<AtomicBool>,
     pub is_scan_paused: Arc<AtomicBool>,
+    pub live_playback_time: Arc<RwLock<f64>>,
 }
 
 #[tauri::command]
@@ -259,6 +260,13 @@ pub async fn optimize_database(
         Ok(Err(e)) => Err(AppError::Custom(format!("Database optimization failed: {}", e))),
         Err(_) => Err(AppError::Custom("Database worker dropped task".to_string())),
     }
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug", skip(state))]
+pub async fn get_live_playback_time(state: tauri::State<'_, AppState>) -> Result<f64, AppError> {
+    let time = state.live_playback_time.read().unwrap();
+    Ok(*time)
 }
 
 #[tauri::command]
