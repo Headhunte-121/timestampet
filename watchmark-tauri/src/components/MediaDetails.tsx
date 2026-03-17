@@ -488,7 +488,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         )}
 
 
-        <div className="grid gap-4 max-w-5xl min-h-[60vh]">
+        <div className="flex flex-col max-w-5xl min-h-[60vh]">
           {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center col-span-full">
               <h2 className="text-xl font-bold text-white mb-6">
@@ -537,9 +537,11 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
              const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
              const fallbackUrl = data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : "";
              return (
-               <div
+               <motion.div
                  key={ep.id}
-                 className="flex items-center bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group relative focus-within:ring-2 focus-within:ring-[#FF6B00] focus-within:ring-offset-2 focus-within:ring-offset-[#0D0F14]"
+                 whileHover={{ scale: 1.02, backgroundColor: "#252830" }}
+                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                 className="flex items-center bg-[#1F222A] p-4 rounded-xl border border-[#2A2D35] group relative focus-within:ring-2 focus-within:ring-[#FF6B00] focus-within:ring-offset-2 focus-within:ring-offset-[#0D0F14] mb-4 min-h-[100px] max-h-[120px] overflow-hidden"
                  tabIndex={0}
                  onContextMenu={(e) => {
                    e.preventDefault();
@@ -648,7 +650,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                  )}
                </div>
 
-               <div className="flex-1">
+                 <div className="flex-1 overflow-hidden flex flex-col justify-center">
                  <div className="flex items-center gap-4 mb-1">
                     <button
                       onClick={async (e) => {
@@ -664,19 +666,38 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                           toast.error(`Failed to update status: ${err}`);
                         }
                       }}
-                      className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${ep.status === 'Completed' ? 'border-green-500 bg-green-500/20 text-green-500' : 'border-gray-600 hover:border-green-500 hover:bg-green-500/20'}`}>
+                      className={`w-8 h-8 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${ep.status === 'Completed' ? 'border-green-500 bg-green-500/20 text-green-500' : 'border-gray-600 hover:border-green-500 hover:bg-green-500/20'}`}>
                       {ep.status === 'Completed' ? "✓" : <div className="w-3 h-3 rounded-full bg-transparent" />}
                     </button>
-                    <h3 className={`text-xl font-bold transition-colors ${ep.status === 'Completed' ? 'text-muted font-normal' : 'text-white group-hover:text-[#FF6B00]'}`}>
-                      {ep.ep_num}. {ep.title}
-                    </h3>
-                    <span className="text-gray-500 text-sm ml-auto">{ep.runtime > 0 ? formatRuntime(ep.runtime) : ''}</span>
+                    <div className="flex-1 flex items-center min-w-0 truncate">
+                      <span className="text-[#8E929C] font-black tabular-nums mr-2">
+                        {ep.ep_num}.
+                      </span>
+                      <h3 className={`text-xl font-bold truncate transition-colors ${ep.status === 'Completed' ? 'text-muted font-normal' : 'text-white group-hover:text-[#FF6B00]'}`}>
+                        {ep.title || `Episode ${ep.ep_num}`}
+                      </h3>
+                    </div>
+                    <div className="flex items-center ml-auto shrink-0 text-sm font-medium">
+                      <span className="text-[#8E929C]">
+                        {ep.runtime > 0 ? formatRuntime(ep.runtime) : '--'}
+                      </span>
+                      {ep.air_date && (
+                        <>
+                          <span className="mx-2 text-white/20">•</span>
+                          {new Date(ep.air_date) > new Date() ? (
+                            <span className="text-[#FF6B00] font-bold">UNAIRED</span>
+                          ) : (
+                            <span className="text-[#8E929C]">{formatLocaleDate(ep.air_date)}</span>
+                          )}
+                        </>
+                      )}
+                    </div>
                  </div>
-                 <p className="text-muted text-sm pl-12 line-clamp-2">
+                 <p className="text-[#8E929C] text-sm pl-12 line-clamp-2 mt-2">
                    {ep.overview}
                  </p>
                </div>
-             </div>
+             </motion.div>
              );
           })
           )}

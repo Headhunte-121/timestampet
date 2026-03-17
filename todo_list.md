@@ -839,53 +839,53 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: The vertical list of episodes underneath a Season tab.**
 
-**12.1 Individual, rounded-corner episode row cards.** (Incomplete)
+**12.1 Individual, rounded-corner episode row cards.** (Complete)
 
-- [ ] Verify flex rows exactly constrain height to uniform dimensions.
-- [ ] Ensure subtle `#1F222A` background strictly differentiates rows from the main page.
-- [ ] Handle edge cases where excessive text wrapping stretches the row height unevenly.
-- [ ] Test subtle hover scale/brightness specifically on individual rows.
-- [ ] Ensure `mb-4` or similar gap strictly creates breathing room between rows.
+- [x] Verify flex rows exactly constrain height to uniform dimensions.
+- [x] Ensure subtle `#1F222A` background strictly differentiates rows from the main page.
+- [x] Handle edge cases where excessive text wrapping stretches the row height unevenly.
+- [x] Test subtle hover scale/brightness specifically on individual rows.
+- [x] Ensure `mb-4` or similar gap strictly creates breathing room between rows.
 
-**12.2 Dedicated 16:9 episode thumbnail rendering per row.** (Incomplete)
+**12.2 Dedicated 16:9 episode thumbnail rendering per row.** (Complete)
 
-- [ ] Verify specifically forcing `aspect-video` prevents odd TMDB portrait images from ruining layout.
-- [ ] Ensure standard CSS `object-cover` strictly crops central focus points.
-- [ ] Handle edge cases where extremely small thumbnail files appear deeply pixelated.
-- [ ] Test caching performance when strictly loading 24 thumbnails per season list simultaneously.
-- [ ] Ensure corner radii specifically match the outer card.
+- [x] Verify specifically forcing `aspect-video` prevents odd TMDB portrait images from ruining layout.
+- [x] Ensure standard CSS `object-cover` strictly crops central focus points.
+- [x] Handle edge cases where extremely small thumbnail files appear deeply pixelated.
+- [x] Test caching performance when strictly loading 24 thumbnails per season list simultaneously.
+- [x] Ensure corner radii specifically match the outer card.
 
-**12.6 Clean Episode Number & Title text combination.** (Incomplete)
+**12.6 Clean Episode Number & Title text combination.** (Complete)
 
-- [ ] Verify the formatting strictly prefixes '1. ' or 'E01 - ' distinctly before the bold title.
-- [ ] Ensure standard truncating (`truncate` utility) explicitly prevents incredibly long titles breaking flexbox.
-- [ ] Handle edge cases where 'TBA' or missing titles explicitly default securely to 'Episode X'.
-- [ ] Test extreme font weights explicitly separating the numeric prefix from the title.
-- [ ] Ensure pure white specifically contrasts sharply against the dark row.
+- [x] Verify the formatting strictly prefixes '1. ' or 'E01 - ' distinctly before the bold title.
+- [x] Ensure standard truncating (`truncate` utility) explicitly prevents incredibly long titles breaking flexbox.
+- [x] Handle edge cases where 'TBA' or missing titles explicitly default securely to 'Episode X'.
+- [x] Test extreme font weights explicitly separating the numeric prefix from the title.
+- [x] Ensure pure white specifically contrasts sharply against the dark row.
 
-**12.7 Runtime display string generation (e.g., '45m').** (Incomplete)
+**12.7 Runtime display string generation (e.g., '45m').** (Complete)
 
-- [ ] Verify the database explicitly pulls integer lengths representing strictly exact minutes.
-- [ ] Ensure strings explicitly strip hours formatting if < 60 (display '59m' not '0h 59m').
-- [ ] Handle edge cases where exact runtime strictly equals 0 (do not display anything, or explicitly display '--').
-- [ ] Test floating right alignment ensuring the time anchors distinctly near the Play button.
-- [ ] Ensure specific silver text (`text-gray-400`) avoids distracting from titles.
+- [x] Verify the database explicitly pulls integer lengths representing strictly exact minutes.
+- [x] Ensure strings explicitly strip hours formatting if < 60 (display '59m' not '0h 59m').
+- [x] Handle edge cases where exact runtime strictly equals 0 (do not display anything, or explicitly display '--').
+- [x] Test floating right alignment ensuring the time anchors distinctly near the Play button.
+- [x] Ensure specific silver text (`text-gray-400`) avoids distracting from titles.
 
-**12.8 Original Air Date display string generation.** (Incomplete)
+**12.8 Original Air Date display string generation.** (Complete)
 
-- [ ] Verify standard formatting exclusively displays human readable dates (e.g., 'Oct 12, 2018').
-- [ ] Ensure dates strictly parsed from `YYYY-MM-DD` gracefully convert local OS timezone strings.
-- [ ] Handle edge cases where missing air dates entirely hide the element explicitly to prevent 'Invalid Date'.
-- [ ] Test dates set in the explicit future explicitly replacing the string with a bold 'Unaired' warning.
-- [ ] Ensure a delicate bullet point '•' completely separates runtime from air date.
+- [x] Verify standard formatting exclusively displays human readable dates (e.g., 'Oct 12, 2018').
+- [x] Ensure dates strictly parsed from `YYYY-MM-DD` gracefully convert local OS timezone strings.
+- [x] Handle edge cases where missing air dates entirely hide the element explicitly to prevent 'Invalid Date'.
+- [x] Test dates set in the explicit future explicitly replacing the string with a bold 'Unaired' warning.
+- [x] Ensure a delicate bullet point '•' completely separates runtime from air date.
 
-**12.9 2-line truncated episode overview text below the title.** (Incomplete)
+**12.9 2-line truncated episode overview text below the title.** (Complete)
 
-- [ ] Verify standard CSS strictly clamps text to 2 lines (`line-clamp-2`).
-- [ ] Ensure extreme vertical margins (`mt-2`) completely separate text from titles.
-- [ ] Handle edge cases where synopses entirely contain Markdown formatting strictly stripping it.
-- [ ] Test color contrast strictly maintaining 'silver' readability on the `#1F222A` background.
-- [ ] Ensure missing synopses completely skip rendering.
+- [x] Verify standard CSS strictly clamps text to 2 lines (`line-clamp-2`).
+- [x] Ensure extreme vertical margins (`mt-2`) completely separate text from titles.
+- [x] Handle edge cases where synopses entirely contain Markdown formatting strictly stripping it.
+- [x] Test color contrast strictly maintaining 'silver' readability on the `#1F222A` background.
+- [x] Ensure missing synopses completely skip rendering.
 
 ## Micro-Feature 18: Local File Linking & Play Icons
 

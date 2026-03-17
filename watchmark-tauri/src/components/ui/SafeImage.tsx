@@ -192,7 +192,17 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
 
   const shouldBlur = potentialSpoiler && !isCompleted && !isRevealed;
   const commonClasses = `${className || ''} ${isFallbackImage ? 'brightness-75' : ''}`;
-  const objectPositionClass = type === 'still' ? 'object-center' : '';
+  const objectPositionStyle = type === 'still' ? { objectPosition: 'center 20%' } : {};
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    setIsLoaded(true);
+    if (type === 'still') {
+      const img = e.currentTarget;
+      if (img.naturalWidth > 0 && img.naturalWidth < 320) {
+        img.classList.add('blur-[1px]', 'brightness-75');
+      }
+    }
+  };
 
   return (
     <div
@@ -209,8 +219,10 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
         <img
           src={imgSrc!}
           alt={altText}
-          className={`${commonClasses} w-full h-full object-cover ${objectPositionClass}`}
+          className={`${commonClasses} w-full h-full object-cover`}
+          style={objectPositionStyle}
           onError={handleImageError}
+          onLoad={handleImageLoad}
           {...rest as any}
         />
       </motion.div>

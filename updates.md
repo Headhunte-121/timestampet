@@ -611,3 +611,10 @@ Implemented robust native OS window frame integrations and window geometry resto
 * Injected a `min-h-[60vh]` into the main episode grid container so that empty lists don't collapse the layout or shift elements.
 * Designed a centralized, semantic empty-state container explicitly explaining missing episodes for the active season, parsing 'Season 0' as 'Specials' if applicable.
 * Inserted a high-contrast `#FF6B00` VLC Orange "Refresh Data" button into the empty-state fallback UI to allow inline database syncing via `sync_season`.
+### Episode List UI Feature Completion
+Implemented features 12.1, 12.2, 12.6, 12.7, 12.8, and 12.9 to style the Media Details episode list:
+- Implemented `<motion.div>` on episode cards, with `#1F222A` background, hover scaling (`1.02`), and fixed-height strict constraint bounds (`min-h-[100px]`, `max-h-[120px]`).
+- Ensured 16:9 thumbnail rendering using `aspect-video` combined with an `objectPosition: 'center 20%'` guard, including a soft-blur upscaling protection for sub-320px low-resolution thumbnail sources in `SafeImage`.
+- Formatted standard episode numbering with an inline `.tabular-nums` constraint before episode titles, while handling missing and overflow title text cleanly through `truncate`.
+- Generated runtime and air date strings, separating them via bullet `•`, utilizing fallback checks to render dynamic `UNAIRED` flags for unreleased episodes.
+- Enabled multi-line CSS clamping on the episode description block with a constrained vertical margin spacer.
