@@ -32,6 +32,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const [isBackDisabled, setIsBackDisabled] = useState(false);
   const processingRef = useRef<Set<number>>(new Set());
+  const [completedCountDiff, setCompletedCountDiff] = useState<number>(0);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -235,7 +236,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
               {data.title}
             </h1>
             {(() => {
-              const watched = data.episodes?.filter((e: any) => e.status === "Completed").length || 0;
+              const watched = (data.episodes?.filter((e: any) => e.status === "Completed").length || 0) + completedCountDiff;
               const total = data.episodes?.filter((e: any) => e.season_num > 0)?.length || 0; // Exclude specials from total math
 
               if (data.type === "TV" && total > 0) {
@@ -760,9 +761,9 @@ function EpisodeRow({ ep, data, mediaId, setContextMenu, processingRef, complete
                       }}
                       className={`w-8 h-8 shrink-0 flex items-center justify-center transition-colors`}
                     >
-                      {localStatus === 'Completed' ? (
+                      {localStatus === 'Completed' || (localLastPosition > 0 && ep.runtime > 0 && (localLastPosition / (ep.runtime * 60)) > 0.90) ? (
                         <CheckCircle2 className="w-6 h-6 text-[#10B981] fill-[#10B981]/20" strokeWidth={1.5} />
-                      ) : localLastPosition > 0 && (localLastPosition / (ep.runtime * 60)) >= 0.05 && (localLastPosition / (ep.runtime * 60)) <= 0.90 ? (
+                      ) : localLastPosition > 0 && ep.runtime > 0 && (localLastPosition / (ep.runtime * 60)) >= 0.05 && (localLastPosition / (ep.runtime * 60)) <= 0.90 ? (
                         <CircleDashed
                           className="w-6 h-6 text-[#FF6B00] hover:text-[#FF6B00]/80 transition-colors"
                           strokeWidth={1.5}
