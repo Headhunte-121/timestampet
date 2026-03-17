@@ -28,14 +28,12 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
 
   const sortOptions = ["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated", "Sort by TMDB Rating"];
 
-  const isFiltered = hideCompleted || searchQuery !== "";
-
   const filteredData = data.filter(item =>
     !searchQuery ||
     item.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const isDbEmpty = data.length === 0 && !isFiltered;
+  const isDbEmpty = data.length === 0;
 
   return (
     <div className="px-6 py-24 pb-24 max-w-[1800px] mx-auto">
