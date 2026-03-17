@@ -146,6 +146,11 @@ function App() {
       setRefreshTrigger(prev => prev + 1);
     });
 
+    const unlistenSessionEnded = listen("vlc-session-ended", () => {
+      // 4.16.2 Global UI Invalidation (No-Refresh Sync)
+      setRefreshTrigger(prev => prev + 1);
+    });
+
     const unlistenResize = listen("tauri://resize", () => {
       // Trigger a forced reflow pass on window resize or restore
       // By slightly mutating the refresh trigger, we force components like Library and Intersection Observers to recalculate
