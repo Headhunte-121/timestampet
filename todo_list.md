@@ -1231,29 +1231,29 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Test behavior when `last_position` is explicitly 0.
 - [x] Ensure resuming doesn't break external subtitle file loading.
 
-**11.5 Interactive 5-star clicking component for user ratings.** (Incomplete)
+**11.5 Interactive 5-star clicking component for user ratings.** (Complete)
 
-- [ ] Verify hover states exactly fill the hovered star and strictly all stars preceding it.
-- [ ] Ensure clicking instantly triggers the queue to push a UI update into SQLite.
-- [ ] Handle edge cases where a user rapid-clicks stars (debounce logic must prevent database locking).
-- [ ] Test zero-rating functionality (e.g., clicking a filled star again completely unrates it).
-- [ ] Ensure stars precisely utilize the `text-[#FF6B00]` color when active.
+- [x] Verify hover states exactly fill the hovered star and strictly all stars preceding it.
+- [x] Ensure clicking instantly triggers the queue to push a UI update into SQLite.
+- [x] Handle edge cases where a user rapid-clicks stars (debounce logic must prevent database locking).
+- [x] Test zero-rating functionality (e.g., clicking a filled star again completely unrates it).
+- [x] Ensure stars precisely utilize the `text-[#FF6B00]` color when active.
 
-**11.6 Instant UI star color mutation on click (Pushes DB update via queue).** (Incomplete)
+**11.6 Instant UI star color mutation on click (Pushes DB update via queue).** (Complete)
 
-- [ ] Verify React state mutates the local array instantly without waiting for a Rust callback.
-- [ ] Ensure the queue strictly processes the `UPDATE media SET user_rating` via a dedicated background thread.
-- [ ] Handle edge cases where the SQLite queue completely crashes, seamlessly reverting the UI state.
-- [ ] Test performance when rating 20 shows in 20 seconds.
-- [ ] Ensure no full-page re-renders are triggered by this specific action.
+- [x] Verify React state mutates the local array instantly without waiting for a Rust callback.
+- [x] Ensure the queue strictly processes the `UPDATE media SET user_rating` via a dedicated background thread.
+- [x] Handle edge cases where the SQLite queue completely crashes, seamlessly reverting the UI state.
+- [x] Test performance when rating 20 shows in 20 seconds.
+- [x] Ensure no full-page re-renders are triggered by this specific action.
 
-**11.8 '▶ Play Next' global action button (Automatically finds the lowest SxxExx unwatched file).** (Incomplete)
+**11.8 '▶ Play Next' global action button (Automatically finds the lowest SxxExx unwatched file).** (Complete)
 
-- [ ] Verify Rust querying exactly mimics the complex algorithm from the Dashboard Hero.
-- [ ] Ensure it completely disables if no local files exist for unwatched episodes.
-- [ ] Handle edge cases where episode 3 is missing, but episode 4 exists (it should strictly play episode 4).
-- [ ] Test the exact `last_position` parameter properly routing to VLC.
-- [ ] Ensure the button utilizes the solid vibrant Orange fill.
+- [x] Verify Rust querying exactly mimics the complex algorithm from the Dashboard Hero.
+- [x] Ensure it completely disables if no local files exist for unwatched episodes.
+- [x] Handle edge cases where episode 3 is missing, but episode 4 exists (it should strictly play episode 4).
+- [x] Test the exact `last_position` parameter properly routing to VLC.
+- [x] Ensure the button utilizes the solid vibrant Orange fill.
 
 ## Micro-Feature 26: History/Timeline UI Foundation
 
