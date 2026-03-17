@@ -705,6 +705,7 @@ fn main() {
             commands::toggle_episode_status,
             commands::get_dashboard_data,
             commands::get_library_data,
+            commands::get_next_episode_to_play,
             commands::clear_unmatched_files,
             commands::ignore_unmatched_group,
             commands::fetch_unmatched_files,
