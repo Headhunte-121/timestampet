@@ -367,7 +367,8 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
              return (
                <div
                  key={ep.id}
-                 className="flex items-center bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group relative"
+                 className="flex items-center bg-[#1F222A]/60 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors group relative focus-within:ring-2 focus-within:ring-[#FF6B00] focus-within:ring-offset-2 focus-within:ring-offset-[#0D0F14]"
+                 tabIndex={0}
                  onContextMenu={(e) => {
                    e.preventDefault();
                    if (ep.file_path) {

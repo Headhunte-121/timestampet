@@ -68,7 +68,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
           {filteredData.map((item, i) => {
             const isInitialStagger = i < 20;
             return (
-              <VirtualPoster key={item.id} className="relative w-full aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden shadow-xl" heightClass="aspect-[2/3]">
+              <VirtualPoster key={item.id} className="relative w-full aspect-[2/3] bg-[#1F222A] rounded-2xl overflow-hidden shadow-xl focus-within:ring-2 focus-within:ring-[#FF6B00] focus-within:ring-offset-2 focus-within:ring-offset-[#0D0F14]" heightClass="aspect-[2/3]">
                 <motion.div
                   layout="position"
                   initial={isCinemaMode ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
@@ -79,7 +79,15 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                     duration: 0.3
                   }}
                   whileHover={isCinemaMode ? { scale: 1.05, y: -5 } : {}}
-                  className="w-full h-full cursor-pointer group transform-gpu"
+                  className="w-full h-full cursor-pointer group transform-gpu focus:outline-none"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      logger.click(`Library Item: ${item.title} (Media ID: ${item.id}) via Keyboard`);
+                      onMediaSelect(item.id);
+                    }
+                  }}
                   onClick={() => {
                       logger.click(`Library Item: ${item.title} (Media ID: ${item.id})`);
                       onMediaSelect(item.id);
@@ -107,7 +115,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               )}
 
               {/* Dark overlay on hover */}
-              <div className="absolute inset-0 bg-[#141519]/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 z-30 pointer-events-none rounded-xl inset-y-0 inset-x-0 border-transparent">
+              <div className="absolute inset-0 bg-[#141519]/90 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 z-30 pointer-events-none rounded-2xl inset-y-0 inset-x-0 border-transparent">
                 <h3 className="text-white font-bold leading-tight mb-1 text-center line-clamp-2">{item.title}</h3>
 
                 <p className="text-xs text-gray-300 mb-2 text-center flex items-center justify-center gap-1">
@@ -124,10 +132,12 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                 </p>
               </div>
 
-              {/* Static badges */}
-              <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-xl text-xs font-bold text-[#FF6B00] shadow-md group-hover:opacity-0 transition-opacity flex items-center gap-1 tabular-nums">
-                {item.user_rating === 0 ? '0.0' : '★'} {item.user_rating !== null ? `${(item.user_rating / 2).toFixed(1)}/5` : 'Unrated'}
-              </div>
+              {/* Always-on Top-Right Star Rating pill */}
+              {item.user_rating !== null && item.user_rating > 0 && (
+                <div className="absolute top-2 right-2 bg-[#0D0F14]/60 backdrop-blur-md px-2 py-1 rounded-xl text-xs font-bold text-white shadow-md transition-opacity flex items-center gap-1 tabular-nums z-40">
+                   <Star className="w-3 h-3 fill-[#FF6B00] text-[#FF6B00]" /> {item.user_rating}
+                </div>
+              )}
 
               <div className="absolute bottom-4 left-4 z-20 pointer-events-none group-hover:opacity-0 transition-opacity">
                  {item.is_date_known && (
@@ -137,7 +147,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
 
               {/* Progress Bar */}
               {(item.total_available ?? item.total_episodes) > 0 && (
-                <div className="absolute bottom-0 left-0 w-full h-1.5 bg-black/80 z-20 rounded-b-xl overflow-hidden">
+                <div className="absolute bottom-0 left-0 w-full h-1.5 bg-black/80 z-20 overflow-hidden">
                   <div
                     className={`h-full ${item.completed_eps === (item.total_available ?? item.total_episodes) ? 'bg-green-500' : 'bg-[#FF6B00]'}`}
                     style={{ width: `${Math.min(100, (item.completed_eps / (item.total_available ?? item.total_episodes)) * 100)}%` }}
