@@ -267,6 +267,7 @@ fn main() {
                 failed_image_syncs: failed_image_sync_queue.clone(),
                 is_scan_cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 is_scan_paused: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        live_playback_time: std::sync::Arc::new(std::sync::RwLock::new(0.0)),
             });
             tracing::info!("[APP] ⚙️ AppState successfully managed by Tauri. Thread pool restricted to {}", pool_size);
 
@@ -691,6 +692,7 @@ fn main() {
             commands::remove_local_link,
             commands::validate_and_hash_file,
             commands::update_local_file,
+            commands::get_live_playback_time,
             commands::get_settings,
             commands::save_settings,
             commands::update_log_settings,
