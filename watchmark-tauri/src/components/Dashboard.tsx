@@ -11,6 +11,7 @@ import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
 import { useHorizontalScroll } from "../hooks/useHorizontalScroll";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 // Types matching the Rust backend structure
 interface Episode {
@@ -139,7 +140,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide">
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
-        <div className="relative aspect-video w-full max-h-[450px] rounded-2xl overflow-hidden group">
+        <div className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 -mx-10 overflow-hidden rounded-b-3xl group mb-10" style={{ width: 'calc(100% + 5rem)' }}>
           <SafeImage
             srcPath={
               (data.hero_ep as any).still_path
@@ -159,19 +160,26 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             // SafeImage now returns a wrapper div when type="backdrop" containing motion.img
           />
           {/* Layered directional gradient: Bottom-left pure black fading up to top-right transparent */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] via-[#0D0F14]/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] from-0% via-[#0D0F14] via-20% to-transparent to-60%" />
+          {/* Secondary overlay for high-key images (fallback or always-on guard) */}
+          <div className="absolute inset-0 bg-black/20" />
 
-          <div className="absolute bottom-8 left-8 w-full max-w-2xl z-10 text-double-guard">
-            <h2 className="text-[#FF6B00] font-bold tracking-widest text-xs mb-2 uppercase text-double-guard">
-              {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume Session" : "Up Next"}
+          <div className="absolute bottom-12 left-12 w-full max-w-[70%] z-10 text-double-guard">
+            <h2 className="text-[#FF6B00] font-black tracking-[0.2em] text-[10px] mb-4 uppercase inline-block px-3 py-1 rounded-xl border border-[#FF6B00]/30 bg-black/40 backdrop-blur-sm">
+              {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume Session" : data.hero_ep.status === "Unwatched" ? "Start Series" : "Up Next"}
             </h2>
-            <h1 className="text-5xl font-black text-white mb-2 tracking-tighter truncate text-double-guard">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-3 tracking-tighter line-clamp-2 leading-tight [text-shadow:0_4px_12px_rgba(0,0,0,0.5)]">
               {data.hero_ep.show_title || "Unknown Show"}
             </h1>
-            <p className="text-lg text-muted mb-6 truncate font-normal text-double-guard">
+            <p className="text-lg text-[#A0AEC0] mb-8 truncate font-normal text-double-guard">
               {data.hero_ep.media_type === "TV"
-                ? `S${String(data.hero_ep.season_num).padStart(2, '0')}E${String(data.hero_ep.ep_num).padStart(2, '0')} - ${data.hero_ep.title || 'Unknown Episode'}`
+                ? (
+                  <>
+                    {data.hero_ep.season_num === 0 ? "SPECIAL" : `SEASON ${data.hero_ep.season_num}`}
+                    <span className="mx-2 opacity-30">•</span>
+                    {`EPISODE ${data.hero_ep.ep_num}${data.hero_ep.title ? ` - ${data.hero_ep.title}` : ''}`}
+                  </>
+                )
                 : data.hero_ep.title || "No Title"}
             </p>
 
@@ -247,7 +255,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           </div>
         </div>
       ) : (
-        <div className="w-full h-[450px] bg-[#1F222A]/80 backdrop-blur-xl rounded-2xl flex flex-col items-center justify-center text-center">
+        <div className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 -mx-10 overflow-hidden rounded-b-3xl bg-[#1F222A]/80 backdrop-blur-xl flex flex-col items-center justify-center text-center mb-10" style={{ width: 'calc(100% + 5rem)' }}>
           <h1 className="text-4xl font-bold mb-4 text-white">Welcome to WatchMark</h1>
           <p className="text-muted max-w-md">Scan your local folder or search TMDB to get started and build your library.</p>
         </div>

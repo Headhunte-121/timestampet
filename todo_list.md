@@ -1087,53 +1087,53 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Build the massive top banner of the Home Screen.**
 
-**8.1 Edge-to-edge relative Hero Banner container.** (Incomplete)
+**8.1 Edge-to-edge relative Hero Banner container.** (Complete)
 
-- [ ] Ensure the banner spans the absolute maximum width of the routing layout container.
-- [ ] Verify the height is locked to a specific dramatic ratio (e.g., `450px` or `50vh`).
-- [ ] Handle edge cases where the browser window is extremely wide (ensure image covers via `object-cover`).
-- [ ] Test the top edge seamlessly bleeds underneath the transparent Top Navigation bar.
-- [ ] Ensure the container strictly crops and hides any image overflow.
+- [x] Ensure the banner spans the absolute maximum width of the routing layout container.
+- [x] Verify the height is locked to a specific dramatic ratio (e.g., `450px` or `50vh`).
+- [x] Handle edge cases where the browser window is extremely wide (ensure image covers via `object-cover`).
+- [x] Test the top edge seamlessly bleeds underneath the transparent Top Navigation bar.
+- [x] Ensure the container strictly crops and hides any image overflow.
 
-**8.2 Custom Hero directional gradient (Solid Black Bottom-Left -> Transparent Top-Right).** (Incomplete)
+**8.2 Custom Hero directional gradient (Solid Black Bottom-Left -> Transparent Top-Right).** (Complete)
 
-- [ ] Verify the gradient originates strictly from the bottom-left corner.
-- [ ] Ensure the starting color matches the `body` background `#0D0F14` entirely to anchor the text.
-- [ ] Handle edge cases where bright images wash out the gradient (may require a secondary overlay).
-- [ ] Test the diagonal angle (e.g., `to-tr`) to ensure the center focal point remains visible.
-- [ ] Ensure text nested inside the bottom-left gradient region is perfectly legible.
+- [x] Verify the gradient originates strictly from the bottom-left corner.
+- [x] Ensure the starting color matches the `body` background `#0D0F14` entirely to anchor the text.
+- [x] Handle edge cases where bright images wash out the gradient (may require a secondary overlay).
+- [x] Test the diagonal angle (e.g., `to-tr`) to ensure the center focal point remains visible.
+- [x] Ensure text nested inside the bottom-left gradient region is perfectly legible.
 
-**8.3 Smart Hero detection logic (Automatically surfaces the most recently watched, unfinished show).** (Incomplete)
+**8.3 Smart Hero detection logic (Automatically surfaces the most recently watched, unfinished show).** (Complete)
 
-- [ ] Verify the backend query strictly targets `status = 'Watching'` and sorts by the most recent `History` timestamp.
-- [ ] Ensure it precisely calculates the lowest SxxExx episode that remains strictly 'Unwatched'.
-- [ ] Handle edge cases where all active shows are 100% finished (should fallback to a newly added show).
-- [ ] Test behavior if the database is completely empty (should display a welcoming fallback image).
-- [ ] Ensure the surfaced show dynamically updates the very second playback completes.
+- [x] Verify the backend query strictly targets `status = 'Watching'` and sorts by the most recent `History` timestamp.
+- [x] Ensure it precisely calculates the lowest SxxExx episode that remains strictly 'Unwatched'.
+- [x] Handle edge cases where all active shows are 100% finished (should fallback to a newly added show).
+- [x] Test behavior if the database is completely empty (should display a welcoming fallback image).
+- [x] Ensure the surfaced show dynamically updates the very second playback completes.
 
-**8.4 Dynamic Hero Status tag ('RESUME SESSION' if partially watched, 'UP NEXT' if new).** (Incomplete)
+**8.4 Dynamic Hero Status tag ('RESUME SESSION' if partially watched, 'UP NEXT' if new).** (Complete)
 
-- [ ] Verify 'RESUME SESSION' strictly appears if the specific episode's `last_position` is > 0.
-- [ ] Ensure 'UP NEXT' strictly appears if `last_position` is exactly 0 and it follows a completed episode.
-- [ ] Handle edge cases where it's the very first episode of a brand new show (e.g., 'START SERIES').
-- [ ] Test the UI tag uses the `#FF6B00` color consistently to grab attention.
-- [ ] Ensure the text is fully capitalized and uses tight tracking.
+- [x] Verify 'RESUME SESSION' strictly appears if the specific episode's `last_position` is > 0.
+- [x] Ensure 'UP NEXT' strictly appears if `last_position` is exactly 0 and it follows a completed episode.
+- [x] Handle edge cases where it's the very first episode of a brand new show (e.g., 'START SERIES').
+- [x] Test the UI tag uses the `#FF6B00` color consistently to grab attention.
+- [x] Ensure the text is fully capitalized and uses tight tracking.
 
-**8.5 Massive 48pt bold Hero title rendering.** (Incomplete)
+**8.5 Massive 48pt bold Hero title rendering.** (Complete)
 
-- [ ] Ensure the font size strictly scales or wraps elegantly on smaller window widths.
-- [ ] Verify standard truncation or CSS clamping (e.g., `line-clamp-2`) prevents infinite vertical expansion.
-- [ ] Handle edge cases where titles have incredibly long single words (e.g., German titles).
-- [ ] Test text shadow properties ensure readability regardless of the background.
-- [ ] Ensure the title accurately pulls from the Show, not the specific Episode.
+- [x] Ensure the font size strictly scales or wraps elegantly on smaller window widths.
+- [x] Verify standard truncation or CSS clamping (e.g., `line-clamp-2`) prevents infinite vertical expansion.
+- [x] Handle edge cases where titles have incredibly long single words (e.g., German titles).
+- [x] Test text shadow properties ensure readability regardless of the background.
+- [x] Ensure the title accurately pulls from the Show, not the specific Episode.
 
-**8.6 Hero Season/Episode specific subtitle formatting.** (Incomplete)
+**8.6 Hero Season/Episode specific subtitle formatting.** (Complete)
 
-- [ ] Ensure strings perfectly match standard format: 'Season X • Episode Y'.
-- [ ] Verify the episode's specific title is appended dynamically (e.g., '• Pilot').
-- [ ] Handle edge cases where the episode is a 'Special' (Season 0).
-- [ ] Test missing episode titles default securely to 'Episode Y' without throwing undefined.
-- [ ] Ensure font color strictly uses silver (`#A0AEC0`) for this sub-text.
+- [x] Ensure strings perfectly match standard format: 'Season X • Episode Y'.
+- [x] Verify the episode's specific title is appended dynamically (e.g., '• Pilot').
+- [x] Handle edge cases where the episode is a 'Special' (Season 0).
+- [x] Test missing episode titles default securely to 'Episode Y' without throwing undefined.
+- [x] Ensure font color strictly uses silver (`#A0AEC0`) for this sub-text.
 
 ## Micro-Feature 24: Dashboard "Continue Watching"
 
