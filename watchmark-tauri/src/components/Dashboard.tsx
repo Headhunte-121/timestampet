@@ -9,6 +9,8 @@ import { Play, Star } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
+import { useHorizontalScroll } from "../hooks/useHorizontalScroll";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Types matching the Rust backend structure
 interface Episode {
@@ -131,6 +133,9 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     m.title?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
+  const cwScroll = useHorizontalScroll<HTMLDivElement>();
+  const recentScroll = useHorizontalScroll<HTMLDivElement>();
+
   return (
     <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide">
       {/* A. Hero Banner (Up Next) */}
@@ -247,9 +252,25 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
 
       {/* B. Continue Watching (Horizontal Row) */}
       {filteredCW.length > 0 && (
-        <>
+        <div className="relative group/cw">
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Continue Watching</h2>
-          <motion.div layout className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x">
+
+          <button
+              onClick={cwScroll.scrollLeft}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-40 p-3 bg-black/40 backdrop-blur-md hover:bg-black/60 rounded-full text-white opacity-0 group-hover/cw:opacity-100 transition-opacity"
+              aria-label="Scroll left"
+          >
+              <ChevronLeft className="w-8 h-8" />
+          </button>
+          <button
+              onClick={cwScroll.scrollRight}
+              className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-40 p-3 bg-black/40 backdrop-blur-md hover:bg-black/60 rounded-full text-white opacity-0 group-hover/cw:opacity-100 transition-opacity"
+              aria-label="Scroll right"
+          >
+              <ChevronRight className="w-8 h-8" />
+          </button>
+
+          <motion.div ref={cwScroll.elRef} layout className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory pr-[20%]">
             <AnimatePresence mode="popLayout">
             {filteredCW.map((ep: any) => {
               const progress = calculateProgress(ep.last_position, ep.runtime);
@@ -270,7 +291,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                       onMediaSelect(ep.media_id);
                   }}
                   whileHover={isCinemaMode ? { scale: 1.02 } : {}}
-                  className="flex-none min-w-[320px] bg-[#1F222A] rounded-xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative transform-gpu"
+                  className="flex-none min-w-[320px] bg-[#1F222A] rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:ring-2 hover:ring-[#FF6B00]/50 snap-start shadow-lg relative transform-gpu focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14]"
                 >
                   <div className="w-full h-[180px] relative overflow-hidden bg-black/40">
                     <SafeImage
@@ -333,14 +354,30 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             })}
             </AnimatePresence>
           </motion.div>
-        </>
+        </div>
       )}
 
       {/* C. Recently Added (Poster Grid Row) */}
       {filteredRecent.length > 0 && (
-        <>
+        <div className="relative group/recent">
           <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Recently Added</h2>
-          <motion.div layout className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x pt-2">
+
+          <button
+              onClick={recentScroll.scrollLeft}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-40 p-3 bg-black/40 backdrop-blur-md hover:bg-black/60 rounded-full text-white opacity-0 group-hover/recent:opacity-100 transition-opacity"
+              aria-label="Scroll left"
+          >
+              <ChevronLeft className="w-8 h-8" />
+          </button>
+          <button
+              onClick={recentScroll.scrollRight}
+              className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-40 p-3 bg-black/40 backdrop-blur-md hover:bg-black/60 rounded-full text-white opacity-0 group-hover/recent:opacity-100 transition-opacity"
+              aria-label="Scroll right"
+          >
+              <ChevronRight className="w-8 h-8" />
+          </button>
+
+          <motion.div ref={recentScroll.elRef} layout className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x snap-mandatory pt-2 pr-[20%]">
             <AnimatePresence mode="popLayout">
             {filteredRecent.map((media: any) => {
               const posterUrl = media.poster_path ? formatImagePath(media.poster_path, "w500") : "";
@@ -358,7 +395,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                       onMediaSelect(media.id);
                   }}
                   whileHover={isCinemaMode ? { scale: 1.05, zIndex: 10 } : {}}
-                  className="relative flex-none w-[140px] md:w-[160px] lg:w-[180px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-shadow duration-300 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A] transform-gpu"
+                  className="relative flex-none w-[140px] md:w-[160px] lg:w-[180px] aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer group snap-start shadow-xl transition-shadow duration-300 hover:shadow-2xl hover:shadow-[#FF6B00]/10 bg-[#1F222A] transform-gpu focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14]"
                 >
                   <SafeImage
                     srcPath={posterUrl}
@@ -375,9 +412,12 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     </div>
                   </div>
 
-                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-bold text-[#FF6B00] shadow-md flex items-center gap-1">
-                    {media.user_rating === 0 ? '0.0' : '★'} {media.user_rating !== null ? (media.user_rating / 2).toFixed(1) : 'Unrated'}
-                  </div>
+                  {/* Always-on Top-Right Star Rating pill */}
+                  {media.user_rating !== null && media.user_rating > 0 && (
+                    <div className="absolute top-2 right-2 bg-[#0D0F14]/60 backdrop-blur-md px-2 py-1 rounded-xl text-xs font-bold text-white shadow-md flex items-center gap-1 tabular-nums">
+                       <Star className="w-3 h-3 fill-[#FF6B00] text-[#FF6B00]" /> {media.user_rating}
+                    </div>
+                  )}
 
                   {media.total_episodes > 0 && (
                     <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20">
@@ -392,7 +432,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             })}
             </AnimatePresence>
           </motion.div>
-        </>
+        </div>
       )}
 
       {/* D. Quick Stats */}

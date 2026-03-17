@@ -715,29 +715,29 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Ensure letter spacing (tracking) is slightly tightened on massive hero text.
 - [x] Use Tabular Figures for stats and numbers.
 
-**6.8 Perfect rounded-xl and rounded-2xl corner radii.** (Incomplete)
+**6.8 Perfect rounded-xl and rounded-2xl corner radii.** (Complete)
 
-- [ ] Verify primary surface cards strictly utilize `rounded-2xl`.
-- [ ] Ensure smaller elements like buttons and chips strictly utilize `rounded-xl`.
-- [ ] Handle edge cases where images inside a rounded container bleed out of the corners (`overflow-hidden`).
-- [ ] Test nested rounded elements to ensure corner radius math looks visually parallel.
-- [ ] Ensure focus rings (for keyboard navigation) precisely follow the rounded path.
+- [x] Verify primary surface cards strictly utilize `rounded-2xl`.
+- [x] Ensure smaller elements like buttons and chips strictly utilize `rounded-xl`.
+- [x] Handle edge cases where images inside a rounded container bleed out of the corners (`overflow-hidden`).
+- [x] Test nested rounded elements to ensure corner radius math looks visually parallel.
+- [x] Ensure focus rings (for keyboard navigation) precisely follow the rounded path.
 
-**6.9 Global scrollbar hiding (scrollbar-hide) for all horizontal carousels.** (Incomplete)
+**6.9 Global scrollbar hiding (scrollbar-hide) for all horizontal carousels.** (Complete)
 
-- [ ] Verify horizontal scrolling is purely driven by mouse-wheel capture or trackpad swiping.
-- [ ] Ensure visual affordances (cut-off images on the edge) exist since scrollbars are hidden.
-- [ ] Handle edge cases where users lack a scroll wheel (provide optional left/right arrow buttons).
-- [ ] Test smooth scrolling CSS properties to ensure flick-scrolling feels natural.
-- [ ] Ensure hiding the scrollbar doesn't accidentally disable keyboard accessibility (arrow keys).
+- [x] Verify horizontal scrolling is purely driven by mouse-wheel capture or trackpad swiping.
+- [x] Ensure visual affordances (cut-off images on the edge) exist since scrollbars are hidden.
+- [x] Handle edge cases where users lack a scroll wheel (provide optional left/right arrow buttons).
+- [x] Test smooth scrolling CSS properties to ensure flick-scrolling feels natural.
+- [x] Ensure hiding the scrollbar doesn't accidentally disable keyboard accessibility (arrow keys).
 
-**9.5 Always-on Top-Right Star Rating pill (Conditionally rendered if rated > 0).** (Incomplete)
+**9.5 Always-on Top-Right Star Rating pill (Conditionally rendered if rated > 0).** (Complete)
 
-- [ ] Verify the pill is absolutely positioned specifically in the top right corner (`top-2 right-2`).
-- [ ] Ensure it correctly evaluates the `user_rating` column, completely ignoring the TMDB `vote_average`.
-- [ ] Handle edge cases where the value is 0 or null (the pill must completely vanish).
-- [ ] Test the text formatting strictly outputs a string like '★ 4' or '★ 5/5'.
-- [ ] Ensure the background is a translucent black to remain visible on bright white posters.
+- [x] Verify the pill is absolutely positioned specifically in the top right corner (`top-2 right-2`).
+- [x] Ensure it correctly evaluates the `user_rating` column, completely ignoring the TMDB `vote_average`.
+- [x] Handle edge cases where the value is 0 or null (the pill must completely vanish).
+- [x] Test the text formatting strictly outputs a string like '★ 4' or '★ 5/5'.
+- [x] Ensure the background is a translucent black to remain visible on bright white posters.
 
 **9.6 Always-on Bottom-Left Original Release Year pill.** (Incomplete)
 

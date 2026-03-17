@@ -86,6 +86,15 @@ img[src$=".png"] {
   position: relative;
 }
 
+/* Hide scrollbar completely but allow scrolling */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
 /* Translucent surface cards */
 .surface-card {
   background-color: #1F222A;
