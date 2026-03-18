@@ -148,3 +148,28 @@ img[src$=".png"] {
 .text-double-guard {
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }
+
+/* Master Switch for Cinema Mode */
+[data-cinema-mode="false"] * {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
+/* Battery Saver Fallback Guard */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl,
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    background-color: #0D0F14 !important; /* Fallback solid color */
+  }
+}
