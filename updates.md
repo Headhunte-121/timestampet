@@ -685,3 +685,13 @@ Implemented features 12.1, 12.2, 12.6, 12.7, 12.8, and 12.9 to style the Media D
 *   **4.14 <90% Resume Logic & Zero-Second Reset**: Implemented <90% precision position capturing in the `Episodes` table. If the session finalizes before the engagement floor is met (< 5%), tracking is skipped without altering existing progress (Oops Guard protection). Implemented a Zero-Second Reset that listens to when `last_time_seconds <= 1.0` and appropriately wipes the `last_position` to `0` and reverts the `Episodes` table back to 'Unwatched', while strictly avoiding reverting previously completely 'Completed' episodes.
 *   **4.16 Real-time IPC event emission**: Extended the `vlc-closed` hook handling in React by broadcasting the `vlc-session-ended` event with the struct `{ mediaId, episodeId, finalStatus: "Completed" | "Watching" | "Ignored" }` exactly when `child.wait()` resolves in Rust, preventing ghost clicks and improving single-page reactivity.
 *   **4.17 Minimum threshold safety**: Handled short media clips < 5 minutes explicitly using a dedicated 10-second rule fallback alongside the 5% condition for standard feature-length media, keeping brief sessions from generating History logging.
+
+### Tasks [13.1, 13.2, 13.3] - History Sidebar Routing & Foundation
+- Created a robust "History" sidebar tab, ensuring "View Reset" behavior so when returning from library filters, state is fully cleared.
+- Added an instant "Shadow Render" using `fastHistory` in `useAppStore` loaded on app init, preventing any blank flashing when navigating to the tab.
+- Formulated an aesthetically impressive Empty State (Motivation Component) instructing users on the diary functionality.
+- Captured scrolling correctly via `#turbo-scroll-history` isolating movement from other panels.
+- Configured 50-item data chunking via `LIMIT 50 OFFSET` through intersection observers targeting the absolute bottom of the list for fully seamless background pagination.
+- Added strict performance optimizations utilizing Framer Motion's `whileInView` and `viewport` thresholds.
+- Created robust windowing arrays forcing strict length <= 500, intelligently applying `paddingTop` dynamically ensuring scrollbar and relative scroll anchor remain untouched.
+- Integrated central axis spine formatting with alternating Left/Right placement and connecting nodes, adhering flawlessly to design mocks.

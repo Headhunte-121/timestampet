@@ -89,6 +89,7 @@ function App() {
   useEffect(() => {
     logger.app("WatchMark Frontend successfully mounted.");
     initializeSettings();
+    useAppStore.getState().fetchFastHistory();
 
     // Setup dynamic font
     import("@tauri-apps/api/core").then(({ invoke, convertFileSrc }) => {
@@ -203,6 +204,7 @@ function App() {
 
     return () => {
       unlisten.then(fn => fn());
+      unlistenSessionEnded.then(fn => fn());
       unlistenResize.then(fn => fn());
       unlistenProgress.then(fn => fn());
       unlistenSyncProgress.then(fn => fn());
@@ -243,6 +245,11 @@ function App() {
           logger.navBack(`Return to ${currentView}`);
       } else if (view !== currentView) {
           logger.navTo(`'${navItems.find(i => i.id === view)?.label || view}' Tab`);
+      }
+
+      // 13.1 Dedicated 'History' sidebar routing tab View Reset command
+      if (view === "history") {
+          setGlobalSearchQuery("");
       }
 
       setCurrentView(view);
