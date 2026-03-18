@@ -13,6 +13,7 @@ import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { logger } from "../utils/logger";
 import { SafeImage } from "./ui/SafeImage";
 import { motion, AnimatePresence } from "framer-motion";
+import { useUiStore } from "../store/uiStore";
 
 export default function InboxView({ onMatch }: any) {
   const [unmatched, setUnmatched] = useState<any[]>([]);
@@ -29,10 +30,13 @@ export default function InboxView({ onMatch }: any) {
 
   const { setScanning, activeSyncs, isScanning, isScanPaused, setScanPaused } = useTaskStore();
   const asyncInvoke = useAsyncInvoke();
+  const { showConfirm } = useUiStore();
 
   useEffect(() => {
-    fetchUnmatched();
-  }, []);
+    if (!isScanning) {
+      fetchUnmatched();
+    }
+  }, [isScanning]);
 
   useEffect(() => {
     if (selectedGroup) {
@@ -323,6 +327,20 @@ export default function InboxView({ onMatch }: any) {
     }
   };
 
+  if (isScanning) {
+    return (
+      <div className="p-12 pb-24 pt-24 h-full flex flex-col items-center justify-center space-y-6">
+        <h1 className="text-4xl font-extrabold tracking-tight">Scan in Progress</h1>
+        <div className="flex space-x-2">
+          <div className="w-4 h-4 rounded-full bg-orange-500 animate-pulse"></div>
+          <div className="w-4 h-4 rounded-full bg-orange-500 animate-pulse delay-75"></div>
+          <div className="w-4 h-4 rounded-full bg-orange-500 animate-pulse delay-150"></div>
+        </div>
+        <p className="text-gray-400">Please wait while the directory is being scanned...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-12 pb-24 pt-24 h-full flex flex-col">
       <div className="flex justify-between items-center mb-8">
@@ -330,7 +348,11 @@ export default function InboxView({ onMatch }: any) {
         <div className="flex gap-4">
           <button
             onClick={async () => {
-              if (confirm("Are you sure you want to clear the entire Inbox? This will not delete any files.")) {
+              const confirmDelete = await showConfirm(
+                "Clear Inbox",
+                "This will only remove these items from the triage list. Your actual video files will not be touched."
+              );
+              if (confirmDelete) {
                 logger.inboxIgnore("Entire Inbox");
                 try {
                   await invoke("clear_unmatched_files");

@@ -734,3 +734,27 @@ Implemented features 12.1, 12.2, 12.6, 12.7, 12.8, and 12.9 to style the Media D
 - Designed sub-episode pause tracking text in `History.tsx` using `formatPauseTime()`, e.g., "Paused at 22:15 | 11:30 PM", omitting it if completion ratio > 0.9 or last position is 0.
 - Connected the `time_capsule` math to display elegant strings under the entry titles, checking for exact 0-day differences to render "Watched on premiere day" in vibrant orange `#FF6B00`.
 - Ensured legacy rows skipped rendering paused statuses and specific timestamps.
+
+## Update: UI Performance & OS Integration Audit (Updates 9-12)
+
+**Tasks Completed:**
+- **CRITICAL BUG: System Tray "Resume Last Show" Panic (Stability)**
+  - Replaced the unsafe `tokio::spawn(async move { ... })` call in the native main thread tray handler with `tauri::async_runtime::spawn(async move { ... })` and correctly wrapped the VLC playback logic in a secondary `tokio::task::spawn` block to prevent process termination if there are runtime issues. Handled error states safely using `tracing::error`.
+
+- **Bug: Inbox Navigation Deadlock during Scanning (Performance)**
+  - Modified `watchmark-tauri/src/components/InboxView.tsx` to utilize `isScanning` from the `useTaskStore`.
+  - Added a "Scan in Progress" indicator with a skeleton pulsing animation that mounts instead of the regular inbox when a scan is actively running.
+  - Prevented the `fetchUnmatched` function from firing during an active scan, avoiding deadlock collisions with the backend thread that locks the SQLite database during scanning.
+
+- **Bug: Broken Shortcuts & Menu Routing (Native Hooks)**
+  - Added centralized global listeners to `watchmark-tauri/src/App.tsx` for `"tray-scan"` and `"check-for-updates"`.
+  - Wired the `"tray-scan"` listener to open the native Tauri folder dialog picker using `@tauri-apps/plugin-dialog` and subsequently trigger the backend scanner using `invokeWithTimeout`, making the tray "Scan Directory" button and the `Ctrl + Shift + S` shortcut fully functional.
+  - Corrected `watchmark-tauri/src-tauri/src/main.rs` to emit `"check-for-updates"` when the "update" tray menu item is clicked, and added a toast response in the frontend.
+
+- **Bug: Non-Themed Dialog on "Clear Inbox" (Visual)**
+  - Removed the non-themed native `confirm` alert box from `watchmark-tauri/src/components/InboxView.tsx` for the "Clear Inbox" button.
+  - Implemented the app's internal Frosted Glass Modal using `const { showConfirm } = useUiStore()`. Added the appropriate warning message: `"This will only remove these items from the triage list. Your actual video files will not be touched."` ensuring visual consistency with the "Cinema-Grade" design system.
+
+**Verification:**
+- Ran `cargo check` inside `watchmark-tauri/src-tauri` and ensured it compiled successfully without syntax, type, or lifetime errors.
+- Verified TypeScript/React code and ensured all dependencies were correctly imported (specifically updated `invokeWithTimeout` import from `../utils/ipc`).

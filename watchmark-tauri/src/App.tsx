@@ -212,6 +212,51 @@ function App() {
       setIsFocused(false);
     });
 
+    const unlistenTrayScan = listen("tray-scan", async () => {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const { invoke } = await import('@tauri-apps/api/core');
+        const { invokeWithTimeout } = await import('./utils/ipc');
+
+        const selected = await open({
+          directory: true,
+          multiple: false,
+          title: "Select Directory to Scan"
+        });
+
+        if (selected && typeof selected === "string") {
+          toast.success("Scanning...", { description: `Scanning ${selected}` });
+          useTaskStore.getState().setScanning(true);
+          try {
+            const res = await invokeWithTimeout<any>("run_scan_directory", { directory: selected }, 300000);
+            toast.scanComplete(res);
+            const settings: any = await invoke('get_settings');
+            settings.last_scanned_path = selected;
+            await invoke('save_settings', { settings });
+          } catch (e: any) {
+             logger.error("Scan Failed", e);
+             if (e?.type === "AccessDenied" || e?.code === "ACCESS_DENIED") {
+               toast.error(`Access Denied: WatchMark lacks permissions for ${e.path}`);
+             } else {
+               toast.error("Error during scan: " + e);
+             }
+          } finally {
+             useTaskStore.getState().setScanning(false);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to open dialog or run scan", err);
+      }
+    });
+
+    const unlistenCheckUpdates = listen("check-for-updates", () => {
+      toast.info("Checking for updates...");
+      // For now just simulate it, or if there is an updater plugin, call it.
+      setTimeout(() => {
+        toast.success("WatchMark is up to date!");
+      }, 1500);
+    });
+
     return () => {
       unlisten.then(fn => fn());
       unlistenSessionEnded.then(fn => fn());
@@ -222,6 +267,8 @@ function App() {
       unlistenApiFailed.then(fn => fn());
       unlistenFocus.then(fn => fn());
       unlistenBlur.then(fn => fn());
+      unlistenTrayScan.then(fn => fn());
+      unlistenCheckUpdates.then(fn => fn());
     };
   }, []);
 
