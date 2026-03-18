@@ -498,14 +498,23 @@ fn main() {
                                         // Spawn VLC (non-blocking) using vlc.rs functionality or directly.
                                         let app_handle = app.clone();
 
-                                        tokio::spawn(async move {
-                                            let state = app_handle.state::<commands::AppState>();
-                                            if let Err(e) = crate::vlc::play_episode_cmd(app_handle.clone(), ep_id, file_path, last_position, state).await {
-                                                let _ = app_handle.notification()
-                                                    .builder()
-                                                    .title("WatchMark")
-                                                    .body(format!("Cannot resume: {}", e))
-                                                    .show();
+                                        tauri::async_runtime::spawn(async move {
+                                            let app_handle_clone = app_handle.clone();
+
+                                            // Handle potential panics from VLC or DB
+                                            let play_result = tokio::task::spawn(async move {
+                                                let state = app_handle_clone.state::<commands::AppState>();
+                                                crate::vlc::play_episode_cmd(app_handle_clone.clone(), ep_id, file_path, last_position, state).await
+                                            }).await;
+
+                                            match play_result {
+                                                Ok(Err(e)) => {
+                                                    tracing::error!("Error playing from system tray: {}", e);
+                                                }
+                                                Err(e) => {
+                                                    tracing::error!("Task panicked or cancelled from system tray: {:?}", e);
+                                                }
+                                                _ => {}
                                             }
                                         });
                                     }
@@ -520,7 +529,9 @@ fn main() {
                             }
                         }
                         "update" => {
-                            // Placeholder for update check
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.emit("check-for-updates", ());
+                            }
                         }
                         "quit" => {
                             std::process::exit(0);
