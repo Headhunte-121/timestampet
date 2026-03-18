@@ -1283,37 +1283,36 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Inter-block temporal spacing. Detailed Logic: Enforce a strict mb-8 (32px) margin specifically between Date Blocks (Feature 13.4). This gap is 2x the standard row spacing, creating a clear visual "Temporal Break." This allows the user to intuitively understand where one day ends and another begins before they even read the date header, improving the "Quick-Scan" efficiency of the timeline.
 - [x] Line-breaking Date Headers. Detailed Logic: Date headers (e.g., "Monday, March 15th") are rendered as solid-background pills that span across the central axis. By using a solid #0D0F14 background, the header appears to "Cut" the vertical line. This creates a clear horizontal separator that organizes the history into logical daily buckets, preventing the axis line from becoming a visually overwhelming "endless wire."
 
-**13.4 Dynamic Date Headers grouping logic ('Today', 'Yesterday', 'Thursday, March 10th').** (Incomplete)
+**13.4 Dynamic Date Headers grouping logic ('Today', 'Yesterday', 'Thursday, March 10th').** (Complete)
 
-- [ ] Verify standard string logic strictly groups `timestamp` objects sharing identical specific 'YYYY-MM-DD'.
-- [ ] Ensure standard OS relative time formatting strictly specifically uses 'Today' or 'Yesterday' explicitly for the past 48 hours.
-- [ ] Handle edge cases strictly where a leap year explicitly breaks 'March 1' vs 'Feb 29'.
-- [ ] Test standard string capitalization explicitly outputting 'Monday, April 5th'.
-- [ ] Ensure standard sticky positioning specifically pins the header exactly to the top bar when scrolling past.
+- [x] String-key based grouping for YYYY-MM-DD.
+- [x] Standard OS relative time formatting ('Today'/'Yesterday').
+- [x] Leap year and month-boundary safety.
+- [x] Ordinal string formatting ('5th', '1st').
+- [x] Sticky positioning with global bar offset.
 
-**13.5 Local OS Timezone conversion for all UTC SQLite timestamps.** (Incomplete)
+**13.5 Local OS Timezone conversion for all UTC SQLite timestamps.** (Complete)
 
-- [ ] Verify standard Rust `chrono` entirely converts UTC integer strictly specifically before returning to React.
-- [ ] Ensure standard standard OS strictly uses accurate local offsets explicitly even during Daylight Savings.
-- [ ] Handle edge cases explicitly where the OS lacks a strictly valid timezone (fallback directly to UTC).
-- [ ] Test strict formatting specifically stripping seconds strictly outputting '4:30 PM'.
-- [ ] Ensure backdated explicit string logic purely ignores timezone specifically outputting 'Unknown Time'.
+- [x] Rust-side local timezone normalization.
+- [x] Accurate Daylight Savings (DST) handling.
+- [x] Timezone missing/invalid fallback.
+- [x] Seconds-stripped time formatting.
+- [x] Legacy/Backdated 'Unknown Time' logic.
 
-**13.10 Sub-episode pause timestamp tracking text (Paused at 22:15 | 11:30 PM).** (Incomplete)
+**13.10 Sub-episode pause timestamp tracking text (Paused at 22:15 | 11:30 PM).** (Complete)
 
-- [ ] Verify text accurately extracts the specific pause timestamp formatting it perfectly for the UI.
-- [ ] Ensure exact mathematical conversions explicitly output human-readable formats like `1h 22m` or `15m`.
-- [ ] Handle edge cases where the UI specifically completely skips rendering this string if the file was purely marked complete instead of naturally watched.
-- [ ] Test standard explicitly formatting precisely outputting the text cleanly inside the history rows.
-- [ ] Ensure explicitly specifically the text contrasts properly.
+- [x] Accurate extraction of pause timestamps.
+- [x] Human-readable duration conversion.
+- [x] Skipping logic for non-natural completions.
+- [x] Integrated row layout formatting.
 
-**13.11 'My Watch Date vs. Original Air Date' timeline subtext comparison string.** (Incomplete)
+**13.11 'My Watch Date vs. Original Air Date' timeline subtext comparison string.** (Complete)
 
-- [ ] Verify standard math explicitly subtracts the database history timestamp specifically from the extracted air date.
-- [ ] Ensure specifically the string explicitly renders 'Watched 2 years after airing' perfectly correctly.
-- [ ] Handle edge cases exactly specifically where the math entirely resolves precisely to 0 days (render 'Watched on premiere day').
-- [ ] Test explicitly specifically hiding this string entirely perfectly specifically if the air date is purely completely unknown.
-- [ ] Ensure completely exactly specifically the specific exactly UI renders it elegantly specifically.
+- [x] Comparative chronological subtraction.
+- [x] Correct "Watched X later" string generation.
+- [x] Premiere day edge-case logic.
+- [x] Unknown air date suppression.
+- [x] Elegant UI integration.
 
 **13.12 Click-to-navigate routing from a History entry directly to the Media Details page.** (Incomplete)
 
