@@ -111,3 +111,32 @@ Update 8: Framer Motion 1.5 & Zustand
 
 ❌ Missing or Broken:
 - 30-Second "Ken Burns" scale effect: The slow, 30-second panning/scaling animation applied to the Hero Banner background image in `Dashboard.tsx` is completely missing.
+
+Update 9: Memory Optimizations & Modal Polish
+✅ Intact & Active:
+- SQLite Connection Pooling (`src-tauri/src/db.rs`): Utilizes `OnceLock` with `Mutex<Connection>` to maintain a single global connection.
+- SQLite PRAGMA Tuning (`src-tauri/src/db.rs`): Explicitly executes `PRAGMA cache_size = -2000;`.
+- Background Scanning IPC (`src-tauri/src/scanner.rs` & `commands.rs`): Scanner loop batches unmatched files into chunks of 50 and uses `app_handle.emit("scan-match-batch", ...)` to send them to the React frontend iteratively, preventing RAM spikes.
+- Rust Compilation Size (`src-tauri/Cargo.toml`): Contains `[profile.release]` block configured for maximum size reduction (`opt-level = "z"`, `lto = true`, `codegen-units = 1`).
+- VLC Loop Verification (`src-tauri/src/vlc.rs`): The `vlc_heartbeat` loop correctly breaks when the VLC process dies or fails 3 consecutive HTTP probes, ensuring no zombie threads leak memory.
+- Window Title Fix (`index.html`): The `<title>` tag is explicitly set to "WatchMark" to ensure it looks like a native OS executable.
+
+🔄 Superseded & Evolved:
+- React Image Caches (`src/components/Library.tsx`): The custom `LazyImage` component replacing `src` with a 1x1 transparent pixel data-URI on unmount was completely superseded by the `VirtualPoster` component in Update 77, which leverages a custom `IntersectionObserver` to entirely unmount off-screen DOM nodes and replace them with empty layout-preserving `div` blocks.
+- Fixed White Horizontal Scrollbars (`src/components/MediaDetails.tsx`): The Season Tabs were updated to cleanly wrap to a new line using `flex-wrap` without scrollbars. This layout was completely superseded by Update 81, which rewrote them into horizontal scrolling pill-style tabs via `flex-row overflow-x-auto whitespace-nowrap`.
+
+❌ Missing or Broken:
+- Replaced Native Browser Dialogs (`src/components/SettingsView.tsx` & `MediaDetails.tsx`): The specific custom `CustomDialog` and `CustomConfirmDialog` components mentioned are missing/not found as distinct components. However, generic native replacements and UI Store modals (`Modal.tsx`, `useUiStore.showConfirm`) currently handle this logic. (Flagging as missing strictly because the explicitly named `CustomDialog` component is absent).
+
+Update 10: Native Desktop UI Modernization
+✅ Intact & Active:
+- Toast Notifications (`src/utils/toast.ts`): The `sonner` package is actively installed and utilized across the application to provide sleek dark notifications instead of blocking `window.alert()` popups.
+- Native File Browser (`src/components/SettingsView.tsx`): Uses the `@tauri-apps/plugin-dialog` Rust/NPM plugin to open the actual native OS file explorer when clicking "Scan Directory" or browsing for the VLC executable.
+- Window Title Fix (`src-tauri/tauri.conf.json` & `index.html`): Permanently sets the application title to "WatchMark".
+
+🔄 Superseded & Evolved:
+- Clean Flex-Wrap Seasons List (`src/components/MediaDetails.tsx`): Removed the horizontal scroll restriction and added `flex-wrap` and `gap-2` so season buttons automatically flowed onto a second line. As noted in Update 9, this was completely superseded by Update 81, which reverted them back to a single-line horizontal scrolling row (`overflow-x-auto`) using momentum side-scrolling.
+- Custom Desktop Modals: The custom lightweight React+Tailwind `Modal` components replacing native `window.confirm()` actions were evolved. Currently, `showConfirm` relies on `useUiStore` and `Modal.tsx` directly.
+
+❌ Missing or Broken:
+None identified.
