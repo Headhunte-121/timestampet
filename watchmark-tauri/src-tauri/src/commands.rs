@@ -2561,7 +2561,7 @@ pub fn resume_active_scan(state: tauri::State<'_, AppState>) -> Result<(), AppEr
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(app, state))]
-pub async fn perform_tmdb_search(request_id: String, query: String, page: Option<u32>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+pub async fn perform_tmdb_search(request_id: String, query: String, year: Option<String>, page: Option<u32>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
     if !state.is_api_authorized.load(Ordering::SeqCst) {
         return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
     }
@@ -2603,7 +2603,7 @@ pub async fn perform_tmdb_search(request_id: String, query: String, page: Option
             _ = token.cancelled() => {
                 Err(AppError::Custom("Search Task Cancelled".to_string()))
             }
-            res = crate::tmdb::search_media(&api_key, &query, p) => {
+            res = crate::tmdb::search_media(&api_key, &query, year.as_deref(), p) => {
                 match res {
                     Ok(results) => Ok(results),
                     Err(e) => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { motion } from 'framer-motion';
 import { Eye } from 'lucide-react';
+import { useAppStore } from '../../store/useAppStore';
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   srcPath: string;
@@ -21,6 +22,7 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 
 export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, className, title, fallbackSrcPath, episodeNumber, releaseDate, isDateKnown, isExactDate, isFallbackImage, potentialSpoiler, isCompleted, ...rest }) => {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const { isCinemaMode } = useAppStore();
   const [hasError, setHasError] = useState(false);
   const [fallbackFailed, setFallbackFailed] = useState(false);
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
@@ -161,7 +163,6 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
   }
 
   if (type === 'backdrop') {
-    const isCinemaMode = document.documentElement.getAttribute('data-cinema-mode') !== 'false';
     const isHeroBackdrop = className?.includes('hero-backdrop-animation');
 
     return (

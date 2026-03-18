@@ -231,6 +231,8 @@ function App() {
     document.documentElement.setAttribute('data-cinema-mode', isCinemaMode.toString());
   }, [isCinemaMode]);
 
+  // WARNING: DO NOT PLACE ANY HOOKS (useState, useEffect, useMemo, etc.) BELOW THIS LINE.
+  // ALL HOOKS MUST BE DECLARED ABOVE THIS EARLY RETURN TO PREVENT RULES-OF-HOOKS VIOLATIONS.
   if (!initialized) {
     return null; // or a simple spinner
   }
