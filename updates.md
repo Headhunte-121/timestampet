@@ -695,3 +695,42 @@ Implemented features 12.1, 12.2, 12.6, 12.7, 12.8, and 12.9 to style the Media D
 - Added strict performance optimizations utilizing Framer Motion's `whileInView` and `viewport` thresholds.
 - Created robust windowing arrays forcing strict length <= 500, intelligently applying `paddingTop` dynamically ensuring scrollbar and relative scroll anchor remain untouched.
 - Integrated central axis spine formatting with alternating Left/Right placement and connecting nodes, adhering flawlessly to design mocks.
+
+### Watch History Timeline Formatting & Timezones
+**Tasks:** 13.4, 13.5, 13.10, 13.11
+
+**Rust Backend (`fetch_history`)**
+- Added `iana-time-zone` and `chrono-tz` to `Cargo.toml`.
+- Updated `fetch_history` in `commands.rs` to fetch the OS local timezone via `iana_time_zone::get_timezone()` and parse it with `chrono_tz`.
+- Translated UTC SQLite timestamps into OS local `NaiveDateTime` objects.
+- Returned `formatted_date` (YYYY-MM-DD), `formatted_time` (h:mm A), and a `is_utc_fallback` flag to the frontend.
+- Bypassed timezone formatting for legacy rows (displaying "Unknown Time").
+- Maintained the gap duration math for "Watch Date vs. Original Air Date" comparisons within Rust.
+
+**React Frontend (`History.tsx`)**
+- Grouped timeline entries dynamically by `formatted_date` (YYYY-MM-DD) natively, determining if `needsDateHeader` is true compared to the previous row.
+- Rendered sticky date headers (top-[64px] offset for navbar) resolving absolute dates to relative values ("Today", "Yesterday") and formatting older dates ("Monday, March 10th") via `formatRelativeDate()`.
+- Implemented `getOrdinalSuffix()` for 'th', 'st', 'nd', 'rd' formatting.
+- Designed sub-episode pause tracking text in `History.tsx` using `formatPauseTime()`, e.g., "Paused at 22:15 | 11:30 PM", omitting it if completion ratio > 0.9 or last position is 0.
+- Connected the `time_capsule` math to display elegant strings under the entry titles, checking for exact 0-day differences to render "Watched on premiere day" in vibrant orange `#FF6B00`.
+- Ensured legacy rows skipped rendering paused statuses and specific timestamps.
+
+
+### Watch History Timeline Formatting & Timezones
+**Tasks:** 13.4, 13.5, 13.10, 13.11
+
+**Rust Backend (`fetch_history`)**
+- Added `iana-time-zone` and `chrono-tz` to `Cargo.toml`.
+- Updated `fetch_history` in `commands.rs` to fetch the OS local timezone via `iana_time_zone::get_timezone()` and parse it with `chrono_tz`.
+- Translated UTC SQLite timestamps into OS local `NaiveDateTime` objects.
+- Returned `formatted_date` (YYYY-MM-DD), `formatted_time` (h:mm A), and a `is_utc_fallback` flag to the frontend.
+- Bypassed timezone formatting for legacy rows (displaying "Unknown Time").
+- Maintained the gap duration math for "Watch Date vs. Original Air Date" comparisons within Rust.
+
+**React Frontend (`History.tsx`)**
+- Grouped timeline entries dynamically by `formatted_date` (YYYY-MM-DD) natively, determining if `needsDateHeader` is true compared to the previous row.
+- Rendered sticky date headers (top-[64px] offset for navbar) resolving absolute dates to relative values ("Today", "Yesterday") and formatting older dates ("Monday, March 10th") via `formatRelativeDate()`.
+- Implemented `getOrdinalSuffix()` for 'th', 'st', 'nd', 'rd' formatting.
+- Designed sub-episode pause tracking text in `History.tsx` using `formatPauseTime()`, e.g., "Paused at 22:15 | 11:30 PM", omitting it if completion ratio > 0.9 or last position is 0.
+- Connected the `time_capsule` math to display elegant strings under the entry titles, checking for exact 0-day differences to render "Watched on premiere day" in vibrant orange `#FF6B00`.
+- Ensured legacy rows skipped rendering paused statuses and specific timestamps.
