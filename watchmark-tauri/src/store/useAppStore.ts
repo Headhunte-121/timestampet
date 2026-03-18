@@ -7,10 +7,12 @@ interface AppState {
   initialized: boolean;
   isApiAuthorized: boolean;
   isOffline: boolean;
+  fastHistory: any[];
   setCinemaMode: (mode: boolean) => Promise<void>;
   setApiAuthorized: (authorized: boolean) => void;
   setOffline: (offline: boolean) => void;
   initializeSettings: () => Promise<void>;
+  fetchFastHistory: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -18,12 +20,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   initialized: false,
   isApiAuthorized: true,
   isOffline: false,
+  fastHistory: [],
   setApiAuthorized: (authorized: boolean) => set({ isApiAuthorized: authorized }),
   setOffline: (offline: boolean) => set({ isOffline: offline }),
   setCinemaMode: async (mode: boolean) => {
     set({ isCinemaMode: mode });
     // Note: We intentionally do not auto-save to the backend here.
     // The SettingsView component handles batching and saving via the user's explicit action.
+  },
+  fetchFastHistory: async () => {
+    try {
+      const history = await invoke('fetch_history', { requestId: "fast_history_init", page: 0, pageSize: 10 });
+      set({ fastHistory: history as any[] });
+    } catch (e) {
+      logger.error("Failed to load fast history", e);
+    }
   },
   initializeSettings: async () => {
     if (get().initialized) return;
