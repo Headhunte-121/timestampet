@@ -73,11 +73,24 @@ export default function InboxView({ onMatch }: any) {
     return acc;
   }, {});
 
+  const extractTitleAndYear = (str: string) => {
+    // Look for a 4-digit number between 1900 and 2100 at the end of the string or in parentheses
+    const match = str.match(/(.*?)(?:\s*\(?((?:19|20)\d{2})\)?)?$/);
+    if (match) {
+        return {
+            title: match[1].trim(),
+            year: match[2] || undefined
+        };
+    }
+    return { title: str, year: undefined };
+  };
+
   const performSearchForGroup = async (groupKey: string) => {
     if (!groupKey.trim()) return;
     setIsSearching(true);
     try {
-      const res: any = await asyncInvoke("perform_tmdb_search", { query: groupKey, page: 1 });
+      const { title, year } = extractTitleAndYear(groupKey);
+      const res: any = await asyncInvoke("perform_tmdb_search", { query: title, year: year, page: 1 });
       if (res) setSearchResults(res);
     } catch (e: any) {
       if (e?.toString().includes("reading 'invoke'")) {
@@ -96,7 +109,8 @@ export default function InboxView({ onMatch }: any) {
 
   const handleGroupSelect = (key: string) => {
     setSelectedGroup(key);
-    setSearchQuery(key);
+    const { title } = extractTitleAndYear(key);
+    setSearchQuery(title);
     setSearchResults([]);
     setManualTarget(null);
     performSearchForGroup(key);

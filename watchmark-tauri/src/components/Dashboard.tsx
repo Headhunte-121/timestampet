@@ -66,10 +66,12 @@ interface EpisodeExtended extends Episode {
     potential_spoiler?: boolean;
 }
 
+import { listen } from "@tauri-apps/api/event";
+
 export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery = "" }: { onMediaSelect: (id: number) => void, refreshTrigger: number, searchQuery?: string }) {
   const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<DashboardData | null>(null);
-  const [isVlcLaunching, setIsVlcLaunching] = useState(false);
+  const [isPlaybackActive, setIsPlaybackActive] = useState(false);
   const asyncInvoke = useAsyncInvoke();
   const cwScroll = useHorizontalScroll<HTMLDivElement>();
   const recentScroll = useHorizontalScroll<HTMLDivElement>();
@@ -84,6 +86,16 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
         // Fallback or empty state if needed
       });
   }, [refreshTrigger, asyncInvoke]);
+
+  useEffect(() => {
+    const unlisten = listen("vlc-session-ended", () => {
+      setIsPlaybackActive(false);
+    });
+
+    return () => {
+      unlisten.then(fn => fn());
+    };
+  }, []);
 
     const heroRemainingTime = useMemo(() => {
     if (!data?.hero_ep) return null;
@@ -148,7 +160,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide">
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
-        <div className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 -mx-10 overflow-hidden rounded-b-3xl group mb-10" style={{ width: 'calc(100% + 5rem)' }}>
+        <div className="relative w-[calc(100%+5rem)] lg:w-[calc(100%+16rem+5rem)] h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 -ml-10 lg:-ml-[calc(16rem+2.5rem)] overflow-hidden rounded-b-3xl group mb-10">
           <SafeImage
             srcPath={
               (data.hero_ep as any).still_path
@@ -163,7 +175,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
             isFallbackImage={(data.hero_ep as any).is_fallback_image}
             potentialSpoiler={(data.hero_ep as any).potential_spoiler}
             isCompleted={data.hero_ep.status === "Completed"}
-            className="w-full h-full object-cover origin-center"
+            className="w-full h-full object-cover origin-center hero-backdrop-animation"
             // Note: Since SafeImage uses motion.img under the hood, standard style pass-through applies, but to properly pass framer props we cast or just rely on the fallback structure.
             // SafeImage now returns a wrapper div when type="backdrop" containing motion.img
           />
@@ -197,8 +209,8 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                 whileTap={data.hero_ep.file_path ? { scale: 0.95 } : {}}
                 transition={{ type: "spring", stiffness: 400, damping: 10 }}
                 onClick={() => {
-                  if (isVlcLaunching) return;
-                  setIsVlcLaunching(true);
+                  if (isPlaybackActive) return;
+                  setIsPlaybackActive(true);
                   logger.click(`'Resume' on Hero (${data.hero_ep!.show_title} S${data.hero_ep!.season_num}E${data.hero_ep!.ep_num})`);
                   logger.ipcSend("play_episode_cmd", `Episode ${data.hero_ep!.id}`);
                   invoke("play_episode_cmd", {
@@ -207,11 +219,9 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     lastPosition: data.hero_ep!.last_position,
                   }).then(() => {
                     logger.ipcSuccess("VLC successfully launched. Waiting for heartbeat...");
-                    // A proper implementation would listen to a VLC event,
-                    // but we'll reset after a short timeout to prevent getting stuck
-                    setTimeout(() => setIsVlcLaunching(false), 2000);
+                    // We remain active until vlc-session-ended is fired.
                   }).catch(e => {
-                    setIsVlcLaunching(false);
+                    setIsPlaybackActive(false);
                     logger.error("VLC Launch Failed", e);
                     if (e === "VLC_AUTH_ERROR") {
                       toast.error("VLC Authentication Error: Failed to inject dynamic password or bind to port.", { duration: 8000 });
@@ -229,8 +239,11 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                 style={data.hero_ep.file_path ? { boxShadow: "0 4px 14px 0 rgba(255, 107, 0, 0.39)" } : {}}
               >
                 {data.hero_ep.file_path ? (
-                  isVlcLaunching ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                  isPlaybackActive ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-white" />
+                      Now Playing
+                    </>
                   ) : (
                     <>
                       <Icon icon={Play} fill="currentColor" className="w-5 h-5" />
@@ -277,7 +290,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           </div>
         </div>
       ) : (
-        <div className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 -mx-10 overflow-hidden rounded-b-3xl bg-[#1F222A]/80 backdrop-blur-xl flex flex-col items-center justify-center text-center mb-10" style={{ width: 'calc(100% + 5rem)' }}>
+        <div className="relative w-[calc(100%+5rem)] lg:w-[calc(100%+16rem+5rem)] h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 -ml-10 lg:-ml-[calc(16rem+2.5rem)] overflow-hidden rounded-b-3xl bg-[#1F222A]/80 backdrop-blur-xl flex flex-col items-center justify-center text-center mb-10">
           <h1 className="text-4xl font-bold mb-4 text-white">Welcome to WatchMark</h1>
           <p className="text-muted max-w-md">Scan your local folder or search TMDB to get started and build your library.</p>
         </div>

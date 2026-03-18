@@ -161,15 +161,25 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
   }
 
   if (type === 'backdrop') {
+    const isCinemaMode = document.documentElement.getAttribute('data-cinema-mode') !== 'false';
+    const isHeroBackdrop = className?.includes('hero-backdrop-animation');
+
     return (
       <div className={`relative overflow-hidden z-0 ${isLoaded ? '' : 'animate-pulse'} ${className || ''}`} style={!isLoaded ? { background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' } : undefined}>
         <motion.img
           src={imgSrc!}
           alt={altText}
-          className={`absolute inset-0 w-full h-full object-cover z-10`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isLoaded ? 1 : 0 }}
-          transition={{ duration: 0.6, ease: "easeInOut" }}
+          className={`absolute inset-0 w-full h-full object-cover z-10 origin-center`}
+          initial={{ opacity: 0, scale: 1 }}
+          animate={
+            isLoaded
+              ? { opacity: 1, scale: isHeroBackdrop && isCinemaMode ? [1, 1.05, 1] : 1 }
+              : { opacity: 0, scale: 1 }
+          }
+          transition={{
+            opacity: { duration: 0.6, ease: "easeInOut" },
+            scale: isHeroBackdrop && isCinemaMode ? { duration: 30, repeat: Infinity, ease: "linear" } : { duration: 0 }
+          }}
           onLoad={() => setIsLoaded(true)}
           onError={handleImageError}
           {...rest as any}

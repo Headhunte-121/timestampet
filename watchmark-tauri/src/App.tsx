@@ -292,6 +292,10 @@ function App() {
 
 
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-cinema-mode', isCinemaMode.toString());
+  }, [isCinemaMode]);
+
   return (
     <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
     <div className="h-screen overflow-hidden flex bg-cinema-black text-white selection:bg-brand-orange/30">
@@ -331,7 +335,7 @@ function App() {
         animate={{ x: isMobileMenuOpen ? 0 : (window.innerWidth < 1024 ? "-100%" : 0) }}
         transition={{ type: "spring", bounce: 0, duration: 0.4 }}
         className={cn(
-          "fixed lg:relative z-50 h-full flex flex-col sidebar-parent transition-all duration-300",
+          "fixed z-50 h-full flex flex-col sidebar-parent transition-all duration-300",
           "w-64 min-w-[256px] max-w-[256px]",
           "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5 lg:translate-x-0",
           !isFocused ? "grayscale-[20%] opacity-90" : "grayscale-0 opacity-100"
@@ -396,7 +400,7 @@ function App() {
       </motion.aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col relative overflow-hidden min-w-0">
+      <main className="flex-1 flex flex-col relative overflow-hidden min-w-0 lg:pl-64 w-full">
         <Toaster theme="dark" position="bottom-right" richColors />
         <Modal />
         <ProcessingModal />
