@@ -55,3 +55,30 @@ None identified. While Tauri v2's native `assetProtocol` was enabled later in Up
 
 ❌ Missing or Broken:
 None identified.
+
+Update 5: Zero Background CPU & Error Architecture
+✅ Intact & Active:
+- Zero Background CPU Logic (`src-tauri/src/vlc.rs`): `tokio::process::Command` async child process handle, `tokio::select!` for concurrent waiting on process exit or 5-second `tokio::time::interval`, idle/zombie detection (`consecutive_failures`), and async HTTP polling (`reqwest::Client`).
+- Graceful Panic Handling (`src-tauri/src/error.rs`): `thiserror` based custom `AppError` enum wrapping standard errors into user-friendly serialized strings.
+- Global `catch_unwind` Boundary: Wrote `handle_panic` that intercepts raw strings, appends to `watchmark.log`, and catches panics before tearing down Tauri.
+- Audited `.unwrap()` Calls: Safely propagated `?` error mappings across `commands.rs`.
+
+🔄 Superseded & Evolved:
+None identified.
+
+❌ Missing or Broken:
+None identified.
+
+Update 6: Layout Integrity & Hardware Acceleration
+✅ Intact & Active:
+- Tailwind Configuration (`tailwind.config.js`): Safelists array, Rust pathing in content array, and Semantic color palette injected (`brand-orange`, `cinema-black`, `surface-gray`).
+- Global Shell Architecture (`src/App.tsx`): Flex container (`flex-1 overflow-hidden min-w-0`) wrapped around the main content to preserve sidebar scroll behavior.
+- Semantic Colors Applied: Swapped hardcoded shell colors for semantic equivalents like `bg-cinema-black` and `selection:bg-brand-orange/30` in `src/App.tsx`.
+- Responsive Layout Integrity (`src/components/Library.tsx`): Clamp logic `grid-cols-[repeat(auto-fill,minmax(180px,1fr))]` utilized to preserve exact 2:3 aspect ratio posters on larger screens.
+- Global Typography: The `antialiased` font smoothing class was confirmed intact via `src/index.css`.
+
+🔄 Superseded & Evolved:
+- Extreme Aspect Ratios (`src/components/Dashboard.tsx`): The Hero Banner previously relied on `aspect-video max-h-[450px]`. This was completely superseded in Update 89 by `h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 -mx-10` to force edge-to-edge bleed under the new sticky navigation bar.
+
+❌ Missing or Broken:
+- Hardware Acceleration & Blur Fallbacks (`src/App.tsx`): The `transform-gpu`, `will-change-transform`, and `motion-reduce:bg-surface-gray motion-reduce:backdrop-blur-none` classes originally applied to the glassy sidebar are missing and have been stripped/lost from the component's `className`.
