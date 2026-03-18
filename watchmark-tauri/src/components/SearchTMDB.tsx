@@ -158,7 +158,7 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
   });
 
   return (
-    <div className="max-w-[1800px] mx-auto px-6 py-24 pb-24 relative">
+    <div className="max-w-[1800px] mx-auto px-6 lg:pl-[280px] py-24 pb-24 relative w-full h-full">
       <div className="flex items-center gap-4 mb-8 justify-between">
         <h1 className="text-4xl font-extrabold tracking-tight">Discover Media</h1>
         <div className="flex items-center bg-[#1F222A] p-1 rounded-full border border-white/5 shadow-inner">
@@ -266,8 +266,8 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
             key={`${item.type}-${item.tmdb_id}`}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ scale: 1.05 }}
-            transition={{ delay: (i % 20) * 0.05, duration: 0.2 }}
+            whileHover={document.documentElement.getAttribute('data-cinema-mode') !== 'false' ? { scale: 1.05 } : {}}
+            transition={document.documentElement.getAttribute('data-cinema-mode') !== 'false' ? { delay: (i % 20) * 0.05, duration: 0.2 } : { duration: 0 }}
             className={cn(
               "relative aspect-[2/3] bg-[#1F222A] rounded-xl overflow-hidden group shadow-md hover:shadow-2xl transition-shadow",
               filteredResults.length <= 2 ? "w-[180px] md:w-[220px] flex-none" : "w-full"

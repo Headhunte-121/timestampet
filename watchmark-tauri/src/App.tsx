@@ -335,7 +335,7 @@ function App() {
       <motion.aside
         initial={false}
         animate={{ x: isMobileMenuOpen ? 0 : (window.innerWidth < 1024 ? "-100%" : 0) }}
-        transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+        transition={isCinemaMode ? { type: "spring", bounce: 0, duration: 0.4 } : { duration: 0 }}
         className={cn(
           "fixed z-50 h-full flex flex-col sidebar-parent transition-all duration-300",
           "w-64 min-w-[256px] max-w-[256px]",
@@ -402,7 +402,7 @@ function App() {
       </motion.aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col relative overflow-hidden min-w-0 lg:pl-64 w-full">
+      <main className="flex-1 flex flex-col relative overflow-hidden min-w-0 w-full pl-0 lg:pl-0">
         <Toaster theme="dark" position="bottom-right" richColors />
         <Modal />
         <ProcessingModal />

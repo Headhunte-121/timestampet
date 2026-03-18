@@ -149,11 +149,6 @@ img[src$=".png"] {
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }
 
-/* Master Switch for Cinema Mode */
-[data-cinema-mode="false"] * {
-  transition-duration: 0ms !important;
-  animation-duration: 0ms !important;
-}
 
 /* Battery Saver Fallback Guard */
 @media (prefers-reduced-motion: reduce) {
