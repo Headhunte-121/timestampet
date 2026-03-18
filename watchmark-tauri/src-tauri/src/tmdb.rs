@@ -82,21 +82,29 @@ pub async fn validate_key(api_key: &str) -> Result<bool, AppError> {
 
 use std::collections::HashSet;
 
-pub async fn search_media(api_key: &str, query: &str, page: u32) -> Result<Vec<Value>, AppError> {
+pub async fn search_media(api_key: &str, query: &str, year: Option<&str>, page: u32) -> Result<Vec<Value>, AppError> {
     // Strip non-printable control characters from the query
     let safe_query: String = query.chars().filter(|c| !c.is_control()).collect();
 
     let url = format!("{}/search/multi", TMDB_API_BASE);
 
+    let page_str = page.to_string();
+    let mut query_params = vec![
+        ("api_key", api_key),
+        ("query", safe_query.as_str()),
+        ("language", "en-US"),
+        ("page", page_str.as_str()),
+        ("include_adult", "false"),
+    ];
+
+    if let Some(y) = year {
+        query_params.push(("year", y));
+        query_params.push(("first_air_date_year", y));
+    }
+
     let res: Value = NETWORK_MANAGER.external_client
         .get(&url)
-        .query(&[
-            ("api_key", api_key),
-            ("query", safe_query.as_str()),
-            ("language", "en-US"),
-            ("page", &page.to_string()),
-            ("include_adult", "false"),
-        ])
+        .query(&query_params)
         .send()
         .await
         .map_err(crate::network::NetworkManager::handle_error)?

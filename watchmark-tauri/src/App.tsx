@@ -227,6 +227,12 @@ function App() {
 
   const { isScanning } = useTaskStore();
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-cinema-mode', isCinemaMode.toString());
+  }, [isCinemaMode]);
+
+  // WARNING: DO NOT PLACE ANY HOOKS (useState, useEffect, useMemo, etc.) BELOW THIS LINE.
+  // ALL HOOKS MUST BE DECLARED ABOVE THIS EARLY RETURN TO PREVENT RULES-OF-HOOKS VIOLATIONS.
   if (!initialized) {
     return null; // or a simple spinner
   }
@@ -291,10 +297,6 @@ function App() {
 
 
 
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-cinema-mode', isCinemaMode.toString());
-  }, [isCinemaMode]);
 
   return (
     <MotionConfig transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
