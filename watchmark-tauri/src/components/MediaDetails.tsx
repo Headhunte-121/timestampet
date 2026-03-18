@@ -578,7 +578,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
             </div>
           ) : (
             data.episodes?.filter((ep: any) => ep.season_num === activeSeason).map((ep: any) => {
-             return <EpisodeRow key={ep.id} ep={ep} data={data} mediaId={mediaId} setContextMenu={setContextMenu} processingRef={processingRef} completedCountDiff={completedCountDiff} setCompletedCountDiff={setCompletedCountDiff} />
+             return <EpisodeRow key={ep.id} ep={ep} data={data} setContextMenu={setContextMenu} processingRef={processingRef} setCompletedCountDiff={setCompletedCountDiff} />
             })
           )}
         </div>
@@ -648,7 +648,7 @@ const InteractiveStarRating = React.memo(({ initialRating, mediaId }: { initialR
   );
 });
 
-function EpisodeRow({ ep, data, mediaId, setContextMenu, processingRef, completedCountDiff, setCompletedCountDiff }: any) {
+function EpisodeRow({ ep, data, setContextMenu, processingRef, setCompletedCountDiff }: any) {
   const stillUrl = ep.still_path ? formatImagePath(ep.still_path, "w500") : "";
   const fallbackUrl = data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : "";
   const [localStatus, setLocalStatus] = useState(ep.status);
@@ -719,8 +719,6 @@ function EpisodeRow({ ep, data, mediaId, setContextMenu, processingRef, complete
                                                     if (selected && typeof selected === 'string') {
                                                         await invoke("update_local_file", { episodeId: ep.id, newPath: selected });
                                                         toast.success("File linked successfully!");
-                                                        // Refresh data
-                                                        asyncInvoke("get_media_details_db", { mediaId }).then((res: any) => { if (res) setData(res); });
                                                         // Play new file
                                                         invoke("play_episode_cmd", {
                                                             episodeId: ep.id,

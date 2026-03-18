@@ -2310,6 +2310,10 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
             let limit = page_size.unwrap_or(100);
             let offset = page.unwrap_or(0) * limit;
 
+            let os_tz_name = iana_time_zone::get_timezone().unwrap_or_else(|_| "UTC".to_string());
+            let tz: Option<chrono_tz::Tz> = os_tz_name.parse().ok();
+            let _is_utc_fallback = tz.is_none();
+
             let mut stmt = conn.prepare(
                 "
                 SELECT h.id as hist_id, h.timestamp, h.session_id, h.is_legacy, h.start_time, h.end_time, h.pause_count, h.completion_ratio,
@@ -2367,15 +2371,36 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                 let last_position = row.get::<_, Option<i32>>(15)?.unwrap_or(0);
                 let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
+                let is_legacy = row.get::<_, i32>(3)? == 1;
+
+                let (formatted_date, formatted_time, is_utc) = if is_legacy {
+                    ("Unknown".to_string(), "Unknown Time".to_string(), false)
+                } else {
+                    let (dt, is_utc) = if let Some(tz_parsed) = tz {
+                        if let Some(utc_dt) = chrono::Utc.timestamp_opt(ts, 0).single() {
+                            (utc_dt.with_timezone(&tz_parsed).naive_local(), false)
+                        } else {
+                            (chrono::Utc.timestamp_opt(ts, 0).single().unwrap().naive_utc(), true)
+                        }
+                    } else {
+                        (chrono::Utc.timestamp_opt(ts, 0).single().unwrap().naive_utc(), true)
+                    };
+                    (dt.format("%Y-%m-%d").to_string(), dt.format("%-I:%M %p").to_string(), is_utc)
+                };
+
                 history.push(json!({
                     "hist_id": row.get::<_, i32>(0)?,
                     "timestamp": ts,
+                    "formatted_date": formatted_date,
+                    "formatted_time": formatted_time,
+                    "is_utc_fallback": is_utc,
                     "session_id": session_id,
-                    "is_legacy": row.get::<_, i32>(3)?,
+                    "is_legacy": is_legacy,
                     "start_time": row.get::<_, Option<String>>(4)?.unwrap_or_default(),
                     "end_time": row.get::<_, Option<String>>(5)?.unwrap_or_default(),
                     "pause_count": row.get::<_, i32>(6)?,
                     "completion_ratio": row.get::<_, f64>(7)?,
+                    "last_position": last_position,
                     "episode_id": ep_id,
                     "season_num": row.get::<_, u32>(9)?,
                     "ep_num": row.get::<_, u32>(10)?,

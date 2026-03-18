@@ -94,6 +94,55 @@ export default function History() {
     return date.toLocaleDateString("en-US", { weekday: "short" });
   };
 
+  const getOrdinalSuffix = (d: number) => {
+    if (d > 3 && d < 21) return 'th';
+    switch (d % 10) {
+      case 1:  return "st";
+      case 2:  return "nd";
+      case 3:  return "rd";
+      default: return "th";
+    }
+  };
+
+  const formatPauseTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const formatRelativeDate = (dateString: string) => {
+    if (!dateString || dateString === "Unknown" || dateString === "0000-00-00") return "Unknown Date";
+
+    // Parse strictly as local date based on YYYY-MM-DD
+    const parts = dateString.split("-");
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (d.getTime() === today.getTime()) {
+      return "Today";
+    } else if (d.getTime() === yesterday.getTime()) {
+      return "Yesterday";
+    }
+
+    const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+    const month = d.toLocaleDateString("en-US", { month: "long" });
+    const day = d.getDate();
+    return (
+      <span>
+        <span className="text-[#A0AEC0]">{weekday}, </span>
+        <span className="text-white">{month} {day}{getOrdinalSuffix(day)}</span>
+      </span>
+    );
+  };
+
   return (
     <div id="turbo-scroll-history" className="h-full overflow-y-auto p-12 pt-24">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Watch History</h1>
@@ -135,15 +184,15 @@ export default function History() {
             // Date block generation (placeholder formatting - assume daily grouping will be implemented in subsequent feature 13.4 logic)
             // But we inject the structural classes for mb-8 spacing here.
             // 13.3.4 Inter-block temporal spacing.
-            const needsDateHeader = i === 0 || new Date(history[i-1].main_entry.timestamp * 1000).toDateString() !== new Date(entry.timestamp * 1000).toDateString();
+            const needsDateHeader = i === 0 || history[i-1].main_entry.formatted_date !== entry.formatted_date;
 
             return (
               <div key={i} className={`relative mb-8 z-10 w-full`}>
 
                 {needsDateHeader && (
-                  <div className="flex justify-start lg:justify-center w-full mb-8 relative z-20 pointer-events-none">
-                     <div className="bg-[#0D0F14] px-4 py-1 ml-12 lg:ml-0 rounded-full font-bold text-sm text-white/80 border border-white/10 shadow-xl">
-                       {new Date(entry.timestamp * 1000).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric'})}
+                  <div className="flex justify-start lg:justify-center w-full mb-8 sticky top-[64px] z-30 pointer-events-none">
+                     <div className="bg-[#0D0F14] px-4 py-1 ml-12 lg:ml-0 rounded-full font-bold text-sm text-white/80 border border-white/10 shadow-xl pointer-events-auto">
+                       {formatRelativeDate(entry.formatted_date)}
                      </div>
                   </div>
                 )}
@@ -199,29 +248,44 @@ export default function History() {
                               : entry.ep_title}
                           </p>
                         )}
-                        <div className="mt-2 flex gap-4 text-sm font-medium flex-wrap">
+                        <div className="mt-2 flex gap-4 text-sm font-medium flex-wrap items-center">
                           <span className="text-[#FF6B00]">
-                            {new Date(entry.timestamp * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                            {entry.last_position > 0 && entry.completion_ratio < 0.9 && !isLegacy ? (
+                              <>
+                                Paused at {formatPauseTime(entry.last_position)} <span className="mx-2 opacity-20">|</span> {entry.formatted_time}
+                              </>
+                            ) : (
+                              entry.formatted_time
+                            )}
                           </span>
                           {entry.time_capsule && (
                             <span
-                              className={`px-2 rounded-md font-bold whitespace-nowrap ${
+                              className={`text-[11px] mt-1 whitespace-nowrap ${
                                 entry.time_capsule.is_early
-                                  ? "bg-blue-500/20 text-blue-400"
-                                  : "bg-white/10 text-gray-300"
+                                  ? "text-blue-400"
+                                  : entry.time_capsule.total_days === 0
+                                  ? "text-[#FF6B00] font-bold"
+                                  : "text-[#A0AEC0]"
                               }`}
                             >
                               {entry.time_capsule.is_early
                                 ? "Early Watch"
                                 : entry.time_capsule.total_days === 0
-                                ? "Watched on Release Day"
+                                ? "Watched on premiere day"
                                 : `Watched ${
-                                    entry.time_capsule.years > 0 ? `${entry.time_capsule.years}y ` : ""
-                                  }${
-                                    entry.time_capsule.months > 0 ? `${entry.time_capsule.months}m ` : ""
-                                  }${
-                                    entry.time_capsule.days > 0 ? `${entry.time_capsule.days}d ` : ""
-                                  }later`.trim()}
+                                    entry.time_capsule.years > 1 ? `${entry.time_capsule.years} years` :
+                                    entry.time_capsule.years === 1 ? `1 year` :
+                                    entry.time_capsule.months > 1 ? `${entry.time_capsule.months} months` :
+                                    entry.time_capsule.months === 1 ? `1 month` :
+                                    entry.time_capsule.days > 1 ? `${entry.time_capsule.days} days` :
+                                    entry.time_capsule.days === 1 ? `1 day` : "0 days"
+                                  } after airing`}
+                            </span>
+                          )}
+                          {entry.is_utc_fallback && (
+                            <span className="text-[#A0AEC0] text-[11px] flex items-center gap-1" title="Displayed in Universal Time">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                              UTC
                             </span>
                           )}
                         </div>
