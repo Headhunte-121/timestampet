@@ -87,13 +87,6 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
     };
   }, [srcPath, type]);
 
-  if (type === 'backdrop' && (fallbackSrcPath === 'gradient' || hasError || !imgSrc)) {
-    return (
-      <div className={`relative overflow-hidden ${className || ''}`} style={{ background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' }}>
-      </div>
-    );
-  }
-
   const handleImageError = (e: any) => {
     try {
       e.target.style.opacity = '0';
@@ -114,22 +107,22 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
     }
   };
 
-  if (hasError || !imgSrc) {
-    if (type === 'poster') {
-      const year = isDateKnown
-        ? (isExactDate ? (releaseDate ? releaseDate.substring(0, 4) : '') : releaseDate)
-        : 'TBD';
+  if (hasError || !imgSrc || (type === 'backdrop' && fallbackSrcPath === 'gradient')) {
+    const year = isDateKnown
+      ? (isExactDate ? (releaseDate ? releaseDate.substring(0, 4) : '') : releaseDate)
+      : 'TBD';
 
+    if (type === 'poster' || type === 'backdrop') {
       return (
         <div
-          className={`flex flex-col items-center justify-center bg-[#1F222A] text-center p-4 rounded-xl ${className || ''}`}
+          className={`relative overflow-hidden flex flex-col items-center justify-center text-center p-4 ${type === 'poster' ? 'rounded-xl' : ''} ${className || ''}`}
+          style={{ background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' }}
         >
-          {/* Logo or placeholder if you wanted to add WatchMark logo explicitly here */}
-          <span className="text-white font-bold drop-shadow-md text-sm md:text-base leading-tight break-words z-10 uppercase tracking-tight">
+          <span className="text-white font-bold drop-shadow-md text-sm md:text-base md:text-2xl leading-tight break-words z-10 uppercase tracking-tight">
             {title || altText || 'Unknown Title'}
           </span>
-          {year && (
-            <span className="text-[#A0AEC0] font-bold drop-shadow-md text-xs mt-2 z-10 tabular-nums">
+          {year && year !== 'TBD' && (
+            <span className="text-[#A0AEC0] font-bold drop-shadow-md text-xs md:text-lg mt-2 z-10 tabular-nums">
               {year}
             </span>
           )}
@@ -155,18 +148,13 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
         );
       }
       return (
-        <div className={`relative bg-gradient-to-tr from-[#0D0F14] to-[#1F222A] overflow-hidden border border-[#2A2D35] ${className || ''}`}>
-          <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1280&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay"></div>
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-10">
-             <span className="text-white font-bold text-3xl drop-shadow-lg tracking-wider uppercase opacity-90">
-               {episodeNumber ? `EP ${episodeNumber}` : (title || "EP")}
-             </span>
-          </div>
-        </div>
-      );
-    } else if (type === 'backdrop') {
-      return (
-        <div className={`relative overflow-hidden ${className || ''}`} style={{ background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' }}>
+        <div
+          className={`relative overflow-hidden flex flex-col items-center justify-center text-center p-4 border border-[#2A2D35] ${className || ''}`}
+          style={{ background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' }}
+        >
+          <span className="text-white font-bold text-3xl drop-shadow-lg tracking-wider uppercase opacity-90 z-10">
+            {episodeNumber ? `EP ${episodeNumber}` : (title || "EP")}
+          </span>
         </div>
       );
     }
@@ -174,7 +162,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
 
   if (type === 'backdrop') {
     return (
-      <div className={`relative overflow-hidden z-0 bg-gradient-to-tr from-[#1F222A] to-[#2A2D35] animate-pulse ${className || ''}`}>
+      <div className={`relative overflow-hidden z-0 ${isLoaded ? '' : 'animate-pulse'} ${className || ''}`} style={!isLoaded ? { background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' } : undefined}>
         <motion.img
           src={imgSrc!}
           alt={altText}

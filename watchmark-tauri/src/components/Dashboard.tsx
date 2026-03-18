@@ -136,8 +136,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
 
   const filteredCW: EpisodeExtended[] = data.cw_eps?.filter((ep: any) =>
     !searchQuery ||
-    ep.show_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ep.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    ep.show_title?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
   const filteredRecent = data.recent_media?.filter((m: any) =>
@@ -506,15 +505,15 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       {/* D. Quick Stats */}
       <h2 className="text-2xl font-bold mt-12 mb-6 text-white">Your Stats</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
+        <div className="bg-[#1F222A]/40 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/60 shadow-xl flex flex-col items-center justify-center text-center">
           <h3 className="text-sm font-normal text-muted uppercase tracking-widest mb-2">Shows Tracked</h3>
           <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md tabular-nums">{data.stats.shows_completed}</p>
         </div>
-        <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
+        <div className="bg-[#1F222A]/40 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/60 shadow-xl flex flex-col items-center justify-center text-center">
           <h3 className="text-sm font-normal text-muted uppercase tracking-widest mb-2">Hours Watched</h3>
           <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md tabular-nums">{data.stats.hrs_watched}</p>
         </div>
-        <div className="bg-[#1F222A]/60 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/80 shadow-xl flex flex-col items-center justify-center text-center">
+        <div className="bg-[#1F222A]/40 backdrop-blur-md rounded-2xl p-6 border border-white/5 transition-all duration-300 hover:bg-[#1F222A]/60 shadow-xl flex flex-col items-center justify-center text-center">
           <h3 className="text-sm font-normal text-muted uppercase tracking-widest mb-2">Average Rating</h3>
           <p className="text-5xl font-black text-[#FF6B00] drop-shadow-md flex items-center justify-center gap-2 tabular-nums">
             <Icon icon={Star} className="w-8 h-8 fill-current" /> {data.stats.avg_rating.toFixed(1)}
