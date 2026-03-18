@@ -82,3 +82,61 @@ Update 6: Layout Integrity & Hardware Acceleration
 
 ❌ Missing or Broken:
 - Hardware Acceleration & Blur Fallbacks (`src/App.tsx`): The `transform-gpu`, `will-change-transform`, and `motion-reduce:bg-surface-gray motion-reduce:backdrop-blur-none` classes originally applied to the glassy sidebar are missing and have been stripped/lost from the component's `className`.
+
+Update 7: Data Stability & Inbox Triage Flow
+✅ Intact & Active:
+- Secure Database Location (`src-tauri/src/db.rs`): DB connection properly routes `watchmark.db` and the cache into the OS's native AppData directory (via `ProjectDirs::from("com", "WatchMark", "WatchMark")`), preventing Vite hot-reloading loop crashes.
+- Inbox Triage Modal (`src/components/InboxView.tsx`): The Inbox functions as an active triage center. Clicking a group lists files in a secondary pane, and there is a `+ Search TMDB & Add Tracker` button that launches the Search Modal.
+- `assign_unmatched_to_tracker` Command (`src-tauri/src/commands.rs`): Securely takes unmatched files, links them to episodes inside `Local_Files`, and auto-deletes them from the `Unmatched_Files` database queue.
+- Async `tokio::task::spawn_blocking` (`src-tauri/src/commands.rs`): Both `add_to_tracker` and `assign_unmatched_to_tracker` wrap their heavy DB operations in `spawn_blocking` to prevent UI freezing and race conditions.
+- Missing TMDB API Key Silence (`src-tauri/src/commands.rs`): Hard checks exist in `add_to_tracker` and `assign_unmatched_to_tracker` to return a `Missing TMDB API Key.` error if the user's key is blank.
+
+🔄 Superseded & Evolved:
+- UI Responsiveness Breakpoints: Originally applied rigid width breakpoints (`w-[140px] md:w-[160px] lg:w-[180px]`) to the "Recently Added" grid in `Library.tsx` and `Dashboard.tsx`. `Library.tsx` was explicitly superseded by the fluid CSS grid logic `grid-cols-[repeat(auto-fill,minmax(180px,1fr))]` in Update 16.1.
+- `TypeError` browser crash handlers: Originally wrapped raw `invoke()` calls in `InboxView.tsx` to prevent browser crashes. This was superseded by the global `useAsyncInvoke.ts` hook implementation in Update 43 which centralizes IPC error handling.
+
+❌ Missing or Broken:
+None identified.
+
+Update 8: Framer Motion 1.5 & Zustand
+✅ Intact & Active:
+- Zustand & Global Cinema Mode: Managed in `src/store/useAppStore.ts` with an `isCinemaMode` boolean state. Applied globally in `App.tsx` via `<MotionConfig transition={isCinemaMode ? ... : { duration: 0 }}>`.
+- Navigation Fluidity (`src/App.tsx`): View switching is wrapped inside `<AnimatePresence mode="wait">` to create smooth crossfades between pages instead of instant swaps.
+- Advanced Grid Rendering (`src/components/Library.tsx` & `Dashboard.tsx`): Poster grids and carousels use `<AnimatePresence mode="popLayout">`. `Dashboard.tsx` utilizes `layout="position"` to allow elements to slide dynamically.
+- Cascading Deletes & UI Lockout (`src/components/MediaDetails.tsx`): An `isAnimatingRef` locks the "Remove Show" button to prevent spam clicking. The `delete_media_cmd` in `commands.rs` performs a secure SQLite `DELETE FROM Media` leveraging `ON DELETE CASCADE` and properly wipes cached images.
+- Subpixel Anti-Aliasing: `transform-gpu` utilities are appended to interactive motion elements (e.g. `Dashboard.tsx` posters) to leverage hardware acceleration and prevent text blurring.
+
+🔄 Superseded & Evolved:
+- Staggered entry animations: The `isInitialStagger` logic for the first 20 items using `whileInView` optimizations in `Library.tsx` is structurally present but effectively bypassed/superseded by the `VirtualPoster` IntersectionObserver windowing rendering logic from Update 77.
+
+❌ Missing or Broken:
+- 30-Second "Ken Burns" scale effect: The slow, 30-second panning/scaling animation applied to the Hero Banner background image in `Dashboard.tsx` is completely missing.
+
+Update 9: Memory Optimizations & Modal Polish
+✅ Intact & Active:
+- SQLite Connection Pooling (`src-tauri/src/db.rs`): Utilizes `OnceLock` with `Mutex<Connection>` to maintain a single global connection.
+- SQLite PRAGMA Tuning (`src-tauri/src/db.rs`): Explicitly executes `PRAGMA cache_size = -2000;`.
+- Background Scanning IPC (`src-tauri/src/scanner.rs` & `commands.rs`): Scanner loop batches unmatched files into chunks of 50 and uses `app_handle.emit("scan-match-batch", ...)` to send them to the React frontend iteratively, preventing RAM spikes.
+- Rust Compilation Size (`src-tauri/Cargo.toml`): Contains `[profile.release]` block configured for maximum size reduction (`opt-level = "z"`, `lto = true`, `codegen-units = 1`).
+- VLC Loop Verification (`src-tauri/src/vlc.rs`): The `vlc_heartbeat` loop correctly breaks when the VLC process dies or fails 3 consecutive HTTP probes, ensuring no zombie threads leak memory.
+- Window Title Fix (`index.html`): The `<title>` tag is explicitly set to "WatchMark" to ensure it looks like a native OS executable.
+
+🔄 Superseded & Evolved:
+- React Image Caches (`src/components/Library.tsx`): The custom `LazyImage` component replacing `src` with a 1x1 transparent pixel data-URI on unmount was completely superseded by the `VirtualPoster` component in Update 77, which leverages a custom `IntersectionObserver` to entirely unmount off-screen DOM nodes and replace them with empty layout-preserving `div` blocks.
+- Fixed White Horizontal Scrollbars (`src/components/MediaDetails.tsx`): The Season Tabs were updated to cleanly wrap to a new line using `flex-wrap` without scrollbars. This layout was completely superseded by Update 81, which rewrote them into horizontal scrolling pill-style tabs via `flex-row overflow-x-auto whitespace-nowrap`.
+
+❌ Missing or Broken:
+- Replaced Native Browser Dialogs (`src/components/SettingsView.tsx` & `MediaDetails.tsx`): The specific custom `CustomDialog` and `CustomConfirmDialog` components mentioned are missing/not found as distinct components. However, generic native replacements and UI Store modals (`Modal.tsx`, `useUiStore.showConfirm`) currently handle this logic. (Flagging as missing strictly because the explicitly named `CustomDialog` component is absent).
+
+Update 10: Native Desktop UI Modernization
+✅ Intact & Active:
+- Toast Notifications (`src/utils/toast.ts`): The `sonner` package is actively installed and utilized across the application to provide sleek dark notifications instead of blocking `window.alert()` popups.
+- Native File Browser (`src/components/SettingsView.tsx`): Uses the `@tauri-apps/plugin-dialog` Rust/NPM plugin to open the actual native OS file explorer when clicking "Scan Directory" or browsing for the VLC executable.
+- Window Title Fix (`src-tauri/tauri.conf.json` & `index.html`): Permanently sets the application title to "WatchMark".
+
+🔄 Superseded & Evolved:
+- Clean Flex-Wrap Seasons List (`src/components/MediaDetails.tsx`): Removed the horizontal scroll restriction and added `flex-wrap` and `gap-2` so season buttons automatically flowed onto a second line. As noted in Update 9, this was completely superseded by Update 81, which reverted them back to a single-line horizontal scrolling row (`overflow-x-auto`) using momentum side-scrolling.
+- Custom Desktop Modals: The custom lightweight React+Tailwind `Modal` components replacing native `window.confirm()` actions were evolved. Currently, `showConfirm` relies on `useUiStore` and `Modal.tsx` directly.
+
+❌ Missing or Broken:
+None identified.
