@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { LayoutDashboard, Tv, Film, Search, Inbox, Clock, Settings, Menu } from "lucide-react";
+import { LayoutDashboard, Tv, Film, Search, Inbox, Clock, Settings, Menu, XCircle } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
@@ -31,7 +31,6 @@ export type View = "dashboard" | "tv" | "movies" | "search" | "inbox" | "history
 function App() {
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
-  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const asyncInvoke = useAsyncInvoke();
 
   // Settings Navigation Guard
@@ -43,7 +42,7 @@ function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
-  const { isCinemaMode, initialized, initializeSettings, setApiAuthorized } = useAppStore();
+  const { isCinemaMode, initialized, initializeSettings, setApiAuthorized, searchQuery: globalSearchQuery, setSearchQuery: setGlobalSearchQuery } = useAppStore();
 
   const isImporting = useTaskStore((state) => state.isImporting);
   const importProgress = useTaskStore((state) => state.progress);
@@ -90,6 +89,13 @@ function App() {
     logger.app("WatchMark Frontend successfully mounted.");
     initializeSettings();
     useAppStore.getState().fetchFastHistory();
+
+    const handleWindowScroll = () => {
+        setIsHeaderScrolled(window.scrollY > 10);
+    };
+
+    // Add global scroll listener to window
+    window.addEventListener("scroll", handleWindowScroll);
 
     // Setup dynamic font
     import("@tauri-apps/api/core").then(({ invoke, convertFileSrc }) => {
@@ -140,6 +146,10 @@ function App() {
             });
         }).catch(e => console.error("Failed to import invoke:", e));
     }
+
+    return () => {
+        window.removeEventListener("scroll", handleWindowScroll);
+    };
   }, [initializeSettings]);
 
   useEffect(() => {
@@ -436,7 +446,7 @@ function App() {
         <header
           data-tauri-drag-region
           className={cn(
-            "absolute top-0 left-0 right-0 z-40 h-16 flex-shrink-0 flex items-center justify-between px-4 transition-colors duration-300 border-b border-white/5 select-none",
+            "absolute top-0 left-0 right-0 z-40 h-16 flex-shrink-0 flex items-center justify-between px-4 transition-all duration-300 border-b border-white/5 select-none",
             isHeaderScrolled ? "bg-[#0D0F14]/80 backdrop-blur-md" : "bg-transparent"
           )}
         >
@@ -483,8 +493,22 @@ function App() {
                 placeholder="Quick Search..."
                 value={globalSearchQuery}
                 onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-normal"
+                id="global-search-input"
+                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-10 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-normal"
               />
+              {globalSearchQuery.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGlobalSearchQuery("");
+                    const input = document.getElementById('global-search-input') as HTMLInputElement;
+                    if (input) input.focus();
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <Icon icon={XCircle} className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </form>
 
@@ -501,7 +525,7 @@ function App() {
         <div
           className="flex-1 overflow-y-auto relative"
           onScroll={(e) => {
-            setIsHeaderScrolled(e.currentTarget.scrollTop > 10);
+            setIsHeaderScrolled(e.currentTarget.scrollTop > 10 || window.scrollY > 10);
           }}
         >
 
@@ -522,8 +546,22 @@ function App() {
                 placeholder="Quick Search..."
                 value={globalSearchQuery}
                 onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-6 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-normal"
+                id="global-search-input-mobile"
+                className="w-full bg-[#1F222A]/80 backdrop-blur-xl text-white pl-12 pr-10 py-2 rounded-full border border-white/5 focus:outline-none focus:border-[#FF6B00]/50 transition-colors shadow-lg text-sm font-normal"
               />
+              {globalSearchQuery.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGlobalSearchQuery("");
+                    const input = document.getElementById('global-search-input-mobile') as HTMLInputElement;
+                    if (input) input.focus();
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <Icon icon={XCircle} className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </form>
 

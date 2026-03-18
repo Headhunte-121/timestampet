@@ -8,6 +8,8 @@ interface AppState {
   isApiAuthorized: boolean;
   isOffline: boolean;
   fastHistory: any[];
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
   setCinemaMode: (mode: boolean) => Promise<void>;
   setApiAuthorized: (authorized: boolean) => void;
   setOffline: (offline: boolean) => void;
@@ -21,6 +23,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   isApiAuthorized: true,
   isOffline: false,
   fastHistory: [],
+  searchQuery: "",
+  setSearchQuery: (query: string) => set({ searchQuery: query }),
   setApiAuthorized: (authorized: boolean) => set({ isApiAuthorized: authorized }),
   setOffline: (offline: boolean) => set({ isOffline: offline }),
   setCinemaMode: async (mode: boolean) => {
