@@ -64,8 +64,6 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
       return;
     }
 
-    let urlToRevoke: string | null = null;
-
     // Try to parse the source path. If it's a local path, use convertFileSrc.
     // If it's already an HTTP URL (e.g. from TMDB directly), use it as is.
     try {
@@ -74,19 +72,11 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
       } else {
         const fileUrl = convertFileSrc(srcPath);
         setImgSrc(fileUrl);
-        urlToRevoke = fileUrl;
       }
     } catch {
       setHasError(true);
     }
 
-    // High-resolution backdrop memory eviction
-    return () => {
-      if (type === 'backdrop' && urlToRevoke && urlToRevoke.startsWith('asset://')) {
-        setImgSrc(null);
-        URL.revokeObjectURL(urlToRevoke);
-      }
-    };
   }, [srcPath, type]);
 
   const handleImageError = (e: any) => {
