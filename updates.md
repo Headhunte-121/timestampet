@@ -758,3 +758,13 @@ Implemented features 12.1, 12.2, 12.6, 12.7, 12.8, and 12.9 to style the Media D
 **Verification:**
 - Ran `cargo check` inside `watchmark-tauri/src-tauri` and ensured it compiled successfully without syntax, type, or lifetime errors.
 - Verified TypeScript/React code and ensured all dependencies were correctly imported (specifically updated `invokeWithTimeout` import from `../utils/ipc`).
+
+### Task: Visual Background Bleed during Navigation (Bug Fix)
+
+**Summary:**
+Fixed a visual bug in `MediaDetails.tsx` where the massive hero background poster was clipping behind the main application body background or overlaying the sidebar incorrectly during page transitions.
+
+**Implementations & Changes:**
+- **File:** `watchmark-tauri/src/components/MediaDetails.tsx`
+- **Change:** Adjusted the Tailwind CSS class of the hero banner container from `-z-10` to `z-0`.
+- **Reasoning:** Framer Motion applies dynamic transforms during page navigation (in/out animations), creating temporary isolated stacking contexts. While animating, `-z-10` rendered correctly because it was constrained within Framer Motion's local stacking context wrapper. However, once the animation completed and the transform was removed, the element fell back into the root global stacking context, dropping entirely behind the global `#0D0F14` app background and vanishing from view. By shifting the banner to `z-0` alongside the absolute positioning, it naturally joins the standard DOM document flow, maintaining its z-index relative to the parent page content without dropping behind the application's root container.

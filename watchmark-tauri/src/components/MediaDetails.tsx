@@ -151,7 +151,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       className="relative min-h-screen pb-32"
     >
       {/* Edge-to-edge Hero Banner */}
-      <div className="absolute top-0 left-0 w-full h-[400px] -z-10">
+      <div className="absolute top-0 left-0 w-full h-[400px] z-0">
         <AnimatePresence mode="wait">
           <motion.div
              key={data.backdrop_path || 'fallback'}
