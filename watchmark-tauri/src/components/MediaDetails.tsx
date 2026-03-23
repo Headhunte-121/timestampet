@@ -181,7 +181,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       </div>
 
       {/* Content Area */}
-      <div className="relative z-10 px-12 mt-40 flex gap-12 items-start">
+      <div className="relative z-10 px-12 pt-32 flex gap-12 items-start">
         {/* Back Button */}
         <motion.button
           ref={backButtonRef}
@@ -226,7 +226,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={isCinemaMode ? { delay: 0.3 } : { duration: 0 }}
-          className="flex-1 max-w-4xl pt-8"
+          className="flex-1 max-w-5xl pt-8"
         >
 
           <div className="flex items-center gap-4 mb-4">
@@ -480,7 +480,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       </div>
 
       {/* Episodes List (Mocked structure) */}
-      <div className="mt-24 px-12">
+      <div className="mt-16 px-12">
         {/* Season Tabs */}
 
         {data.type === "TV" && data.seasons && (
@@ -521,7 +521,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         )}
 
 
-        <div className="flex flex-col max-w-5xl min-h-[60vh]">
+        <div className="flex flex-col w-full min-h-[60vh]">
           {data.episodes?.filter((ep: any) => ep.season_num === activeSeason).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center col-span-full">
               <h2 className="text-xl font-bold text-white mb-6">
