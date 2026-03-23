@@ -265,9 +265,16 @@ pub async fn vlc_heartbeat(
                     let raw_time = status.time;
 
                     // Negative time and garbage data filtration
+                    let current_state_str = status.state.as_deref().unwrap_or("").to_lowercase();
+                    let is_stopped_state = current_state_str == "stopped";
+
                     let time = match raw_time {
                         Some(t) if t >= 0.0 => {
-                            if length > 0.0 && t > length {
+                            if is_stopped_state && t < 1.0 && session_snapshot_time > 1.0 {
+                                // VLC reset its internal clock to 0 because playback stopped/finished natively.
+                                // We keep the previous snapshot to prevent Zero-Second Reset triggering erroneously.
+                                session_snapshot_time
+                            } else if length > 0.0 && t > length {
                                 session_snapshot_time // Overflow, discard and keep previous
                             } else {
                                 t
