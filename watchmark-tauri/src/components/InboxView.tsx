@@ -324,7 +324,7 @@ export default function InboxView({ onMatch }: any) {
   };
 
   return (
-    <div className="p-12 lg:pl-[280px] pb-24 pt-24 h-full flex flex-col">
+    <div className="p-12 pb-24 pt-24 h-full flex flex-col">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-extrabold tracking-tight">Inbox</h1>
         <div className="flex gap-4">

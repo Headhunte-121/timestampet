@@ -158,7 +158,7 @@ export default function SearchTMDB({ initialQuery, onMediaSelect: _onMediaSelect
   });
 
   return (
-    <div className="max-w-[1800px] mx-auto px-6 lg:pl-[280px] py-24 pb-24 relative w-full h-full">
+    <div className="max-w-[1800px] mx-auto px-6 py-24 pb-24 relative w-full h-full">
       <div className="flex items-center gap-4 mb-8 justify-between">
         <h1 className="text-4xl font-extrabold tracking-tight">Discover Media</h1>
         <div className="flex items-center bg-[#1F222A] p-1 rounded-full border border-white/5 shadow-inner">

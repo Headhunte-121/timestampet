@@ -148,7 +148,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: "10%", opacity: 0 }}
       transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}
-      className="relative min-h-screen pb-32 lg:pl-[256px]"
+      className="relative min-h-screen pb-32"
     >
       {/* Edge-to-edge Hero Banner */}
       <div className="absolute top-0 left-0 w-full h-[400px] -z-10">
