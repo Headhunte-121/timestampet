@@ -181,7 +181,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       </div>
 
       {/* Content Area */}
-      <div className="relative z-10 px-12 mt-12 flex gap-12 items-start">
+      <div className="relative z-10 px-12 mt-40 flex gap-12 items-start">
         {/* Back Button */}
         <motion.button
           ref={backButtonRef}
@@ -205,7 +205,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           animate={{ y: 0, opacity: 1 }}
           transition={isCinemaMode ? { delay: 0.2 } : { duration: 0 }}
           style={{ filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.9))" }}
-          className="relative w-64 shrink-0 rounded-2xl overflow-hidden border border-white/10 aspect-[2/3] -mt-40"
+          className="relative w-64 shrink-0 rounded-2xl overflow-hidden border border-white/10 aspect-[2/3] -mt-20"
         >
           <SafeImage
             srcPath={data.poster_path ? formatImagePath(data.poster_path, "w500") : ""}
