@@ -157,10 +157,10 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
   ) || [];
 
   return (
-    <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide relative w-full h-full">
+    <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-8 scrollbar-hide relative w-full h-full">
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
-        <div className="relative w-full lg:w-[calc(100%+5rem)] h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 lg:-ml-10 overflow-hidden rounded-b-3xl group mb-10">
+        <div className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] overflow-hidden rounded-3xl group mb-10">
           <SafeImage
             srcPath={
               (data.hero_ep as any).still_path
@@ -290,7 +290,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           </div>
         </div>
       ) : (
-        <div className="relative w-full lg:w-[calc(100%+5rem)] h-[450px] min-h-[400px] lg:h-[50vh] -mt-24 lg:-ml-10 overflow-hidden rounded-b-3xl bg-[#1F222A]/80 backdrop-blur-xl flex flex-col items-center justify-center text-center mb-10">
+        <div className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] overflow-hidden rounded-3xl bg-[#1F222A]/80 backdrop-blur-xl flex flex-col items-center justify-center text-center mb-10">
           <h1 className="text-4xl font-bold mb-4 text-white">Welcome to WatchMark</h1>
           <p className="text-muted max-w-md">Scan your local folder or search TMDB to get started and build your library.</p>
         </div>
