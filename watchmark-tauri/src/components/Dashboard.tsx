@@ -157,7 +157,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
   ) || [];
 
   return (
-    <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-8 scrollbar-hide relative w-full h-full">
+    <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide relative w-full h-full">
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
         <div className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] overflow-hidden rounded-3xl group mb-10">
