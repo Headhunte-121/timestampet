@@ -107,7 +107,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
   if (!data) {
     // Skeleton Loading State
     return (
-      <div className="flex-1 overflow-y-auto px-10 lg:pl-[280px] py-6 pb-24 scrollbar-hide animate-pulse">
+      <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 scrollbar-hide animate-pulse">
         {/* Hero Skeleton */}
         <div className="relative w-full h-[450px] bg-[#1F222A] rounded-2xl overflow-hidden mb-12" />
 
@@ -157,7 +157,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
   ) || [];
 
   return (
-    <div className="flex-1 overflow-y-auto px-10 lg:pl-[280px] py-6 pb-24 pt-24 scrollbar-hide relative w-full h-full">
+    <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide relative w-full h-full">
       {/* A. Hero Banner (Up Next) */}
       {data.hero_ep ? (
         <div className="absolute top-0 left-0 w-full h-[450px] min-h-[400px] lg:h-[50vh] overflow-hidden rounded-b-3xl group mb-10 -z-10">

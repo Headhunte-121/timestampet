@@ -144,7 +144,7 @@ export default function History() {
   };
 
   return (
-    <div id="turbo-scroll-history" className="h-full overflow-y-auto p-12 lg:pl-[280px] pt-24">
+    <div id="turbo-scroll-history" className="h-full overflow-y-auto p-12 pt-24">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Watch History</h1>
 
       {history.length === 0 && !loading ? (

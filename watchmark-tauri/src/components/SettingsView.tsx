@@ -472,7 +472,7 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
   };
 
   return (
-    <div className="p-12 lg:pl-[280px] pb-32 h-full relative">
+    <div className="p-12 pb-32 h-full relative">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Settings</h1>
 
       <div className="flex h-full gap-8">

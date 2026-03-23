@@ -40,7 +40,7 @@ function App() {
 
   // Refresh UI hook
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
   const { isCinemaMode, initialized, initializeSettings, setApiAuthorized, searchQuery: globalSearchQuery, setSearchQuery: setGlobalSearchQuery } = useAppStore();
 
@@ -367,13 +367,13 @@ function App() {
 
       {/* Mobile Scrim */}
       <AnimatePresence>
-        {isMobileMenuOpen && (
+        {isMenuOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            onClick={() => setIsMenuOpen(false)}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
           />
         )}
       </AnimatePresence>
@@ -381,12 +381,12 @@ function App() {
       {/* Glassy Sidebar */}
       <motion.aside
         initial={false}
-        animate={{ x: isMobileMenuOpen ? 0 : (window.innerWidth < 1024 ? "-100%" : 0) }}
+        animate={{ x: isMenuOpen ? 0 : "-100%" }}
         transition={isCinemaMode ? { type: "spring", bounce: 0, duration: 0.4 } : { duration: 0 }}
         className={cn(
           "fixed z-50 h-full flex flex-col sidebar-parent transition-all duration-300",
           "w-64 min-w-[256px] max-w-[256px]",
-          "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5 lg:translate-x-0",
+          "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5",
           !isFocused ? "grayscale-[20%] opacity-90" : "grayscale-0 opacity-100"
         )}
       >
@@ -394,7 +394,7 @@ function App() {
           <button
             onClick={() => {
               handleNav("dashboard");
-              setIsMobileMenuOpen(false);
+              setIsMenuOpen(false);
               document.querySelector('main > div.flex-1')?.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className="focus:outline-none"
@@ -412,7 +412,7 @@ function App() {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => { handleNav(item.id); setIsMobileMenuOpen(false); }}
+                onClick={() => { handleNav(item.id); setIsMenuOpen(false); }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-200 relative overflow-hidden",
                 currentView === item.id && !selectedMediaId
@@ -431,7 +431,7 @@ function App() {
 
         <div className="p-4 mt-auto shrink-0">
           <button
-            onClick={() => { handleNav("settings"); setIsMobileMenuOpen(false); }}
+            onClick={() => { handleNav("settings"); setIsMenuOpen(false); }}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-200 relative overflow-hidden",
               currentView === "settings" && !selectedMediaId
@@ -506,8 +506,8 @@ function App() {
           <div className="flex items-center z-10">
             {/* Hamburger Menu for Mobile */}
             <button
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="p-2 mr-2 text-white/70 hover:text-white lg:hidden focus:outline-none"
+              onClick={() => setIsMenuOpen(true)}
+              className="p-2 mr-2 text-white/70 hover:text-white focus:outline-none"
             >
               <Icon icon={Menu} className="w-6 h-6" />
             </button>

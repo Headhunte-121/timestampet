@@ -36,7 +36,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
   const isDbEmpty = data.length === 0;
 
   return (
-    <div className="px-6 lg:pl-[280px] py-24 pb-24 max-w-[1800px] mx-auto">
+    <div className="px-6 py-24 pb-24 max-w-[1800px] mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <h1 className="text-4xl font-extrabold tracking-tight">
           {type === "TV" ? "TV Shows" : "Movies"}
