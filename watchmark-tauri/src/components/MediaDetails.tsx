@@ -181,7 +181,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       </div>
 
       {/* Content Area */}
-      <div className="relative z-10 px-12 pt-[280px] flex gap-12 items-start">
+      <div className="relative z-10 px-12 pt-[280px] flex gap-12 items-end">
         {/* Back Button */}
         <motion.button
           ref={backButtonRef}
@@ -192,7 +192,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           whileHover={{
               backgroundColor: "rgba(0, 0, 0, 0.6)"
           }}
-          className="flex-shrink-0 flex items-center justify-center p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-all shadow-lg outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14] group z-50 mt-8 -ml-4"
+          className="flex-shrink-0 self-start flex items-center justify-center p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-all shadow-lg outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14] group z-50 mt-8 -ml-4"
         >
           <div className="group-hover:scale-[1.2] transition-transform duration-200">
             <ArrowLeft className="w-6 h-6 text-white" />
@@ -205,7 +205,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           animate={{ y: 0, opacity: 1 }}
           transition={isCinemaMode ? { delay: 0.2 } : { duration: 0 }}
           style={{ filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.9))" }}
-          className="relative w-64 shrink-0 rounded-2xl overflow-hidden border border-white/10 aspect-[2/3] -mt-32"
+          className="relative w-64 shrink-0 rounded-2xl overflow-hidden border border-white/10 aspect-[2/3]"
         >
           <SafeImage
             srcPath={data.poster_path ? formatImagePath(data.poster_path, "w500") : ""}
