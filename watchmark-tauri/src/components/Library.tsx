@@ -36,7 +36,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
   const isDbEmpty = data.length === 0;
 
   return (
-    <div className="px-6 py-24 pb-24 max-w-[1800px] mx-auto">
+    <div className="px-6 lg:pl-[280px] py-24 pb-24 max-w-[1800px] mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <h1 className="text-4xl font-extrabold tracking-tight">
           {type === "TV" ? "TV Shows" : "Movies"}
@@ -78,10 +78,10 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                   initial={isCinemaMode ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
                   animate={isCinemaMode && isInitialStagger ? { opacity: 1, y: 0 } : (!isCinemaMode ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 })}
                   exit={isCinemaMode ? { opacity: 0, scale: 0.8 } : { opacity: 0, scale: 1 }}
-                  transition={{
-                    delay: isCinemaMode && isInitialStagger ? i * 0.05 : 0,
+                  transition={isCinemaMode ? {
+                    delay: isInitialStagger ? i * 0.05 : 0,
                     duration: 0.3
-                  }}
+                  } : { duration: 0 }}
                   whileHover={isCinemaMode ? { scale: 1.05, y: -5 } : {}}
                   className="w-full h-full cursor-pointer group transform-gpu focus:outline-none"
                   tabIndex={0}
@@ -186,7 +186,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                       }}
                       initial={{ width: 0 }}
                       animate={{ width: styleWidth }}
-                      transition={{ duration: 0.3 }}
+                      transition={isCinemaMode ? { duration: 0.3 } : { duration: 0 }}
                     />
                   </div>
                 );

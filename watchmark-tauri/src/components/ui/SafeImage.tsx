@@ -174,7 +174,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
           initial={{ opacity: 0, scale: 1 }}
           animate={
             isLoaded
-              ? { opacity: 1, scale: isHeroBackdrop && isCinemaMode ? [1, 1.05, 1] : 1 }
+              ? { opacity: 1, scale: isHeroBackdrop && isCinemaMode ? [1, 1.15, 1] : 1 }
               : { opacity: 0, scale: 1 }
           }
           transition={{

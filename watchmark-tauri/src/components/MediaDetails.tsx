@@ -1,6 +1,6 @@
 import { logger } from "../utils/logger";
-import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
+import { Icon } from "./ui/Icon";
 import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Play, ArrowLeft, Star, Trash2, CloudOff, Clock, Calendar, CheckCircle2, Circle, CircleDashed } from "lucide-react";
 import { formatLocaleDate, formatRuntime } from "../utils/dateFormatter";
 import { useUiStore } from "../store/uiStore";
-import { useTaskStore } from "../store/useTaskStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { toast } from "../utils/toast";
 import { StarRating } from "./ui/StarRating";
@@ -19,10 +18,8 @@ import { SafeImage } from "./ui/SafeImage";
 
 export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
   const { showConfirm, setProcessing } = useUiStore();
-  const { isApiAuthorized, isOffline } = useAppStore();
+  const { isApiAuthorized, isOffline, isCinemaMode } = useAppStore();
   const [data, setData] = useState<any>(null);
-  const activeSyncs = useTaskStore((state) => state.activeSyncs);
-  const syncProgress = data ? activeSyncs[data.id.toString()] : undefined;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeSeason, setActiveSeason] = useState<number>(1);
   const [showFullSynopsis, setShowFullSynopsis] = useState<boolean>(false);
@@ -150,27 +147,18 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
       initial={{ x: "10%", opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: "10%", opacity: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="relative min-h-screen pb-32"
+      transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}
+      className="relative min-h-screen pb-32 lg:pl-[256px]"
     >
       {/* Edge-to-edge Hero Banner */}
-      <div className="relative w-full h-[400px]">
-        {syncProgress !== undefined && (
-          <div className="absolute top-0 left-0 w-full h-1 z-50 bg-black/50">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${syncProgress}%` }}
-              className="h-full bg-[#FF6B00] shadow-[0_0_10px_#FF6B00]"
-            />
-          </div>
-        )}
+      <div className="absolute top-0 left-0 w-full h-[400px] -z-10">
         <AnimatePresence mode="wait">
           <motion.div
              key={data.backdrop_path || 'fallback'}
              initial={{ opacity: 0 }}
              animate={{ opacity: 1 }}
              exit={{ opacity: 0 }}
-             transition={{ duration: 0.4 }}
+             transition={isCinemaMode ? { duration: 0.4 } : { duration: 0 }}
              className="absolute inset-0"
           >
             <SafeImage
@@ -190,6 +178,10 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           </motion.div>
         </AnimatePresence>
 
+      </div>
+
+      {/* Content Area */}
+      <div className="relative z-10 px-12 mt-12 flex gap-12 items-start">
         {/* Back Button */}
         <motion.button
           ref={backButtonRef}
@@ -200,21 +192,18 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           whileHover={{
               backgroundColor: "rgba(0, 0, 0, 0.6)"
           }}
-          className="absolute top-6 left-6 z-50 flex items-center justify-center p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-all shadow-lg outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14] sticky group"
+          className="flex-shrink-0 flex items-center justify-center p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-all shadow-lg outline-none focus:ring-2 focus:ring-[#FF6B00] focus:ring-offset-2 focus:ring-offset-[#0D0F14] group z-50 mt-12 -ml-6"
         >
           <div className="group-hover:scale-[1.2] transition-transform duration-200">
             <ArrowLeft className="w-6 h-6 text-white" />
           </div>
         </motion.button>
-      </div>
 
-      {/* Content Area */}
-      <div className="relative z-10 px-12 -mt-40 flex gap-12 items-center">
         {/* Poster (overlapping banner) */}
         <motion.div
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          transition={isCinemaMode ? { delay: 0.2 } : { duration: 0 }}
           style={{ filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.9))" }}
           className="relative w-64 shrink-0 rounded-2xl overflow-hidden border border-white/10 aspect-[2/3] -mt-40"
         >
@@ -236,7 +225,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={isCinemaMode ? { delay: 0.3 } : { duration: 0 }}
           className="flex-1 max-w-4xl pt-8"
         >
 
@@ -255,7 +244,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                       key="completed"
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: [1, 1.1, 1], opacity: 1 }}
-                      transition={{ duration: 0.4 }}
+                      transition={isCinemaMode ? { duration: 0.4 } : { duration: 0 }}
                       className="px-3 py-1 bg-emerald-500/20 text-emerald-500 rounded-xl text-[11px] font-black uppercase tracking-tighter self-center whitespace-nowrap"
                     >
                       {watched} / {total} Eps • Completed
@@ -512,7 +501,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
                     layoutId="activeSeason"
                     className="absolute inset-0 bg-[#1F222A] rounded-full"
                     initial={false}
-                    transition={{ type: "spring", stiffness: 300, damping: 30, duration: 0.2 }}
+                    transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 30, duration: 0.2 } : { duration: 0 }}
                   />
                 )}
                 <button
@@ -616,6 +605,7 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
 const InteractiveStarRating = React.memo(({ initialRating, mediaId }: { initialRating: number | null, mediaId: number }) => {
   const [rating, setRating] = useState(initialRating);
   const [isShaking, setIsShaking] = useState(false);
+  const { isCinemaMode } = useAppStore();
 
   useEffect(() => {
     setRating(initialRating);
@@ -624,7 +614,7 @@ const InteractiveStarRating = React.memo(({ initialRating, mediaId }: { initialR
   return (
     <motion.div
       animate={isShaking ? { x: [-5, 5, -5, 5, 0] } : {}}
-      transition={{ duration: 0.4 }}
+      transition={isCinemaMode ? { duration: 0.4 } : { duration: 0 }}
     >
       <StarRating
         rating={rating}
@@ -653,6 +643,7 @@ function EpisodeRow({ ep, data, setContextMenu, processingRef, setCompletedCount
   const fallbackUrl = data.backdrop_path ? formatImagePath(data.backdrop_path, "w1280") : "";
   const [localStatus, setLocalStatus] = useState(ep.status);
   const [localLastPosition, setLocalLastPosition] = useState(ep.last_position);
+  const { isCinemaMode } = useAppStore();
 
   // Sync if prop updates from a full refresh
   useEffect(() => {
@@ -663,8 +654,8 @@ function EpisodeRow({ ep, data, setContextMenu, processingRef, setCompletedCount
   return (
                <motion.div
                  key={ep.id}
-                 whileHover={{ scale: 1.02, backgroundColor: "#252830" }}
-                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                 whileHover={isCinemaMode ? { scale: 1.02, backgroundColor: "#252830" } : { backgroundColor: "#252830" }}
+                 transition={isCinemaMode ? { type: "spring", stiffness: 300, damping: 20 } : { duration: 0 }}
                  className="flex items-center bg-[#1F222A] p-4 rounded-xl border border-[#2A2D35] group relative focus-within:ring-2 focus-within:ring-[#FF6B00] focus-within:ring-offset-2 focus-within:ring-offset-[#0D0F14] mb-4 min-h-[100px] max-h-[120px] overflow-hidden"
                  tabIndex={0}
                  onContextMenu={(e) => {
@@ -698,9 +689,10 @@ function EpisodeRow({ ep, data, setContextMenu, processingRef, setCompletedCount
                     ) : (
                       ep.file_path ? (
                         <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                          onClick={async () => {
+                          whileHover={isCinemaMode ? { scale: 1.1 } : {}}
+                          transition={isCinemaMode ? { type: "spring", stiffness: 400, damping: 10 } : { duration: 0 }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
                             logger.click(`'Play' on Episode S${ep.season_num}E${ep.ep_num}`);
                             try {
                                 const validation: any = await invoke("validate_and_hash_file", { episodeId: ep.id, filePath: ep.file_path });
