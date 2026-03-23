@@ -382,9 +382,9 @@ function App() {
       <motion.aside
         initial={false}
         animate={{ x: isMenuOpen ? 0 : "-100%" }}
-        transition={isCinemaMode ? { type: "spring", bounce: 0, duration: 0.4 } : { duration: 0 }}
+        transition={isCinemaMode ? { type: "spring", stiffness: 400, damping: 30 } : { duration: 0 }}
         className={cn(
-          "fixed z-50 h-full flex flex-col sidebar-parent transition-all duration-300",
+          "fixed z-50 h-full flex flex-col sidebar-parent",
           "w-64 min-w-[256px] max-w-[256px]",
           "bg-[#141519]/60 backdrop-blur-xl border-r border-white/5",
           !isFocused ? "grayscale-[20%] opacity-90" : "grayscale-0 opacity-100"
