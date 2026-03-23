@@ -521,18 +521,38 @@ pub async fn vlc_heartbeat(
             // 4.14.4 Zero-Second Reset Mechanism
             // If the user starts a video and manually seeks to 0 before closing (or within 1 second),
             // the status reverts to 'Unwatched' and last_position = 0.
-            if last_time_seconds <= 1.0 {
+            // However, we must ensure they didn't just open and immediately close the player before
+            // their saved position could be loaded (high_water_mark would be near 0).
+            // A genuine reset requires that they actually reached a point > 1% of the video or > 5 seconds,
+            // OR they were already at 0% to begin with.
+            // If they just opened it, the high water mark will be roughly the same as last_time_seconds (e.g. 0).
+            // If they watched or scrubbed, the high water mark would be notably larger than the last_time_seconds.
+            let is_deliberate_reset = (high_water_mark * final_runtime_seconds) > 5.0 && last_time_seconds <= 1.0;
+            let is_pure_unwatched_start = high_water_mark * final_runtime_seconds <= 5.0 && last_time_seconds <= 1.0;
+
+            if is_deliberate_reset || is_pure_unwatched_start {
                 let mut revert_status = true;
-                if let Ok(mut stmt) = conn.prepare("SELECT status FROM Episodes WHERE id=?") {
+                let mut current_last_pos = 0;
+
+                if let Ok(mut stmt) = conn.prepare("SELECT status, last_position FROM Episodes WHERE id=?") {
                     if let Ok(mut rows) = stmt.query(params![episode_id]) {
                         if let Ok(Some(row)) = rows.next() {
                             let current_status: String = row.get(0).unwrap_or_default();
+                            current_last_pos = row.get(1).unwrap_or(0);
+
                             // If it was already completed previously, do not revert to Unwatched.
                             if current_status == "Completed" {
                                 revert_status = false;
                             }
                         }
                     }
+                }
+
+                // If they immediately closed (pure unwatched start), AND the database already has progress,
+                // do NOT wipe it out. This protects the "Oops, I accidentally clicked play on a 50% watched video" scenario.
+                if is_pure_unwatched_start && current_last_pos > 1 {
+                    tracing::info!("[BACKEND] 🧠 Immediate close detected on partially watched video. Abandoning tracking.");
+                    revert_status = false;
                 }
 
                 if revert_status {
