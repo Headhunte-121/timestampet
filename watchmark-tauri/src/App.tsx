@@ -31,11 +31,12 @@ export type View = "dashboard" | "tv" | "movies" | "search" | "inbox" | "history
 function App() {
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
+  const [selectedSeasonNum, setSelectedSeasonNum] = useState<number | undefined>(undefined);
   const asyncInvoke = useAsyncInvoke();
 
   // Settings Navigation Guard
   const [isSettingsDirty, setIsSettingsDirty] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<{ view: View | null, mediaId: number | null } | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<{ view: View | null, mediaId: number | null, seasonNum?: number } | null>(null);
   const [saveSettingsCallback, setSaveSettingsCallback] = useState<(() => Promise<boolean>) | null>(null);
 
   // Refresh UI hook
@@ -293,9 +294,9 @@ function App() {
     { id: "history", label: "History", icon: Clock },
   ] as const;
 
-  const handleNav = (view: View, mediaId: number | null = null) => {
+  const handleNav = (view: View, mediaId: number | null = null, seasonNum?: number) => {
     if (isSettingsDirty && currentView === "settings" && view !== "settings") {
-      setPendingNavigation({ view, mediaId });
+      setPendingNavigation({ view, mediaId, seasonNum });
     } else {
       // Allow re-clicking the same tab to close the current item
       if (currentView === view && !selectedMediaId && !mediaId) {
@@ -317,6 +318,7 @@ function App() {
 
       setCurrentView(view);
       setSelectedMediaId(mediaId);
+      setSelectedSeasonNum(seasonNum);
     }
   };
 
@@ -334,6 +336,7 @@ function App() {
             setCurrentView(pendingNavigation.view);
         }
         setSelectedMediaId(pendingNavigation.mediaId);
+        setSelectedSeasonNum(pendingNavigation.seasonNum);
         setPendingNavigation(null);
     }
   };
@@ -622,14 +625,16 @@ function App() {
             {selectedMediaId ? (
               <motion.div
                 key="details"
-                initial={isCinemaMode ? { opacity: 0, scale: 0.98 } : { opacity: 1 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={isCinemaMode ? { opacity: 0, scale: 0.98 } : { opacity: 0 }}
-                transition={isCinemaMode ? { duration: 0.2 } : { duration: 0 }}
-                className="h-full w-full pt-16"
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.3 }}
+                className="h-full w-full pt-16 bg-cinema-black"
+                style={{ position: "absolute", zIndex: 20 }}
               >
                 <MediaDetails
                   mediaId={selectedMediaId}
+                  initialSeasonNum={selectedSeasonNum}
                   onBack={() => handleNav(currentView)}
                   refreshTrigger={refreshTrigger}
                 />
@@ -637,10 +642,10 @@ function App() {
             ) : (
               <motion.div
                 key={currentView}
-                initial={isCinemaMode ? { opacity: 0, y: 10 } : { opacity: 1 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={isCinemaMode ? { opacity: 0, y: -10 } : { opacity: 0 }}
-                transition={isCinemaMode ? { duration: 0.2 } : { duration: 0 }}
+                initial={{ opacity: 0, scale: currentView === "history" ? 0.98 : 1, y: currentView === "history" ? 0 : 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: currentView === "history" ? 0.98 : 1, y: currentView === "history" ? 0 : -10 }}
+                transition={{ duration: 0.3 }}
                 className="h-full w-full pt-16 md:pt-0"
               >
                 {currentView === "dashboard" && <Dashboard onMediaSelect={(id: number) => handleNav("dashboard", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
@@ -648,7 +653,7 @@ function App() {
                 {currentView === "movies" && <Library type="Movie" onMediaSelect={(id: number) => handleNav("movies", id)} refreshTrigger={refreshTrigger} searchQuery={globalSearchQuery} />}
                 {currentView === "search" && <SearchTMDB initialQuery={globalSearchQuery} onMediaSelect={(id: number) => handleNav("search", id)} />}
                 {currentView === "inbox" && <InboxView onMatch={() => setRefreshTrigger(prev => prev + 1)} />}
-                {currentView === "history" && <History />}
+                {currentView === "history" && <History onNavigateToMedia={(id: number, seasonNum?: number) => handleNav("history", id, seasonNum)} />}
                 {currentView === "settings" && <SettingsView setIsDirty={setIsSettingsDirty} setSaveCallback={setSaveSettingsCallback} />}
               </motion.div>
             )}

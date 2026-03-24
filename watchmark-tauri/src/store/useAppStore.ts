@@ -20,6 +20,8 @@ interface AppState {
     TV: LibraryPreference;
     Movie: LibraryPreference;
   };
+  historyState: { scrollPos: number; history: any[]; page: number; hasMore: boolean; topPadding: number } | null;
+  setHistoryState: (state: { scrollPos: number; history: any[]; page: number; hasMore: boolean; topPadding: number } | null) => void;
   setSearchQuery: (query: string) => void;
   setLibraryPreference: (type: 'TV' | 'Movie', key: keyof LibraryPreference, value: any) => void;
   setCinemaMode: (mode: boolean) => Promise<void>;
@@ -38,10 +40,12 @@ export const useAppStore = create<AppState>()(
   isOffline: false,
   fastHistory: [],
   searchQuery: "",
+  historyState: null,
   libraryPreferences: {
     TV: { sortBy: "Recently Added", hideCompleted: false, scrollPos: 0 },
     Movie: { sortBy: "Recently Added", hideCompleted: false, scrollPos: 0 },
   },
+  setHistoryState: (state) => set({ historyState: state }),
   setSearchQuery: (query: string) => set({ searchQuery: query }),
   setLibraryPreference: (type, key, value) => set((state) => ({
     libraryPreferences: {

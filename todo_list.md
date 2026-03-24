@@ -1314,13 +1314,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [x] Unknown air date suppression.
 - [x] Elegant UI integration.
 
-**13.12 Click-to-navigate routing from a History entry directly to the Media Details page.** (Incomplete)
+**13.12 Click-to-navigate routing from a History entry.** (Complete)
 
-- [ ] Verify specific exactly exactly standard React Router specifically explicitly strictly navigating specifically perfectly to the `/media/:id` page.
-- [ ] Ensure specifically precisely perfectly preserving specific entirely strictly scrolling explicitly precisely exactly perfectly specifically exactly correctly entirely.
-- [ ] Handle edge cases strictly exactly entirely specifically perfectly specifically precisely specifically perfectly specifically completely exactly entirely specifically.
-- [ ] Test explicitly specifically clicking explicitly entirely specifically completely perfectly exactly specifically correctly specifically entirely perfectly specifically completely perfectly.
-- [ ] Ensure exactly perfectly entirely completely perfectly exactly completely exactly specifically perfectly completely exactly perfectly completely exactly perfectly specifically perfectly entirely perfectly.
+- [x] Expansive Hitbox and Interaction logic.
+- [x] Direct Media ID Routing.
+- [x] Parameter-Driven Season Auto-Focus.
+- [x] Viewport and Scroll Position Guard.
+- [x] Seamless 'Cinema-Fade' Page Transition.
 
 ## Micro-Feature 27: Timeline Grouping (Binge-Blocks)
 
