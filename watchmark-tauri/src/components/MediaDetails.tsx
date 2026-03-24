@@ -16,7 +16,7 @@ import { cn } from "../App";
 import { RefreshCw } from "lucide-react";
 import { SafeImage } from "./ui/SafeImage";
 
-export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
+export default function MediaDetails({ mediaId, initialSeasonNum, onBack, refreshTrigger }: any) {
   const { showConfirm, setProcessing } = useUiStore();
   const { isApiAuthorized, isOffline, isCinemaMode } = useAppStore();
   const [data, setData] = useState<any>(null);
@@ -74,7 +74,9 @@ export default function MediaDetails({ mediaId, onBack, refreshTrigger }: any) {
           setData(res);
           if (res.seasons && res.seasons.length > 0) {
             let selected = res.seasons.includes(1) ? 1 : res.seasons[0];
-            if (res.episodes && res.episodes.length > 0) {
+            if (initialSeasonNum !== undefined && res.seasons.includes(initialSeasonNum)) {
+                selected = initialSeasonNum;
+            } else if (res.episodes && res.episodes.length > 0) {
               const unwatchedEps = res.episodes.filter((ep: any) => ep.status !== "Completed");
               if (unwatchedEps.length > 0) {
                 // Find the lowest season num among unwatched

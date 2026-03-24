@@ -6,24 +6,49 @@ import { SafeImage } from "./ui/SafeImage";
 import { useAppStore } from "../store/useAppStore";
 import { motion } from "framer-motion";
 
-export default function History() {
-  const fastHistory = useAppStore(state => state.fastHistory);
-  const [history, setHistory] = useState<any[]>(fastHistory || []);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+export default function History({ onNavigateToMedia }: { onNavigateToMedia: (mediaId: number, seasonNum?: number) => void }) {
+  const { fastHistory, historyState, setHistoryState } = useAppStore();
+  const [history, setHistory] = useState<any[]>(historyState?.history || fastHistory || []);
+  const [page, setPage] = useState(historyState?.page || 0);
+  const [hasMore, setHasMore] = useState(historyState?.hasMore ?? true);
+  const [topPadding, setTopPadding] = useState(historyState?.topPadding || 0);
   const [loading, setLoading] = useState(false);
   const asyncInvoke = useAsyncInvoke();
   const observerTarget = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Use a ref to keep track of the latest state for the cleanup function
+  const latestState = useRef({ history, page, hasMore, topPadding });
+  useEffect(() => {
+    latestState.current = { history, page, hasMore, topPadding };
+  }, [history, page, hasMore, topPadding]);
 
   useEffect(() => {
-    // Instant initial load with cache
-    if (history.length === 0 && fastHistory.length > 0) {
-      setHistory(fastHistory);
+    if (historyState) {
+      // Restore scroll position
+      if (containerRef.current) {
+         requestAnimationFrame(() => {
+             if (containerRef.current) containerRef.current.scrollTop = historyState.scrollPos;
+         });
+      }
+    } else {
+      // Instant initial load with cache
+      if (history.length === 0 && fastHistory.length > 0) {
+        setHistory(fastHistory);
+      }
+      loadHistory(0, true);
     }
-    loadHistory(0, true);
-  }, [asyncInvoke]);
 
-  const [topPadding, setTopPadding] = useState(0);
+    return () => {
+      // Save state on unmount
+      if (containerRef.current) {
+        setHistoryState({
+          scrollPos: containerRef.current.scrollTop,
+          ...latestState.current
+        });
+      }
+    };
+  }, []);
 
   const loadHistory = async (pageNum: number, isInitial = false) => {
     if (loading) return;
@@ -144,7 +169,7 @@ export default function History() {
   };
 
   return (
-    <div id="turbo-scroll-history" className="h-full overflow-y-auto p-12 pt-24">
+    <div id="turbo-scroll-history" ref={containerRef} className="h-full overflow-y-auto p-12 pt-24">
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Watch History</h1>
 
       {history.length === 0 && !loading ? (
@@ -213,9 +238,21 @@ export default function History() {
                     transition={{ duration: 0.3 }}
                     className={`ml-16 lg:ml-0 lg:w-[calc(50%-2rem)] ${isEven ? 'lg:mr-auto' : 'lg:ml-auto'}`}
                   >
-                    <div className={`relative flex p-4 rounded-xl border border-white/5 items-center gap-6 overflow-hidden shadow-2xl ${
-                      isLegacy ? "bg-[#1F222A]/60 opacity-60" : "bg-[#1F222A]/60 backdrop-blur-md"
-                    }`}>
+                    <div
+                      className={`relative flex p-4 rounded-xl border border-white/5 items-center gap-6 overflow-hidden shadow-2xl cursor-pointer hover:bg-white/5 transition-colors ${
+                        isLegacy ? "bg-[#1F222A]/60 opacity-60" : "bg-[#1F222A]/60 backdrop-blur-md"
+                      }`}
+                      onClick={(e) => {
+                        // Smart Click filter: Ignore if text is selected
+                        if (window.getSelection()?.toString().length) return;
+
+                        // Ignore if clicked on an interactive element (buttons, links)
+                        const target = e.target as HTMLElement;
+                        if (target.closest('button') || target.closest('a')) return;
+
+                        onNavigateToMedia(entry.media_id, entry.season_num);
+                      }}
+                    >
                       {isLegacy && (
                         <div className="absolute top-2 right-2 bg-white/10 text-muted font-bold text-[10px] px-2 py-1 rounded-full uppercase tracking-wider">
                           Archived
