@@ -1,6 +1,13 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 import { logger } from '../utils/logger';
+
+interface LibraryPreference {
+  sortBy: string;
+  hideCompleted: boolean;
+  scrollPos: number;
+}
 
 interface AppState {
   isCinemaMode: boolean;
@@ -9,7 +16,12 @@ interface AppState {
   isOffline: boolean;
   fastHistory: any[];
   searchQuery: string;
+  libraryPreferences: {
+    TV: LibraryPreference;
+    Movie: LibraryPreference;
+  };
   setSearchQuery: (query: string) => void;
+  setLibraryPreference: (type: 'TV' | 'Movie', key: keyof LibraryPreference, value: any) => void;
   setCinemaMode: (mode: boolean) => Promise<void>;
   setApiAuthorized: (authorized: boolean) => void;
   setOffline: (offline: boolean) => void;
@@ -17,14 +29,29 @@ interface AppState {
   fetchFastHistory: () => Promise<void>;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
   isCinemaMode: true,
   initialized: false,
   isApiAuthorized: true,
   isOffline: false,
   fastHistory: [],
   searchQuery: "",
+  libraryPreferences: {
+    TV: { sortBy: "Recently Added", hideCompleted: false, scrollPos: 0 },
+    Movie: { sortBy: "Recently Added", hideCompleted: false, scrollPos: 0 },
+  },
   setSearchQuery: (query: string) => set({ searchQuery: query }),
+  setLibraryPreference: (type, key, value) => set((state) => ({
+    libraryPreferences: {
+      ...state.libraryPreferences,
+      [type]: {
+        ...state.libraryPreferences[type],
+        [key]: value
+      }
+    }
+  })),
   setApiAuthorized: (authorized: boolean) => set({ isApiAuthorized: authorized }),
   setOffline: (offline: boolean) => set({ isOffline: offline }),
   setCinemaMode: async (mode: boolean) => {
@@ -60,4 +87,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ initialized: true });
     }
   }
-}));
+}),
+    {
+      name: 'app-storage',
+      partialize: (state) => ({ libraryPreferences: state.libraryPreferences }),
+    }
+  )
+);

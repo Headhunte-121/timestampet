@@ -1,7 +1,7 @@
 import { logger } from "../utils/logger";
 import { Icon } from "./ui/Icon";
 import { formatImagePath } from "../utils/imageFormat";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, Library as LibraryIcon, Film } from "lucide-react";
 import { formatLocaleDate } from "../utils/dateFormatter";
@@ -11,20 +11,59 @@ import { SafeImage } from "./ui/SafeImage";
 import { VirtualPoster } from "./ui/VirtualPoster";
 
 export default function Library({ type, onMediaSelect, refreshTrigger, searchQuery = "", onSearchQueryChange }: any) {
-  const { isCinemaMode } = useAppStore();
+  const { isCinemaMode, libraryPreferences, setLibraryPreference } = useAppStore();
   const [data, setData] = useState<any[]>([]);
-  const [sortBy, setSortBy] = useState("Recently Added");
-  const [hideCompleted, setHideCompleted] = useState(false);
   const asyncInvoke = useAsyncInvoke();
 
+  const currentType = type === "TV" ? "TV" : "Movie";
+  const prefs = libraryPreferences[currentType] || { sortBy: "Recently Added", hideCompleted: false, scrollPos: 0 };
+  const sortBy = prefs.sortBy;
+  const hideCompleted = prefs.hideCompleted;
+
+  const isDataLoadedRef = useRef(false);
+
   useEffect(() => {
+    // Reset loaded flag when type or filters change
+    isDataLoadedRef.current = false;
     // Standard pagination starts at 0 for limit offsets
     asyncInvoke("get_library_data", { mediaType: type, sortBy, hideCompleted, page: 0 })
       .then((res: any) => {
-        if (res) setData(res);
+        if (res) {
+          setData(res);
+          isDataLoadedRef.current = true;
+        }
       })
       .catch(e => logger.error("Failed to fetch library data", e));
   }, [type, sortBy, hideCompleted, refreshTrigger, asyncInvoke]);
+
+  useLayoutEffect(() => {
+    if (isDataLoadedRef.current && !searchQuery) {
+      // Small timeout to allow DOM to render VirtualPosters
+      const timer = setTimeout(() => {
+        window.scrollTo(0, prefs.scrollPos);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (searchQuery) {
+      window.scrollTo(0, 0);
+    }
+  }, [data, currentType, searchQuery]);
+
+  useEffect(() => {
+    let timeoutId: number;
+    const handleScroll = () => {
+      if (searchQuery) return; // Ignore scroll memory during search
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        setLibraryPreference(currentType, 'scrollPos', window.scrollY);
+      }, 100);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.clearTimeout(timeoutId);
+    };
+  }, [currentType, searchQuery, setLibraryPreference]);
 
   const sortOptions = ["Recently Added", "Sort by Last Watched", "Alphabetical (A-Z)", "Release Year", "My Top Rated", "Sort by TMDB Rating"];
 
@@ -46,7 +85,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
           <div className="flex items-center gap-4 bg-[#1F222A]/80 backdrop-blur-md p-2 rounded-xl border border-white/5">
             <select
               value={sortBy}
-              onChange={e => setSortBy(e.target.value)}
+              onChange={e => setLibraryPreference(currentType, 'sortBy', e.target.value)}
               className="bg-transparent text-white outline-none font-normal px-2 py-1"
             >
               {sortOptions.map(opt => <option key={opt} value={opt} className="bg-[#1F222A]">{opt}</option>)}
@@ -58,7 +97,7 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
               <input
                 type="checkbox"
                 checked={hideCompleted}
-                onChange={e => setHideCompleted(e.target.checked)}
+                onChange={e => setLibraryPreference(currentType, 'hideCompleted', e.target.checked)}
                 className="accent-[#FF6B00] w-4 h-4 rounded focus:ring-[#FF6B00]"
               />
               Hide Completed
@@ -216,8 +255,8 @@ export default function Library({ type, onMediaSelect, refreshTrigger, searchQue
                 <button
                   onClick={() => {
                     if (onSearchQueryChange) onSearchQueryChange("");
-                    setHideCompleted(false);
-                    setSortBy("Recently Added");
+                    setLibraryPreference(currentType, 'hideCompleted', false);
+                    setLibraryPreference(currentType, 'sortBy', "Recently Added");
                   }}
                   className="px-6 py-2 bg-[#FF6B00] hover:bg-[#FF8533] text-white font-bold rounded-xl transition-colors shadow-lg"
                 >
