@@ -780,3 +780,19 @@ Implemented robust click-to-navigate functionality for the History timeline view
 - **Parameter-Driven Auto-Focus (`MediaDetails.tsx`):** Refactored the initial data load logic. Instead of strictly defaulting to Season 1 or the earliest unwatched season, it now checks for an injected `initialSeasonNum`. If valid, it forces the UI to bypass unwatched logic and immediately open the specific historical season tab.
 - **Scroll Position & Viewport Caching (`useAppStore.ts` & `History.tsx`):** Engineered a `historyState` cache inside the global Zustand store. When the `History` component unmounts, a cleanup function captures the current `scrollTop` of the scrolling container, along with the active history array, current pagination `page`, and offset padding. When the user clicks the global `<- Back` button, the component mounts, detects the cached state, instantly restores the array without re-fetching, and uses `requestAnimationFrame` to snap the `scrollTop` back to the exact millisecond they left off.
 - **'Cinema-Fade' Transitions (`App.tsx`):** Orchestrated a polished Framer Motion `<AnimatePresence>` sequence. When navigating between the History view and Media Details, the current view performs a subtle scale-down (`0.98x`) and opacity fade-out, while the incoming view scales up from `0.98x` to `1.0x` and fades in over 0.3s, mimicking a premium camera depth transition.
+
+### Update: Feature 13.8 - Auto-Session Chaining Logic
+
+**Summary:**
+Implemented the "Chaining Guard" in the Rust backend to properly enforce strict mathematical rules for timeline binge logic. Sessions are now properly isolated by `media_id` boundaries, the exact 6-hour `< 21600` gap logic is implemented cleanly as a strict wall, legacy blocks group safely without math interference, and the payload format was migrated to `ui_type: "BINGE" | "SINGLE"` to clean up the frontend rendering logic.
+
+**Implementations & Changes:**
+- **File:** `watchmark-tauri/src-tauri/src/vlc.rs`
+- **Change:** Changed the Auto-binge detection logic query. Rather than querying the `media_id` directly, it now grabs the absolute most recent globally-inserted history entry `ORDER BY h.timestamp DESC LIMIT 1`. Then it validates if `last_media_id == media_id` locally in the app logic. If it is different, the engine drops out of the chaining block and properly initializes a new session `session_id`, isolating different TV shows.
+- **Change:** Substituted `<=` for `< 21600` inside `vlc.rs` to enforce the strict 6-hour threshold boundary.
+- **File:** `watchmark-tauri/src-tauri/src/commands.rs`
+- **Change:** Upgraded the grouping logic. Refactored `type` to `ui_type` across the payload output and mapped values to `"BINGE"` and `"SINGLE"`. Segregated legacy (`is_legacy == 1`) grouping entirely from dynamic grouping. Legacy items are explicitly checked for pure `session_id` overlap while "Live" items are verified for same-session OR `time_diff < 21600` AND `is_same_show`.
+- **File:** `watchmark-tauri/src-tauri/src/db_tests.rs`
+- **Change:** Updated `test_long_nap_threshold` to exact 21600 seconds, asserting it properly breaks. Updated `test_short_break_threshold` to exactly 21599 to verify it correctly chains right up to the strict limit.
+- **File:** `watchmark-tauri/src/components/History.tsx`
+- **Change:** Updated the condition keys across the component render cycle to utilize `ui_type === "BINGE"` seamlessly. This eliminates conflicts with TypeScript `type` property keywords and safely renders single vs binge chunks properly, eliminating the empty accordion problem.

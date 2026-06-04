@@ -2439,15 +2439,26 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
                     let last_entry = current_block.last().unwrap();
                     let is_same_session = entry["session_id"].as_str().is_some() && last_entry["session_id"].as_str() == entry["session_id"].as_str();
                     let time_diff = (last_entry["timestamp"].as_i64().unwrap_or(0) - entry["timestamp"].as_i64().unwrap_or(0)).abs();
-                    let is_within_6_hours = time_diff <= 21600; // 6 hours
+                    let is_within_6_hours = time_diff < 21600; // 6 hours
                     let is_same_show = last_entry["media_id"] == entry["media_id"];
                     let is_legacy = entry["is_legacy"].as_i64().unwrap_or(0) == 1;
+                    let last_is_legacy = last_entry["is_legacy"].as_i64().unwrap_or(0) == 1;
 
-                    if (is_same_session || (is_within_6_hours && is_same_show)) && !is_legacy {
+                    // If both are legacy, ONLY group if they share a session ID exactly (bypass dynamic time check).
+                    // If neither are legacy, group by same session OR (time < 6h AND same show).
+                    let should_group = if is_legacy && last_is_legacy {
+                        is_same_session
+                    } else if !is_legacy && !last_is_legacy {
+                        is_same_session || (is_within_6_hours && is_same_show)
+                    } else {
+                        false // Cannot group legacy with non-legacy
+                    };
+
+                    if should_group {
                         current_block.push(entry);
                     } else {
                         grouped_history.push(json!({
-                            "type": if current_block.len() > 1 { "binge_block" } else { "single" },
+                            "ui_type": if current_block.len() > 1 { "BINGE" } else { "SINGLE" },
                             "main_entry": current_block[0].clone(), // Most recent in the block
                             "entries": current_block.clone(),
                             "total_runtime": current_block.iter().map(|e| e["runtime"].as_i64().unwrap_or(0)).sum::<i64>(),
@@ -2460,7 +2471,7 @@ pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Opt
 
             if !current_block.is_empty() {
                 grouped_history.push(json!({
-                    "type": if current_block.len() > 1 { "binge_block" } else { "single" },
+                    "ui_type": if current_block.len() > 1 { "BINGE" } else { "SINGLE" },
                     "main_entry": current_block[0].clone(),
                     "entries": current_block.clone(),
                     "total_runtime": current_block.iter().map(|e| e["runtime"].as_i64().unwrap_or(0)).sum::<i64>(),

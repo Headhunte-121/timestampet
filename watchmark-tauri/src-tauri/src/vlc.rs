@@ -696,21 +696,26 @@ pub async fn play_episode_cmd(
 
             if media_id > 0 {
                 let mut hist_stmt = conn.prepare(
-                    "SELECT session_id, timestamp FROM History
-                        WHERE episode_id IN (SELECT id FROM Episodes WHERE media_id=?) AND is_legacy=0
-                        ORDER BY timestamp DESC LIMIT 1"
+                    "SELECT h.session_id, h.timestamp, e.media_id
+                     FROM History h
+                     JOIN Episodes e ON h.episode_id = e.id
+                     WHERE h.is_legacy=0
+                     ORDER BY h.timestamp DESC LIMIT 1"
                 )?;
 
-                let mut rows = hist_stmt.query(params![media_id])?;
+                let mut rows = hist_stmt.query([])?;
                 if let Some(row) = rows.next()? {
                     let last_session_id: Option<String> = row.get(0).unwrap_or_default();
                     let last_timestamp: i64 = row.get(1).unwrap_or_default();
+                    let last_media_id: i32 = row.get(2).unwrap_or_default();
 
-                    let now = chrono::Utc::now().timestamp();
-                    if now - last_timestamp <= 21600 {
-                        if let Some(sid) = last_session_id {
-                            if !sid.is_empty() {
-                                session_id = sid;
+                    if last_media_id == media_id {
+                        let now = chrono::Utc::now().timestamp();
+                        if now - last_timestamp < 21600 {
+                            if let Some(sid) = last_session_id {
+                                if !sid.is_empty() {
+                                    session_id = sid;
+                                }
                             }
                         }
                     }

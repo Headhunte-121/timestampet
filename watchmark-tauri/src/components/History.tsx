@@ -195,7 +195,7 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
             const isEven = i % 2 === 0;
 
             let bingeSubtitle = null;
-            if (group.type === "binge_block" && group.entries && group.entries.length > 0) {
+            if (group.ui_type === "BINGE" && group.entries && group.entries.length > 0) {
               const startTs = group.entries[group.entries.length - 1].timestamp;
               const endTs = group.entries[0].timestamp;
               const startDate = new Date(startTs * 1000);
@@ -269,7 +269,7 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                         <h3 className={`text-lg font-bold truncate ${isLegacy ? "text-white opacity-100" : "text-white"}`}>
                           {entry.show_title}
                         </h3>
-                        {group.type === "binge_block" ? (
+                        {group.ui_type === "BINGE" ? (
                           <div>
                             <p className="text-muted">Watched {group.episode_count} Episodes</p>
                             {bingeSubtitle && (
@@ -327,7 +327,7 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                           )}
                         </div>
                       </div>
-                      {group.type === "binge_block" ? (
+                      {group.ui_type === "BINGE" ? (
                         <div className="text-right text-sm text-muted mt-6 mr-2 hidden sm:block whitespace-nowrap">
                           {Math.floor(group.total_runtime / 60)}h{" "}
                           {group.total_runtime % 60}m
