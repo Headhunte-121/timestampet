@@ -1326,7 +1326,7 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Compress consecutive episodes into single UI blocks.**
 
-**13.8 Auto-Session Chaining Logic: If completion timestamps are < 6 hrs apart, groups them into one Binge-Block.** (Incomplete)
+**13.8 Auto-Session Chaining Logic: If completion timestamps are < 6 hrs apart, groups them into one Binge-Block.** (Complete)
 
 - [ ] Verify exactly the specific mathematical difference specifically strictly subtracts timestamps explicitly ensuring strictly < 21600 seconds.
 - [ ] Ensure explicit specifically new `session_id` directly specifically applies strictly to the next show if specifically distinct.

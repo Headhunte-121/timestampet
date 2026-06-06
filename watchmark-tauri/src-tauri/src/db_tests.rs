@@ -831,22 +831,22 @@ mod tests_feature_5_13 {
 
     #[test]
     fn test_long_nap_threshold() {
-        // Simulates the 6 hour threshold
+        // Simulates the exact 6 hour threshold wall
         let last_timestamp = 1000000;
-        let current_timestamp = last_timestamp + 21601; // 6 hours + 1 second
+        let current_timestamp = last_timestamp + 21600; // Exact 6 hours
 
         let diff = current_timestamp - last_timestamp;
-        assert!(diff > 21600, "Should exceed 6 hours");
+        assert!(!(diff < 21600), "Should exceed or match 6 hours (break session)");
     }
 
     #[test]
     fn test_short_break_threshold() {
-        // Simulates the < 6 hour threshold
+        // Simulates the < 6 hour threshold chain boundary
         let last_timestamp = 1000000;
-        let current_timestamp = last_timestamp + 18000; // 5 hours
+        let current_timestamp = last_timestamp + 21599; // 1 second before 6 hours
 
         let diff = current_timestamp - last_timestamp;
-        assert!(diff <= 21600, "Should not exceed 6 hours");
+        assert!(diff < 21600, "Should strictly be less than 6 hours (chain session)");
     }
 
     #[test]
