@@ -19,7 +19,9 @@ fn test_movie_edge_cases() {
 
     // We test the deserialization strategy directly for the runtime.
     // For movies, we use the custom JSON parsing we added.
-    let runtime_zero = match serde_json::from_value::<crate::models::TmdbEpisode>(raw_movie_zero_runtime.clone()) {
+    let runtime_zero = match serde_json::from_value::<crate::models::TmdbEpisode>(
+        raw_movie_zero_runtime.clone(),
+    ) {
         Ok(ep) => ep.runtime,
         Err(_) => raw_movie_zero_runtime["runtime"].as_i64().unwrap_or(0) as i32,
     };
@@ -35,7 +37,9 @@ fn test_movie_edge_cases() {
         "release_date": "2024-01-01"
     });
 
-    let runtime_massive = match serde_json::from_value::<crate::models::TmdbEpisode>(raw_movie_massive_runtime.clone()) {
+    let runtime_massive = match serde_json::from_value::<crate::models::TmdbEpisode>(
+        raw_movie_massive_runtime.clone(),
+    ) {
         Ok(ep) => ep.runtime,
         Err(_) => raw_movie_massive_runtime["runtime"].as_i64().unwrap_or(0) as i32,
     };
@@ -43,7 +47,8 @@ fn test_movie_edge_cases() {
 
     // Test missing overview mapped to fallback (Sanitizer layer)
     let raw_synopsis = "";
-    let sanitized_synopsis = crate::sanitizer::sanitize_text(raw_synopsis, "No overview available.");
+    let sanitized_synopsis =
+        crate::sanitizer::sanitize_text(raw_synopsis, "No overview available.");
     assert_eq!(sanitized_synopsis, "No overview available.");
 
     // Test TBD release date formatting

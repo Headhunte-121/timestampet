@@ -3,7 +3,7 @@
 // 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
 // 3. No raw println! allowed.
 
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use std::sync::{mpsc, MutexGuard};
 use std::thread;
 use tauri::Emitter;
@@ -33,27 +33,23 @@ impl DbTaskQueue {
         let (low_priority_tx, low_priority_rx) = mpsc::channel::<DbTask>();
 
         let app_handle_worker = app_handle.clone();
-        thread::spawn(move || {
-            loop {
-                match high_priority_rx.try_recv() {
+        thread::spawn(move || loop {
+            match high_priority_rx.try_recv() {
+                Ok(task) => {
+                    Self::execute_task(task, Some(&app_handle_worker));
+                    continue;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => break,
+                Err(mpsc::TryRecvError::Empty) => match low_priority_rx.try_recv() {
                     Ok(task) => {
                         Self::execute_task(task, Some(&app_handle_worker));
                         continue;
                     }
                     Err(mpsc::TryRecvError::Disconnected) => break,
                     Err(mpsc::TryRecvError::Empty) => {
-                        match low_priority_rx.try_recv() {
-                            Ok(task) => {
-                                Self::execute_task(task, Some(&app_handle_worker));
-                                continue;
-                            }
-                            Err(mpsc::TryRecvError::Disconnected) => break,
-                            Err(mpsc::TryRecvError::Empty) => {
-                                thread::sleep(std::time::Duration::from_millis(10));
-                            }
-                        }
+                        thread::sleep(std::time::Duration::from_millis(10));
                     }
-                }
+                },
             }
         });
 
@@ -69,27 +65,23 @@ impl DbTaskQueue {
         let (high_priority_tx, high_priority_rx) = mpsc::channel::<DbTask>();
         let (low_priority_tx, low_priority_rx) = mpsc::channel::<DbTask>();
 
-        thread::spawn(move || {
-            loop {
-                match high_priority_rx.try_recv() {
+        thread::spawn(move || loop {
+            match high_priority_rx.try_recv() {
+                Ok(task) => {
+                    Self::execute_task(task, None);
+                    continue;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => break,
+                Err(mpsc::TryRecvError::Empty) => match low_priority_rx.try_recv() {
                     Ok(task) => {
                         Self::execute_task(task, None);
                         continue;
                     }
                     Err(mpsc::TryRecvError::Disconnected) => break,
                     Err(mpsc::TryRecvError::Empty) => {
-                        match low_priority_rx.try_recv() {
-                            Ok(task) => {
-                                Self::execute_task(task, None);
-                                continue;
-                            }
-                            Err(mpsc::TryRecvError::Disconnected) => break,
-                            Err(mpsc::TryRecvError::Empty) => {
-                                thread::sleep(std::time::Duration::from_millis(10));
-                            }
-                        }
+                        thread::sleep(std::time::Duration::from_millis(10));
                     }
-                }
+                },
             }
         });
 
@@ -131,7 +123,11 @@ impl DbTaskQueue {
         }
     }
 
-    fn execute_action(conn: &mut MutexGuard<'static, Connection>, action: DbAction, app_handle: Option<&tauri::AppHandle>) -> Result<(), rusqlite::Error> {
+    fn execute_action(
+        conn: &mut MutexGuard<'static, Connection>,
+        action: DbAction,
+        app_handle: Option<&tauri::AppHandle>,
+    ) -> Result<(), rusqlite::Error> {
         let max_retries = 3;
         let mut attempt = 0;
 
@@ -162,7 +158,11 @@ impl DbTaskQueue {
                             let log_dir = dir.join("WatchMark");
                             let _ = std::fs::create_dir_all(&log_dir);
                             let log_path = log_dir.join("watchmark_failed_tasks.log");
-                            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(log_path) {
+                            if let Ok(mut file) = std::fs::OpenOptions::new()
+                                .create(true)
+                                .append(true)
+                                .open(log_path)
+                            {
                                 let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
                                 let _ = writeln!(file, "[{}] FAILED TASK: {}", timestamp, e);
                             }
@@ -177,7 +177,9 @@ impl DbTaskQueue {
                     }
 
                     // Check if it's a transient error
-                    if e.to_string().contains("database is locked") || e.to_string().contains("busy") {
+                    if e.to_string().contains("database is locked")
+                        || e.to_string().contains("busy")
+                    {
                         std::thread::sleep(std::time::Duration::from_millis(100));
                         continue;
                     } else {
@@ -189,29 +191,36 @@ impl DbTaskQueue {
         }
     }
 
-    fn execute_action_inner(conn: &mut Connection, action: &DbAction) -> Result<(), rusqlite::Error> {
+    fn execute_action_inner(
+        conn: &mut Connection,
+        action: &DbAction,
+    ) -> Result<(), rusqlite::Error> {
         match action {
-            DbAction::UpdateMediaRating(media_id, rating) => {
-                conn.execute(
+            DbAction::UpdateMediaRating(media_id, rating) => conn
+                .execute(
                     "UPDATE Media SET user_rating = ? WHERE id = ?",
                     params![rating, media_id],
-                ).map(|_| ())
-            }
+                )
+                .map(|_| ()),
             DbAction::DeleteMedia(media_id, app_handle) => {
                 let tx = conn.transaction()?;
                 if let Err(e) = tx.execute("DELETE FROM Media WHERE id = ?", [*media_id]) {
                     let _ = tx.rollback();
-                    let _ = app_handle.emit("media-delete-failed", serde_json::json!({ "media_id": media_id, "error": e.to_string() }));
+                    let _ = app_handle.emit(
+                        "media-delete-failed",
+                        serde_json::json!({ "media_id": media_id, "error": e.to_string() }),
+                    );
                     Err(e)
                 } else {
                     tx.commit()?;
-                    let _ = app_handle.emit("media-deleted", serde_json::json!({ "media_id": media_id }));
+                    let _ = app_handle
+                        .emit("media-deleted", serde_json::json!({ "media_id": media_id }));
                     Ok(())
                 }
             }
-            DbAction::ExecuteRaw(sql, params) => {
-                conn.execute(sql, rusqlite::params_from_iter(params.iter())).map(|_| ())
-            }
+            DbAction::ExecuteRaw(sql, params) => conn
+                .execute(sql, rusqlite::params_from_iter(params.iter()))
+                .map(|_| ()),
             DbAction::Batch(actions) => {
                 let tx = conn.transaction()?;
                 for sub_action in actions {
@@ -226,7 +235,10 @@ impl DbTaskQueue {
 
                     match sub_action {
                         DbAction::UpdateMediaRating(id, r) => {
-                            if let Err(e) = tx.execute("UPDATE Media SET user_rating = ? WHERE id = ?", params![r, id]) {
+                            if let Err(e) = tx.execute(
+                                "UPDATE Media SET user_rating = ? WHERE id = ?",
+                                params![r, id],
+                            ) {
                                 let _ = tx.rollback();
                                 return Err(e);
                             }
@@ -272,14 +284,18 @@ impl DbTaskQueue {
     where
         F: FnOnce(&mut MutexGuard<'static, Connection>) + Send + 'static,
     {
-        let _ = self.high_priority_tx.send(DbTask::Action(DbAction::ExecuteClosure(Box::new(func))));
+        let _ = self
+            .high_priority_tx
+            .send(DbTask::Action(DbAction::ExecuteClosure(Box::new(func))));
     }
 
     pub fn push_low_priority<F>(&self, func: F)
     where
         F: FnOnce(&mut MutexGuard<'static, Connection>) + Send + 'static,
     {
-        let _ = self.low_priority_tx.send(DbTask::Action(DbAction::ExecuteClosure(Box::new(func))));
+        let _ = self
+            .low_priority_tx
+            .send(DbTask::Action(DbAction::ExecuteClosure(Box::new(func))));
     }
 
     pub fn shutdown(&self, tx: oneshot::Sender<()>) {

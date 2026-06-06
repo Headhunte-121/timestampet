@@ -3,12 +3,12 @@
 // 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
 // 3. No raw println! allowed.
 
+use crate::error::AppError;
 use reqwest::{Client, Error as ReqwestError};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Error as MiddlewareError};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
-use std::time::Duration;
-use crate::error::AppError;
 use std::sync::Arc;
+use std::time::Duration;
 
 const USER_AGENT: &str = "WatchMark/2.0 (Windows; Desktop; +https://github.com/your-repo)";
 
@@ -62,7 +62,9 @@ impl NetworkManager {
         }
 
         if let Some(status) = e.status() {
-            if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::UNAUTHORIZED {
+            if status == reqwest::StatusCode::FORBIDDEN
+                || status == reqwest::StatusCode::UNAUTHORIZED
+            {
                 return AppError::NetworkBlocked;
             }
         }

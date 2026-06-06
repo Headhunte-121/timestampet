@@ -5,11 +5,11 @@
 
 use rusqlite::params;
 use serde_json::json;
-use std::time::Duration;
+use std::process::Stdio;
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::process::{Child, Command};
-use std::process::Stdio;
 
 use crate::db::get_db_connection;
 use crate::error::AppError;
@@ -74,7 +74,9 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<C
         }
         port += 1;
         if port > 8090 {
-            return Err(AppError::Custom("Could not find a free port for VLC HTTP interface.".to_string()));
+            return Err(AppError::Custom(
+                "Could not find a free port for VLC HTTP interface.".to_string(),
+            ));
         }
     }
 
@@ -117,8 +119,7 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<C
     let mut cmd = Command::from(std_cmd);
 
     // Capture stderr to check for binding/auth errors, while ignoring stdout
-    cmd.stdout(Stdio::null())
-       .stderr(Stdio::piped());
+    cmd.stdout(Stdio::null()).stderr(Stdio::piped());
 
     cmd.arg(&safe_file_path)
         .arg("--extraintf=http")
@@ -154,7 +155,8 @@ pub fn play_in_vlc(vlc_path: &str, file_path: &str, start_time: i32) -> Result<C
         }
     }
 
-    cmd.spawn().map_err(|e| AppError::Custom(format!("Failed to start VLC: {}", e)))
+    cmd.spawn()
+        .map_err(|e| AppError::Custom(format!("Failed to start VLC: {}", e)))
 }
 
 #[derive(serde::Deserialize)]
@@ -175,7 +177,8 @@ pub async fn get_vlc_status() -> Option<VlcStatus> {
         return None;
     }
 
-    if let Ok(res) = NETWORK_MANAGER.local_client
+    if let Ok(res) = NETWORK_MANAGER
+        .local_client
         .get(&format!("http://127.0.0.1:{}/requests/status.json", port))
         .timeout(Duration::from_secs(1))
         .basic_auth("", Some(password))
@@ -493,7 +496,9 @@ pub async fn vlc_heartbeat(
         let emitted_status: String;
 
         if is_completed {
-            tracing::info!("[BACKEND] 🧠 Math evaluated > threshold watched. Marking episode 'Completed'.");
+            tracing::info!(
+                "[BACKEND] 🧠 Math evaluated > threshold watched. Marking episode 'Completed'."
+            );
             let _ = conn.execute(
                 "UPDATE Episodes SET watch_count = watch_count + 1, status = 'Completed', last_position = 0 WHERE id = ?",
                 params![episode_id],
@@ -503,9 +508,10 @@ pub async fn vlc_heartbeat(
                 params![end_dt_str, episode_id, start_dt_str, session_id],
             );
             emitted_status = "Completed".to_string();
-
         } else if is_engaged && last_time_seconds > 1.0 {
-            tracing::info!("[BACKEND] 🧠 Math evaluated <90% watched. Saving pause state as 'Watching'.");
+            tracing::info!(
+                "[BACKEND] 🧠 Math evaluated <90% watched. Saving pause state as 'Watching'."
+            );
             let _ = conn.execute(
                 "UPDATE Episodes SET status = 'Watching', last_position = ? WHERE id = ? AND status != 'Completed'",
                 params![last_time_seconds as i32, episode_id],
@@ -527,14 +533,18 @@ pub async fn vlc_heartbeat(
             // OR they were already at 0% to begin with.
             // If they just opened it, the high water mark will be roughly the same as last_time_seconds (e.g. 0).
             // If they watched or scrubbed, the high water mark would be notably larger than the last_time_seconds.
-            let is_deliberate_reset = (high_water_mark * final_runtime_seconds) > 5.0 && last_time_seconds <= 1.0;
-            let is_pure_unwatched_start = high_water_mark * final_runtime_seconds <= 5.0 && last_time_seconds <= 1.0;
+            let is_deliberate_reset =
+                (high_water_mark * final_runtime_seconds) > 5.0 && last_time_seconds <= 1.0;
+            let is_pure_unwatched_start =
+                high_water_mark * final_runtime_seconds <= 5.0 && last_time_seconds <= 1.0;
 
             if is_deliberate_reset || is_pure_unwatched_start {
                 let mut revert_status = true;
                 let mut current_last_pos = 0;
 
-                if let Ok(mut stmt) = conn.prepare("SELECT status, last_position FROM Episodes WHERE id=?") {
+                if let Ok(mut stmt) =
+                    conn.prepare("SELECT status, last_position FROM Episodes WHERE id=?")
+                {
                     if let Ok(mut rows) = stmt.query(params![episode_id]) {
                         if let Ok(Some(row)) = rows.next() {
                             let current_status: String = row.get(0).unwrap_or_default();
@@ -556,7 +566,9 @@ pub async fn vlc_heartbeat(
                 }
 
                 if revert_status {
-                    tracing::info!("[BACKEND] 🧠 Zero-Second Reset triggered. Reverting to 'Unwatched'.");
+                    tracing::info!(
+                        "[BACKEND] 🧠 Zero-Second Reset triggered. Reverting to 'Unwatched'."
+                    );
                     let _ = conn.execute(
                         "UPDATE Episodes SET status = 'Unwatched', last_position = 0 WHERE id = ?",
                         params![episode_id],
@@ -594,7 +606,7 @@ pub async fn vlc_heartbeat(
                 "mediaId": media_id,
                 "episodeId": episode_id,
                 "finalStatus": emitted_status
-            })
+            }),
         );
     }
 
@@ -619,8 +631,13 @@ pub async fn play_episode_cmd(
     if let Ok(mut cache) = state.stats_cache.write() {
         *cache = None;
     }
-    if state.is_maintenance_mode.load(std::sync::atomic::Ordering::SeqCst) {
-        return Err(AppError::Custom("System Busy: Maintenance mode is currently active.".to_string()));
+    if state
+        .is_maintenance_mode
+        .load(std::sync::atomic::Ordering::SeqCst)
+    {
+        return Err(AppError::Custom(
+            "System Busy: Maintenance mode is currently active.".to_string(),
+        ));
     }
 
     let settings = crate::settings::load_settings().unwrap_or_default();
@@ -631,9 +648,8 @@ pub async fn play_episode_cmd(
     }
 
     // Sanitize path inputs to avoid injection or panics
-    let canonical_path = dunce::canonicalize(&file_path).map_err(|_| {
-        AppError::Custom(format!("Invalid or non-existent path: {}", file_path))
-    })?;
+    let canonical_path = dunce::canonicalize(&file_path)
+        .map_err(|_| AppError::Custom(format!("Invalid or non-existent path: {}", file_path)))?;
 
     let canonical_vlc = dunce::canonicalize(&settings.vlc_path).map_err(|_| {
         AppError::Custom("Invalid VLC executable path configured in Settings".to_string())
@@ -654,11 +670,17 @@ pub async fn play_episode_cmd(
                 let mut buffer = [0; 1024];
 
                 while start_time.elapsed() < Duration::from_secs(2) {
-                    if let Ok(bytes_read) = tokio::time::timeout(Duration::from_millis(100), stderr.read(&mut buffer)).await {
+                    if let Ok(bytes_read) =
+                        tokio::time::timeout(Duration::from_millis(100), stderr.read(&mut buffer))
+                            .await
+                    {
                         if let Ok(n) = bytes_read {
                             if n > 0 {
                                 let err_str = String::from_utf8_lossy(&buffer[..n]).to_lowercase();
-                                if err_str.contains("password") || err_str.contains("bind") || err_str.contains("error") {
+                                if err_str.contains("password")
+                                    || err_str.contains("bind")
+                                    || err_str.contains("error")
+                                {
                                     error_detected = true;
                                     break;
                                 }
@@ -684,63 +706,63 @@ pub async fn play_episode_cmd(
             let start_dt_str = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
             {
-            let conn = get_db_connection()?;
+                let conn = get_db_connection()?;
 
-            // Auto-binge detection logic
-            let mut media_id = 0;
-            let mut stmt = conn.prepare("SELECT media_id FROM Episodes WHERE id=?")?;
-            let mut rows = stmt.query(params![episode_id])?;
-            if let Some(row) = rows.next()? {
-                media_id = row.get(0).unwrap_or(0);
-            }
+                // Auto-binge detection logic
+                let mut media_id = 0;
+                let mut stmt = conn.prepare("SELECT media_id FROM Episodes WHERE id=?")?;
+                let mut rows = stmt.query(params![episode_id])?;
+                if let Some(row) = rows.next()? {
+                    media_id = row.get(0).unwrap_or(0);
+                }
 
-            if media_id > 0 {
-                let mut hist_stmt = conn.prepare(
-                    "SELECT h.session_id, h.timestamp, e.media_id
+                if media_id > 0 {
+                    let mut hist_stmt = conn.prepare(
+                        "SELECT h.session_id, h.timestamp, e.media_id
                      FROM History h
                      JOIN Episodes e ON h.episode_id = e.id
                      WHERE h.is_legacy=0
-                     ORDER BY h.timestamp DESC LIMIT 1"
-                )?;
+                     ORDER BY h.timestamp DESC LIMIT 1",
+                    )?;
 
-                let mut rows = hist_stmt.query([])?;
-                if let Some(row) = rows.next()? {
-                    let last_session_id: Option<String> = row.get(0).unwrap_or_default();
-                    let last_timestamp: i64 = row.get(1).unwrap_or_default();
-                    let last_media_id: i32 = row.get(2).unwrap_or_default();
+                    let mut rows = hist_stmt.query([])?;
+                    if let Some(row) = rows.next()? {
+                        let last_session_id: Option<String> = row.get(0).unwrap_or_default();
+                        let last_timestamp: i64 = row.get(1).unwrap_or_default();
+                        let last_media_id: i32 = row.get(2).unwrap_or_default();
 
-                    if last_media_id == media_id {
-                        let now = chrono::Utc::now().timestamp();
-                        if now - last_timestamp < 21600 {
-                            if let Some(sid) = last_session_id {
-                                if !sid.is_empty() {
-                                    session_id = sid;
+                        if last_media_id == media_id {
+                            let now = chrono::Utc::now().timestamp();
+                            if now - last_timestamp < 21600 {
+                                if let Some(sid) = last_session_id {
+                                    if !sid.is_empty() {
+                                        session_id = sid;
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            let current_timestamp = chrono::Utc::now().timestamp();
+                let current_timestamp = chrono::Utc::now().timestamp();
 
-            let _ = conn.execute(
+                let _ = conn.execute(
                 "INSERT INTO History (episode_id, timestamp, session_id, is_legacy, start_time, pause_count, completion_ratio)
                     VALUES (?, ?, ?, 0, ?, 0, 0.0)",
                 params![episode_id, current_timestamp, session_id, start_dt_str],
             )?;
 
-            let mut status = "Unwatched".to_string();
-            let mut stmt = conn.prepare("SELECT status FROM Episodes WHERE id=?")?;
-            let mut rows = stmt.query(params![episode_id])?;
-            if let Some(row) = rows.next()? {
-                let current_status: String = row.get(0).unwrap_or_default();
-                if current_status == "Unwatched" {
-                    status = "Watching".to_string();
-                } else {
-                    status = current_status;
+                let mut status = "Unwatched".to_string();
+                let mut stmt = conn.prepare("SELECT status FROM Episodes WHERE id=?")?;
+                let mut rows = stmt.query(params![episode_id])?;
+                if let Some(row) = rows.next()? {
+                    let current_status: String = row.get(0).unwrap_or_default();
+                    if current_status == "Unwatched" {
+                        status = "Watching".to_string();
+                    } else {
+                        status = current_status;
+                    }
                 }
-            }
 
                 if status == "Watching" {
                     let _ = conn.execute(
@@ -770,6 +792,6 @@ pub async fn play_episode_cmd(
 
             Ok(())
         }
-        Err(e) => Err(e)
+        Err(e) => Err(e),
     }
 }

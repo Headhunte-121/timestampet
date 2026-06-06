@@ -41,7 +41,10 @@ pub fn perform_backup() -> Result<(), AppError> {
     // SQLite VACUUM INTO
     // We must pass the path as a string literal or bound parameter.
     // Wait, VACUUM INTO syntax is `VACUUM INTO 'filename';`
-    let sql = format!("VACUUM INTO '{}'", backup_path.to_string_lossy().replace("'", "''"));
+    let sql = format!(
+        "VACUUM INTO '{}'",
+        backup_path.to_string_lossy().replace("'", "''")
+    );
     conn.execute(&sql, [])?;
 
     // Prune old backups (keep only the 3 most recent)
@@ -58,7 +61,11 @@ pub fn prune_backups(backup_dir: &PathBuf) -> Result<(), AppError> {
             let path = entry.path();
             if path.is_file() && path.extension().unwrap_or_default() == "bak" {
                 if let Ok(metadata) = entry.metadata() {
-                    let time = metadata.created().unwrap_or_else(|_| metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH));
+                    let time = metadata.created().unwrap_or_else(|_| {
+                        metadata
+                            .modified()
+                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                    });
                     backups.push((path, time));
                 }
             }

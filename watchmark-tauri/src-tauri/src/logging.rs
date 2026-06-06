@@ -3,18 +3,14 @@
 // 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
 // 3. No raw println! allowed.
 
-use tracing_subscriber::{
-    filter::EnvFilter,
-    fmt,
-    reload,
-    layer::SubscriberExt,
-    util::SubscriberInitExt,
-};
-use tracing_appender::non_blocking::WorkerGuard;
-use tracing_appender::rolling;
+use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::RwLock;
-use lazy_static::lazy_static;
+use tracing_appender::non_blocking::WorkerGuard;
+use tracing_appender::rolling;
+use tracing_subscriber::{
+    filter::EnvFilter, fmt, layer::SubscriberExt, reload, util::SubscriberInitExt,
+};
 
 use crate::db::get_app_data_dir;
 
@@ -61,8 +57,7 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
 
     let filter_string = build_filter_string(global_level, module_logs);
 
-    let filter = EnvFilter::try_new(&filter_string)
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_new(&filter_string).unwrap_or_else(|_| EnvFilter::new("info"));
 
     let (reload_filter, reload_handle) = reload::Layer::new(filter);
 
@@ -79,7 +74,7 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
                 .without_time() // Make it read like a script without timestamps
                 .with_file(false)
                 .with_line_number(false)
-                .compact() // Cleaner English-focused terminal output
+                .compact(), // Cleaner English-focused terminal output
         )
         .with(
             fmt::layer()
@@ -88,7 +83,7 @@ pub fn init_tracing(global_level: &str, module_logs: &HashMap<String, String>) {
                 .with_ansi(false)
                 .with_thread_ids(true)
                 .with_thread_names(true)
-                .with_span_events(span_events) // Keep full detailed metrics for file logging
+                .with_span_events(span_events), // Keep full detailed metrics for file logging
         );
 
     // If this fails, it might mean another subscriber was already set. We can ignore in tests,

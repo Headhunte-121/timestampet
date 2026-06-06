@@ -6,14 +6,14 @@
 /* WATCHMARK STANDARD PATTERN: All asynchronous data commands MUST implement requestId for cancellation support and pagination (page/limit) for UI performance. Follow this signature for all future connections to maintain Phase 1 & 2 integrity. */
 
 use crate::db::get_db_connection;
-use std::collections::HashMap;
 use crate::error::{handle_panic, AppError};
 use crate::models::{Media, Settings, UnmatchedFile};
+use chrono::{Datelike, Local, NaiveDate, TimeZone};
 use rusqlite::params;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tauri::Emitter;
-use chrono::{Local, TimeZone, NaiveDate, Datelike};
 
 fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value> {
     if air_date_str.is_empty() {
@@ -49,10 +49,22 @@ fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value>
 
     if days < 0 {
         months -= 1;
-        let prev_month = if end.month() == 1 { 12 } else { end.month() - 1 };
-        let prev_month_year = if end.month() == 1 { end.year() - 1 } else { end.year() };
+        let prev_month = if end.month() == 1 {
+            12
+        } else {
+            end.month() - 1
+        };
+        let prev_month_year = if end.month() == 1 {
+            end.year() - 1
+        } else {
+            end.year()
+        };
         let next_month = if prev_month == 12 { 1 } else { prev_month + 1 };
-        let next_year = if prev_month == 12 { prev_month_year + 1 } else { prev_month_year };
+        let next_year = if prev_month == 12 {
+            prev_month_year + 1
+        } else {
+            prev_month_year
+        };
         let d1 = NaiveDate::from_ymd_opt(prev_month_year, prev_month, 1).unwrap();
         let d2 = NaiveDate::from_ymd_opt(next_year, next_month, 1).unwrap();
         days += (d2 - d1).num_days() as i32;
@@ -79,14 +91,23 @@ use tokio::sync::mpsc;
 #[cfg(test)]
 mod tests_feature_5_8 {
     use super::*;
-    use chrono::{TimeZone, Local, NaiveDate};
+    use chrono::{Local, NaiveDate, TimeZone};
 
     #[test]
     fn test_time_capsule_decade_delay() {
         // Air date 1960-01-01
         // Watched 2024-01-01
         let air_date = "1960-01-01";
-        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2024, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap()).single().unwrap().timestamp();
+        let watch_ts = Local
+            .from_local_datetime(
+                &NaiveDate::from_ymd_opt(2024, 1, 1)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap(),
+            )
+            .single()
+            .unwrap()
+            .timestamp();
 
         let gap = calculate_gap(air_date, watch_ts).unwrap();
         assert_eq!(gap["years"], 64);
@@ -98,7 +119,16 @@ mod tests_feature_5_8 {
         // Watched on Release Day
         let air_date = "2024-01-01";
         // Let's say we watched it at 2 PM local time on that day
-        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2024, 1, 1).unwrap().and_hms_opt(14, 0, 0).unwrap()).single().unwrap().timestamp();
+        let watch_ts = Local
+            .from_local_datetime(
+                &NaiveDate::from_ymd_opt(2024, 1, 1)
+                    .unwrap()
+                    .and_hms_opt(14, 0, 0)
+                    .unwrap(),
+            )
+            .single()
+            .unwrap()
+            .timestamp();
 
         let gap = calculate_gap(air_date, watch_ts).unwrap();
         assert_eq!(gap["total_days"], 0);
@@ -109,7 +139,16 @@ mod tests_feature_5_8 {
     fn test_time_capsule_early_watch() {
         // Time Traveler Test / Leak
         let air_date = "2025-01-01";
-        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2024, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap()).single().unwrap().timestamp();
+        let watch_ts = Local
+            .from_local_datetime(
+                &NaiveDate::from_ymd_opt(2024, 1, 1)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap(),
+            )
+            .single()
+            .unwrap()
+            .timestamp();
 
         let gap = calculate_gap(air_date, watch_ts).unwrap();
         assert_eq!(gap["is_early"], true);
@@ -119,7 +158,16 @@ mod tests_feature_5_8 {
     fn test_time_capsule_leap_year() {
         // Aired Feb 29, 2024. Watched Feb 28, 2025. Exactly 1 non-leap year (365 days).
         let air_date = "2024-02-29";
-        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2025, 2, 28).unwrap().and_hms_opt(0, 0, 0).unwrap()).single().unwrap().timestamp();
+        let watch_ts = Local
+            .from_local_datetime(
+                &NaiveDate::from_ymd_opt(2025, 2, 28)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap(),
+            )
+            .single()
+            .unwrap()
+            .timestamp();
 
         let gap = calculate_gap(air_date, watch_ts).unwrap();
         assert_eq!(gap["total_days"], 365);
@@ -145,7 +193,16 @@ mod tests_feature_5_8 {
     fn test_time_traveler_backdate_gap() {
         // Simulating backdate from the prompt. We test calculate_gap with an early backdated timestamp.
         let air_date = "2024-10-01"; // show aired in 2024
-        let watch_ts = Local.from_local_datetime(&NaiveDate::from_ymd_opt(2010, 6, 1).unwrap().and_hms_opt(12, 0, 0).unwrap()).single().unwrap().timestamp();
+        let watch_ts = Local
+            .from_local_datetime(
+                &NaiveDate::from_ymd_opt(2010, 6, 1)
+                    .unwrap()
+                    .and_hms_opt(12, 0, 0)
+                    .unwrap(),
+            )
+            .single()
+            .unwrap()
+            .timestamp();
 
         let gap = calculate_gap(air_date, watch_ts).unwrap();
         assert_eq!(gap["is_early"], true);
@@ -200,11 +257,15 @@ pub fn cancel_task(request_id: String, state: tauri::State<'_, AppState>) -> Res
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(state))]
-pub async fn optimize_database(
-    state: tauri::State<'_, AppState>,
-) -> Result<(u64, u64), AppError> {
-    if state.is_maintenance_mode.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
-        return Err(AppError::Custom("System Busy: Maintenance mode is already active.".to_string()));
+pub async fn optimize_database(state: tauri::State<'_, AppState>) -> Result<(u64, u64), AppError> {
+    if state
+        .is_maintenance_mode
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err(AppError::Custom(
+            "System Busy: Maintenance mode is already active.".to_string(),
+        ));
     }
 
     let db_path = crate::db::get_db_path();
@@ -218,7 +279,9 @@ pub async fn optimize_database(
         if let Ok(space) = fs3::available_space(parent) {
             if space < old_size {
                 state.is_maintenance_mode.store(false, Ordering::SeqCst);
-                return Err(AppError::Custom("Optimization failed: Not enough disk space to re-index.".to_string()));
+                return Err(AppError::Custom(
+                    "Optimization failed: Not enough disk space to re-index.".to_string(),
+                ));
             }
         }
     }
@@ -254,10 +317,17 @@ pub async fn optimize_database(
                 0
             };
 
-            tracing::info!("[DB] ✨ Database optimization complete. Reclaimed {} bytes ({}%).", saved_bytes, percentage);
+            tracing::info!(
+                "[DB] ✨ Database optimization complete. Reclaimed {} bytes ({}%).",
+                saved_bytes,
+                percentage
+            );
             Ok((saved_bytes, percentage))
         }
-        Ok(Err(e)) => Err(AppError::Custom(format!("Database optimization failed: {}", e))),
+        Ok(Err(e)) => Err(AppError::Custom(format!(
+            "Database optimization failed: {}",
+            e
+        ))),
         Err(_) => Err(AppError::Custom("Database worker dropped task".to_string())),
     }
 }
@@ -294,19 +364,28 @@ pub fn repair_paths(old_root: String, new_root: String) -> Result<i32, AppError>
 pub fn remove_local_link(episode_id: i32) -> Result<(), AppError> {
     handle_panic(|| {
         let conn = get_db_connection()?;
-        conn.execute("DELETE FROM Local_Files WHERE episode_id = ?", params![episode_id])?;
+        conn.execute(
+            "DELETE FROM Local_Files WHERE episode_id = ?",
+            params![episode_id],
+        )?;
         Ok(())
     })
 }
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(state))]
-pub fn ignore_unmatched_group(group_key: String, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+pub fn ignore_unmatched_group(
+    group_key: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
     // We execute the delete in the background queue so the UI can respond immediately
     let db_queue = state.db_queue.clone();
 
     db_queue.push_high_priority(move |conn| {
-        let _ = conn.execute("DELETE FROM Unmatched_Files WHERE group_key = ?", params![group_key]);
+        let _ = conn.execute(
+            "DELETE FROM Unmatched_Files WHERE group_key = ?",
+            params![group_key],
+        );
     });
 
     Ok(())
@@ -346,7 +425,8 @@ pub async fn validate_and_hash_file(episode_id: i32, file_path: String) -> Resul
         })
     });
 
-    task.await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
+    task.await
+        .unwrap_or(Err(AppError::Custom("Task panicked".to_string())))
 }
 
 #[tauri::command]
@@ -365,9 +445,16 @@ pub fn update_local_file(episode_id: i32, new_path: String) -> Result<(), AppErr
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(state))]
-pub async fn validate_tmdb_key(key: String, state: tauri::State<'_, AppState>) -> Result<serde_json::Value, AppError> {
+pub async fn validate_tmdb_key(
+    key: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, AppError> {
     // Sanitize the key
-    let sanitized_key = key.trim().chars().filter(|c| c.is_alphanumeric()).collect::<String>();
+    let sanitized_key = key
+        .trim()
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect::<String>();
 
     if sanitized_key.is_empty() {
         return Ok(serde_json::json!({
@@ -385,7 +472,7 @@ pub async fn validate_tmdb_key(key: String, state: tauri::State<'_, AppState>) -
                 "sanitized_key": sanitized_key,
                 "error_msg": None::<String>
             }))
-        },
+        }
         Ok(false) => {
             state.is_api_authorized.store(false, Ordering::SeqCst);
             Ok(serde_json::json!({
@@ -432,7 +519,11 @@ pub async fn save_settings(
     }
 
     // Send to debouncer task
-    state.settings_tx.send(settings).await.map_err(|e| AppError::Custom(e.to_string()))
+    state
+        .settings_tx
+        .send(settings)
+        .await
+        .map_err(|e| AppError::Custom(e.to_string()))
 }
 
 #[tauri::command]
@@ -440,7 +531,7 @@ pub async fn save_settings(
 pub async fn update_log_settings(
     global_level: String,
     module_settings: HashMap<String, String>,
-    state: tauri::State<'_, AppState>
+    state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
     let mut updated_settings = {
         let cache = state.settings.read().unwrap();
@@ -461,7 +552,10 @@ pub async fn update_log_settings(
     }
 
     if let Err(e) = state.settings_tx.send(updated_settings.clone()).await {
-        return Err(AppError::Custom(format!("Failed to queue settings save: {}", e)));
+        return Err(AppError::Custom(format!(
+            "Failed to queue settings save: {}",
+            e
+        )));
     }
 
     Ok(())
@@ -478,7 +572,8 @@ pub async fn get_available_modules() -> Result<HashMap<String, String>, AppError
 
     // Ensure core modules exist
     for module in crate::logging::CORE_MODULES {
-        map.entry(module.to_string()).or_insert_with(|| "info".to_string());
+        map.entry(module.to_string())
+            .or_insert_with(|| "info".to_string());
     }
 
     Ok(map)
@@ -517,7 +612,10 @@ pub fn delete_media_cmd(
         let mut tokens = state.cancel_tokens.write().unwrap();
         if let Some(token) = tokens.remove(&media_id.to_string()) {
             token.cancel();
-            tracing::info!("[IPC: CANCEL] 🛑 Cancelled background fetch for media_id {}", media_id);
+            tracing::info!(
+                "[IPC: CANCEL] 🛑 Cancelled background fetch for media_id {}",
+                media_id
+            );
         }
     }
 
@@ -531,7 +629,10 @@ pub fn delete_media_cmd(
         let tx = match conn.transaction() {
             Ok(tx) => tx,
             Err(e) => {
-                let _ = app.emit("media-delete-failed", json!({ "media_id": media_id, "error": e.to_string() }));
+                let _ = app.emit(
+                    "media-delete-failed",
+                    json!({ "media_id": media_id, "error": e.to_string() }),
+                );
                 return;
             }
         };
@@ -554,7 +655,10 @@ pub fn delete_media_cmd(
         // WAIT, the prompt says: "If an episode is deleted from the tracker, the Rust remove_show logic uses this naming convention to target and delete specific files from the hard drive instantly."
         if let Err(e) = tx.execute("DELETE FROM Media WHERE id = ?", [media_id]) {
             let _ = tx.rollback();
-            let _ = app.emit("media-delete-failed", json!({ "media_id": media_id, "error": e.to_string() }));
+            let _ = app.emit(
+                "media-delete-failed",
+                json!({ "media_id": media_id, "error": e.to_string() }),
+            );
             return;
         }
 
@@ -569,7 +673,10 @@ pub fn delete_media_cmd(
         }
 
         if let Err(e) = tx.commit() {
-            let _ = app.emit("media-delete-failed", json!({ "media_id": media_id, "error": e.to_string() }));
+            let _ = app.emit(
+                "media-delete-failed",
+                json!({ "media_id": media_id, "error": e.to_string() }),
+            );
             return;
         }
 
@@ -579,25 +686,38 @@ pub fn delete_media_cmd(
     Ok(())
 }
 
-pub fn validate_and_stage_restore(backup_path: &std::path::Path, app_dir: &std::path::Path) -> Result<(), AppError> {
+pub fn validate_and_stage_restore(
+    backup_path: &std::path::Path,
+    app_dir: &std::path::Path,
+) -> Result<(), AppError> {
     if !backup_path.exists() {
         return Err(AppError::Custom("Backup file does not exist".to_string()));
     }
 
     // Pragma Check: verify it's a valid SQLite database
-    match rusqlite::Connection::open_with_flags(backup_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) {
+    match rusqlite::Connection::open_with_flags(
+        backup_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    ) {
         Ok(conn) => {
-            let mut stmt = conn.prepare("PRAGMA integrity_check")
-                .map_err(|e| AppError::Custom(format!("Failed to prepare integrity check: {}", e)))?;
-            let mut rows = stmt.query([])
-                .map_err(|e| AppError::Custom(format!("Failed to execute integrity check: {}", e)))?;
+            let mut stmt = conn.prepare("PRAGMA integrity_check").map_err(|e| {
+                AppError::Custom(format!("Failed to prepare integrity check: {}", e))
+            })?;
+            let mut rows = stmt.query([]).map_err(|e| {
+                AppError::Custom(format!("Failed to execute integrity check: {}", e))
+            })?;
             if let Some(row) = rows.next().unwrap_or(None) {
                 let result: String = row.get(0).unwrap_or_default();
                 if result != "ok" {
-                    return Err(AppError::Custom("Backup file is not a valid SQLite database (integrity check failed)".to_string()));
+                    return Err(AppError::Custom(
+                        "Backup file is not a valid SQLite database (integrity check failed)"
+                            .to_string(),
+                    ));
                 }
             } else {
-                 return Err(AppError::Custom("Backup file is not a valid SQLite database".to_string()));
+                return Err(AppError::Custom(
+                    "Backup file is not a valid SQLite database".to_string(),
+                ));
             }
         }
         Err(e) => {
@@ -608,14 +728,19 @@ pub fn validate_and_stage_restore(backup_path: &std::path::Path, app_dir: &std::
     // Prepare paths
     let db_dir = app_dir.join("db");
     if !db_dir.exists() {
-        std::fs::create_dir_all(&db_dir).map_err(|e| AppError::Custom(format!("Failed to create db dir: {}", e)))?;
+        std::fs::create_dir_all(&db_dir)
+            .map_err(|e| AppError::Custom(format!("Failed to create db dir: {}", e)))?;
     }
     let pending_db_path = db_dir.join("watchmark.db.pending");
     let trigger_file_path = app_dir.join(".restore_pending");
 
     // Copy to pending path
-    std::fs::copy(backup_path, &pending_db_path)
-        .map_err(|e| AppError::Custom(format!("Failed to stage backup file (possibly out of space): {}", e)))?;
+    std::fs::copy(backup_path, &pending_db_path).map_err(|e| {
+        AppError::Custom(format!(
+            "Failed to stage backup file (possibly out of space): {}",
+            e
+        ))
+    })?;
 
     // Create trigger file
     std::fs::write(&trigger_file_path, b"pending_restore")
@@ -656,7 +781,10 @@ pub async fn export_database(
     // Ensure we can use the file path (must remove if exists since VACUUM INTO fails otherwise)
     if target_path_buf.exists() {
         if let Err(e) = std::fs::remove_file(&target_path_buf) {
-            return Err(AppError::Custom(format!("Failed to remove existing file at destination: {}", e)));
+            return Err(AppError::Custom(format!(
+                "Failed to remove existing file at destination: {}",
+                e
+            )));
         }
     }
 
@@ -664,8 +792,13 @@ pub async fn export_database(
     let (tx, rx) = tokio::sync::oneshot::channel();
 
     db_queue.push_high_priority(move |conn| {
-        let sql = format!("VACUUM INTO '{}'", target_path_buf.to_string_lossy().replace("'", "''"));
-        let result = conn.execute(&sql, []).map_err(|e| AppError::Custom(format!("Database export failed: {}", e)));
+        let sql = format!(
+            "VACUUM INTO '{}'",
+            target_path_buf.to_string_lossy().replace("'", "''")
+        );
+        let result = conn
+            .execute(&sql, [])
+            .map_err(|e| AppError::Custom(format!("Database export failed: {}", e)));
         let _ = tx.send(result);
     });
 
@@ -678,7 +811,11 @@ pub async fn export_database(
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(app, state))]
-pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
+pub fn get_media_details_db(
+    media_id: i32,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Value, AppError> {
     tracing::info!("[BACKEND] 🧠 Extracting detailed Media and Season data...");
     let mut backdrop_size = "w1280".to_string();
     let mut _poster_size = "w500".to_string();
@@ -699,16 +836,25 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
         if let Ok(mut rows) = stmt.query(params![media_id]) {
             if let Ok(Some(row)) = rows.next() {
                 let m_type: String = row.get(2).unwrap_or_default();
-                let raw_release_date: String = row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default();
-                let (sanitized_release_date, is_exact, is_known) = if raw_release_date.is_empty() && m_type != "TV" {
-                    ("0000-00-00".to_string(), false, false)
-                } else {
-                    crate::sanitizer::sanitize_date(&raw_release_date)
-                };
+                let raw_release_date: String = row
+                    .get::<_, Option<String>>(11)
+                    .unwrap_or_default()
+                    .unwrap_or_default();
+                let (sanitized_release_date, is_exact, is_known) =
+                    if raw_release_date.is_empty() && m_type != "TV" {
+                        ("0000-00-00".to_string(), false, false)
+                    } else {
+                        crate::sanitizer::sanitize_date(&raw_release_date)
+                    };
 
-                let is_unaired = if is_known && !sanitized_release_date.is_empty() && sanitized_release_date != "0000-00-00" {
+                let is_unaired = if is_known
+                    && !sanitized_release_date.is_empty()
+                    && sanitized_release_date != "0000-00-00"
+                {
                     let now = chrono::Utc::now().naive_utc().date();
-                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_release_date, "%Y-%m-%d") {
+                    if let Ok(parsed) =
+                        chrono::NaiveDate::parse_from_str(&sanitized_release_date, "%Y-%m-%d")
+                    {
                         parsed > now
                     } else {
                         false
@@ -717,18 +863,25 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
                     false
                 };
 
-                let raw_synopsis = row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default();
-                let sanitized_synopsis = crate::sanitizer::sanitize_text(&raw_synopsis, "No overview available.");
+                let raw_synopsis = row
+                    .get::<_, Option<String>>(4)
+                    .unwrap_or_default()
+                    .unwrap_or_default();
+                let sanitized_synopsis =
+                    crate::sanitizer::sanitize_text(&raw_synopsis, "No overview available.");
 
                 let collection_id = row.get::<_, Option<i32>>(15).unwrap_or_default();
                 let mut collection_parts = serde_json::Value::Null;
 
                 if let Some(c_id) = collection_id {
-                    if let Ok(mut c_stmt) = conn.prepare("SELECT parts FROM Collections WHERE id=?") {
+                    if let Ok(mut c_stmt) = conn.prepare("SELECT parts FROM Collections WHERE id=?")
+                    {
                         if let Ok(mut c_rows) = c_stmt.query(params![c_id]) {
                             if let Ok(Some(c_row)) = c_rows.next() {
-                                let parts_str: String = c_row.get(0).unwrap_or_else(|_| "[]".to_string());
-                                collection_parts = serde_json::from_str(&parts_str).unwrap_or(serde_json::Value::Null);
+                                let parts_str: String =
+                                    c_row.get(0).unwrap_or_else(|_| "[]".to_string());
+                                collection_parts = serde_json::from_str(&parts_str)
+                                    .unwrap_or(serde_json::Value::Null);
                             }
                         }
                     }
@@ -820,11 +973,14 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
             if let Ok(ep_rows) = eps_stmt.query_map(params![media_id], |row| {
                 let ep_id = row.get::<_, i32>(0)?;
                 let raw_air_date: String = row.get::<_, Option<String>>(13)?.unwrap_or_default();
-                let (sanitized_air_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
+                let (sanitized_air_date, is_exact, is_known) =
+                    crate::sanitizer::sanitize_date(&raw_air_date);
 
                 let is_unaired = if is_known && !sanitized_air_date.is_empty() {
                     let now = chrono::Utc::now().naive_utc().date();
-                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d") {
+                    if let Ok(parsed) =
+                        chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d")
+                    {
                         parsed > now
                     } else {
                         false
@@ -835,7 +991,9 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
 
                 let potential_spoiler = if is_known && !sanitized_air_date.is_empty() {
                     let now = chrono::Utc::now().naive_utc().date();
-                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d") {
+                    if let Ok(parsed) =
+                        chrono::NaiveDate::parse_from_str(&sanitized_air_date, "%Y-%m-%d")
+                    {
                         let duration = now.signed_duration_since(parsed);
                         duration.num_days() <= 2
                     } else {
@@ -846,19 +1004,22 @@ pub fn get_media_details_db(media_id: i32, app: tauri::AppHandle, state: tauri::
                 };
 
                 let raw_overview = row.get::<_, Option<String>>(7)?.unwrap_or_default();
-                let sanitized_overview = crate::sanitizer::sanitize_text(&raw_overview, "No episode summary.");
+                let sanitized_overview =
+                    crate::sanitizer::sanitize_text(&raw_overview, "No episode summary.");
 
                 let raw_season_overview = row.get::<_, Option<String>>(8)?.unwrap_or_default();
 
                 let runtime: i32 = row.get::<_, Option<i32>>(5)?.unwrap_or(0);
                 let last_position: i32 = row.get::<_, Option<i32>>(10)?.unwrap_or(0);
-                let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
+                let progress_percentage =
+                    crate::sanitizer::calculate_progress_percentage(last_position, runtime);
 
                 let raw_still_path: String = row.get::<_, Option<String>>(6)?.unwrap_or_default();
                 let is_fallback_image = raw_still_path.is_empty();
 
                 let resolved_still_path = if !is_fallback_image {
-                    crate::tmdb::resolve_local_still_path(&raw_still_path, ep_id).unwrap_or(raw_still_path)
+                    crate::tmdb::resolve_local_still_path(&raw_still_path, ep_id)
+                        .unwrap_or(raw_still_path)
                 } else {
                     m["backdrop_path"].as_str().unwrap_or_default().to_string()
                 };
@@ -910,28 +1071,36 @@ pub async fn add_to_tracker(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
     if !state.is_api_authorized.load(Ordering::SeqCst) {
-        return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
+        return Err(AppError::Custom(
+            "API Key is invalid or unauthorized.".to_string(),
+        ));
     }
 
-    let settings = crate::settings::load_settings()
-        .map_err(|e| AppError::Custom(e))?;
+    let settings = crate::settings::load_settings().map_err(|e| AppError::Custom(e))?;
     if settings.tmdb_api_key.is_empty() {
-        return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
+        return Err(AppError::Custom(
+            "Missing TMDB API Key. Please add it in Settings.".to_string(),
+        ));
     }
 
-    let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
-    let details = match crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await {
-        Ok(res) => res,
-        Err(e) => {
-            if let AppError::NetworkBlocked = e {
-                state.is_api_authorized.store(false, Ordering::SeqCst);
-                state.db_queue.clear();
-                let _ = app.emit("api-auth-failed", ());
-                return Err(AppError::Custom("API Key was revoked.".to_string()));
+    let valid_media_type = crate::models::MediaType::from_str(&media_type)
+        .as_str()
+        .to_string();
+    let details =
+        match crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type)
+            .await
+        {
+            Ok(res) => res,
+            Err(e) => {
+                if let AppError::NetworkBlocked = e {
+                    state.is_api_authorized.store(false, Ordering::SeqCst);
+                    state.db_queue.clear();
+                    let _ = app.emit("api-auth-failed", ());
+                    return Err(AppError::Custom("API Key was revoked.".to_string()));
+                }
+                return Err(e);
             }
-            return Err(e);
-        }
-    };
+        };
 
     let api_key = settings.tmdb_api_key.clone();
     let media_type_clone = valid_media_type.clone();
@@ -1111,13 +1280,19 @@ pub async fn add_to_tracker(
                         if s_num >= 0 {
                             // Rate limit check
                             if token.is_cancelled() {
-                                tracing::info!("[IPC: CANCEL] 🛑 Fetch loop cancelled for media_id {}", media_id);
+                                tracing::info!(
+                                    "[IPC: CANCEL] 🛑 Fetch loop cancelled for media_id {}",
+                                    media_id
+                                );
                                 break;
                             }
 
                             // Rate limit check
                             // check_rate_limit uses state, let's just use app_clone_for_task.state::<AppState>() here since we are back in async context
-                            crate::commands::check_rate_limit(&app_clone_for_task.state::<AppState>()).await;
+                            crate::commands::check_rate_limit(
+                                &app_clone_for_task.state::<AppState>(),
+                            )
+                            .await;
 
                             // Yield back to executor to prevent blocking the async runtime
                             tokio::task::yield_now().await;
@@ -1127,18 +1302,27 @@ pub async fn add_to_tracker(
                                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                             }
 
-                            let _ = app_clone_for_task.emit("sync-progress", json!({
-                                "mediaId": media_id,
-                                "tmdbId": tmdb_id_clone,
-                                "currentSeason": index + 1,
-                                "totalSeasons": total_seasons
-                            }));
+                            let _ = app_clone_for_task.emit(
+                                "sync-progress",
+                                json!({
+                                    "mediaId": media_id,
+                                    "tmdbId": tmdb_id_clone,
+                                    "currentSeason": index + 1,
+                                    "totalSeasons": total_seasons
+                                }),
+                            );
 
-                            match crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                            match crate::tmdb::get_tv_season_episodes(
+                                &api_key,
+                                &tmdb_id_clone,
+                                s_num as u32,
+                            )
+                            .await
+                            {
                                 Ok(eps) => {
-                                // Insert the chunk immediately inside spawn_blocking
-                                let details_clone = details.clone();
-                                let res = tokio::task::spawn_blocking(move || {
+                                    // Insert the chunk immediately inside spawn_blocking
+                                    let details_clone = details.clone();
+                                    let res = tokio::task::spawn_blocking(move || {
                                     handle_panic(|| {
                                         let mut inserted_eps = Vec::new();
                                         if let Ok(mut conn) = get_db_connection() {
@@ -1243,65 +1427,96 @@ pub async fn add_to_tracker(
                                     })
                                 }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
 
-                                if let Ok(inserted_eps) = res {
-                                    if !inserted_eps.is_empty() {
-                                        // "Lazy Discovery" architecture: Priority active-season vs background idle downloading
-                                        let is_active_season = index == 0;
-                                        let token_clone = token.clone();
+                                    if let Ok(inserted_eps) = res {
+                                        if !inserted_eps.is_empty() {
+                                            // "Lazy Discovery" architecture: Priority active-season vs background idle downloading
+                                            let is_active_season = index == 0;
+                                            let token_clone = token.clone();
 
-                                        let download_future = async move {
-                                            let mut tasks = Vec::new();
+                                            let download_future = async move {
+                                                let mut tasks = Vec::new();
 
-                                            for (ep_id, path) in inserted_eps {
-                                                if token_clone.is_cancelled() {
-                                                    break;
+                                                for (ep_id, path) in inserted_eps {
+                                                    if token_clone.is_cancelled() {
+                                                        break;
+                                                    }
+
+                                                    let permit =
+                                                        crate::tmdb::GLOBAL_IMAGE_SEMAPHORE
+                                                            .acquire()
+                                                            .await
+                                                            .unwrap();
+                                                    let path_clone = path.clone();
+                                                    let ep_id_clone = ep_id;
+
+                                                    tasks.push(tokio::spawn(async move {
+                                                        crate::tmdb::download_episode_still(
+                                                            &path_clone,
+                                                            ep_id_clone,
+                                                            high_performance_mode,
+                                                        )
+                                                        .await;
+                                                        drop(permit);
+                                                    }));
                                                 }
 
-                                                let permit = crate::tmdb::GLOBAL_IMAGE_SEMAPHORE.acquire().await.unwrap();
-                                                let path_clone = path.clone();
-                                                let ep_id_clone = ep_id;
+                                                for t in tasks {
+                                                    let _ = t.await;
+                                                }
+                                            };
 
-                                                tasks.push(tokio::spawn(async move {
-                                                    crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
-                                                    drop(permit);
-                                                }));
+                                            if is_active_season {
+                                                // Await inline for the active season
+                                                download_future.await;
+                                            } else {
+                                                // Spawn background task for idle seasons
+                                                tokio::spawn(download_future);
                                             }
-
-                                            for t in tasks {
-                                                let _ = t.await;
-                                            }
-                                        };
-
-                                        if is_active_season {
-                                            // Await inline for the active season
-                                            download_future.await;
-                                        } else {
-                                            // Spawn background task for idle seasons
-                                            tokio::spawn(download_future);
                                         }
                                     }
                                 }
-                                }
                                 Err(AppError::Custom(err)) if err == "NOT_FOUND" => {
                                     tracing::warn!("[API] ⚠️ Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
-                                    let _ = app_clone_for_task.emit("warning-toast", format!("Season {} missing from TMDB, skipped.", s_num));
+                                    let _ = app_clone_for_task.emit(
+                                        "warning-toast",
+                                        format!("Season {} missing from TMDB, skipped.", s_num),
+                                    );
                                     continue;
                                 }
                                 Err(AppError::Custom(err)) if err.starts_with("RATE_LIMIT:") => {
                                     let parts: Vec<&str> = err.split(':').collect();
-                                    let retry_after = parts.get(1).unwrap_or(&"1").parse::<u64>().unwrap_or(1);
+                                    let retry_after =
+                                        parts.get(1).unwrap_or(&"1").parse::<u64>().unwrap_or(1);
                                     let async_state = app_clone_for_task.state::<AppState>();
                                     async_state.is_rate_limited.store(true, Ordering::SeqCst);
-                                    async_state.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
+                                    async_state.rate_limit_reset.store(
+                                        chrono::Utc::now().timestamp() + retry_after as i64,
+                                        Ordering::SeqCst,
+                                    );
 
-                                    tracing::warn!("[API] ⚠️ Rate limited. Pausing queue for {} seconds.", retry_after);
-                                    tokio::time::sleep(tokio::time::Duration::from_secs(retry_after)).await;
+                                    tracing::warn!(
+                                        "[API] ⚠️ Rate limited. Pausing queue for {} seconds.",
+                                        retry_after
+                                    );
+                                    tokio::time::sleep(tokio::time::Duration::from_secs(
+                                        retry_after,
+                                    ))
+                                    .await;
 
                                     // re-acquire state because previous async_state reference might have been moved/borrowed elsewhere (though state is managed, so it's fine, but let's be safe)
-                                    app_clone_for_task.state::<AppState>().is_rate_limited.store(false, Ordering::SeqCst);
+                                    app_clone_for_task
+                                        .state::<AppState>()
+                                        .is_rate_limited
+                                        .store(false, Ordering::SeqCst);
 
                                     // Retry once directly inline after sleeping
-                                    if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                                    if let Ok(eps) = crate::tmdb::get_tv_season_episodes(
+                                        &api_key,
+                                        &tmdb_id_clone,
+                                        s_num as u32,
+                                    )
+                                    .await
+                                    {
                                         let res = tokio::task::spawn_blocking({
                                             let media_id = media_id;
                                             let ep_status = ep_status;
@@ -1364,12 +1579,20 @@ pub async fn add_to_tracker(
                                                     break;
                                                 }
 
-                                                let permit = crate::tmdb::GLOBAL_IMAGE_SEMAPHORE.acquire().await.unwrap();
+                                                let permit = crate::tmdb::GLOBAL_IMAGE_SEMAPHORE
+                                                    .acquire()
+                                                    .await
+                                                    .unwrap();
                                                 let path_clone = path.clone();
                                                 let ep_id_clone = ep_id;
 
                                                 tasks.push(tokio::spawn(async move {
-                                                    crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
+                                                    crate::tmdb::download_episode_still(
+                                                        &path_clone,
+                                                        ep_id_clone,
+                                                        high_performance_mode,
+                                                    )
+                                                    .await;
                                                     drop(permit);
                                                 }));
                                             }
@@ -1381,25 +1604,32 @@ pub async fn add_to_tracker(
                                     }
                                 }
                                 Err(e) => {
-                                    tracing::error!("[API] 🚨 Error fetching season {}: {}", s_num, e);
+                                    tracing::error!(
+                                        "[API] 🚨 Error fetching season {}: {}",
+                                        s_num,
+                                        e
+                                    );
                                     continue;
                                 }
                             }
                         }
                     }
                 }
-                let _ = app_clone_for_task.emit("sync-progress", json!({
-                    "mediaId": media_id,
-                        "tmdbId": tmdb_id_clone,
-                        "currentSeason": total_seasons + 1,
-                    "totalSeasons": total_seasons
-                }));
+                let _ = app_clone_for_task.emit(
+                    "sync-progress",
+                    json!({
+                        "mediaId": media_id,
+                            "tmdbId": tmdb_id_clone,
+                            "currentSeason": total_seasons + 1,
+                        "totalSeasons": total_seasons
+                    }),
+                );
             }
         } else {
             if !token.is_cancelled() {
-            // It's a Movie, just insert the single "Episode" via spawn_blocking
-            let details_clone = details.clone();
-            let _ = tokio::task::spawn_blocking(move || {
+                // It's a Movie, just insert the single "Episode" via spawn_blocking
+                let details_clone = details.clone();
+                let _ = tokio::task::spawn_blocking(move || {
                 handle_panic(|| {
                     if let Ok(mut conn) = get_db_connection() {
                         if let Ok(tx) = conn.transaction() {
@@ -1473,10 +1703,12 @@ pub async fn add_to_tracker(
                 })
             }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
 
-            if let Some(c_id) = details.get("collection_id").and_then(|v| v.as_i64()) {
-                tokio::task::yield_now().await;
-                if let Ok(col) = crate::tmdb::get_collection_details(&api_key, c_id as i32).await {
-                    let _ = tokio::task::spawn_blocking(move || {
+                if let Some(c_id) = details.get("collection_id").and_then(|v| v.as_i64()) {
+                    tokio::task::yield_now().await;
+                    if let Ok(col) =
+                        crate::tmdb::get_collection_details(&api_key, c_id as i32).await
+                    {
+                        let _ = tokio::task::spawn_blocking(move || {
                         handle_panic(|| {
                             if let Ok(conn) = get_db_connection() {
                                 let parts_str = col.get("parts").map(|p| p.to_string()).unwrap_or_else(|| "[]".to_string());
@@ -1498,19 +1730,18 @@ pub async fn add_to_tracker(
                             Ok::<(), AppError>(())
                         })
                     }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+                    }
                 }
             }
         }
-            }
 
-            {
-                let mut tokens = cancel_tokens_clone.write().unwrap();
-                tokens.remove(&media_id.to_string());
-            }
+        {
+            let mut tokens = cancel_tokens_clone.write().unwrap();
+            tokens.remove(&media_id.to_string());
+        }
 
         Ok::<(), AppError>(())
     });
-
 
     match tokio::time::timeout(std::time::Duration::from_secs(15), task).await {
         Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
@@ -1520,7 +1751,12 @@ pub async fn add_to_tracker(
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(state))]
-pub async fn mark_season_watched(media_id: i32, season_num: u32, archive_mode: bool, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+pub async fn mark_season_watched(
+    media_id: i32,
+    season_num: u32,
+    archive_mode: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
     if let Ok(mut cache) = state.stats_cache.write() {
         *cache = None;
     }
@@ -1654,7 +1890,11 @@ pub async fn archive_season(
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(app, state))]
-pub async fn get_dashboard_data(request_id: String, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Value, AppError> {
+pub async fn get_dashboard_data(
+    request_id: String,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Value, AppError> {
     tracing::info!("[BACKEND] 🧠 Reading SQLite database to build Dashboard layout...");
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
@@ -2274,7 +2514,10 @@ pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
         if !paths_to_delete.is_empty() {
             let tx = conn.transaction()?;
             for p in paths_to_delete {
-                let _ = tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![p]);
+                let _ = tx.execute(
+                    "DELETE FROM Unmatched_Files WHERE file_path = ?",
+                    params![p],
+                );
             }
             tx.commit()?;
         }
@@ -2285,7 +2528,13 @@ pub fn fetch_unmatched_files() -> Result<Vec<UnmatchedFile>, AppError> {
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(state))]
-pub async fn fetch_history(request_id: String, page: Option<u32>, page_size: Option<u32>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+pub async fn fetch_history(
+    request_id: String,
+    page: Option<u32>,
+    page_size: Option<u32>,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<Value>, AppError> {
     let _permit = state.read_semaphore.acquire().await.unwrap();
 
     let token = CancellationToken::new();
@@ -2498,8 +2747,13 @@ pub async fn run_scan_directory(
     directory: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, AppError> {
-    if !std::fs::metadata(&directory).map(|m| m.is_dir()).unwrap_or(false) {
-        return Err(AppError::Custom("Selected path is not a valid directory.".to_string()));
+    if !std::fs::metadata(&directory)
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
+    {
+        return Err(AppError::Custom(
+            "Selected path is not a valid directory.".to_string(),
+        ));
     }
 
     if let Err(e) = std::fs::read_dir(&directory) {
@@ -2512,7 +2766,9 @@ pub async fn run_scan_directory(
     }
 
     if state.is_maintenance_mode.load(Ordering::SeqCst) {
-        return Err(AppError::Custom("System Busy: Maintenance mode is currently active.".to_string()));
+        return Err(AppError::Custom(
+            "System Busy: Maintenance mode is currently active.".to_string(),
+        ));
     }
 
     state.is_scan_cancelled.store(false, Ordering::SeqCst);
@@ -2528,21 +2784,33 @@ pub async fn run_scan_directory(
     let task = tokio::task::spawn_blocking(move || {
         #[cfg(windows)]
         {
-            use windows_sys::Win32::System::Threading::{SetThreadPriority, GetCurrentThread, THREAD_PRIORITY_BELOW_NORMAL};
+            use windows_sys::Win32::System::Threading::{
+                GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_BELOW_NORMAL,
+            };
             unsafe {
                 SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
             }
         }
         handle_panic(std::panic::AssertUnwindSafe(|| {
             let mut conn = get_db_connection()?;
-            crate::scanner::scan_directory(&directory, &mut conn, &app_handle, cancel_flag, pause_flag, &supported_extensions).map_err(AppError::from)
+            crate::scanner::scan_directory(
+                &directory,
+                &mut conn,
+                &app_handle,
+                cancel_flag,
+                pause_flag,
+                &supported_extensions,
+            )
+            .map_err(AppError::from)
         }))
     });
 
     // Provide a generous timeout for massive directory scans (e.g. 5 minutes)
     match tokio::time::timeout(std::time::Duration::from_secs(300), task).await {
         Ok(res) => res.unwrap_or(Err(AppError::Custom("Task panicked".to_string()))),
-        Err(_) => Err(AppError::Custom("Scan Directory Task Timed Out".to_string())),
+        Err(_) => Err(AppError::Custom(
+            "Scan Directory Task Timed Out".to_string(),
+        )),
     }
 }
 
@@ -2572,9 +2840,18 @@ pub fn resume_active_scan(state: tauri::State<'_, AppState>) -> Result<(), AppEr
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(app, state))]
-pub async fn perform_tmdb_search(request_id: String, query: String, year: Option<String>, page: Option<u32>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<Value>, AppError> {
+pub async fn perform_tmdb_search(
+    request_id: String,
+    query: String,
+    year: Option<String>,
+    page: Option<u32>,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<Value>, AppError> {
     if !state.is_api_authorized.load(Ordering::SeqCst) {
-        return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
+        return Err(AppError::Custom(
+            "API Key is invalid or unauthorized.".to_string(),
+        ));
     }
 
     let _permit = state.read_semaphore.acquire().await.unwrap();
@@ -2593,11 +2870,12 @@ pub async fn perform_tmdb_search(request_id: String, query: String, year: Option
         let inner_state = app_handle.state::<AppState>();
 
         if !inner_state.is_api_authorized.load(Ordering::SeqCst) {
-            return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
+            return Err(AppError::Custom(
+                "API Key is invalid or unauthorized.".to_string(),
+            ));
         }
 
-        let settings = crate::settings::load_settings()
-            .map_err(|e| AppError::Custom(e))?;
+        let settings = crate::settings::load_settings().map_err(|e| AppError::Custom(e))?;
         if settings.tmdb_api_key.is_empty() {
             return Err(AppError::Custom(
                 "Missing TMDB API Key. Please add it in Settings.".to_string(),
@@ -2645,9 +2923,7 @@ pub async fn perform_tmdb_search(request_id: String, query: String, year: Option
 
 #[tauri::command]
 #[tracing::instrument(level = "debug")]
-pub async fn get_next_episode_to_play(
-    media_id: i32,
-) -> Result<Option<Value>, AppError> {
+pub async fn get_next_episode_to_play(media_id: i32) -> Result<Option<Value>, AppError> {
     let conn = get_db_connection().map_err(|e| {
         tracing::error!("Failed to get DB connection: {}", e);
         AppError::Custom(e.to_string())
@@ -2662,9 +2938,13 @@ pub async fn get_next_episode_to_play(
         ORDER BY e.season_num ASC, e.ep_num ASC
     ";
 
-    let mut stmt = conn.prepare(query).map_err(|e| AppError::Custom(e.to_string()))?;
+    let mut stmt = conn
+        .prepare(query)
+        .map_err(|e| AppError::Custom(e.to_string()))?;
 
-    let mut rows = stmt.query([media_id]).map_err(|e| AppError::Custom(e.to_string()))?;
+    let mut rows = stmt
+        .query([media_id])
+        .map_err(|e| AppError::Custom(e.to_string()))?;
 
     let mut ideal_missing_ep_num = None;
 
@@ -2706,31 +2986,39 @@ pub async fn assign_unmatched_to_tracker(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
     if !state.is_api_authorized.load(Ordering::SeqCst) {
-        return Err(AppError::Custom("API Key is invalid or unauthorized.".to_string()));
+        return Err(AppError::Custom(
+            "API Key is invalid or unauthorized.".to_string(),
+        ));
     }
 
     let cancel_tokens = state.cancel_tokens.clone();
 
-    let settings = crate::settings::load_settings()
-        .map_err(|e| AppError::Custom(e))?;
+    let settings = crate::settings::load_settings().map_err(|e| AppError::Custom(e))?;
     if settings.tmdb_api_key.is_empty() {
-        return Err(AppError::Custom("Missing TMDB API Key. Please add it in Settings.".to_string()));
+        return Err(AppError::Custom(
+            "Missing TMDB API Key. Please add it in Settings.".to_string(),
+        ));
     }
 
     tracing::info!("[BACKEND] 🧠 Fetching TMDB metadata to resolve unmatched local files...");
-    let valid_media_type = crate::models::MediaType::from_str(&media_type).as_str().to_string();
-    let details_res: Result<Value, AppError> = match crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type).await {
-        Ok(res) => Ok(res),
-        Err(e) => {
-            if let AppError::NetworkBlocked = e {
-                state.is_api_authorized.store(false, Ordering::SeqCst);
-                state.db_queue.clear();
-                let _ = app.emit("api-auth-failed", ());
-                return Err(AppError::Custom("API Key was revoked.".to_string()));
+    let valid_media_type = crate::models::MediaType::from_str(&media_type)
+        .as_str()
+        .to_string();
+    let details_res: Result<Value, AppError> =
+        match crate::tmdb::get_media_details(&settings.tmdb_api_key, &tmdb_id, &valid_media_type)
+            .await
+        {
+            Ok(res) => Ok(res),
+            Err(e) => {
+                if let AppError::NetworkBlocked = e {
+                    state.is_api_authorized.store(false, Ordering::SeqCst);
+                    state.db_queue.clear();
+                    let _ = app.emit("api-auth-failed", ());
+                    return Err(AppError::Custom("API Key was revoked.".to_string()));
+                }
+                return Err(e);
             }
-            return Err(e);
-        }
-    };
+        };
 
     let api_key = settings.tmdb_api_key.clone();
     let media_type_clone = valid_media_type.clone();
@@ -2940,24 +3228,37 @@ pub async fn assign_unmatched_to_tracker(
                                     break;
                                 }
 
-                                crate::commands::check_rate_limit(&app_clone_for_task.state::<AppState>()).await;
+                                crate::commands::check_rate_limit(
+                                    &app_clone_for_task.state::<AppState>(),
+                                )
+                                .await;
 
                                 tokio::task::yield_now().await;
 
                                 if index > 0 {
-                                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                                    tokio::time::sleep(tokio::time::Duration::from_millis(100))
+                                        .await;
                                 }
 
-                                let _ = app_clone_for_task.emit("sync-progress", json!({
-                                    "mediaId": media_id,
-                                    "tmdbId": tmdb_id_clone,
-                                    "currentSeason": index + 1,
-                                    "totalSeasons": total_seasons
-                                }));
+                                let _ = app_clone_for_task.emit(
+                                    "sync-progress",
+                                    json!({
+                                        "mediaId": media_id,
+                                        "tmdbId": tmdb_id_clone,
+                                        "currentSeason": index + 1,
+                                        "totalSeasons": total_seasons
+                                    }),
+                                );
 
-                                match crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                                match crate::tmdb::get_tv_season_episodes(
+                                    &api_key,
+                                    &tmdb_id_clone,
+                                    s_num as u32,
+                                )
+                                .await
+                                {
                                     Ok(eps) => {
-                                    let res = tokio::task::spawn_blocking(move || {
+                                        let res = tokio::task::spawn_blocking(move || {
                                         handle_panic(|| {
                                             let mut inserted_eps = Vec::new();
                                             if let Ok(mut conn) = get_db_connection() {
@@ -3055,65 +3356,92 @@ pub async fn assign_unmatched_to_tracker(
                                         })
                                     }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
 
-                                    if let Ok(inserted_eps) = res {
-                                        if !inserted_eps.is_empty() {
-                                            // "Lazy Discovery" architecture: Priority active-season vs background idle downloading
-                                            let is_active_season = index == 0;
-                                            let token_clone = token.clone();
+                                        if let Ok(inserted_eps) = res {
+                                            if !inserted_eps.is_empty() {
+                                                // "Lazy Discovery" architecture: Priority active-season vs background idle downloading
+                                                let is_active_season = index == 0;
+                                                let token_clone = token.clone();
 
-                                            let download_future = async move {
-                                                for chunk in inserted_eps.chunks(20) {
-                                                    if token_clone.is_cancelled() {
-                                                        break;
-                                                    }
+                                                let download_future = async move {
+                                                    for chunk in inserted_eps.chunks(20) {
+                                                        if token_clone.is_cancelled() {
+                                                            break;
+                                                        }
 
-                                                    let mut tasks = Vec::new();
-                                                    for (ep_id, path) in chunk {
-                                                        let path_clone = path.clone();
-                                                        let ep_id_clone = *ep_id;
-                                                        tasks.push(tokio::spawn(async move {
+                                                        let mut tasks = Vec::new();
+                                                        for (ep_id, path) in chunk {
+                                                            let path_clone = path.clone();
+                                                            let ep_id_clone = *ep_id;
+                                                            tasks.push(tokio::spawn(async move {
                                                             crate::tmdb::download_episode_still(&path_clone, ep_id_clone, high_performance_mode).await;
                                                         }));
-                                                    }
+                                                        }
 
-                                                    for t in tasks {
-                                                        let _ = t.await;
-                                                    }
+                                                        for t in tasks {
+                                                            let _ = t.await;
+                                                        }
 
-                                                    if token_clone.is_cancelled() {
-                                                        break;
+                                                        if token_clone.is_cancelled() {
+                                                            break;
+                                                        }
                                                     }
+                                                };
+
+                                                if is_active_season {
+                                                    // Await inline for the active season
+                                                    download_future.await;
+                                                } else {
+                                                    // Spawn background task for idle seasons
+                                                    tokio::spawn(download_future);
                                                 }
-                                            };
-
-                                            if is_active_season {
-                                                // Await inline for the active season
-                                                download_future.await;
-                                            } else {
-                                                // Spawn background task for idle seasons
-                                                tokio::spawn(download_future);
                                             }
                                         }
                                     }
-                                    }
                                     Err(AppError::Custom(err)) if err == "NOT_FOUND" => {
                                         tracing::warn!("[API] ⚠️ Season {} missing (404) for show ID {}. Skipping.", s_num, tmdb_id_clone);
-                                        let _ = app_clone_for_task.emit("warning-toast", format!("Season {} missing from TMDB, skipped.", s_num));
+                                        let _ = app_clone_for_task.emit(
+                                            "warning-toast",
+                                            format!("Season {} missing from TMDB, skipped.", s_num),
+                                        );
                                         continue;
                                     }
-                                    Err(AppError::Custom(err)) if err.starts_with("RATE_LIMIT:") => {
+                                    Err(AppError::Custom(err))
+                                        if err.starts_with("RATE_LIMIT:") =>
+                                    {
                                         let parts: Vec<&str> = err.split(':').collect();
-                                        let retry_after = parts.get(1).unwrap_or(&"1").parse::<u64>().unwrap_or(1);
+                                        let retry_after = parts
+                                            .get(1)
+                                            .unwrap_or(&"1")
+                                            .parse::<u64>()
+                                            .unwrap_or(1);
                                         let async_state = app_clone_for_task.state::<AppState>();
                                         async_state.is_rate_limited.store(true, Ordering::SeqCst);
-                                        async_state.rate_limit_reset.store(chrono::Utc::now().timestamp() + retry_after as i64, Ordering::SeqCst);
+                                        async_state.rate_limit_reset.store(
+                                            chrono::Utc::now().timestamp() + retry_after as i64,
+                                            Ordering::SeqCst,
+                                        );
 
-                                        tracing::warn!("[API] ⚠️ Rate limited. Pausing queue for {} seconds.", retry_after);
-                                        tokio::time::sleep(tokio::time::Duration::from_secs(retry_after)).await;
-                                        app_clone_for_task.state::<AppState>().is_rate_limited.store(false, Ordering::SeqCst);
+                                        tracing::warn!(
+                                            "[API] ⚠️ Rate limited. Pausing queue for {} seconds.",
+                                            retry_after
+                                        );
+                                        tokio::time::sleep(tokio::time::Duration::from_secs(
+                                            retry_after,
+                                        ))
+                                        .await;
+                                        app_clone_for_task
+                                            .state::<AppState>()
+                                            .is_rate_limited
+                                            .store(false, Ordering::SeqCst);
 
                                         // Retry once directly inline after sleeping
-                                        if let Ok(eps) = crate::tmdb::get_tv_season_episodes(&api_key, &tmdb_id_clone, s_num as u32).await {
+                                        if let Ok(eps) = crate::tmdb::get_tv_season_episodes(
+                                            &api_key,
+                                            &tmdb_id_clone,
+                                            s_num as u32,
+                                        )
+                                        .await
+                                        {
                                             let res = tokio::task::spawn_blocking({
                                                 let media_id = media_id;
                                                 let ep_status = ep_status;
@@ -3180,7 +3508,11 @@ pub async fn assign_unmatched_to_tracker(
                                                                 break;
                                                             }
 
-                                                            let permit = crate::tmdb::GLOBAL_IMAGE_SEMAPHORE.acquire().await.unwrap();
+                                                            let permit =
+                                                                crate::tmdb::GLOBAL_IMAGE_SEMAPHORE
+                                                                    .acquire()
+                                                                    .await
+                                                                    .unwrap();
                                                             let path_clone = path.clone();
                                                             let ep_id_clone = ep_id;
 
@@ -3200,29 +3532,36 @@ pub async fn assign_unmatched_to_tracker(
                                         }
                                     }
                                     Err(e) => {
-                                        tracing::error!("[API] 🚨 Error fetching season {}: {}", s_num, e);
+                                        tracing::error!(
+                                            "[API] 🚨 Error fetching season {}: {}",
+                                            s_num,
+                                            e
+                                        );
                                         continue;
                                     }
                                 }
                             }
                         }
                     }
-                    let _ = app_clone_for_task.emit("sync-progress", json!({
-                        "mediaId": media_id,
-                        "tmdbId": tmdb_id_clone,
-                        "currentSeason": total_seasons + 1,
-                        "totalSeasons": total_seasons
-                    }));
+                    let _ = app_clone_for_task.emit(
+                        "sync-progress",
+                        json!({
+                            "mediaId": media_id,
+                            "tmdbId": tmdb_id_clone,
+                            "currentSeason": total_seasons + 1,
+                            "totalSeasons": total_seasons
+                        }),
+                    );
                 }
             }
         } else {
             if !token.is_cancelled() {
-            let details_clone = match &details_res {
-                Ok(v) => v.clone(),
-                Err(_) => serde_json::Value::Null,
-            };
-            let inner_clone = details_clone.clone();
-            let _ = tokio::task::spawn_blocking(move || {
+                let details_clone = match &details_res {
+                    Ok(v) => v.clone(),
+                    Err(_) => serde_json::Value::Null,
+                };
+                let inner_clone = details_clone.clone();
+                let _ = tokio::task::spawn_blocking(move || {
                 handle_panic(|| {
                     if let Ok(mut conn) = get_db_connection() {
                         if let Ok(tx) = conn.transaction() {
@@ -3293,10 +3632,12 @@ pub async fn assign_unmatched_to_tracker(
                 })
         }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())))?;
 
-            if let Some(c_id) = details_clone.get("collection_id").and_then(|v| v.as_i64()) {
-                tokio::task::yield_now().await;
-                if let Ok(col) = crate::tmdb::get_collection_details(&api_key, c_id as i32).await {
-                    let _ = tokio::task::spawn_blocking(move || {
+                if let Some(c_id) = details_clone.get("collection_id").and_then(|v| v.as_i64()) {
+                    tokio::task::yield_now().await;
+                    if let Ok(col) =
+                        crate::tmdb::get_collection_details(&api_key, c_id as i32).await
+                    {
+                        let _ = tokio::task::spawn_blocking(move || {
                         handle_panic(|| {
                                 if let Ok(conn) = get_db_connection() {
                                 let parts_str = col.get("parts").map(|p| p.to_string()).unwrap_or_else(|| "[]".to_string());
@@ -3318,9 +3659,9 @@ pub async fn assign_unmatched_to_tracker(
                             Ok::<(), AppError>(())
                         })
                     }).await.unwrap_or(Err(AppError::Custom("Task panicked".to_string())));
+                    }
                 }
             }
-        }
         }
 
         // Now assign the unmatched files
@@ -3391,35 +3732,62 @@ pub async fn assign_unmatched_to_tracker(
 
 #[tauri::command]
 #[tracing::instrument(level = "debug")]
-pub fn link_manual_file(file_path: String, tmdb_id: String, season_num: u32, ep_num: u32) -> Result<(), AppError> {
+pub fn link_manual_file(
+    file_path: String,
+    tmdb_id: String,
+    season_num: u32,
+    ep_num: u32,
+) -> Result<(), AppError> {
     handle_panic(|| {
         let mut conn = get_db_connection()?;
         let mut ep_id: Option<i32> = None;
 
-        let media_id: i32 = match conn.query_row("SELECT id FROM Media WHERE tmdb_id = ?", params![tmdb_id], |row| row.get(0)) {
+        let media_id: i32 = match conn.query_row(
+            "SELECT id FROM Media WHERE tmdb_id = ?",
+            params![tmdb_id],
+            |row| row.get(0),
+        ) {
             Ok(id) => id,
-            Err(_) => return Err(AppError::Custom(format!("Show TMDB ID {} not found in library.", tmdb_id))),
+            Err(_) => {
+                return Err(AppError::Custom(format!(
+                    "Show TMDB ID {} not found in library.",
+                    tmdb_id
+                )))
+            }
         };
 
-        if let Ok(id) = conn.query_row("SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? AND ep_num = ?", params![media_id, season_num, ep_num], |row| row.get(0)) {
+        if let Ok(id) = conn.query_row(
+            "SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? AND ep_num = ?",
+            params![media_id, season_num, ep_num],
+            |row| row.get(0),
+        ) {
             ep_id = Some(id);
         }
 
         if let Some(id) = ep_id {
             let tx = conn.transaction()?;
             tx.execute("INSERT INTO Local_Files (episode_id, file_path) VALUES (?, ?) ON CONFLICT(episode_id) DO UPDATE SET file_path=excluded.file_path", params![id, file_path])?;
-            tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![file_path])?;
+            tx.execute(
+                "DELETE FROM Unmatched_Files WHERE file_path = ?",
+                params![file_path],
+            )?;
             tx.commit()?;
             Ok(())
         } else {
-            Err(AppError::Custom(format!("Episode S{:02}E{:02} not found in database for this show.", season_num, ep_num)))
+            Err(AppError::Custom(format!(
+                "Episode S{:02}E{:02} not found in database for this show.",
+                season_num, ep_num
+            )))
         }
     })
 }
 
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(state))]
-pub fn toggle_episode_status(episode_id: i32, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+pub fn toggle_episode_status(
+    episode_id: i32,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
     handle_panic(std::panic::AssertUnwindSafe(|| {
         let conn = get_db_connection()?;
 
@@ -3429,7 +3797,9 @@ pub fn toggle_episode_status(episode_id: i32, state: tauri::State<'_, AppState>)
             let mut stmt = conn.prepare("SELECT status FROM Episodes WHERE id = ?")?;
             let mut rows = stmt.query(params![episode_id])?;
             if let Some(row) = rows.next()? {
-                current_status = row.get::<_, Option<String>>(0)?.unwrap_or("Unwatched".to_string());
+                current_status = row
+                    .get::<_, Option<String>>(0)?
+                    .unwrap_or("Unwatched".to_string());
             }
         }
 
@@ -3438,7 +3808,7 @@ pub fn toggle_episode_status(episode_id: i32, state: tauri::State<'_, AppState>)
             // Watch_count doesn't decrement for safety in case of rewatches, but last_position strictly resets
             conn.execute(
                 "UPDATE Episodes SET status = 'Unwatched', last_position = 0 WHERE id = ?",
-                params![episode_id]
+                params![episode_id],
             )?;
             // Remove recent history
             // Just delete the most recent completion for this episode
@@ -3519,26 +3889,39 @@ pub fn auto_detect_vlc() -> Result<Option<String>, AppError> {
     #[cfg(target_os = "windows")]
     {
         if let Ok(prog_files) = std::env::var("ProgramFiles") {
-            paths.push(std::path::PathBuf::from(format!(r"{}\VideoLAN\VLC\vlc.exe", prog_files)));
+            paths.push(std::path::PathBuf::from(format!(
+                r"{}\VideoLAN\VLC\vlc.exe",
+                prog_files
+            )));
         }
         if let Ok(prog_files_x86) = std::env::var("ProgramFiles(x86)") {
-            paths.push(std::path::PathBuf::from(format!(r"{}\VideoLAN\VLC\vlc.exe", prog_files_x86)));
+            paths.push(std::path::PathBuf::from(format!(
+                r"{}\VideoLAN\VLC\vlc.exe",
+                prog_files_x86
+            )));
         }
         if let Ok(app_data) = std::env::var("LOCALAPPDATA") {
-            paths.push(std::path::PathBuf::from(format!(r"{}\Programs\VLC\vlc.exe", app_data)));
+            paths.push(std::path::PathBuf::from(format!(
+                r"{}\Programs\VLC\vlc.exe",
+                app_data
+            )));
         }
     }
 
     #[cfg(target_os = "macos")]
     {
-        paths.push(std::path::PathBuf::from("/Applications/VLC.app/Contents/MacOS/VLC"));
+        paths.push(std::path::PathBuf::from(
+            "/Applications/VLC.app/Contents/MacOS/VLC",
+        ));
     }
 
     #[cfg(target_os = "linux")]
     {
         paths.push(std::path::PathBuf::from("/usr/bin/vlc"));
         paths.push(std::path::PathBuf::from("/usr/local/bin/vlc"));
-        paths.push(std::path::PathBuf::from("/var/lib/flatpak/exports/bin/org.videolan.VLC"));
+        paths.push(std::path::PathBuf::from(
+            "/var/lib/flatpak/exports/bin/org.videolan.VLC",
+        ));
         paths.push(std::path::PathBuf::from("/snap/bin/vlc"));
     }
 
@@ -3604,7 +3987,9 @@ pub async fn update_media_rating(
     }
 
     let db_queue = state.db_queue.clone();
-    db_queue.push_high_priority_action(crate::task_queue::DbAction::UpdateMediaRating(media_id, rating));
+    db_queue.push_high_priority_action(crate::task_queue::DbAction::UpdateMediaRating(
+        media_id, rating,
+    ));
 
     if let Ok(mut cache) = state.stats_cache.write() {
         *cache = None;

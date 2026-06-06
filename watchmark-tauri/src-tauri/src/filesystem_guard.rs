@@ -5,8 +5,8 @@
 
 use std::fs;
 use std::path::PathBuf;
-use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri::App;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 pub fn boot_time_guard(_app: &mut App, app_dir: &PathBuf) -> Result<(), String> {
     let required_paths = vec![
@@ -32,7 +32,7 @@ pub fn boot_time_guard(_app: &mut App, app_dir: &PathBuf) -> Result<(), String> 
             tracing::error!(action = "fs_guard_fail", path = ?path, "Conflict: File exists where directory was expected");
             return Err(format!("Fatal Error: WatchMark found a file where a directory was expected.\nPath: {:?}\nPlease remove the file and restart the app.", path));
         } else {
-             tracing::info!("[FS] ✅ Verified Directory Exists: {:?}", path);
+            tracing::info!("[FS] ✅ Verified Directory Exists: {:?}", path);
         }
 
         // 2. Functional Probe - Read (Execute/Search)
@@ -44,11 +44,11 @@ pub fn boot_time_guard(_app: &mut App, app_dir: &PathBuf) -> Result<(), String> 
         // 3. Functional Probe - Write
         let probe_file = path.join(".probe");
         if let Err(e) = fs::write(&probe_file, b"probe") {
-             tracing::error!(action = "fs_guard_fail", path = ?path, error = %e, "Permission or I/O error during startup - Write Probe Failed");
-             return Err(format!("Fatal Error: WatchMark lacks permission to write to its data folders.\nPath: {:?}\nError: {}\nPlease check your Antivirus or Folder Permissions.", path, e));
+            tracing::error!(action = "fs_guard_fail", path = ?path, error = %e, "Permission or I/O error during startup - Write Probe Failed");
+            return Err(format!("Fatal Error: WatchMark lacks permission to write to its data folders.\nPath: {:?}\nError: {}\nPlease check your Antivirus or Folder Permissions.", path, e));
         } else {
-             // Clean up the probe file immediately
-             let _ = fs::remove_file(probe_file);
+            // Clean up the probe file immediately
+            let _ = fs::remove_file(probe_file);
         }
     }
 

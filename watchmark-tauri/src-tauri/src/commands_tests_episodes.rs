@@ -4,8 +4,8 @@
 // 3. No raw println! allowed.
 
 use crate::db::{get_db_connection, init_db};
-use std::sync::Once;
 use rusqlite::params;
+use std::sync::Once;
 
 static INIT: Once = Once::new();
 
@@ -49,7 +49,8 @@ fn test_get_media_details_db_handles_null_episode_data_safely_no_panics() {
                 NULL, NULL
             )",
             params![media_id],
-        ).unwrap();
+        )
+        .unwrap();
 
         tx.commit().unwrap();
         media_id
@@ -67,7 +68,10 @@ fn test_get_media_details_db_handles_null_episode_data_safely_no_panics() {
     let row = rows.next().unwrap().unwrap();
 
     // Test the specific fields that we patched. If we can get them without panicking, the database schema is sound.
-    let total_episodes = row.get::<_, Option<i32>>(7).unwrap_or_default().unwrap_or(0);
+    let total_episodes = row
+        .get::<_, Option<i32>>(7)
+        .unwrap_or_default()
+        .unwrap_or(0);
     assert_eq!(total_episodes, 1);
 
     let backdrop_fallback: Option<String> = row.get(17).unwrap_or_default();

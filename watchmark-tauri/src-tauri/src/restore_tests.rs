@@ -5,10 +5,10 @@
 
 #[cfg(test)]
 mod tests_feature_25_3 {
-    use std::fs;
-    use std::path::PathBuf;
     use crate::commands::validate_and_stage_restore;
     use crate::execute_cold_swap;
+    use std::fs;
+    use std::path::PathBuf;
 
     fn setup_test_env(test_name: &str) -> PathBuf {
         let temp_dir = std::env::temp_dir().join(test_name);
@@ -31,7 +31,11 @@ mod tests_feature_25_3 {
             crate::error::AppError::Custom(msg) => msg,
             _ => panic!("Expected AppError::Custom"),
         };
-        assert!(err_msg.contains("not a database"), "Error message should mention invalid SQLite database: {}", err_msg);
+        assert!(
+            err_msg.contains("not a database"),
+            "Error message should mention invalid SQLite database: {}",
+            err_msg
+        );
 
         let _ = fs::remove_dir_all(&temp_dir);
     }
@@ -49,8 +53,14 @@ mod tests_feature_25_3 {
         let result = validate_and_stage_restore(&valid_db_path, &temp_dir);
         assert!(result.is_ok(), "Should have passed integrity check");
 
-        assert!(temp_dir.join(".restore_pending").exists(), "Trigger file should exist");
-        assert!(temp_dir.join("db").join("watchmark.db.pending").exists(), "Pending DB should exist");
+        assert!(
+            temp_dir.join(".restore_pending").exists(),
+            "Trigger file should exist"
+        );
+        assert!(
+            temp_dir.join("db").join("watchmark.db.pending").exists(),
+            "Pending DB should exist"
+        );
 
         let _ = fs::remove_dir_all(&temp_dir);
     }

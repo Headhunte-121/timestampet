@@ -5,9 +5,9 @@
 
 use crate::commands::AppState;
 use crate::task_queue::DbTaskQueue;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI64};
 use std::sync::{Arc, RwLock};
-use std::collections::HashMap;
 use tokio_util::sync::CancellationToken;
 
 #[tokio::test]
@@ -62,7 +62,8 @@ async fn test_rate_limit_backoff_logic() {
 
 #[tokio::test]
 async fn test_add_remove_sprint_cancellation() {
-    let cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>> = Arc::new(RwLock::new(HashMap::new()));
+    let cancel_tokens: Arc<RwLock<HashMap<String, CancellationToken>>> =
+        Arc::new(RwLock::new(HashMap::new()));
     let media_id = 999;
     let token = CancellationToken::new();
 
@@ -106,11 +107,11 @@ async fn test_missing_season_skip_logic() {
         match mock_result {
             Ok(_) => {
                 successful_fetches += 1;
-            },
+            }
             Err(e) if e.to_string() == "NOT_FOUND" => {
                 warnings += 1;
                 continue;
-            },
+            }
             Err(_) => panic!("Unexpected error"),
         }
     }

@@ -44,7 +44,9 @@ where
             if s.trim().is_empty() || s.to_lowercase() == "n/a" {
                 Ok(0)
             } else {
-                s.parse::<i32>().or_else(|_| s.parse::<f64>().map(|f| f.round() as i32)).or(Ok(0))
+                s.parse::<i32>()
+                    .or_else(|_| s.parse::<f64>().map(|f| f.round() as i32))
+                    .or(Ok(0))
             }
         }
         Ok(RawRuntime::Array(arr)) => {
@@ -356,24 +358,54 @@ pub struct Settings {
 }
 
 fn default_video_extensions() -> Vec<String> {
-    vec!["mp4".to_string(), "mkv".to_string(), "avi".to_string(), "mov".to_string(), "wmv".to_string(), "flv".to_string(), "webm".to_string()]
+    vec![
+        "mp4".to_string(),
+        "mkv".to_string(),
+        "avi".to_string(),
+        "mov".to_string(),
+        "wmv".to_string(),
+        "flv".to_string(),
+        "webm".to_string(),
+    ]
 }
 
 fn default_empty_string() -> String {
     "".to_string()
 }
 
-fn default_width() -> i32 { 1280 }
-fn default_height() -> i32 { 800 }
-fn default_x() -> i32 { 100 }
-fn default_y() -> i32 { 100 }
-fn default_false() -> bool { false }
-fn default_language() -> String { "en-US".to_string() }
-fn default_auto_complete_threshold() -> i32 { 90 }
-fn default_binge_grouping_hours() -> i32 { 6 }
-fn default_auto_resume() -> bool { true }
-fn default_auto_scan_on_boot() -> bool { false }
-fn default_logging_level() -> String { "Info".to_string() }
+fn default_width() -> i32 {
+    1280
+}
+fn default_height() -> i32 {
+    800
+}
+fn default_x() -> i32 {
+    100
+}
+fn default_y() -> i32 {
+    100
+}
+fn default_false() -> bool {
+    false
+}
+fn default_language() -> String {
+    "en-US".to_string()
+}
+fn default_auto_complete_threshold() -> i32 {
+    90
+}
+fn default_binge_grouping_hours() -> i32 {
+    6
+}
+fn default_auto_resume() -> bool {
+    true
+}
+fn default_auto_scan_on_boot() -> bool {
+    false
+}
+fn default_logging_level() -> String {
+    "Info".to_string()
+}
 fn default_module_logs() -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
     for module in crate::logging::CORE_MODULES {
@@ -381,10 +413,18 @@ fn default_module_logs() -> std::collections::HashMap<String, String> {
     }
     map
 }
-fn default_last_backup_timestamp() -> i64 { 0 }
-fn default_last_backup_status() -> String { "".to_string() }
-fn default_last_backup_error() -> String { "".to_string() }
-fn default_high_performance_mode() -> bool { false }
+fn default_last_backup_timestamp() -> i64 {
+    0
+}
+fn default_last_backup_status() -> String {
+    "".to_string()
+}
+fn default_last_backup_error() -> String {
+    "".to_string()
+}
+fn default_high_performance_mode() -> bool {
+    false
+}
 
 impl Default for Settings {
     fn default() -> Self {
