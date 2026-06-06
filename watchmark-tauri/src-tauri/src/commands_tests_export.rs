@@ -5,10 +5,9 @@
 
 #[cfg(test)]
 mod tests_feature_25_2 {
-    use std::fs;
     use crate::task_queue::DbTaskQueue;
+    use std::fs;
     use std::sync::Arc;
-
 
     // We can't easily mock `tauri::State` perfectly without Tauri's test context,
     // but we can test the core logic. Since `export_database` takes `tauri::State`,
@@ -27,8 +26,13 @@ mod tests_feature_25_2 {
 
         db_queue.push_high_priority(move |conn| {
             // Write some dummy data so we can verify the export worked
-            conn.execute("CREATE TABLE IF NOT EXISTS TestTable (id INTEGER PRIMARY KEY)", []).unwrap();
-            conn.execute("INSERT INTO TestTable DEFAULT VALUES", []).unwrap();
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS TestTable (id INTEGER PRIMARY KEY)",
+                [],
+            )
+            .unwrap();
+            conn.execute("INSERT INTO TestTable DEFAULT VALUES", [])
+                .unwrap();
 
             let sql = format!("VACUUM INTO '{}'", target_path_str.replace("'", "''"));
             let res = conn.execute(&sql, []);
@@ -42,7 +46,9 @@ mod tests_feature_25_2 {
 
         // Open the exported db to verify
         let exported_conn = rusqlite::Connection::open(&target_path).unwrap();
-        let count: i32 = exported_conn.query_row("SELECT COUNT(*) FROM TestTable", [], |r| r.get(0)).unwrap();
+        let count: i32 = exported_conn
+            .query_row("SELECT COUNT(*) FROM TestTable", [], |r| r.get(0))
+            .unwrap();
         assert!(count >= 1); // Allow count to be >= 1 to handle the fact that tests run concurrently and the table might have existing records.
 
         let _ = fs::remove_dir_all(&temp_dir);

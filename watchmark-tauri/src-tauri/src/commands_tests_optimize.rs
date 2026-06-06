@@ -20,12 +20,16 @@ mod tests_feature_25_4 {
             db_queue: Arc::new(crate::task_queue::DbTaskQueue::new_for_tests()),
             is_maintenance_mode: AtomicBool::new(false),
             is_api_authorized: AtomicBool::new(true),
-        is_rate_limited: std::sync::atomic::AtomicBool::new(false),
-        rate_limit_reset: std::sync::atomic::AtomicI64::new(0),
+            is_rate_limited: std::sync::atomic::AtomicBool::new(false),
+            rate_limit_reset: std::sync::atomic::AtomicI64::new(0),
             stats_cache: std::sync::Arc::new(std::sync::RwLock::new(None)),
             read_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(4)),
-            cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
-            failed_image_syncs: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+            cancel_tokens: std::sync::Arc::new(std::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
+            failed_image_syncs: std::sync::Arc::new(std::sync::RwLock::new(
+                std::collections::HashSet::new(),
+            )),
             is_scan_cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             is_scan_paused: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         };
@@ -36,8 +40,14 @@ mod tests_feature_25_4 {
         // It should immediately fail because of the atomic bool if we were calling it directly.
         // We will mimic the command guard explicitly since tauri::State cannot be easily mocked in a unit test context
         // without instantiating a full AppHandle.
-        let result = if app_state.is_maintenance_mode.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
-            Err(crate::error::AppError::Custom("System Busy: Maintenance mode is already active.".to_string()))
+        let result = if app_state
+            .is_maintenance_mode
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            Err(crate::error::AppError::Custom(
+                "System Busy: Maintenance mode is already active.".to_string(),
+            ))
         } else {
             Ok(0)
         };

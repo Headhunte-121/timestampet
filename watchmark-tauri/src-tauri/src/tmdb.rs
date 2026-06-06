@@ -23,8 +23,8 @@ impl Default for ImageConfig {
         }
     }
 }
-use crate::network::NETWORK_MANAGER;
 use crate::error::AppError;
+use crate::network::NETWORK_MANAGER;
 
 const TMDB_API_BASE: &str = "https://api.themoviedb.org/3";
 
@@ -48,7 +48,8 @@ pub async fn validate_key(api_key: &str) -> Result<bool, AppError> {
     let url = format!("{}/configuration", TMDB_API_BASE);
 
     // Call the lightweight configuration endpoint
-    let res = NETWORK_MANAGER.external_client
+    let res = NETWORK_MANAGER
+        .external_client
         .get(&url)
         .query(&[("api_key", api_key)])
         .send()
@@ -73,7 +74,9 @@ pub async fn validate_key(api_key: &str) -> Result<bool, AppError> {
                 }
                 Err(AppError::Custom(format!("RATE_LIMIT:{}", retry_after)))
             } else {
-                Err(crate::network::NetworkManager::handle_error(reqwest_middleware::Error::Reqwest(response.error_for_status().unwrap_err())))
+                Err(crate::network::NetworkManager::handle_error(
+                    reqwest_middleware::Error::Reqwest(response.error_for_status().unwrap_err()),
+                ))
             }
         }
         Err(e) => Err(crate::network::NetworkManager::handle_error(e)),
@@ -82,7 +85,12 @@ pub async fn validate_key(api_key: &str) -> Result<bool, AppError> {
 
 use std::collections::HashSet;
 
-pub async fn search_media(api_key: &str, query: &str, year: Option<&str>, page: u32) -> Result<Vec<Value>, AppError> {
+pub async fn search_media(
+    api_key: &str,
+    query: &str,
+    year: Option<&str>,
+    page: u32,
+) -> Result<Vec<Value>, AppError> {
     // Strip non-printable control characters from the query
     let safe_query: String = query.chars().filter(|c| !c.is_control()).collect();
 
@@ -102,7 +110,8 @@ pub async fn search_media(api_key: &str, query: &str, year: Option<&str>, page: 
         query_params.push(("first_air_date_year", y));
     }
 
-    let res: Value = NETWORK_MANAGER.external_client
+    let res: Value = NETWORK_MANAGER
+        .external_client
         .get(&url)
         .query(&query_params)
         .send()
@@ -143,13 +152,17 @@ pub async fn search_media(api_key: &str, query: &str, year: Option<&str>, page: 
             }
 
             let mut obj = serde_json::Map::new();
-            obj.insert(
-                "tmdb_id".to_string(),
-                Value::String(tmdb_id.to_string()),
-            );
+            obj.insert("tmdb_id".to_string(), Value::String(tmdb_id.to_string()));
             obj.insert(
                 "type".to_string(),
-                Value::String(if item_media_type == "tv" { "TV" } else { "Movie" }.to_string()),
+                Value::String(
+                    if item_media_type == "tv" {
+                        "TV"
+                    } else {
+                        "Movie"
+                    }
+                    .to_string(),
+                ),
             );
 
             let title = if item_media_type == "tv" {
@@ -162,7 +175,10 @@ pub async fn search_media(api_key: &str, query: &str, year: Option<&str>, page: 
 
             obj.insert(
                 "synopsis".to_string(),
-                Value::String(crate::sanitizer::sanitize_text(item["overview"].as_str().unwrap_or(""), "No overview available.")),
+                Value::String(crate::sanitizer::sanitize_text(
+                    item["overview"].as_str().unwrap_or(""),
+                    "No overview available.",
+                )),
             );
             let _original_language = item["original_language"].as_str().unwrap_or("xx"); // random default if missing
 
@@ -185,7 +201,10 @@ pub async fn search_media(api_key: &str, query: &str, year: Option<&str>, page: 
             if backdrop.is_empty() {
                 obj.insert("backdrop_path".to_string(), Value::Null);
             } else {
-                obj.insert("backdrop_path".to_string(), Value::String(backdrop.to_string()));
+                obj.insert(
+                    "backdrop_path".to_string(),
+                    Value::String(backdrop.to_string()),
+                );
             }
 
             let release_date = if item_media_type == "tv" {
@@ -195,24 +214,16 @@ pub async fn search_media(api_key: &str, query: &str, year: Option<&str>, page: 
             }
             .unwrap_or("");
 
-            let (final_date, is_exact, is_known) = if item_media_type != "tv" && release_date.is_empty() {
-                ("0000-00-00".to_string(), false, false)
-            } else {
-                crate::sanitizer::sanitize_date(release_date)
-            };
+            let (final_date, is_exact, is_known) =
+                if item_media_type != "tv" && release_date.is_empty() {
+                    ("0000-00-00".to_string(), false, false)
+                } else {
+                    crate::sanitizer::sanitize_date(release_date)
+                };
 
-            obj.insert(
-                "release_date".to_string(),
-                Value::String(final_date),
-            );
-            obj.insert(
-                "is_exact_date".to_string(),
-                Value::Bool(is_exact),
-            );
-            obj.insert(
-                "is_date_known".to_string(),
-                Value::Bool(is_known),
-            );
+            obj.insert("release_date".to_string(), Value::String(final_date));
+            obj.insert("is_exact_date".to_string(), Value::Bool(is_exact));
+            obj.insert("is_date_known".to_string(), Value::Bool(is_known));
 
             filtered.push(Value::Object(obj));
         }
@@ -230,12 +241,13 @@ pub async fn get_media_details(
     let url = format!("{}/{}/{}", TMDB_API_BASE, endpoint, tmdb_id);
 
     // We include append_to_response=images to get original language posters if en-US is missing
-    let res = NETWORK_MANAGER.external_client
+    let res = NETWORK_MANAGER
+        .external_client
         .get(&url)
         .query(&[
             ("api_key", api_key),
             ("language", "en-US"),
-            ("append_to_response", "images")
+            ("append_to_response", "images"),
         ])
         .send()
         .await;
@@ -279,7 +291,10 @@ pub async fn get_media_details(
 
     obj.insert(
         "synopsis".to_string(),
-        Value::String(crate::sanitizer::sanitize_text(r["overview"].as_str().unwrap_or(""), "No overview available.")),
+        Value::String(crate::sanitizer::sanitize_text(
+            r["overview"].as_str().unwrap_or(""),
+            "No overview available.",
+        )),
     );
     let mut poster = r["poster_path"].as_str().unwrap_or("").to_string();
 
@@ -291,7 +306,9 @@ pub async fn get_media_details(
                 if let Some(posters) = images.get("posters").and_then(|p| p.as_array()) {
                     // Try to find a poster matching the original language
                     for p in posters {
-                        if p.get("iso_639_1").and_then(|lang| lang.as_str()) == Some(original_language) {
+                        if p.get("iso_639_1").and_then(|lang| lang.as_str())
+                            == Some(original_language)
+                        {
                             if let Some(path) = p.get("file_path").and_then(|fp| fp.as_str()) {
                                 poster = path.to_string();
                                 break;
@@ -325,7 +342,10 @@ pub async fn get_media_details(
             for b in backdrops {
                 // Ensure iso_639_1 is null for clean textless images
                 if b.get("iso_639_1").unwrap_or(&Value::Null).is_null() {
-                    let vote = b.get("vote_average").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let vote = b
+                        .get("vote_average")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
                     if vote > highest_vote {
                         highest_vote = vote;
                         if let Some(path) = b.get("file_path").and_then(|fp| fp.as_str()) {
@@ -345,11 +365,17 @@ pub async fn get_media_details(
         if !poster.is_empty() {
             // Secondary Fallback: Use poster as pseudo-backdrop
             // We append a custom query param/marker to the path so the download engine knows to crop it
-            obj.insert("backdrop_path".to_string(), Value::String(format!("{}?crop=true", poster)));
+            obj.insert(
+                "backdrop_path".to_string(),
+                Value::String(format!("{}?crop=true", poster)),
+            );
         } else {
             // Tertiary Fallback: no backdrops and no poster
             obj.insert("backdrop_path".to_string(), Value::Null);
-            obj.insert("fallback_type".to_string(), Value::String("gradient".to_string()));
+            obj.insert(
+                "fallback_type".to_string(),
+                Value::String("gradient".to_string()),
+            );
         }
     } else {
         obj.insert("backdrop_path".to_string(), Value::String(backdrop));
@@ -357,7 +383,8 @@ pub async fn get_media_details(
 
     // Flatten genres correctly
     let genres = if let Some(genres_arr) = r["genres"].as_array() {
-        genres_arr.iter()
+        genres_arr
+            .iter()
             .filter_map(|g| g["name"].as_str())
             .collect::<Vec<&str>>()
             .join(", ")
@@ -367,7 +394,8 @@ pub async fn get_media_details(
     obj.insert("genres".to_string(), Value::String(genres));
 
     // Flatten networks / studios correctly
-    let networks_arr = r["networks"].as_array()
+    let networks_arr = r["networks"]
+        .as_array()
         .or_else(|| r["production_companies"].as_array());
 
     let networks = if let Some(arr) = networks_arr {
@@ -391,18 +419,9 @@ pub async fn get_media_details(
         let air_date = r["first_air_date"].as_str().unwrap_or("");
         let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(air_date);
 
-        obj.insert(
-            "release_date".to_string(),
-            Value::String(final_date),
-        );
-        obj.insert(
-            "is_exact_date".to_string(),
-            Value::Bool(is_exact),
-        );
-        obj.insert(
-            "is_date_known".to_string(),
-            Value::Bool(is_known),
-        );
+        obj.insert("release_date".to_string(), Value::String(final_date));
+        obj.insert("is_exact_date".to_string(), Value::Bool(is_exact));
+        obj.insert("is_date_known".to_string(), Value::Bool(is_known));
         obj.insert("collection_id".to_string(), Value::Null);
         obj.insert("collection_name".to_string(), Value::Null);
 
@@ -439,23 +458,16 @@ pub async fn get_media_details(
             crate::sanitizer::sanitize_date(rel_date)
         };
 
-        obj.insert(
-            "release_date".to_string(),
-            Value::String(final_date),
-        );
-        obj.insert(
-            "is_exact_date".to_string(),
-            Value::Bool(is_exact),
-        );
-        obj.insert(
-            "is_date_known".to_string(),
-            Value::Bool(is_known),
-        );
+        obj.insert("release_date".to_string(), Value::String(final_date));
+        obj.insert("is_exact_date".to_string(), Value::Bool(is_exact));
+        obj.insert("is_date_known".to_string(), Value::Bool(is_known));
 
         if let Some(collection) = r["belongs_to_collection"].as_object() {
             obj.insert(
                 "collection_id".to_string(),
-                Value::Number(serde_json::Number::from(collection["id"].as_i64().unwrap_or(0))),
+                Value::Number(serde_json::Number::from(
+                    collection["id"].as_i64().unwrap_or(0),
+                )),
             );
             obj.insert(
                 "collection_name".to_string(),
@@ -498,7 +510,8 @@ pub async fn get_tv_season_episodes(
     season_num: u32,
 ) -> Result<Vec<Value>, AppError> {
     let url = format!("{}/tv/{}/season/{}", TMDB_API_BASE, tmdb_id, season_num);
-    let res = NETWORK_MANAGER.external_client
+    let res = NETWORK_MANAGER
+        .external_client
         .get(&url)
         .query(&[("api_key", api_key), ("language", "en-US")])
         .send()
@@ -553,7 +566,10 @@ pub async fn get_tv_season_episodes(
         );
         obj.insert(
             "overview".to_string(),
-            Value::String(crate::sanitizer::sanitize_text(&tmdb_ep.overview.unwrap_or("".to_string()), "No episode summary.")),
+            Value::String(crate::sanitizer::sanitize_text(
+                &tmdb_ep.overview.unwrap_or("".to_string()),
+                "No episode summary.",
+            )),
         );
         obj.insert(
             "season_overview".to_string(),
@@ -571,18 +587,9 @@ pub async fn get_tv_season_episodes(
         }
         let raw_air_date = tmdb_ep.air_date.unwrap_or("".to_string());
         let (final_date, is_exact, is_known) = crate::sanitizer::sanitize_date(&raw_air_date);
-        obj.insert(
-            "air_date".to_string(),
-            Value::String(final_date),
-        );
-        obj.insert(
-            "is_exact_date".to_string(),
-            Value::Bool(is_exact),
-        );
-        obj.insert(
-            "is_date_known".to_string(),
-            Value::Bool(is_known),
-        );
+        obj.insert("air_date".to_string(), Value::String(final_date));
+        obj.insert("is_exact_date".to_string(), Value::Bool(is_exact));
+        obj.insert("is_date_known".to_string(), Value::Bool(is_known));
         formatted.push(Value::Object(obj));
     }
 
@@ -591,7 +598,8 @@ pub async fn get_tv_season_episodes(
 
 pub async fn get_collection_details(api_key: &str, collection_id: i32) -> Result<Value, AppError> {
     let url = format!("{}/collection/{}", TMDB_API_BASE, collection_id);
-    let r: Value = NETWORK_MANAGER.external_client
+    let r: Value = NETWORK_MANAGER
+        .external_client
         .get(&url)
         .query(&[("api_key", api_key), ("language", "en-US")])
         .send()
@@ -617,13 +625,21 @@ pub fn resolve_local_still_path(image_path: &str, episode_id: i32) -> Option<Str
     None
 }
 
-pub fn resolve_local_poster_path(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
+pub fn resolve_local_poster_path(
+    image_path: &str,
+    size: &str,
+    high_performance_mode: bool,
+) -> Option<String> {
     if image_path.is_empty() {
         return None;
     }
 
     let clean_path = image_path.trim_start_matches('/');
-    let actual_size = if high_performance_mode && size == "w500" { "w342" } else { size };
+    let actual_size = if high_performance_mode && size == "w500" {
+        "w342"
+    } else {
+        size
+    };
     let filename = format!("{}_{}", actual_size, clean_path);
 
     let local_path = get_poster_cache_dir().join(&filename);
@@ -633,7 +649,11 @@ pub fn resolve_local_poster_path(image_path: &str, size: &str, high_performance_
     None
 }
 
-pub fn resolve_local_backdrop_path(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
+pub fn resolve_local_backdrop_path(
+    image_path: &str,
+    size: &str,
+    high_performance_mode: bool,
+) -> Option<String> {
     if image_path.is_empty() {
         return None;
     }
@@ -646,7 +666,11 @@ pub fn resolve_local_backdrop_path(image_path: &str, size: &str, high_performanc
     }
 
     let clean_path = raw_path.trim_start_matches('/');
-    let actual_size = if high_performance_mode && size == "w500" { "w342" } else { size };
+    let actual_size = if high_performance_mode && size == "w500" {
+        "w342"
+    } else {
+        size
+    };
 
     let filename = if is_pseudo_backdrop {
         format!("{}_pseudo_{}", actual_size, clean_path)
@@ -661,15 +685,21 @@ pub fn resolve_local_backdrop_path(image_path: &str, size: &str, high_performanc
     None
 }
 
-pub async fn download_episode_still(image_path: &str, episode_id: i32, high_performance_mode: bool) -> Option<String> {
+pub async fn download_episode_still(
+    image_path: &str,
+    episode_id: i32,
+    high_performance_mode: bool,
+) -> Option<String> {
     if image_path.is_empty() {
         return None;
     }
 
-
-
     let clean_path = image_path.trim_start_matches('/');
-    let actual_size = if high_performance_mode { "w300" } else { "w500" };
+    let actual_size = if high_performance_mode {
+        "w300"
+    } else {
+        "w500"
+    };
 
     let filename = format!("ep_{}.jpg", episode_id);
     let local_path = get_still_cache_dir().join(&filename);
@@ -712,12 +742,14 @@ pub async fn download_episode_still(image_path: &str, episode_id: i32, high_perf
     None
 }
 
-pub async fn download_image(image_path: &str, size: &str, high_performance_mode: bool) -> Option<String> {
+pub async fn download_image(
+    image_path: &str,
+    size: &str,
+    high_performance_mode: bool,
+) -> Option<String> {
     if image_path.is_empty() {
         return None;
     }
-
-
 
     let mut is_pseudo_backdrop = false;
     let mut raw_path = image_path;
@@ -727,7 +759,11 @@ pub async fn download_image(image_path: &str, size: &str, high_performance_mode:
     }
 
     let clean_path = raw_path.trim_start_matches('/');
-    let actual_size = if high_performance_mode && size == "w500" { "w342" } else { size };
+    let actual_size = if high_performance_mode && size == "w500" {
+        "w342"
+    } else {
+        size
+    };
 
     let filename = if is_pseudo_backdrop {
         format!("{}_pseudo_{}", actual_size, clean_path)
@@ -767,14 +803,18 @@ pub async fn download_image(image_path: &str, size: &str, high_performance_mode:
                             if target_height <= height {
                                 let y_offset = (height - target_height) / 2;
                                 let cropped = img.crop(0, y_offset, width, target_height);
-                                if let Ok(_) = cropped.save_with_format(&tmp_local_path, image::ImageFormat::Jpeg) {
+                                if let Ok(_) = cropped
+                                    .save_with_format(&tmp_local_path, image::ImageFormat::Jpeg)
+                                {
                                     if std::fs::rename(&tmp_local_path, &local_path).is_ok() {
                                         return Some(local_path.to_string_lossy().to_string());
                                     }
                                 }
                             } else {
                                 // Just save it anyway if math is weird
-                                if let Ok(_) = img.save_with_format(&tmp_local_path, image::ImageFormat::Jpeg) {
+                                if let Ok(_) =
+                                    img.save_with_format(&tmp_local_path, image::ImageFormat::Jpeg)
+                                {
                                     if std::fs::rename(&tmp_local_path, &local_path).is_ok() {
                                         return Some(local_path.to_string_lossy().to_string());
                                     }

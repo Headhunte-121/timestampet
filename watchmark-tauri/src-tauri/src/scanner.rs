@@ -14,7 +14,9 @@ use std::sync::OnceLock;
 #[cfg(windows)]
 use std::os::windows::io::AsRawHandle;
 #[cfg(windows)]
-use windows_sys::Win32::Storage::FileSystem::{GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION};
+use windows_sys::Win32::Storage::FileSystem::{
+    GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
+};
 
 static LEADING_BRACKET: OnceLock<Regex> = OnceLock::new();
 static TRAILING_BRACKET: OnceLock<Regex> = OnceLock::new();
@@ -51,20 +53,24 @@ pub fn clean_string(name: &str) -> String {
 
     // 1. Technical Token Stripping (Codecs & Resolutions)
     let junk_regex = JUNK_DICTIONARY.get_or_init(|| {
-        Regex::new(r"(?i)\b(x264|x265|hevc|aac|dts|bluray|webrip|720p|1080p|4k|2160p|1080i|2160i)\b").unwrap()
+        Regex::new(
+            r"(?i)\b(x264|x265|hevc|aac|dts|bluray|webrip|720p|1080p|4k|2160p|1080i|2160i)\b",
+        )
+        .unwrap()
     });
     cleaned = junk_regex.replace_all(&cleaned, "").to_string();
 
     // 2. Delimiter Normalization (Expansion Protection)
     // Protect dots surrounded by letters (e.g. "Mr. Robot" or "S.H.I.E.L.D.")
-    let protected_dots_regex = PROTECTED_DOTS.get_or_init(|| {
-        Regex::new(r"([a-zA-Z])\.([a-zA-Z ]|$)").unwrap()
-    });
+    let protected_dots_regex =
+        PROTECTED_DOTS.get_or_init(|| Regex::new(r"([a-zA-Z])\.([a-zA-Z ]|$)").unwrap());
 
     let mut old = String::new();
     while old != cleaned {
         old = cleaned.clone();
-        cleaned = protected_dots_regex.replace_all(&cleaned, "${1}%%DOT%%${2}").to_string();
+        cleaned = protected_dots_regex
+            .replace_all(&cleaned, "${1}%%DOT%%${2}")
+            .to_string();
     }
 
     cleaned = cleaned.replace('.', " ").replace('_', " ");
@@ -72,14 +78,10 @@ pub fn clean_string(name: &str) -> String {
 
     // 3. Geometry Trimming
     // Vacuum: strips any trailing hyphens, brackets, or multiple consecutive spaces.
-    let trailing_vacuum = TRAILING_VACUUM.get_or_init(|| {
-        Regex::new(r"[\-\[\]\(\)\s]+$").unwrap()
-    });
+    let trailing_vacuum = TRAILING_VACUUM.get_or_init(|| Regex::new(r"[\-\[\]\(\)\s]+$").unwrap());
     cleaned = trailing_vacuum.replace_all(&cleaned, "").to_string();
 
-    let multi_space = MULTI_SPACE.get_or_init(|| {
-        Regex::new(r"\s{2,}").unwrap()
-    });
+    let multi_space = MULTI_SPACE.get_or_init(|| Regex::new(r"\s{2,}").unwrap());
     cleaned = multi_space.replace_all(&cleaned, " ").to_string();
 
     cleaned.trim().to_string()
@@ -120,7 +122,8 @@ pub fn parse_filename(filename: &str) -> (Option<String>, Option<i32>, Vec<i32>)
     }
 
     // Try Anime bracketed format: [01][105] or [S01E05]
-    let pattern_bracketed = Regex::new(r"^(.*?)\[(?i:s)?(\d{1,2})\]\[(?i:e)?(\d{1,3})\](?:[ \.\-_\[\(].*)?$").unwrap();
+    let pattern_bracketed =
+        Regex::new(r"^(.*?)\[(?i:s)?(\d{1,2})\]\[(?i:e)?(\d{1,3})\](?:[ \.\-_\[\(].*)?$").unwrap();
     if let Some(caps) = pattern_bracketed.captures(&base_name_cleaned) {
         let raw_series = caps.get(1).map_or("", |m| m.as_str());
         let season_num = caps.get(2).and_then(|m| m.as_str().parse::<i32>().ok());
@@ -156,7 +159,8 @@ pub fn parse_filename(filename: &str) -> (Option<String>, Option<i32>, Vec<i32>)
     // Try Movie format: Title (Year) or just Title.Year
     // Match greedy so we get the LAST 4-digit year.
     // It captures group 1 as the title and group 2 as the year (from 1888 to ~2029).
-    let pattern_movie = Regex::new(r"^(.*)[\.\s\(\[]+(18[8-9]\d|19\d{2}|20[0-2]\d)[\)\]]*.*$").unwrap();
+    let pattern_movie =
+        Regex::new(r"^(.*)[\.\s\(\[]+(18[8-9]\d|19\d{2}|20[0-2]\d)[\)\]]*.*$").unwrap();
     if let Some(caps) = pattern_movie.captures(&base_name_cleaned) {
         let raw_movie = caps.get(1).map_or("", |m| m.as_str());
         // Do string cleaning on the extracted title to remove any remaining resolution tags, dots, etc.
@@ -168,7 +172,9 @@ pub fn parse_filename(filename: &str) -> (Option<String>, Option<i32>, Vec<i32>)
 
     // Year-based fallback (2023.10.05) or (2023-10-05) - Date-Pattern Fallback
     // Return empty episodes. Mapped to Inbox Triage.
-    let pattern_date = Regex::new(r"^(.*?)[ \.\-_\[\(]+(\d{4})[ \.\-_](\d{2})[ \.\-_](\d{2})(?:[ \.\-_\[\(].*)?$").unwrap();
+    let pattern_date =
+        Regex::new(r"^(.*?)[ \.\-_\[\(]+(\d{4})[ \.\-_](\d{2})[ \.\-_](\d{2})(?:[ \.\-_\[\(].*)?$")
+            .unwrap();
     if let Some(caps) = pattern_date.captures(&base_name_cleaned) {
         let raw_series = caps.get(1).map_or("", |m| m.as_str());
         let series_name = clean_string(raw_series);
@@ -283,7 +289,8 @@ pub fn scan_directory(
     }
 
     // Migration cache for file renames
-    let mut migration_cache: std::collections::HashMap<(i64, String, Option<String>), i32> = std::collections::HashMap::new();
+    let mut migration_cache: std::collections::HashMap<(i64, String, Option<String>), i32> =
+        std::collections::HashMap::new();
     if let Ok(mut stmt) = tx.prepare("SELECT id, file_size, file_path FROM Local_Files") {
         if let Ok(mut rows) = stmt.query([]) {
             while let Ok(Some(row)) = rows.next() {
@@ -292,7 +299,10 @@ pub fn scan_directory(
                 let path_str: String = row.get(2).unwrap_or_default();
                 let p = Path::new(&path_str);
                 if !p.exists() {
-                    let filename = p.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                    let filename = p
+                        .file_name()
+                        .map(|s| s.to_string_lossy().to_string())
+                        .unwrap_or_default();
                     let parent = p.parent().map(|p| normalize_path(p));
                     migration_cache.insert((size, filename, parent), id);
                 }
@@ -305,7 +315,9 @@ pub fn scan_directory(
         Ok(p) => p,
         Err(e) => {
             tracing::error!("Failed to canonicalize directory path: {}", e);
-            return Err(rusqlite::Error::InvalidPath(std::path::PathBuf::from(directory)));
+            return Err(rusqlite::Error::InvalidPath(std::path::PathBuf::from(
+                directory,
+            )));
         }
     };
 
@@ -327,34 +339,41 @@ pub fn scan_directory(
 
     let mut visited_inodes = std::collections::HashSet::new();
 
-    for entry in WalkDir::new(scan_path).max_depth(15).follow_links(true).into_iter().filter_map(|e| {
-        if cancel_flag.load(std::sync::atomic::Ordering::SeqCst) {
-            tracing::info!("[BACKEND] 🛑 Scanner gracefully halted via Cancel signal.");
-            return None;
-        }
-
-        while pause_flag.load(std::sync::atomic::Ordering::SeqCst) {
+    for entry in WalkDir::new(scan_path)
+        .max_depth(15)
+        .follow_links(true)
+        .into_iter()
+        .filter_map(|e| {
             if cancel_flag.load(std::sync::atomic::Ordering::SeqCst) {
-                tracing::info!("[BACKEND] 🛑 Scanner gracefully halted via Cancel signal during Pause.");
+                tracing::info!("[BACKEND] 🛑 Scanner gracefully halted via Cancel signal.");
                 return None;
             }
-            std::thread::sleep(std::time::Duration::from_millis(500));
-        }
 
-        match e {
-            Ok(entry) => Some(entry),
-            Err(err) => {
-                if let Some(io_err) = err.io_error() {
-                    if io_err.kind() == std::io::ErrorKind::PermissionDenied {
-                        tracing::warn!("Scanner skipped path due to PermissionDenied: {}", err);
-                    } else {
-                        tracing::error!("Scanner encountered IO error: {}", err);
-                    }
+            while pause_flag.load(std::sync::atomic::Ordering::SeqCst) {
+                if cancel_flag.load(std::sync::atomic::Ordering::SeqCst) {
+                    tracing::info!(
+                        "[BACKEND] 🛑 Scanner gracefully halted via Cancel signal during Pause."
+                    );
+                    return None;
                 }
-                None
+                std::thread::sleep(std::time::Duration::from_millis(500));
             }
-        }
-    }) {
+
+            match e {
+                Ok(entry) => Some(entry),
+                Err(err) => {
+                    if let Some(io_err) = err.io_error() {
+                        if io_err.kind() == std::io::ErrorKind::PermissionDenied {
+                            tracing::warn!("Scanner skipped path due to PermissionDenied: {}", err);
+                        } else {
+                            tracing::error!("Scanner encountered IO error: {}", err);
+                        }
+                    }
+                    None
+                }
+            }
+        })
+    {
         let mut path = entry.path().to_path_buf();
 
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
@@ -388,7 +407,10 @@ pub fn scan_directory(
         let path = match std::fs::canonicalize(&path) {
             Ok(p) => p,
             Err(_) => {
-                tracing::warn!("Broken link or missing target, skipping: {}", path.display());
+                tracing::warn!(
+                    "Broken link or missing target, skipping: {}",
+                    path.display()
+                );
                 continue;
             }
         };
@@ -414,8 +436,11 @@ pub fn scan_directory(
         {
             if let Ok(file) = std::fs::File::open(&path) {
                 let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
-                if unsafe { GetFileInformationByHandle(file.as_raw_handle() as isize, &mut info) } != 0 {
-                    let file_index = (info.nFileIndexHigh as u64) << 32 | (info.nFileIndexLow as u64);
+                if unsafe { GetFileInformationByHandle(file.as_raw_handle() as isize, &mut info) }
+                    != 0
+                {
+                    let file_index =
+                        (info.nFileIndexHigh as u64) << 32 | (info.nFileIndexLow as u64);
                     let id = (info.dwVolumeSerialNumber, file_index);
                     if !visited_inodes.insert(id) {
                         tracing::warn!("Cyclic Link Abort detected, skipping: {}", path.display());
@@ -450,9 +475,14 @@ pub fn scan_directory(
         };
 
         if is_file {
-            let file_name_str = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-            let is_hidden = file_name_str.starts_with('.') ||
-                ["thumbs.db", "desktop.ini", ".ds_store"].contains(&file_name_str.to_lowercase().as_str());
+            let file_name_str = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let is_hidden = file_name_str.starts_with('.')
+                || ["thumbs.db", "desktop.ini", ".ds_store"]
+                    .contains(&file_name_str.to_lowercase().as_str());
 
             #[cfg(windows)]
             let is_hidden = is_hidden || {
@@ -490,7 +520,11 @@ pub fn scan_directory(
                     }
 
                     // Migration logic
-                    if let Some(old_id) = migration_cache.remove(&(file_size, filename.clone(), path.parent().map(|p| normalize_path(p)))) {
+                    if let Some(old_id) = migration_cache.remove(&(
+                        file_size,
+                        filename.clone(),
+                        path.parent().map(|p| normalize_path(p)),
+                    )) {
                         let _ = tx.execute(
                             "UPDATE Local_Files SET file_path = ? WHERE id = ?",
                             params![&str_path, old_id],
@@ -505,7 +539,11 @@ pub fn scan_directory(
                         use std::io::Read;
                         let mut buffer = [0; 4096];
                         if let Err(e) = file.read(&mut buffer) {
-                            tracing::warn!("Corrupt File Detected (Failed fast read): {} ({})", str_path, e);
+                            tracing::warn!(
+                                "Corrupt File Detected (Failed fast read): {} ({})",
+                                str_path,
+                                e
+                            );
                             is_corrupt = true;
                         }
                     } else {
@@ -515,7 +553,6 @@ pub fn scan_directory(
                     if is_corrupt {
                         continue;
                     }
-
 
                     let mut matched_ep_id: Option<i32> = None;
 
@@ -553,7 +590,9 @@ pub fn scan_directory(
                                     }
 
                                     // Fuzzy matching fallback
-                                    if strsim::normalized_levenshtein(&safe_series, &safe_db_name) > 0.90 {
+                                    if strsim::normalized_levenshtein(&safe_series, &safe_db_name)
+                                        > 0.90
+                                    {
                                         matched_media_id = Some(id);
                                         break;
                                     }
@@ -563,7 +602,8 @@ pub fn scan_directory(
                                     let mut ep_stmt = tx.prepare(
                                         "SELECT id FROM Episodes WHERE media_id = ? AND season_num = ? AND ep_num = ?"
                                     )?;
-                                    let mut rows = ep_stmt.query(params![m_id, s_num, episodes[0]])?;
+                                    let mut rows =
+                                        ep_stmt.query(params![m_id, s_num, episodes[0]])?;
                                     if let Ok(Some(row)) = rows.next() {
                                         matched_ep_id = Some(row.get(0)?);
                                     }
@@ -598,7 +638,9 @@ pub fn scan_directory(
                                     break;
                                 }
 
-                                if strsim::normalized_levenshtein(&safe_series, &safe_db_name) > 0.90 {
+                                if strsim::normalized_levenshtein(&safe_series, &safe_db_name)
+                                    > 0.90
+                                {
                                     matched_media_id = Some(id);
                                     break;
                                 }
@@ -621,7 +663,9 @@ pub fn scan_directory(
                         // We should map ALL episodes in `episode_num` to this same file.
                         // First we need to find the `media_id` which matched `ep_id`.
                         let mut m_id: Option<i32> = None;
-                        if let Ok(mut stmt) = tx.prepare("SELECT media_id FROM Episodes WHERE id = ?") {
+                        if let Ok(mut stmt) =
+                            tx.prepare("SELECT media_id FROM Episodes WHERE id = ?")
+                        {
                             if let Ok(mut rows) = stmt.query(params![ep_id]) {
                                 if let Ok(Some(row)) = rows.next() {
                                     m_id = Some(row.get(0).unwrap_or(0));
@@ -657,7 +701,9 @@ pub fn scan_directory(
                             let mut existing_size: i64 = -1;
                             let mut update_needed = true;
 
-                            if let Ok(mut stmt) = tx.prepare("SELECT file_size FROM Local_Files WHERE episode_id = ?") {
+                            if let Ok(mut stmt) =
+                                tx.prepare("SELECT file_size FROM Local_Files WHERE episode_id = ?")
+                            {
                                 if let Ok(mut rows) = stmt.query(params![e_id]) {
                                     if let Ok(Some(row)) = rows.next() {
                                         existing_size = row.get(0).unwrap_or(0);
@@ -685,14 +731,19 @@ pub fn scan_directory(
                                 matched_items.push(str_path.clone());
 
                                 // Auto-Migration: If it's matched mid-scan, ensure we wipe it from Unmatched_Files so it doesn't stay in Inbox
-                                let _ = tx.execute("DELETE FROM Unmatched_Files WHERE file_path = ?", params![&str_path]);
+                                let _ = tx.execute(
+                                    "DELETE FROM Unmatched_Files WHERE file_path = ?",
+                                    params![&str_path],
+                                );
                             }
                         }
                     } else {
                         // We must first ensure it doesn't already exist as a mapped path in Local_Files
                         // Wait, if it exists in Local_Files, it's already linked. We only insert to Unmatched if NOT in Local_Files.
                         let mut exists_in_local = false;
-                        if let Ok(mut stmt) = tx.prepare("SELECT 1 FROM Local_Files WHERE file_path = ?") {
+                        if let Ok(mut stmt) =
+                            tx.prepare("SELECT 1 FROM Local_Files WHERE file_path = ?")
+                        {
                             if let Ok(mut rows) = stmt.query(params![str_path]) {
                                 if let Ok(Some(_)) = rows.next() {
                                     exists_in_local = true;
@@ -723,8 +774,12 @@ pub fn scan_directory(
                                 }
                             }
 
-                            let clean_group_key =
-                                group_key.map(|k| clean_anime_release_tags(&k).replace(&['.', '_'][..], " ").trim().to_lowercase());
+                            let clean_group_key = group_key.map(|k| {
+                                clean_anime_release_tags(&k)
+                                    .replace(&['.', '_'][..], " ")
+                                    .trim()
+                                    .to_lowercase()
+                            });
 
                             let group_key_clone = clean_group_key.clone();
                             unmatched_insert_buffer.push((
@@ -743,14 +798,11 @@ pub fn scan_directory(
                                     "INSERT OR IGNORE INTO Unmatched_Files (file_path, filename, parsed_series, parsed_season, parsed_episode, group_key) VALUES (?, ?, ?, ?, ?, ?)"
                                 )?;
 
-                                for (path, fname, series, s_num, e_num, clean_key, group_clone) in unmatched_insert_buffer.drain(..) {
+                                for (path, fname, series, s_num, e_num, clean_key, group_clone) in
+                                    unmatched_insert_buffer.drain(..)
+                                {
                                     let res = insert_stmt.execute(params![
-                                        &path,
-                                        &fname,
-                                        &series,
-                                        &s_num,
-                                        &e_num,
-                                        &clean_key
+                                        &path, &fname, &series, &s_num, &e_num, &clean_key
                                     ]);
 
                                     if res.is_ok() && res.unwrap() > 0 {
@@ -789,15 +841,11 @@ pub fn scan_directory(
             "INSERT OR IGNORE INTO Unmatched_Files (file_path, filename, parsed_series, parsed_season, parsed_episode, group_key) VALUES (?, ?, ?, ?, ?, ?)"
         )?;
 
-        for (path, fname, series, s_num, e_num, clean_key, group_clone) in unmatched_insert_buffer.drain(..) {
-            let res = insert_stmt.execute(params![
-                &path,
-                &fname,
-                &series,
-                &s_num,
-                &e_num,
-                &clean_key
-            ]);
+        for (path, fname, series, s_num, e_num, clean_key, group_clone) in
+            unmatched_insert_buffer.drain(..)
+        {
+            let res =
+                insert_stmt.execute(params![&path, &fname, &series, &s_num, &e_num, &clean_key]);
 
             if res.is_ok() && res.unwrap() > 0 {
                 new_unmatched_count += 1;
@@ -818,7 +866,11 @@ pub fn scan_directory(
     }
 
     tx.commit()?;
-    tracing::info!("[BACKEND] 🧠 Regex engine finished parsing. Found {} unmatched files, auto-matched {}.", new_unmatched_count, auto_matched_count);
+    tracing::info!(
+        "[BACKEND] 🧠 Regex engine finished parsing. Found {} unmatched files, auto-matched {}.",
+        new_unmatched_count,
+        auto_matched_count
+    );
 
     Ok(serde_json::json!({
         "unmatched_count": new_unmatched_count,

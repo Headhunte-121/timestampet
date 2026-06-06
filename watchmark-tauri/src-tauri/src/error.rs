@@ -62,7 +62,10 @@ impl Serialize for AppError {
                 let mut state = serializer.serialize_struct("AppError", 3)?;
                 state.serialize_field("type", "NetworkError")?;
                 state.serialize_field("code", "BLOCKED")?;
-                state.serialize_field("message", "Network Access Blocked. Please check your Windows Firewall settings.")?;
+                state.serialize_field(
+                    "message",
+                    "Network Access Blocked. Please check your Windows Firewall settings.",
+                )?;
                 state.end()
             }
             AppError::NetworkOffline => {

@@ -5,8 +5,8 @@
 
 #[cfg(test)]
 mod tests_feature_3_4 {
-    use serde_json::json;
     use crate::models::Media;
+    use serde_json::json;
 
     #[test]
     fn test_type_mismatch_recovery() {
@@ -21,7 +21,9 @@ mod tests_feature_3_4 {
         // TmdbEpisode doesn't have an `id` field but `models::Episode` does, though tmdb_id parsing is in `tmdb::get_media_details`.
         // Let's test the generic fallback for our internal manual parsing which we just updated.
         // E.g., `let tmdb_id = r["id"].as_i64().unwrap_or(0);`
-        let id_val = raw_json["id"].as_i64().unwrap_or_else(|| raw_json["id"].as_str().unwrap_or("0").parse().unwrap_or(0));
+        let id_val = raw_json["id"]
+            .as_i64()
+            .unwrap_or_else(|| raw_json["id"].as_str().unwrap_or("0").parse().unwrap_or(0));
         assert_eq!(id_val, 12345);
     }
 
@@ -64,7 +66,12 @@ mod tests_feature_3_4 {
         ]);
         let genres = json_genres
             .as_array()
-            .map(|arr| arr.iter().filter_map(|g| g["name"].as_str()).collect::<Vec<&str>>().join(", "))
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|g| g["name"].as_str())
+                    .collect::<Vec<&str>>()
+                    .join(", ")
+            })
             .unwrap_or("".to_string());
         assert_eq!(genres, "Action, Comedy, Drama, Sci-Fi");
     }
@@ -74,14 +81,24 @@ mod tests_feature_3_4 {
         let json_genres = json!([]);
         let genres = json_genres
             .as_array()
-            .map(|arr| arr.iter().filter_map(|g| g["name"].as_str()).collect::<Vec<&str>>().join(", "))
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|g| g["name"].as_str())
+                    .collect::<Vec<&str>>()
+                    .join(", ")
+            })
             .unwrap_or("".to_string());
         assert_eq!(genres, "");
 
         let json_null = json!(null);
         let genres_null = json_null
             .as_array()
-            .map(|arr| arr.iter().filter_map(|g| g["name"].as_str()).collect::<Vec<&str>>().join(", "))
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|g| g["name"].as_str())
+                    .collect::<Vec<&str>>()
+                    .join(", ")
+            })
             .unwrap_or("".to_string());
         assert_eq!(genres_null, "");
     }

@@ -3,8 +3,8 @@
 // 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
 // 3. No raw println! allowed.
 
-use crate::sanitizer::{sanitize_date, sanitize_text, calculate_progress_percentage};
-use crate::models::{DashboardData, Media, Episode};
+use crate::models::{DashboardData, Episode, Media};
+use crate::sanitizer::{calculate_progress_percentage, sanitize_date, sanitize_text};
 use serde_json::json;
 
 #[test]

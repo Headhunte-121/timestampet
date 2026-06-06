@@ -5,6 +5,7 @@ import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
 import { useAppStore } from "../store/useAppStore";
 import { motion } from "framer-motion";
+import { BingeBlock } from "./BingeBlock";
 
 export default function History({ onNavigateToMedia }: { onNavigateToMedia: (mediaId: number, seasonNum?: number) => void }) {
   const { fastHistory, historyState, setHistoryState } = useAppStore();
@@ -107,19 +108,7 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
     return () => observer.disconnect();
   }, [handleLoadMore, hasMore, loading]);
 
-  const getVibeLabel = (date: Date) => {
-    const hour = date.getHours();
-    if (hour >= 5 && hour < 12) return "Morning";
-    if (hour >= 12 && hour < 17) return "Afternoon";
-    if (hour >= 17 && hour < 21) return "Evening";
-    return "Late Night";
-  };
-
-  const getDayName = (date: Date) => {
-    return date.toLocaleDateString("en-US", { weekday: "short" });
-  };
-
-  const getOrdinalSuffix = (d: number) => {
+    const getOrdinalSuffix = (d: number) => {
     if (d > 3 && d < 21) return 'th';
     switch (d % 10) {
       case 1:  return "st";
@@ -189,27 +178,16 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
           {/* Central absolute axis line */}
           <div className="absolute top-0 bottom-0 left-8 lg:left-1/2 w-0.5 bg-white/10 -translate-x-1/2 z-0" />
 
-          {history.map((group, i) => {
+                    {history.map((group, i) => {
+            if (group.ui_type === "BINGE" && (!group.entries || group.entries.length === 0)) {
+               return null;
+            }
+
             const entry = group.main_entry;
             const isLegacy = entry.is_legacy === 1;
             const isEven = i % 2 === 0;
 
-            let bingeSubtitle = null;
-            if (group.ui_type === "BINGE" && group.entries && group.entries.length > 0) {
-              const startTs = group.entries[group.entries.length - 1].timestamp;
-              const endTs = group.entries[0].timestamp;
-              const startDate = new Date(startTs * 1000);
-              const endDate = new Date(endTs * 1000);
-
-              if (startDate.toDateString() !== endDate.toDateString()) {
-                bingeSubtitle = `${getDayName(startDate)} ${getVibeLabel(startDate)} – ${getDayName(endDate)} ${getVibeLabel(endDate)}`;
-              }
-            }
-
-            // Date block generation (placeholder formatting - assume daily grouping will be implemented in subsequent feature 13.4 logic)
-            // But we inject the structural classes for mb-8 spacing here.
-            // 13.3.4 Inter-block temporal spacing.
-            const needsDateHeader = i === 0 || history[i-1].main_entry.formatted_date !== entry.formatted_date;
+            const needsDateHeader = i === 0 || history[i-1]?.main_entry?.formatted_date !== entry.formatted_date;
 
             return (
               <div key={i} className={`relative mb-8 z-10 w-full`}>
@@ -230,7 +208,16 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                   {/* Central Connector Dot */}
                   <div className="absolute left-8 lg:left-1/2 w-4 h-4 bg-[#FF6B00] rounded-full border-4 border-[#0D0F14] -translate-x-1/2 z-20 shadow-[0_0_10px_#FF6B00]" />
 
-                  {/* Card Container */}
+                  {group.ui_type === "BINGE" ? (
+                    <BingeBlock
+                      group={group}
+                      isEven={isEven}
+                      onNavigateToMedia={onNavigateToMedia}
+                      formatPauseTime={formatPauseTime}
+                    />
+                  ) : (
+                  <>
+                  {/* Card Container for Single Item */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -243,13 +230,9 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                         isLegacy ? "bg-[#1F222A]/60 opacity-60" : "bg-[#1F222A]/60 backdrop-blur-md"
                       }`}
                       onClick={(e) => {
-                        // Smart Click filter: Ignore if text is selected
                         if (window.getSelection()?.toString().length) return;
-
-                        // Ignore if clicked on an interactive element (buttons, links)
                         const target = e.target as HTMLElement;
                         if (target.closest('button') || target.closest('a')) return;
-
                         onNavigateToMedia(entry.media_id, entry.season_num);
                       }}
                     >
@@ -269,22 +252,11 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                         <h3 className={`text-lg font-bold truncate ${isLegacy ? "text-white opacity-100" : "text-white"}`}>
                           {entry.show_title}
                         </h3>
-                        {group.ui_type === "BINGE" ? (
-                          <div>
-                            <p className="text-muted">Watched {group.episode_count} Episodes</p>
-                            {bingeSubtitle && (
-                              <p className="text-sm text-gray-500 font-medium italic mt-1 truncate">
-                                {bingeSubtitle}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-muted truncate">
-                            {entry.media_type === "TV"
-                              ? `S${entry.season_num} E${entry.ep_num} - ${entry.ep_title}`
-                              : entry.ep_title}
-                          </p>
-                        )}
+                        <p className="text-muted truncate">
+                          {entry.media_type === "TV"
+                            ? `S${entry.season_num} E${entry.ep_num} - ${entry.ep_title}`
+                            : entry.ep_title}
+                        </p>
                         <div className="mt-2 flex gap-4 text-sm font-medium flex-wrap items-center">
                           <span className="text-[#FF6B00]">
                             {entry.last_position > 0 && entry.completion_ratio < 0.9 && !isLegacy ? (
@@ -327,18 +299,15 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                           )}
                         </div>
                       </div>
-                      {group.ui_type === "BINGE" ? (
-                        <div className="text-right text-sm text-muted mt-6 mr-2 hidden sm:block whitespace-nowrap">
-                          {Math.floor(group.total_runtime / 60)}h{" "}
-                          {group.total_runtime % 60}m
-                        </div>
-                      ) : !isLegacy && entry.completion_ratio < 0.9 ? (
+                      {!isLegacy && entry.completion_ratio < 0.9 ? (
                         <div className="text-right text-sm text-muted mt-6 mr-2 hidden sm:block whitespace-nowrap">
                           Paused ({Math.round(entry.completion_ratio * 100)}%)
                         </div>
                       ) : null}
                     </div>
                   </motion.div>
+                  </>
+                  )}
                 </div>
               </div>
             );

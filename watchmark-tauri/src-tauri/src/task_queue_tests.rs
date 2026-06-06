@@ -5,10 +5,10 @@
 
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
-use tokio::sync::oneshot;
 use std::time::Duration;
+use tokio::sync::oneshot;
 
-use crate::task_queue::{DbTaskQueue, DbAction};
+use crate::task_queue::{DbAction, DbTaskQueue};
 
 fn setup_test_db() -> Connection {
     let conn = Connection::open_in_memory().unwrap();
@@ -41,7 +41,10 @@ fn test_mass_click_logic_serialization() {
     std::thread::sleep(Duration::from_millis(1500));
 
     let final_count = *counter.lock().unwrap();
-    assert_eq!(final_count, 100, "All 100 queued tasks must execute sequentially");
+    assert_eq!(
+        final_count, 100,
+        "All 100 queued tasks must execute sequentially"
+    );
 }
 
 #[tokio::test]
@@ -61,9 +64,15 @@ async fn test_shutdown_guard() {
     // Wait for shutdown signal
     let res = tokio::time::timeout(Duration::from_secs(2), rx).await;
 
-    assert!(res.is_ok(), "Shutdown should complete before the 2s timeout");
+    assert!(
+        res.is_ok(),
+        "Shutdown should complete before the 2s timeout"
+    );
     let elapsed = start.elapsed().as_millis();
-    assert!(elapsed >= 1000, "Shutdown should wait for the sleep task to finish");
+    assert!(
+        elapsed >= 1000,
+        "Shutdown should wait for the sleep task to finish"
+    );
 }
 
 #[test]
@@ -72,9 +81,15 @@ fn test_primary_key_collision_batch_rollback() {
 
     // Simulate what the batch worker thread does internally for this specific test
     // since spinning up the full async/sync task queue bridge is complex for error checking inline.
-    let action1 = DbAction::ExecuteRaw("INSERT INTO Media (id, user_rating) VALUES (2, 5)".to_string(), vec![]);
+    let action1 = DbAction::ExecuteRaw(
+        "INSERT INTO Media (id, user_rating) VALUES (2, 5)".to_string(),
+        vec![],
+    );
     // This will cause a primary key collision with id = 1 that already exists
-    let action2 = DbAction::ExecuteRaw("INSERT INTO Media (id, user_rating) VALUES (1, 10)".to_string(), vec![]);
+    let action2 = DbAction::ExecuteRaw(
+        "INSERT INTO Media (id, user_rating) VALUES (1, 10)".to_string(),
+        vec![],
+    );
 
     let _batch = DbAction::Batch(vec![action1, action2]);
 
@@ -101,6 +116,11 @@ fn test_primary_key_collision_batch_rollback() {
     }
 
     // id=2 should NOT exist because the batch was rolled back
-    let count: i32 = conn.query_row("SELECT COUNT(*) FROM Media WHERE id = 2", [], |r| r.get(0)).unwrap();
-    assert_eq!(count, 0, "The transaction should be completely rolled back due to the primary key collision");
+    let count: i32 = conn
+        .query_row("SELECT COUNT(*) FROM Media WHERE id = 2", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        count, 0,
+        "The transaction should be completely rolled back due to the primary key collision"
+    );
 }

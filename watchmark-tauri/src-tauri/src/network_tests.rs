@@ -3,8 +3,8 @@
 // 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
 // 3. No raw println! allowed.
 
-use crate::network::NetworkManager;
 use crate::error::AppError;
+use crate::network::NetworkManager;
 use reqwest_middleware::Error as MiddlewareError;
 
 #[tokio::test]
@@ -13,7 +13,11 @@ async fn test_https_enforcement() {
 
     // Attempting to make an HTTP request using the external client
     // should fail because of `https_only(true)`
-    let res = network_manager.external_client.get("http://example.com").send().await;
+    let res = network_manager
+        .external_client
+        .get("http://example.com")
+        .send()
+        .await;
     assert!(res.is_err(), "External client should reject HTTP requests");
 }
 
@@ -61,12 +65,19 @@ mod tests_feature_3_3 {
             let results = search_media(&key, "Brad Pitt", 1).await.unwrap();
             // We should get a list of movies/shows Brad Pitt is known for
             // rather than failing or returning empty.
-            assert!(!results.is_empty(), "Expected 'known_for' to be flattened into results");
+            assert!(
+                !results.is_empty(),
+                "Expected 'known_for' to be flattened into results"
+            );
 
             // Make sure none of them are type "Person"
             for r in results {
                 let r_type = r["type"].as_str().unwrap_or("");
-                assert!(r_type == "Movie" || r_type == "TV", "Expected only Movie or TV types, got {}", r_type);
+                assert!(
+                    r_type == "Movie" || r_type == "TV",
+                    "Expected only Movie or TV types, got {}",
+                    r_type
+                );
             }
         } else {
             println!("Skipping TMDB network test: No API key.");
@@ -83,7 +94,10 @@ mod tests_feature_3_3 {
             // The function strictly allows "movie" and "tv".
             for r in results {
                 let r_type = r["type"].as_str().unwrap_or("");
-                assert!(r_type == "Movie" || r_type == "TV", "Expected only Movie or TV types");
+                assert!(
+                    r_type == "Movie" || r_type == "TV",
+                    "Expected only Movie or TV types"
+                );
             }
         } else {
             println!("Skipping TMDB network test: No API key.");
@@ -139,12 +153,20 @@ async fn test_local_client_allows_http() {
 
     // Local client should NOT fail strictly because of HTTP, it might fail because nothing is on port 8080
     // but we can check if it attempts the request instead of rejecting the schema.
-    let res = network_manager.local_client.get("http://127.0.0.1:8080/dummy").send().await;
+    let res = network_manager
+        .local_client
+        .get("http://127.0.0.1:8080/dummy")
+        .send()
+        .await;
 
     // It should be a connection refused error, NOT a scheme error.
     if let Err(e) = res {
         if let MiddlewareError::Reqwest(reqwest_err) = e {
-            assert!(reqwest_err.is_connect() || reqwest_err.is_timeout(), "Expected connect or timeout error, got: {}", reqwest_err);
+            assert!(
+                reqwest_err.is_connect() || reqwest_err.is_timeout(),
+                "Expected connect or timeout error, got: {}",
+                reqwest_err
+            );
         } else {
             panic!("Expected Reqwest error type inside middleware");
         }

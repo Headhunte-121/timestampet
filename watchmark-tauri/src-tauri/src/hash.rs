@@ -4,10 +4,10 @@
 // 3. No raw println! allowed.
 
 use std::fs::File;
+use std::hash::Hasher;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use twox_hash::XxHash64;
-use std::hash::Hasher;
 
 /// Computes a fast sparse hash of a large media file by reading:
 /// - First 1MB

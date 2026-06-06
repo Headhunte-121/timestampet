@@ -3,10 +3,10 @@
 // 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
 // 3. No raw println! allowed.
 
+use base64::{engine::general_purpose, Engine as _};
+use keyring::Entry;
 use rusqlite::Result;
 use std::fs;
-use base64::{Engine as _, engine::general_purpose};
-use keyring::Entry;
 
 use crate::db::get_app_data_dir;
 use crate::models::Settings;
@@ -28,12 +28,15 @@ pub fn load_settings() -> Result<Settings, String> {
             return Err(format!("Could not create AppData directory: {}", e));
         }
         if let Err(e) = save_settings(&default) {
-            return Err(format!("Could not write default settings to disk: {}. Is the AppData directory read-only?", e));
+            return Err(format!(
+                "Could not write default settings to disk: {}. Is the AppData directory read-only?",
+                e
+            ));
         }
 
         // Immediately re-read to verify disk I/O was successful
         if let Err(e) = fs::read_to_string(&settings_file) {
-             return Err(format!("Disk write verification failed: {}", e));
+            return Err(format!("Disk write verification failed: {}", e));
         }
 
         let mut first_run_settings = default;
@@ -54,8 +57,12 @@ pub fn load_settings() -> Result<Settings, String> {
             match serde_json::from_str::<Settings>(&content) {
                 Ok(mut settings) => {
                     // Fix bounds if corrupted (Sanity Clamp)
-                    if settings.width < 800 { settings.width = 800; }
-                    if settings.height < 600 { settings.height = 600; }
+                    if settings.width < 800 {
+                        settings.width = 800;
+                    }
+                    if settings.height < 600 {
+                        settings.height = 600;
+                    }
 
                     // Recover API key
                     let mut found_key = false;
@@ -80,26 +87,28 @@ pub fn load_settings() -> Result<Settings, String> {
 
                     // Finally, fallback to obfuscated json
                     if !found_key && !settings.tmdb_api_key.is_empty() {
-                        if let Ok(decoded) = general_purpose::STANDARD.decode(&settings.tmdb_api_key) {
+                        if let Ok(decoded) =
+                            general_purpose::STANDARD.decode(&settings.tmdb_api_key)
+                        {
                             if let Ok(decoded_str) = String::from_utf8(decoded) {
                                 settings.tmdb_api_key = decoded_str;
                             } else {
                                 settings.tmdb_api_key = String::new(); // Bad UTF8
                             }
                         } else {
-                             // Assuming it was cleartext or un-decodable
-                             // We don't overwrite it here because they might have pasted it in.
+                            // Assuming it was cleartext or un-decodable
+                            // We don't overwrite it here because they might have pasted it in.
                         }
                     }
 
                     loaded_settings = settings;
-                },
+                }
                 Err(e) => {
                     tracing::warn!(action = "load_settings", error = %e, "Corrupted settings.json detected. Resetting to defaults.");
                     needs_repair = true;
                 }
             }
-        },
+        }
         Err(e) => {
             tracing::warn!(action = "load_settings", error = %e, "Failed to read settings.json. Resetting to defaults.");
             needs_repair = true;

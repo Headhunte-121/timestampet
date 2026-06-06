@@ -796,3 +796,13 @@ Implemented the "Chaining Guard" in the Rust backend to properly enforce strict 
 - **Change:** Updated `test_long_nap_threshold` to exact 21600 seconds, asserting it properly breaks. Updated `test_short_break_threshold` to exactly 21599 to verify it correctly chains right up to the strict limit.
 - **File:** `watchmark-tauri/src/components/History.tsx`
 - **Change:** Updated the condition keys across the component render cycle to utilize `ui_type === "BINGE"` seamlessly. This eliminates conflicts with TypeScript `type` property keywords and safely renders single vs binge chunks properly, eliminating the empty accordion problem.
+
+
+### Task 13.6 & 13.7 Binge-Block Accordion UI
+- **Implemented BingeBlock Component**: Created `BingeBlock.tsx` to isolate complex internal states (open/closed), animation lifecycles, and sub-mapping logic.
+- **Orphaned Episode Bug Defense**: Added dual-layer defense. First, filtered the `history` array directly in `History.tsx`. Secondly, added a fallback inside `BingeBlock.tsx` to return `null` if `episodes.length === 0`.
+- **Typographic Enhancements**: Upgraded the summary strings to "Watched {count} Episodes of {title}". Implemented strict bold and VLC Orange (`#FF6B00`) highlighting for dynamic variables, while keeping grammatical strings as Silver (muted).
+- **Midnight Crossover Icon**: Automatically calculates if a session crosses midnight based on `start_time` and `end_time` epoch differences and seamlessly appends a subtle Lucide Moon icon.
+- **Framer Motion Animations**: Fully integrated `useReducedMotion` to strictly respect system accessibility flags, falling back gracefully to instant `0s` duration.
+- **Inner Binge Content Sub-Rows**: Styled nested rows inside Binge-Blocks to directly match standard Episode Cards (16:9 thumbnails, completed checks, orange play buttons) but visually distinct by removing timeline dots.
+- **Auto-Scroll Anchoring**: Added `scrollIntoView` dynamically adjusting window perspective when expanding a large accordion pushes the header off-screen.

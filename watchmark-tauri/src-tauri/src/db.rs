@@ -31,7 +31,9 @@ pub fn check_db_permissions(db_path: &PathBuf) -> Result<(), crate::error::AppEr
     // Try to open in ReadWrite mode to check if we can write to an existing db file
     // Or check if we can write a canary to the directory
     if db_path.exists() {
-        if let Err(_e) = Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE) {
+        if let Err(_e) =
+            Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
+        {
             // Permission Denied or File Locked
             let mut canary_path = db_path.clone();
             canary_path.set_extension("canary");
@@ -217,8 +219,14 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         (),
     )?;
 
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_history_timestamp ON History(timestamp DESC, id DESC)", ())?;
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)", ())?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_history_timestamp ON History(timestamp DESC, id DESC)",
+        (),
+    )?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)",
+        (),
+    )?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS Unmatched_Files (
@@ -346,7 +354,10 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             ()
         );
 
-        tx.execute("CREATE INDEX IF NOT EXISTS idx_history_timestamp ON History(timestamp DESC, id DESC)", ())?;
+        tx.execute(
+            "CREATE INDEX IF NOT EXISTS idx_history_timestamp ON History(timestamp DESC, id DESC)",
+            (),
+        )?;
         tx.execute("PRAGMA user_version = 5", ())?;
         tx.commit()?;
     }
@@ -382,21 +393,30 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             }
         }
         // Ensure legacy rows that were added before are 0 by default if null
-        let _ = tx.execute("UPDATE History SET is_legacy = 0 WHERE is_legacy IS NULL", ());
+        let _ = tx.execute(
+            "UPDATE History SET is_legacy = 0 WHERE is_legacy IS NULL",
+            (),
+        );
         tx.execute("PRAGMA user_version = 7", ())?;
         tx.commit()?;
     }
 
     if user_version < 8 {
         let tx = conn.transaction()?;
-        let _ = tx.execute("UPDATE Media SET user_rating = NULL WHERE user_rating = 0", ());
+        let _ = tx.execute(
+            "UPDATE Media SET user_rating = NULL WHERE user_rating = 0",
+            (),
+        );
         tx.execute("PRAGMA user_version = 8", ())?;
         tx.commit()?;
     }
 
     if user_version < 9 {
         let tx = conn.transaction()?;
-        tx.execute("CREATE INDEX IF NOT EXISTS idx_media_tmdb_rating ON Media(vote_average)", ())?;
+        tx.execute(
+            "CREATE INDEX IF NOT EXISTS idx_media_tmdb_rating ON Media(vote_average)",
+            (),
+        )?;
         tx.execute("PRAGMA user_version = 9", ())?;
         tx.commit()?;
     }
@@ -405,9 +425,8 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         let tx = conn.transaction()?;
         // The column already exists in the CREATE TABLE Episodes statement (added as INTEGER DEFAULT 0),
         // but if we are migrating an existing database, we need to add it via ALTER TABLE.
-        let v10_migrations = vec![
-            "ALTER TABLE Episodes ADD COLUMN last_position INTEGER NOT NULL DEFAULT 0",
-        ];
+        let v10_migrations =
+            vec!["ALTER TABLE Episodes ADD COLUMN last_position INTEGER NOT NULL DEFAULT 0"];
         for query in v10_migrations {
             if let Err(e) = tx.execute(query, ()) {
                 if !e.to_string().contains("duplicate column name") {
@@ -428,7 +447,10 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
 
     if user_version < 12 {
         let tx = conn.transaction()?;
-        tx.execute("CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)", ())?;
+        tx.execute(
+            "CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)",
+            (),
+        )?;
         tx.execute("PRAGMA user_version = 12", ())?;
         tx.commit()?;
     }
@@ -493,15 +515,18 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         )?;
 
         // Use INSERT OR IGNORE to handle cases where there are already duplicate tmdb_id + type
-        tx.execute(
-            "INSERT OR IGNORE INTO Media_new SELECT * FROM Media",
-            (),
-        )?;
+        tx.execute("INSERT OR IGNORE INTO Media_new SELECT * FROM Media", ())?;
 
         tx.execute("DROP TABLE Media", ())?;
         tx.execute("ALTER TABLE Media_new RENAME TO Media", ())?;
-        tx.execute("CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)", ())?;
-        tx.execute("CREATE INDEX IF NOT EXISTS idx_media_tmdb_rating ON Media(vote_average)", ())?;
+        tx.execute(
+            "CREATE INDEX IF NOT EXISTS idx_media_title ON Media(title ASC)",
+            (),
+        )?;
+        tx.execute(
+            "CREATE INDEX IF NOT EXISTS idx_media_tmdb_rating ON Media(vote_average)",
+            (),
+        )?;
 
         tx.execute("PRAGMA user_version = 14", ())?;
         tx.commit()?;
@@ -526,7 +551,10 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
 
     if user_version < 16 {
         let tx = conn.transaction()?;
-        let _ = tx.execute("ALTER TABLE Media ADD COLUMN backdrop_fallback TEXT DEFAULT NULL", ());
+        let _ = tx.execute(
+            "ALTER TABLE Media ADD COLUMN backdrop_fallback TEXT DEFAULT NULL",
+            (),
+        );
         tx.execute("PRAGMA user_version = 16", ())?;
         tx.commit()?;
     }
@@ -545,7 +573,10 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             )",
             (),
         )?;
-        tx.execute("INSERT OR IGNORE INTO Local_Files_new SELECT * FROM Local_Files", ())?;
+        tx.execute(
+            "INSERT OR IGNORE INTO Local_Files_new SELECT * FROM Local_Files",
+            (),
+        )?;
         tx.execute("DROP TABLE Local_Files", ())?;
         tx.execute("ALTER TABLE Local_Files_new RENAME TO Local_Files", ())?;
 
@@ -560,9 +591,15 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
             )",
             (),
         )?;
-        tx.execute("INSERT OR IGNORE INTO Unmatched_Files_new SELECT * FROM Unmatched_Files", ())?;
+        tx.execute(
+            "INSERT OR IGNORE INTO Unmatched_Files_new SELECT * FROM Unmatched_Files",
+            (),
+        )?;
         tx.execute("DROP TABLE Unmatched_Files", ())?;
-        tx.execute("ALTER TABLE Unmatched_Files_new RENAME TO Unmatched_Files", ())?;
+        tx.execute(
+            "ALTER TABLE Unmatched_Files_new RENAME TO Unmatched_Files",
+            (),
+        )?;
 
         tx.execute("PRAGMA user_version = 17", ())?;
         tx.commit()?;

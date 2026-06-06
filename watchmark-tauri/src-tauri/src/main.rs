@@ -6,22 +6,22 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod assets;
+mod backup;
 mod commands;
 mod db;
 mod error;
+mod filesystem_guard;
+mod hash;
 mod logging;
 mod models;
-mod hash;
+pub mod network;
+mod sanitizer;
 mod scanner;
 mod settings;
+pub mod task_queue;
 mod tmdb;
 mod vlc;
-pub mod task_queue;
-mod backup;
-mod sanitizer;
-pub mod network;
-mod filesystem_guard;
-mod assets;
 
 #[cfg(test)]
 #[path = "sanitizer_tests.rs"]
@@ -42,13 +42,13 @@ mod task_queue_tests;
 #[cfg(test)]
 fn backup_tests_module_trigger() {}
 
+use native_dialog::{MessageDialog, MessageType};
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder, MouseButton, TrayIconEvent},
-    Manager, Emitter
+    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+    Emitter, Manager,
 };
 use tauri_plugin_notification::NotificationExt;
-use native_dialog::{MessageDialog, MessageType};
 
 pub fn execute_cold_swap(app_dir: &std::path::Path) {
     let trigger_file_path = app_dir.join(".restore_pending");
@@ -105,9 +105,15 @@ fn main() {
     };
 
     // Initialize Tracing Engine First
-    logging::init_tracing(&initial_settings.global_log_level, &initial_settings.module_logs);
+    logging::init_tracing(
+        &initial_settings.global_log_level,
+        &initial_settings.module_logs,
+    );
 
-    tracing::info!(action = "boot", "[APP] 🚀 Starting application WatchMark...");
+    tracing::info!(
+        action = "boot",
+        "[APP] 🚀 Starting application WatchMark..."
+    );
 
     // Cold-Swap Database Restore Logic
     execute_cold_swap(&app_dir);

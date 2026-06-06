@@ -3,10 +3,10 @@
 // 2. Prefer structured logging: info!(action = "...", id = ?, "Message").
 // 3. No raw println! allowed.
 
-use std::sync::{Arc, RwLock};
-use std::sync::atomic::AtomicBool;
-use tokio::sync::mpsc;
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, RwLock};
+use tokio::sync::mpsc;
 
 use crate::commands::AppState;
 use crate::models::Settings;
@@ -33,14 +33,14 @@ async fn test_feature_3_2_api_key_sanitization() {
 
     // Note: since validate_tmdb_key requires State, which requires tauri runtime injection,
     // we can test the sanitization logic independently here.
-    let raw_keys = vec![
-        "   abc123XYZ  \n\r",
-        "abc123XYZ",
-        "\t\tabc123XYZ\u{200B}",
-    ];
+    let raw_keys = vec!["   abc123XYZ  \n\r", "abc123XYZ", "\t\tabc123XYZ\u{200B}"];
 
     for raw in raw_keys {
-        let sanitized = raw.trim().chars().filter(|c| c.is_alphanumeric()).collect::<String>();
+        let sanitized = raw
+            .trim()
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .collect::<String>();
         assert_eq!(sanitized, "abc123XYZ");
     }
 }
