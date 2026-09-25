@@ -15,7 +15,7 @@
 
 *Seamlessly bridge online TMDB metadata with your local media storage — with zero server bloat and automatic VLC playhead synchronization.*
 
-[Features](#-core-features) • [Methodology & AI Orchestration](#-engineering-methodology-system-breakdown--agentic-ai-orchestration) • [Resume Highlights](#-resume--portfolio-summary-ready-to-showcase) • [Architecture](#-architecture--tech-stack) • [AI Whitepaper](docs/architecture/AI_ORCHESTRATION.md) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [Quick Start](#-quick-start--installation)
+[Features](#-core-features) • [Methodology & AI Orchestration](#-engineering-methodology-system-breakdown--agentic-ai-orchestration) • [Resume Highlights](#-resume--portfolio-summary-ready-to-showcase) • [Architecture](#-architecture--tech-stack) • [AI Whitepaper](docs/architecture/AI_ORCHESTRATION.md) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [Requirements & Installation](#️-requirements--installation)
 
 </div>
 
@@ -225,7 +225,6 @@ WatchMark features an enterprise-grade technical documentation suite authored in
 
 ```text
 timestampet/
-├── run.bat                         # Quick-start script for Windows development
 ├── LICENSE                         # Official MIT Open Source License
 ├── CHANGELOG.md                    # SemVer release and feature history
 ├── ROADMAP.md                      # Project milestone roadmap
@@ -276,44 +275,69 @@ timestampet/
 
 ---
 
-## ⚡ Quick Start & Installation
+## 🛠️ Requirements & Installation
 
-### Prerequisites
-1. **Node.js**: `v18.0.0` or higher ([Download Node.js](https://nodejs.org/))
-2. **Rust & Cargo**: Latest stable toolchain ([Install Rust](https://www.rust-lang.org/tools/install))
-3. **VLC Media Player**: Installed locally ([Download VLC](https://www.videolan.org/vlc/))
-4. **TMDB API Key**: Free account required ([Get TMDB API Key](https://www.themoviedb.org/documentation/api))
+### System Prerequisites
+
+| Dependency | Minimum Version | Required For | Installation Guide |
+| :--- | :--- | :--- | :--- |
+| **Node.js** | `>= 20.0.0` (LTS) | React 19 Frontend & Vite 7 Bundler | [nodejs.org](https://nodejs.org/) (includes `npm`) |
+| **Rust & Cargo** | `>= 1.80.0` (2021 Edition) | Native Backend & SQLite Concurrency Engine | [rustup.rs](https://rustup.rs/) (`rustup default stable`) |
+| **VLC Media Player** | `>= 3.0.0` | Subprocess Playhead Telemetry & Hardware Playback | [videolan.org](https://www.videolan.org/vlc/) |
+| **TMDB API Key** | v3 Developer Key | Metadata, Posters, Season Details & Air Dates | [themoviedb.org](https://www.themoviedb.org/settings/api) (Free Account) |
+| **C++ Build Tools** | MSVC (Win) / GCC (Linux) | Native Desktop Windowing & SQLite C-Bindings | Platform Specific (see below) |
+
+#### Platform-Specific OS Toolchains
+* **Windows**: Install the **C++ Build Tools** via the [Visual Studio Installer](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (select *"Desktop development with C++"*).
+* **Linux (Ubuntu/Debian)**:
+  ```bash
+  sudo apt update
+  sudo apt install -y build-essential curl wget file libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+  ```
+* **macOS**: Install Xcode Command Line Tools:
+  ```bash
+  xcode-select --install
+  ```
 
 ---
 
-### Step 1: Clone Repository
+### Step-by-Step Installation & Setup
+
+#### 1. Clone the Repository
 ```bash
 git clone https://github.com/Headhunte-121/timestampet.git
-cd timestampet
+cd timestampet/watchmark-tauri
 ```
 
-### Step 2: Launch Development Environment
-* **On Windows (1-Click):** Double-click `run.bat` in the root directory.
-* **Via Terminal:**
-  ```bash
-  cd watchmark-tauri
-  npm install
-  npm run tauri dev
-  ```
-The application will compile the Rust backend, start Vite on `http://127.0.0.1:1420`, and open the native WatchMark desktop window.
+#### 2. Install Frontend Dependencies
+```bash
+npm install
+```
+
+#### 3. Run in Local Development Mode (HMR Enabled)
+To launch the desktop application with live Hot Module Replacement (Vite) and incremental Rust compilation:
+```bash
+npm run tauri dev
+```
+* The Vite dev server starts on `http://127.0.0.1:1420`.
+* The Rust backend automatically initializes SQLite in WAL mode and opens the native WatchMark window.
+* Diagnostic logs are piped to stdout and written to `%LOCALAPPDATA%\WatchMark\watchmark.log`.
 
 ---
 
-### Step 3: Build a Standalone Release Binary
-To compile an optimized, self-contained native executable:
+### 📦 Compiling a Standalone Production Executable
+
+To compile a fully optimized, standalone desktop executable with Link-Time Optimization (LTO):
+
 ```bash
 cd watchmark-tauri
 npm run tauri build
 ```
-The compiled installer and executable will be produced in:
-* **Windows:** `watchmark-tauri/src-tauri/target/release/watchmark-tauri.exe` (or NSIS installer in `bundle/nsis/`)
-* **macOS:** `watchmark-tauri/src-tauri/target/release/bundle/macos/WatchMark.app`
-* **Linux:** `watchmark-tauri/src-tauri/target/release/bundle/deb/` or `appimage/`
+
+The compiled release packages are output to:
+* **Windows:** `watchmark-tauri/src-tauri/target/release/watchmark-tauri.exe` (and NSIS installer in `bundle/nsis/`)
+* **macOS:** `watchmark-tauri/src-tauri/target/release/bundle/macos/WatchMark.app` (and `.dmg`)
+* **Linux:** `watchmark-tauri/src-tauri/target/release/bundle/deb/` (and `.AppImage`)
 
 ---
 

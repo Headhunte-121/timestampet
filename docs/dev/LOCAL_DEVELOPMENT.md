@@ -38,12 +38,8 @@ npm install
 
 ## 💻 Running the Development Environment
 
-You can start the development server with live Hot Module Replacement (HMR) for both React and Rust:
+Start the development environment with live Hot Module Replacement (HMR) for React and incremental compilation for Rust:
 
-### Option A: Windows 1-Click Launch
-Double-click `run.bat` located in the root of the repository.
-
-### Option B: Terminal Command
 ```bash
 cd watchmark-tauri
 npm run tauri dev
@@ -52,7 +48,7 @@ npm run tauri dev
 This command will:
 1. Start the Vite frontend server on `http://127.0.0.1:1420`.
 2. Compile the Rust backend using `cargo`.
-3. Launch the native desktop window connecting to the Vite dev server.
+3. Launch the native desktop window connecting to the Vite dev server with DevTools enabled.
 
 ---
 

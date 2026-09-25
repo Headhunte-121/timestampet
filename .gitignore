@@ -1,7 +1,10 @@
-# Local Development Archives (Kept on machine, ignored from public repository)
+# Local Development Archives & Utility Scripts (Kept on machine, ignored from public repository)
 local_archive/
 .local_archive/
 *.local
+*.bat
+*.cmd
+*.ps1
 
 # Node.js & Vite
 node_modules/

@@ -1002,6 +1002,28 @@ Diagnosed and eliminated extreme GPU load in the frontend WebView2 manager. The 
 - `cargo check`: Exited with code 0 in 0.53s.
 - Zero feature regressions across Dashboard, Carousel, Library, or Media Details.
 
+### Task: Repository Clean-Up: Script Exclusion & Comprehensive Installation Specification [TASK-REPO-CLEANUP-BAT, TASK-DOCS-INSTALL]
+
+**Summary:**
+Permanently removed all local `.bat` script wrappers (`build.bat`, `build_exe.bat`, `run.bat`, `watchmark-tauri/build.bat`) from the git repository. Configured `.gitignore` to strictly exclude local shell and batch scripts (`*.bat`, `*.cmd`, `*.ps1`). Replaced all script-based launch references with a standardized, cross-platform **Requirements & Installation** specification in `README.md` and `docs/dev/LOCAL_DEVELOPMENT.md`, detailing exact prerequisites, OS-specific C++ build toolchains, npm dependency management, and production compilation with Link-Time Optimization (`npm run tauri build`).
+
+**Detailed Implementations:**
+1. **Script Removal & Gitignore Hardening:**
+   - Removed `build.bat`, `build_exe.bat`, `run.bat`, and `watchmark-tauri/build.bat` from git tracking and working directory.
+   - Updated root `.gitignore` to permanently ignore `*.bat`, `*.cmd`, and `*.ps1` to prevent local automation scripts from being committed.
+2. **Requirements & Installation Suite (`README.md`):**
+   - Added exhaustive System Prerequisites matrix covering Node.js (>=20.0 LTS), Rust & Cargo (>=1.80, 2021 Edition), VLC Media Player (>=3.0), TMDB Developer API, and C++ toolchains.
+   - Documented exact platform-specific dependencies for Windows (Visual Studio C++ Build Tools), Linux (`libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `build-essential`), and macOS (Xcode CLT).
+   - Documented step-by-step CLI workflow (`git clone`, `npm install`, `npm run tauri dev`) and production compilation outputs for Windows (`.exe` & NSIS installer), macOS (`.app` & `.dmg`), and Linux (`.deb` & `.AppImage`).
+3. **Developer Guide Alignment (`docs/dev/LOCAL_DEVELOPMENT.md`):**
+   - Removed Windows 1-click batch launch references, standardizing the workflow on cross-platform terminal execution with HMR and incremental Rust builds.
+
+**Verification & Quality Assurance:**
+- `npm run build` (`tsc && vite build`): Exited with code 0 in 5.16s.
+- `cargo check`: Exited with code 0 in 0.52s.
+- `git status`: Zero `.bat` files tracked or present on disk.
+
+
 
 
 
