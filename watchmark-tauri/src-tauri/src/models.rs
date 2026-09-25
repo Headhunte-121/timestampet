@@ -351,6 +351,8 @@ pub struct Settings {
     pub last_backup_error: String,
     #[serde(default = "default_high_performance_mode")]
     pub high_performance_mode: bool,
+    #[serde(default = "default_last_backup_timestamp")]
+    pub last_auto_sync_timestamp: i64,
     #[serde(default = "default_empty_string")]
     pub last_scanned_path: String,
     #[serde(default = "default_video_extensions")]
@@ -447,6 +449,7 @@ impl Default for Settings {
             last_backup_status: default_last_backup_status(),
             last_backup_error: default_last_backup_error(),
             high_performance_mode: default_high_performance_mode(),
+            last_auto_sync_timestamp: default_last_backup_timestamp(),
             is_fullscreen: default_false(),
             is_maximized: default_false(),
             last_scanned_path: default_empty_string(),

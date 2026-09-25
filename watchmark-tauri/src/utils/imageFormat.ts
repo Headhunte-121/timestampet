@@ -17,31 +17,39 @@ export function formatImagePath(path: string | null | undefined, size: string = 
     return '';
   }
 
-  // Double Conversion Protection
-  if (path.startsWith('asset.localhost') || path.startsWith('http') || path.startsWith('asset://')) {
-    return path;
+  // 1. Remove Windows Verbatim prefix (\\?\ or \??\) if present first
+  let cleanPath = path.trim().replace(/^\\\\\?\\/, '').replace(/^\\\?\?\\/, '');
+
+  // 2. Double Conversion & Protocol Protection
+  if (
+    cleanPath.startsWith('asset.localhost') ||
+    cleanPath.startsWith('http://') ||
+    cleanPath.startsWith('https://') ||
+    cleanPath.startsWith('asset://') ||
+    cleanPath.startsWith('watchmark://') ||
+    cleanPath.startsWith('data:') ||
+    cleanPath.startsWith('blob:')
+  ) {
+    return cleanPath;
   }
 
-  // Check if it's an absolute local path
-  // Windows: starts with a drive letter (e.g., C:\ or C:/) or a network share (\\)
+  // 3. Check if it's an absolute local path
+  // Windows: starts with a drive letter (e.g., C:\ or C:/) or a network share (\\ or //)
   // Unix/Linux/macOS: starts with / and contains another / (to distinguish from TMDB paths like /xyz.jpg)
-  const isWindowsPath = /^[a-zA-Z]:[\\/]|^\/\/[a-zA-Z0-9]|^\\\\[a-zA-Z0-9]/.test(path);
-  const isUnixPath = path.startsWith('/') && path.indexOf('/', 1) !== -1;
+  const isWindowsPath = /^[a-zA-Z]:[\\/]|^\\\\|^\/\//.test(cleanPath);
+  const isUnixPath = cleanPath.startsWith('/') && cleanPath.indexOf('/', 1) !== -1;
 
   if (isWindowsPath || isUnixPath) {
-    // 1. Remove the Windows Verbatim prefix if present
-    let cleanPath = path.replace(/^\\\\\?\\/, "");
-
-    // 2. Force ALL backslashes to forward slashes for URI compatibility
+    // Force ALL backslashes to forward slashes for URI compatibility
     // This prevents 403 Forbidden errors caused by double-encoded '%5C' in URI schemes.
     cleanPath = cleanPath.replace(/\\/g, '/');
 
-    // 3. Convert to Tauri Asset URL
+    // Convert to Tauri Asset URL (e.g. http://asset.localhost/...)
     return convertFileSrc(cleanPath);
   }
 
-  // Otherwise, it's a raw TMDB path
+  // 4. Otherwise, it's a raw TMDB path
   // Ensure it starts with a slash
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `https://image.tmdb.org/t/p/${size}${cleanPath}`;
+  const tmdbPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+  return `https://image.tmdb.org/t/p/${size}${tmdbPath}`;
 }

@@ -7,6 +7,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod assets;
+pub mod auto_updater;
 mod backup;
 mod commands;
 mod db;
@@ -245,6 +246,27 @@ fn main() {
             }
             tracing::info!(action = "init_db_success", "[DB] ✨ Database initialized successfully.");
 
+            // 2.1 Dynamically grant asset protocol permissions to the app data and cache directory
+            let app_data_dir = db::get_app_data_dir();
+            if let Err(e) = app.asset_protocol_scope().allow_directory(&app_data_dir, true) {
+                tracing::warn!("[ASSET_PROTOCOL] Failed to allow app_data_dir: {}", e);
+            } else {
+                tracing::info!(action = "asset_scope_granted", path = ?app_data_dir, "[ASSET_PROTOCOL] Granted asset protocol scope for app data directory.");
+            }
+
+            #[cfg(windows)]
+            {
+                if let Ok(user_profile) = std::env::var("USERPROFILE") {
+                    let _ = app.asset_protocol_scope().allow_directory(user_profile, true);
+                }
+            }
+
+            if let Ok(settings) = settings::load_settings() {
+                if !settings.last_scanned_path.is_empty() {
+                    let _ = app.asset_protocol_scope().allow_directory(&settings.last_scanned_path, true);
+                }
+            }
+
             // 3. Ensure offline fonts are present
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = assets::ensure_fonts().await {
@@ -281,6 +303,14 @@ fn main() {
             crate::backup_tests_module_trigger();
 
             let app_handle_for_backup = app.handle().clone();
+            let app_handle_for_auto_update = app.handle().clone();
+
+            // Background Auto-Updater Task (checks tracked shows for new seasons/episodes)
+            tauri::async_runtime::spawn(async move {
+                // Delay 5s to allow window and initial DB load to finish without resource contention
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                let _ = auto_updater::run_background_auto_update(app_handle_for_auto_update, false).await;
+            });
 
             // Background Backup Task
             tauri::async_runtime::spawn(async move {
@@ -510,7 +540,7 @@ fn main() {
                                             // Handle potential panics from VLC or DB
                                             let play_result = tokio::task::spawn(async move {
                                                 let state = app_handle_clone.state::<commands::AppState>();
-                                                crate::vlc::play_episode_cmd(app_handle_clone.clone(), ep_id, file_path, last_position, state).await
+                                                crate::vlc::play_episode_cmd(app_handle_clone.clone(), ep_id, file_path, serde_json::Value::from(last_position), state).await
                                             }).await;
 
                                             match play_result {
@@ -723,6 +753,7 @@ fn main() {
             commands::get_dashboard_data,
             commands::get_library_data,
             commands::get_next_episode_to_play,
+            commands::play_next_episode_cmd,
             commands::clear_unmatched_files,
             commands::ignore_unmatched_group,
             commands::fetch_unmatched_files,
@@ -744,6 +775,10 @@ fn main() {
             commands::auto_detect_vlc,
             vlc::play_episode_cmd,
             commands::link_manual_file,
+            commands::get_upcoming_airings,
+            commands::get_new_season_alerts,
+            commands::dismiss_new_season_alert,
+            commands::trigger_auto_sync,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

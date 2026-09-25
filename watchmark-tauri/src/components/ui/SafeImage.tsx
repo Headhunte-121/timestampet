@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { convertFileSrc } from '@tauri-apps/api/core';
 import { motion } from 'framer-motion';
 import { Eye } from 'lucide-react';
-import { useAppStore } from '../../store/useAppStore';
+import { formatImagePath } from '../../utils/imageFormat';
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   srcPath: string;
@@ -22,7 +21,6 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 
 export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, className, title, fallbackSrcPath, episodeNumber, releaseDate, isDateKnown, isExactDate, isFallbackImage, potentialSpoiler, isCompleted, ...rest }) => {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
-  const { isCinemaMode } = useAppStore();
   const [hasError, setHasError] = useState(false);
   const [fallbackFailed, setFallbackFailed] = useState(false);
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
@@ -43,18 +41,20 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
   }, [isHovering, potentialSpoiler, isCompleted, isRevealed]);
 
   useEffect(() => {
-    if (fallbackSrcPath) {
+    if (fallbackSrcPath && fallbackSrcPath.trim() !== '') {
       try {
-        if (fallbackSrcPath.startsWith('http://') || fallbackSrcPath.startsWith('https://')) {
-          setFallbackSrc(fallbackSrcPath);
+        if (fallbackSrcPath === 'gradient') {
+          setFallbackSrc(null);
         } else {
-          setFallbackSrc(convertFileSrc(fallbackSrcPath));
+          setFallbackSrc(formatImagePath(fallbackSrcPath, type === 'backdrop' ? 'w1280' : 'w500'));
         }
       } catch {
         setFallbackSrc(null);
       }
+    } else {
+      setFallbackSrc(null);
     }
-  }, [fallbackSrcPath]);
+  }, [fallbackSrcPath, type]);
 
   useEffect(() => {
     setHasError(false);
@@ -64,22 +64,28 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
       return;
     }
 
-    // Try to parse the source path. If it's a local path, use convertFileSrc.
-    // If it's already an HTTP URL (e.g. from TMDB directly), use it as is.
     try {
-      if (srcPath.startsWith('http://') || srcPath.startsWith('https://') || srcPath.startsWith('asset.localhost') || srcPath.startsWith('asset://')) {
-        setImgSrc(srcPath);
-      } else {
-        const fileUrl = convertFileSrc(srcPath);
-        setImgSrc(fileUrl);
-      }
+      const formatted = formatImagePath(srcPath, type === 'backdrop' ? 'w1280' : 'w500');
+      setImgSrc(formatted);
     } catch {
       setHasError(true);
     }
-
   }, [srcPath, type]);
 
   const handleImageError = (e: any) => {
+    // If it was a local cached asset URL, attempt to recover by fetching directly from TMDB CDN before giving up
+    if (imgSrc && (imgSrc.includes('asset.localhost') || imgSrc.includes('asset://') || imgSrc.includes('/cache/posters/') || imgSrc.includes('/cache/backdrops/') || imgSrc.includes('/cache/stills/'))) {
+      const filenameMatch = imgSrc.match(/(?:w500|w342|w1280|original)_(?:pseudo_)?([^/?#]+)/i);
+      if (filenameMatch && filenameMatch[1]) {
+        const tmdbFilename = filenameMatch[1];
+        const recoveryUrl = `https://image.tmdb.org/t/p/${type === 'backdrop' ? 'w1280' : 'w500'}/${tmdbFilename}`;
+        if (imgSrc !== recoveryUrl) {
+          setImgSrc(recoveryUrl);
+          return;
+        }
+      }
+    }
+
     try {
       e.target.style.opacity = '0';
       e.target.style.objectPosition = 'transparent';
@@ -90,6 +96,18 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
   };
 
   const handleFallbackError = (e: any) => {
+    if (fallbackSrc && (fallbackSrc.includes('asset.localhost') || fallbackSrc.includes('asset://') || fallbackSrc.includes('/cache/'))) {
+      const filenameMatch = fallbackSrc.match(/(?:w500|w342|w1280|original)_(?:pseudo_)?([^/?#]+)/i);
+      if (filenameMatch && filenameMatch[1]) {
+        const tmdbFilename = filenameMatch[1];
+        const recoveryUrl = `https://image.tmdb.org/t/p/w1280/${tmdbFilename}`;
+        if (fallbackSrc !== recoveryUrl) {
+          setFallbackSrc(recoveryUrl);
+          return;
+        }
+      }
+    }
+
     try {
       e.target.style.opacity = '0';
       e.target.style.objectPosition = 'transparent';
@@ -153,24 +171,15 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
   }
 
   if (type === 'backdrop') {
-    const isHeroBackdrop = className?.includes('hero-backdrop-animation');
-
     return (
-      <div className={`relative overflow-hidden z-0 ${isLoaded ? '' : 'animate-pulse'} ${className || ''}`} style={!isLoaded ? { background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' } : undefined}>
+      <div className={`relative overflow-hidden z-0 ${className || ''}`} style={!isLoaded ? { background: 'linear-gradient(to bottom right, #1F222A, #0D0F14)' } : undefined}>
         <motion.img
           src={imgSrc!}
           alt={altText}
-          className={`absolute inset-0 w-full h-full object-cover z-10 origin-center`}
-          initial={{ opacity: 0, scale: 1 }}
-          animate={
-            isLoaded
-              ? { opacity: 1, scale: isHeroBackdrop && isCinemaMode ? [1, 1.15, 1] : 1 }
-              : { opacity: 0, scale: 1 }
-          }
-          transition={{
-            opacity: { duration: 0.6, ease: "easeInOut" },
-            scale: isHeroBackdrop && isCinemaMode ? { duration: 30, repeat: Infinity, ease: "linear" } : { duration: 0 }
-          }}
+          className="absolute inset-0 w-full h-full object-cover z-10 origin-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isLoaded ? 1 : 0 }}
+          transition={{ opacity: { duration: 0.5, ease: "easeInOut" } }}
           onLoad={() => setIsLoaded(true)}
           onError={handleImageError}
           {...rest as any}
@@ -180,7 +189,6 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
   }
 
   const shouldBlur = potentialSpoiler && !isCompleted && !isRevealed;
-  const commonClasses = `${className || ''} ${isFallbackImage ? 'brightness-75' : ''}`;
   const objectPositionStyle = type === 'still' ? { objectPosition: 'center 20%' } : {};
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
@@ -195,7 +203,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
 
   return (
     <div
-        className={`relative w-full h-full overflow-hidden ${type === 'still' ? 'aspect-video' : ''}`}
+        className={`relative overflow-hidden ${className || 'w-full h-full'} ${type === 'still' ? 'aspect-video' : ''}`}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
     >
@@ -208,7 +216,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({ srcPath, type, altText, cl
         <img
           src={imgSrc!}
           alt={altText}
-          className={`${commonClasses} w-full h-full object-cover`}
+          className={`w-full h-full object-cover ${isFallbackImage ? 'brightness-75' : ''}`}
           style={objectPositionStyle}
           onError={handleImageError}
           onLoad={handleImageLoad}

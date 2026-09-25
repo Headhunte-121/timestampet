@@ -5,13 +5,15 @@ import { formatRemainingTime } from "../utils/dateFormatter";
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Star, Loader2 } from "lucide-react";
+import { Play, Star, Loader2, FolderOpen, Flame } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useAsyncInvoke } from "../hooks/useAsyncInvoke";
 import { SafeImage } from "./ui/SafeImage";
 import { useHorizontalScroll } from "../hooks/useHorizontalScroll";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { NewSeasonAlertBanner, NewSeasonAlert } from "./NewSeasonAlertBanner";
+import { UpcomingAiringRow, UpcomingAiring } from "./UpcomingAiringRow";
 
 // Types matching the Rust backend structure
 interface Episode {
@@ -30,6 +32,9 @@ interface Episode {
   media_type: string;
   is_date_known: boolean;
   progress_percentage: number;
+  spotlight_tag?: string;
+  spotlight_subtitle?: string;
+  is_season_finale?: boolean;
 }
 
 interface Media {
@@ -52,6 +57,7 @@ interface Stats {
 
 interface DashboardData {
   hero_ep: Episode | null;
+  hero_eps?: EpisodeExtended[];
   cw_eps: Episode[];
   recent_media: Media[];
   stats: Stats;
@@ -71,10 +77,48 @@ import { listen } from "@tauri-apps/api/event";
 export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery = "" }: { onMediaSelect: (id: number) => void, refreshTrigger: number, searchQuery?: string }) {
   const { isCinemaMode } = useAppStore();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [upcomingAirings, setUpcomingAirings] = useState<UpcomingAiring[]>([]);
+  const [seasonAlerts, setSeasonAlerts] = useState<NewSeasonAlert[]>([]);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [isHeroHovered, setIsHeroHovered] = useState(false);
+  const [showProgressTooltip, setShowProgressTooltip] = useState(false);
   const [isPlaybackActive, setIsPlaybackActive] = useState(false);
   const asyncInvoke = useAsyncInvoke();
   const cwScroll = useHorizontalScroll<HTMLDivElement>();
   const recentScroll = useHorizontalScroll<HTMLDivElement>();
+
+  const heroList = useMemo(() => {
+    if (data?.hero_eps && data.hero_eps.length > 0) {
+      return data.hero_eps;
+    }
+    return data?.hero_ep ? [data.hero_ep] : [];
+  }, [data?.hero_eps, data?.hero_ep]);
+
+  const activeHero = useMemo(() => {
+    if (heroList.length === 0) return null;
+    const safeIdx = ((heroIndex % heroList.length) + heroList.length) % heroList.length;
+    return heroList[safeIdx];
+  }, [heroList, heroIndex]);
+
+  useEffect(() => {
+    if (heroList.length <= 1 || isHeroHovered || isPlaybackActive) return;
+
+    const interval = setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % heroList.length);
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [heroList.length, isHeroHovered, isPlaybackActive]);
+
+  const handlePrevHero = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHeroIndex((prev) => (prev - 1 + heroList.length) % heroList.length);
+  };
+
+  const handleNextHero = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHeroIndex((prev) => (prev + 1) % heroList.length);
+  };
 
   useEffect(() => {
     asyncInvoke<DashboardData>("get_dashboard_data")
@@ -83,26 +127,83 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
       })
       .catch((err) => {
         logger.error("Failed to load dashboard data", err);
-        // Fallback or empty state if needed
+      });
+
+    asyncInvoke<UpcomingAiring[]>("get_upcoming_airings")
+      .then(res => {
+        if (res) setUpcomingAirings(res);
+      })
+      .catch((err) => {
+        logger.error("Failed to load upcoming airings", err);
+      });
+
+    asyncInvoke<NewSeasonAlert[]>("get_new_season_alerts")
+      .then(res => {
+        if (res) setSeasonAlerts(res);
+      })
+      .catch((err) => {
+        logger.error("Failed to load new season alerts", err);
       });
   }, [refreshTrigger, asyncInvoke]);
 
   useEffect(() => {
-    const unlisten = listen("vlc-session-ended", () => {
+    const unlistenAutoUpdate = listen("shows-auto-updated", () => {
+      logger.app("Shows auto-updated event received, reloading dashboard feeds");
+      asyncInvoke<UpcomingAiring[]>("get_upcoming_airings").then(res => res && setUpcomingAirings(res));
+      asyncInvoke<NewSeasonAlert[]>("get_new_season_alerts").then(res => res && setSeasonAlerts(res));
+      asyncInvoke<DashboardData>("get_dashboard_data").then(res => res && setData(res));
+    });
+
+    return () => {
+      unlistenAutoUpdate.then(fn => fn());
+    };
+  }, [asyncInvoke]);
+
+  const handleDismissAlert = async (mediaId: number) => {
+    try {
+      await invoke("dismiss_new_season_alert", { mediaId });
+      setSeasonAlerts(prev => prev.filter(a => a.media_id !== mediaId));
+    } catch (e) {
+      logger.error("Failed to dismiss season alert", e);
+    }
+  };
+
+  useEffect(() => {
+    const unlistenEnded = listen("vlc-session-ended", () => {
+      setIsPlaybackActive(false);
+    });
+    const unlistenClosed = listen("vlc-closed", () => {
+      setIsPlaybackActive(false);
+    });
+    const unlistenCrashed = listen("vlc-crashed", () => {
       setIsPlaybackActive(false);
     });
 
     return () => {
-      unlisten.then(fn => fn());
+      unlistenEnded.then(fn => fn());
+      unlistenClosed.then(fn => fn());
+      unlistenCrashed.then(fn => fn());
     };
   }, []);
 
-    const heroRemainingTime = useMemo(() => {
-    if (!data?.hero_ep) return null;
-    const totalSeconds = data.hero_ep.runtime * 60;
-    const remainingSeconds = Math.max(0, totalSeconds - (data.hero_ep.last_position || 0));
+  const heroRemainingTime = useMemo(() => {
+    if (!activeHero) return null;
+    const totalSeconds = activeHero.runtime * 60;
+    const remainingSeconds = Math.max(0, totalSeconds - (activeHero.last_position || 0));
     return formatRemainingTime(remainingSeconds);
-  }, [data?.hero_ep]);
+  }, [activeHero]);
+
+  const heroTimestampDisplay = useMemo(() => {
+    if (!activeHero) return "";
+    const formatClock = (seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
+    const pos = activeHero.last_position || 0;
+    const tot = (activeHero.runtime || 0) * 60;
+    return `${formatClock(pos)} / ${formatClock(tot)}`;
+  }, [activeHero]);
   
   if (!data) {
     // Skeleton Loading State
@@ -156,70 +257,206 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
     m.title?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
+  const filteredAirings = useMemo(() => {
+    if (!searchQuery) return upcomingAirings;
+    const q = searchQuery.toLowerCase();
+    return upcomingAirings.filter(a =>
+      a.show_title?.toLowerCase().includes(q) ||
+      a.ep_title?.toLowerCase().includes(q)
+    );
+  }, [upcomingAirings, searchQuery]);
+
   return (
     <div className="flex-1 overflow-y-auto px-10 py-6 pb-24 pt-24 scrollbar-hide relative w-full h-full">
-      {/* A. Hero Banner (Up Next) */}
-      {data.hero_ep ? (
-        <div className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] overflow-hidden rounded-3xl group mb-10">
-          <SafeImage
-            srcPath={
-              (data.hero_ep as any).still_path
-                ? formatImagePath((data.hero_ep as any).still_path, "w1280")
-                : data.hero_ep.backdrop_path
-                ? formatImagePath(data.hero_ep.backdrop_path, "w1280")
-                : ""
-            }
-            fallbackSrcPath={(data.hero_ep as any).backdrop_fallback ? formatImagePath((data.hero_ep as any).backdrop_fallback, "w1280") : undefined}
-            type="backdrop"
-            altText="Hero Backdrop"
-            isFallbackImage={(data.hero_ep as any).is_fallback_image}
-            potentialSpoiler={(data.hero_ep as any).potential_spoiler}
-            isCompleted={data.hero_ep.status === "Completed"}
-            className="w-full h-full object-cover origin-center hero-backdrop-animation"
-            // Note: Since SafeImage uses motion.img under the hood, standard style pass-through applies, but to properly pass framer props we cast or just rely on the fallback structure.
-            // SafeImage now returns a wrapper div when type="backdrop" containing motion.img
-          />
-          {/* Layered directional gradient: Bottom-left pure black fading up to top-right transparent */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] from-0% via-[#0D0F14] via-20% to-transparent to-60%" />
-          {/* Secondary overlay for high-key images (fallback or always-on guard) */}
-          <div className="absolute inset-0 bg-black/20" />
+      {/* New Season Premiered Alert Banner */}
+      <NewSeasonAlertBanner
+        alerts={seasonAlerts}
+        onDismiss={handleDismissAlert}
+        onSelectMedia={onMediaSelect}
+      />
 
+      {/* A. Hero Banner (Spotlight Carousel) */}
+      {activeHero ? (
+        <div
+          onMouseEnter={() => setIsHeroHovered(true)}
+          onMouseLeave={() => setIsHeroHovered(false)}
+          className="relative w-full h-[450px] min-h-[400px] lg:h-[50vh] overflow-hidden rounded-3xl group mb-10 shadow-2xl"
+        >
+          {/* Background Crossfade Transition */}
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={activeHero.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0 w-full h-full"
+            >
+              <SafeImage
+                srcPath={
+                  (activeHero as any).still_path
+                    ? formatImagePath((activeHero as any).still_path, "w1280")
+                    : activeHero.backdrop_path
+                    ? formatImagePath(activeHero.backdrop_path, "w1280")
+                    : ""
+                }
+                fallbackSrcPath={(activeHero as any).backdrop_fallback ? formatImagePath((activeHero as any).backdrop_fallback, "w1280") : undefined}
+                type="backdrop"
+                altText="Hero Backdrop"
+                isFallbackImage={(activeHero as any).is_fallback_image}
+                potentialSpoiler={(activeHero as any).potential_spoiler}
+                isCompleted={activeHero.status === "Completed"}
+                className="w-full h-full object-cover origin-center"
+              />
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Layered directional gradient: Bottom-left pure black fading up to top-right transparent */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#0D0F14] from-0% via-[#0D0F14]/90 via-25% to-transparent to-65% pointer-events-none" />
+          {/* Secondary overlay for high-key images */}
+          <div className="absolute inset-0 bg-black/25 pointer-events-none" />
+
+          {/* Spotlight Navigation Arrows (Visible on hover when multiple items exist) */}
+          {heroList.length > 1 && (
+            <>
+              <button
+                onClick={handlePrevHero}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 cursor-pointer border border-white/10 shadow-xl"
+                aria-label="Previous spotlight"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={handleNextHero}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 cursor-pointer border border-white/10 shadow-xl"
+                aria-label="Next spotlight"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
+          )}
+
+          {/* Top-Right Carousel Indicator Pills & Counter */}
+          {heroList.length > 1 && (
+            <div className="absolute top-6 right-8 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 shadow-lg">
+              <span className="text-[11px] font-mono font-bold text-white/70 mr-1 tabular-nums">
+                {(((heroIndex % heroList.length) + heroList.length) % heroList.length) + 1} / {heroList.length}
+              </span>
+              {heroList.map((_, idx) => {
+                const isActive = idx === (((heroIndex % heroList.length) + heroList.length) % heroList.length);
+                return (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHeroIndex(idx);
+                    }}
+                    className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                      isActive ? "w-6 bg-[#FF6B00]" : "w-2 bg-white/30 hover:bg-white/60"
+                    }`}
+                    aria-label={`Go to slide ${idx + 1}`}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          {/* Bottom Left Content Area */}
           <div className="absolute bottom-12 left-12 w-full max-w-[70%] z-10 text-double-guard">
-            <h2 className="text-[#FF6B00] font-black tracking-[0.2em] text-[10px] mb-4 uppercase inline-block px-3 py-1 rounded-xl border border-[#FF6B00]/30 bg-black/40 backdrop-blur-sm">
-              {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume Session" : data.hero_ep.status === "Unwatched" ? "Start Series" : "Up Next"}
-            </h2>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-3 tracking-tighter line-clamp-2 leading-tight [text-shadow:0_4px_12px_rgba(0,0,0,0.5)]">
-              {data.hero_ep.show_title || "Unknown Show"}
+            {/* Dynamic Tag & Subtitle Pills */}
+            <div className="flex items-center gap-2.5 mb-3 flex-wrap">
+              <h2 className={`font-black tracking-[0.18em] text-[10px] uppercase inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border backdrop-blur-md ${
+                activeHero.spotlight_tag === "NEW EPISODE AVAILABLE" || activeHero.spotlight_tag === "NEW EPISODE RELEASED"
+                  ? "border-[#FF6B00]/60 bg-[#FF6B00]/25 text-[#FF8533] shadow-[0_0_12px_rgba(255,107,0,0.25)]"
+                  : activeHero.spotlight_tag === "SEASON FINALE"
+                  ? "border-amber-500/40 bg-amber-500/20 text-amber-300 shadow-amber-500/20 shadow-sm"
+                  : activeHero.spotlight_tag === "TOP RATED"
+                  ? "border-yellow-500/40 bg-yellow-500/20 text-yellow-300"
+                  : activeHero.spotlight_tag === "BINGE MOMENTUM"
+                  ? "border-purple-500/40 bg-purple-500/20 text-purple-300"
+                  : activeHero.spotlight_tag === "READY TO PLAY"
+                  ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                  : "border-[#FF6B00]/30 bg-black/50 text-[#FF6B00]"
+              }`}>
+                {activeHero.spotlight_tag === "NEW EPISODE AVAILABLE" || activeHero.spotlight_tag === "NEW EPISODE RELEASED" ? (
+                  <Flame className="w-3.5 h-3.5 fill-[#FF6B00]" />
+                ) : activeHero.spotlight_tag === "SEASON FINALE" ? (
+                  <Star className="w-3.5 h-3.5 fill-amber-400" />
+                ) : null}
+                {activeHero.spotlight_tag || (activeHero.status === "Watching" && activeHero.last_position > 0 ? "Resume Watching" : activeHero.status === "Unwatched" ? "Start Series" : "Up Next")}
+              </h2>
+
+              {activeHero.spotlight_subtitle && (
+                <span className="text-xs text-white/70 font-medium px-2.5 py-0.5 rounded-lg bg-black/40 border border-white/5 backdrop-blur-sm">
+                  {activeHero.spotlight_subtitle}
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tighter line-clamp-2 leading-tight [text-shadow:0_4px_12px_rgba(0,0,0,0.5)]">
+              {activeHero.show_title || "Unknown Show"}
             </h1>
-            <p className="text-lg text-[#A0AEC0] mb-8 truncate font-normal text-double-guard">
-              {data.hero_ep.media_type === "TV"
-                ? (
-                  <>
-                    {data.hero_ep.season_num === 0 ? "SPECIAL" : `SEASON ${data.hero_ep.season_num}`}
-                    <span className="mx-2 opacity-30">•</span>
-                    {`EPISODE ${data.hero_ep.ep_num}${data.hero_ep.title ? ` - ${data.hero_ep.title}` : ''}`}
-                  </>
-                )
-                : data.hero_ep.title || "No Title"}
+            <p className="text-lg text-[#A0AEC0] mb-6 truncate font-normal text-double-guard">
+              {activeHero.media_type === "TV" ? (
+                <>
+                  {activeHero.season_num === 0 ? "SPECIAL" : `SEASON ${activeHero.season_num}`}
+                  <span className="mx-2 opacity-30">•</span>
+                  {`EPISODE ${activeHero.ep_num}${activeHero.title ? ` - ${activeHero.title}` : ''}`}
+                  {activeHero.is_season_finale && (
+                    <span className="ml-3 text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/20 uppercase tracking-wider">
+                      Season Finale
+                    </span>
+                  )}
+                </>
+              ) : (
+                activeHero.title || "No Title"
+              )}
             </p>
 
             <div className="flex items-center gap-4">
               <motion.button
-                whileHover={data.hero_ep.file_path && isCinemaMode ? { scale: 1.05 } : {}}
-                whileTap={data.hero_ep.file_path && isCinemaMode ? { scale: 0.95 } : {}}
+                whileHover={isCinemaMode ? { scale: 1.05 } : {}}
+                whileTap={isCinemaMode ? { scale: 0.95 } : {}}
                 transition={isCinemaMode ? { type: "spring", stiffness: 400, damping: 10 } : { duration: 0 }}
-                onClick={() => {
+                onClick={async () => {
                   if (isPlaybackActive) return;
+
+                  if (!activeHero?.file_path) {
+                    try {
+                      const { open } = await import('@tauri-apps/plugin-dialog');
+                      const selected = await open({
+                        multiple: false,
+                        title: `Locate File for ${activeHero?.show_title || 'Episode'}`,
+                        filters: [{ name: 'Video Files', extensions: ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v'] }]
+                      });
+                      if (selected && typeof selected === 'string' && activeHero) {
+                        await invoke("update_local_file", { episodeId: activeHero.id, newPath: selected });
+                        toast.success("File linked successfully!");
+                        setIsPlaybackActive(true);
+                        invoke("play_episode_cmd", {
+                          episodeId: activeHero.id,
+                          filePath: selected,
+                          lastPosition: activeHero.last_position || 0,
+                        }).catch(e => {
+                          setIsPlaybackActive(false);
+                          toast.error(`VLC Launch Failed: ${e}`);
+                        });
+                      }
+                    } catch (err) {
+                      toast.error("Failed to link file.");
+                    }
+                    return;
+                  }
+
                   setIsPlaybackActive(true);
-                  logger.click(`'Resume' on Hero (${data.hero_ep!.show_title} S${data.hero_ep!.season_num}E${data.hero_ep!.ep_num})`);
-                  logger.ipcSend("play_episode_cmd", `Episode ${data.hero_ep!.id}`);
+                  logger.click(`'Resume' on Hero (${activeHero.show_title} S${activeHero.season_num}E${activeHero.ep_num})`);
+                  logger.ipcSend("play_episode_cmd", `Episode ${activeHero.id}`);
                   invoke("play_episode_cmd", {
-                    episodeId: data.hero_ep!.id,
-                    filePath: data.hero_ep!.file_path,
-                    lastPosition: data.hero_ep!.last_position,
+                    episodeId: activeHero.id,
+                    filePath: activeHero.file_path,
+                    lastPosition: activeHero.last_position,
                   }).then(() => {
                     logger.ipcSuccess("VLC successfully launched. Waiting for heartbeat...");
-                    // We remain active until vlc-session-ended is fired.
                   }).catch(e => {
                     setIsPlaybackActive(false);
                     logger.error("VLC Launch Failed", e);
@@ -230,15 +467,13 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     }
                   });
                 }}
-                disabled={!data.hero_ep.file_path}
-                className={`flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold uppercase tracking-wider transition-colors duration-300 ${
-                  data.hero_ep.file_path
-                    ? "bg-[#FF6B00] hover:bg-[#FF8533] text-white"
-                    : "bg-gray-700 opacity-50 text-gray-300 cursor-not-allowed"
+                className={`flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                  activeHero?.file_path
+                    ? "bg-[#FF6B00] hover:bg-[#FF8533] text-white shadow-[0_4px_14px_0_rgba(255,107,0,0.39)]"
+                    : "bg-[#FF6B00]/20 hover:bg-[#FF6B00]/40 text-orange-200 border border-[#FF6B00]/40 shadow-md"
                 }`}
-                style={data.hero_ep.file_path ? { boxShadow: "0 4px 14px 0 rgba(255, 107, 0, 0.39)" } : {}}
               >
-                {data.hero_ep.file_path ? (
+                {activeHero?.file_path ? (
                   isPlaybackActive ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin text-white" />
@@ -247,17 +482,20 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                   ) : (
                     <>
                       <Icon icon={Play} fill="currentColor" className="w-5 h-5" />
-                      {data.hero_ep.status === "Watching" && data.hero_ep.last_position > 0 ? "Resume" : "Play"}
+                      {activeHero.status === "Watching" && activeHero.last_position > 0 ? "Resume" : "Play"}
                     </>
                   )
                 ) : (
-                  "File Missing"
+                  <>
+                    <Icon icon={FolderOpen} className="w-5 h-5" />
+                    Locate & Play
+                  </>
                 )}
               </motion.button>
               <button
                 onClick={() => {
-                    logger.click(`'More Info' for Hero (${data.hero_ep!.show_title})`);
-                    onMediaSelect(data.hero_ep!.media_id);
+                    logger.click(`'More Info' for Hero (${activeHero.show_title})`);
+                    onMediaSelect(activeHero.media_id);
                 }}
                 className="px-8 py-3 rounded-lg font-bold bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all duration-300 hover:scale-105"
               >
@@ -265,21 +503,36 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
               </button>
             </div>
 
-            {data.hero_ep.status === "Watching" && data.hero_ep.runtime > 0 && (
+            {/* Progress Bar & Time Display (with 90% color shift and hover reveal) */}
+            {activeHero.status === "Watching" && activeHero.runtime > 0 && (
               <div className="flex flex-col mt-4">
-                <div className="text-sm font-bold text-white mb-2">
-                  {heroRemainingTime}
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="text-sm font-bold text-white">
+                    {heroRemainingTime}
+                  </div>
+                  {showProgressTooltip && (
+                    <span className="text-xs font-mono font-semibold text-white/90 bg-black/75 px-2 py-0.5 rounded-md border border-white/10 shadow-sm">
+                      {heroTimestampDisplay}
+                    </span>
+                  )}
                 </div>
-                <div className="w-64 h-1.5 bg-white/20 overflow-hidden flex">
+                <div
+                  onMouseEnter={() => setShowProgressTooltip(true)}
+                  onMouseLeave={() => setShowProgressTooltip(false)}
+                  className="w-64 h-2 bg-white/20 overflow-hidden flex rounded-full cursor-pointer relative group/prog"
+                  title={heroTimestampDisplay}
+                >
                   {(() => {
-                    const progress = calculateProgress(data.hero_ep.last_position, data.hero_ep.runtime);
+                    const progress = calculateProgress(activeHero.last_position, activeHero.runtime);
                     if (progress <= 0) return null;
+                    const isOver90 = progress >= 90;
                     return (
                       <div
-                        className="h-full"
+                        className={`h-full transition-all duration-300 rounded-full ${
+                          isOver90 ? "bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "bg-[#FF6B00]"
+                        }`}
                         style={{
                           width: `${progress}%`,
-                          backgroundColor: "#FF6B00"
                         }}
                       />
                     );
@@ -295,6 +548,12 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
           <p className="text-muted max-w-md">Scan your local folder or search TMDB to get started and build your library.</p>
         </div>
       )}
+
+      {/* Upcoming Airings (Next 7 Days) */}
+      <UpcomingAiringRow
+        airings={filteredAirings}
+        onSelectMedia={onMediaSelect}
+      />
 
       {/* B. Continue Watching (Horizontal Row) */}
       {filteredCW.length > 0 && (
@@ -371,8 +630,31 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
+                        if (!ep.file_path) {
+                          try {
+                            const { open } = await import('@tauri-apps/plugin-dialog');
+                            const selected = await open({
+                              multiple: false,
+                              title: `Locate File for ${ep.show_title || 'Episode'}`,
+                              filters: [{ name: 'Video Files', extensions: ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v'] }]
+                            });
+                            if (selected && typeof selected === 'string') {
+                              await invoke("update_local_file", { episodeId: ep.id, newPath: selected });
+                              toast.success("File linked successfully!");
+                              invoke("play_episode_cmd", {
+                                episodeId: ep.id,
+                                filePath: selected,
+                                lastPosition: ep.last_position || 0,
+                              }).catch(err => toast.error(`VLC Launch Failed: ${err}`));
+                            }
+                          } catch (err) {
+                            toast.error("Failed to link file.");
+                          }
+                          return;
+                        }
+
                         logger.click(`Play on CW item (${ep.show_title} S${ep.season_num}E${ep.ep_num})`);
                         logger.ipcSend("play_episode_cmd", `Episode ${ep.id}`);
                         invoke("play_episode_cmd", {
@@ -390,6 +672,7 @@ export default function Dashboard({ onMediaSelect, refreshTrigger, searchQuery =
                            }
                         });
                       }}
+                      title={ep.file_path ? "Play in VLC" : "Locate & Play Video File"}
                       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-[#FF6B00] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 z-20 hover:bg-[#E66000]"
                     >
                       <Icon icon={Play} fill="currentColor" className="w-5 h-5 ml-1" />

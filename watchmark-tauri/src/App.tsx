@@ -453,7 +453,6 @@ function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative overflow-hidden min-w-0 w-full pl-0 lg:pl-0">
-        <Toaster theme="dark" position="bottom-right" richColors />
         <Modal />
         <ProcessingModal />
         <OptimizationModal />
@@ -702,7 +701,20 @@ function App() {
               </motion.div>
           )}
       </AnimatePresence>
-
+      <Toaster
+        theme="dark"
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{
+          style: {
+            background: "#1F222A",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "#FFFFFF",
+          },
+          className: "border border-white/10 shadow-2xl",
+        }}
+      />
     </div>
     </MotionConfig>
   );

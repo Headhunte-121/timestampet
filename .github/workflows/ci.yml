@@ -1,0 +1,48 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, master, Tauri, migrate-to-tauri-react-* ]
+  pull_request:
+    branches: [ main, master, Tauri ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    name: Typecheck & Compilation Verification
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: watchmark-tauri/package-lock.json
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: watchmark-tauri/src-tauri
+
+      - name: Install Frontend Dependencies
+        working-directory: watchmark-tauri
+        run: npm ci
+
+      - name: Frontend Typecheck & Build (Vite + React 19)
+        working-directory: watchmark-tauri
+        run: npm run build
+
+      - name: Rust Backend Verification (cargo check)
+        working-directory: watchmark-tauri/src-tauri
+        run: cargo check --verbose

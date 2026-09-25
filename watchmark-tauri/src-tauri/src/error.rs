@@ -133,7 +133,19 @@ where
             "Unknown panic".to_string()
         };
 
-        // Log the panic to a file
+        // Log the panic to the primary WatchMark.log in AppData
+        let app_log_path = crate::db::get_app_data_dir().join("WatchMark.log");
+        use std::io::Write;
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&app_log_path)
+        {
+            let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+            let _ = writeln!(file, "[{}] PANIC: {}", timestamp, msg);
+        }
+
+        // Also attempt logging to local directory fallback if writable
         if let Ok(mut dir) = std::env::current_exe() {
             if cfg!(debug_assertions) {
                 dir = std::env::current_dir().unwrap_or_default();
@@ -144,7 +156,6 @@ where
             let log_path = log_dir.join("watchmark.log");
 
             let _ = std::fs::create_dir_all(&log_dir);
-            use std::io::Write;
             if let Ok(mut file) = std::fs::OpenOptions::new()
                 .create(true)
                 .append(true)

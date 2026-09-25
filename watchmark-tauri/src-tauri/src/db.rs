@@ -252,6 +252,17 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         (),
     )?;
 
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS Season_Alerts (
+            media_id INTEGER PRIMARY KEY,
+            season_num INTEGER NOT NULL,
+            dismissed BOOLEAN DEFAULT 0,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+            FOREIGN KEY (media_id) REFERENCES Media (id) ON DELETE CASCADE
+        )",
+        (),
+    )?;
+
     // Run migrations safely via PRAGMA user_version
     let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
 
@@ -602,6 +613,22 @@ pub fn init_db() -> Result<(), crate::error::AppError> {
         )?;
 
         tx.execute("PRAGMA user_version = 17", ())?;
+        tx.commit()?;
+    }
+
+    if user_version < 18 {
+        let tx = conn.transaction()?;
+        tx.execute(
+            "CREATE TABLE IF NOT EXISTS Season_Alerts (
+                media_id INTEGER PRIMARY KEY,
+                season_num INTEGER NOT NULL,
+                dismissed BOOLEAN DEFAULT 0,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                FOREIGN KEY (media_id) REFERENCES Media (id) ON DELETE CASCADE
+            )",
+            (),
+        )?;
+        tx.execute("PRAGMA user_version = 18", ())?;
         tx.commit()?;
     }
 

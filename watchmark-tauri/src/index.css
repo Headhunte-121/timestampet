@@ -168,3 +168,26 @@ img[src$=".png"] {
     background-color: #0D0F14 !important; /* Fallback solid color */
   }
 }
+
+/* Sonner Toast Fixed Anchoring & Production Styling */
+[data-sonner-toaster] {
+  position: fixed !important;
+  z-index: 999999999 !important;
+  box-sizing: border-box !important;
+}
+
+[data-sonner-toaster][data-x-position='right'] {
+  right: var(--offset-right, 24px) !important;
+  left: auto !important;
+}
+
+[data-sonner-toaster][data-y-position='bottom'] {
+  bottom: var(--offset-bottom, 24px) !important;
+  top: auto !important;
+}
+
+[data-sonner-toast] {
+  border-radius: 12px !important;
+  font-family: inherit !important;
+}
+

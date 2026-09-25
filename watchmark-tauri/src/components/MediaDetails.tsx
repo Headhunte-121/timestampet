@@ -389,7 +389,12 @@ export default function MediaDetails({ mediaId, initialSeasonNum, onBack, refres
             ) : (
               <button
                 onClick={() => {
-                  if (!nextEpisodeInfo) return;
+                  if (!nextEpisodeInfo) {
+                    toast.info("No local video file linked to play. Click the file link icon on any episode below to attach a video file.", {
+                      duration: 5000,
+                    });
+                    return;
+                  }
                   logger.click(`'Play Next' -> S${nextEpisodeInfo.season_num}E${nextEpisodeInfo.ep_num}`);
                   invoke("play_episode_cmd", {
                     episodeId: nextEpisodeInfo.episode_id,
@@ -399,17 +404,16 @@ export default function MediaDetails({ mediaId, initialSeasonNum, onBack, refres
                     toast.error(`VLC Launch Failed: ${err}`);
                   });
                 }}
-                disabled={!nextEpisodeInfo}
-                title={!nextEpisodeInfo ? "No unwatched episodes with local files available." : ""}
+                title={!nextEpisodeInfo ? "No linked local files found. Click to learn how to link files." : `Play S${nextEpisodeInfo.season_num}E${nextEpisodeInfo.ep_num}`}
                 className={cn(
-                  "flex items-center gap-2 px-8 py-4 font-bold rounded-full transition-all shadow-lg",
+                  "flex items-center gap-2 px-8 py-4 font-bold rounded-full transition-all shadow-lg cursor-pointer",
                   !nextEpisodeInfo
-                    ? "bg-gray-500/50 text-gray-400 cursor-not-allowed pointer-events-none"
+                    ? "bg-[#FF6B00]/25 hover:bg-[#FF6B00]/40 text-orange-200 border border-[#FF6B00]/30 hover:scale-105 active:scale-95"
                     : "bg-[#FF6B00] hover:bg-[#E66000] text-white shadow-[0_4px_14px_0_rgba(255,107,0,0.39)] hover:scale-105 active:scale-95"
                 )}
               >
                 {!nextEpisodeInfo ? (
-                  <CloudOff className="w-5 h-5 text-gray-400" />
+                  <CloudOff className="w-5 h-5 text-orange-300" />
                 ) : (
                   <Icon icon={Play} className="w-5 h-5" strokeWidth={2.5} fill="currentColor" />
                 )}
@@ -418,6 +422,11 @@ export default function MediaDetails({ mediaId, initialSeasonNum, onBack, refres
                   {nextEpisodeInfo?.is_gap && nextEpisodeInfo?.missing_ep_num && (
                     <span className="text-[10px] opacity-80 font-normal leading-tight">
                       Episode {nextEpisodeInfo.missing_ep_num} missing. Playing Episode {nextEpisodeInfo.ep_num}.
+                    </span>
+                  )}
+                  {!nextEpisodeInfo && (
+                    <span className="text-[10px] opacity-70 font-normal leading-tight">
+                      Link file to play
                     </span>
                   )}
                 </div>
@@ -751,12 +760,40 @@ function EpisodeRow({ ep, data, setContextMenu, processingRef, setCompletedCount
                           <Icon icon={Play} className="w-5 h-5 ml-1" fill="currentColor" />
                         </motion.button>
                       ) : (
-                        <div className="group/tooltip relative w-12 h-12 flex items-center justify-center rounded-full">
-                          <Icon icon={CloudOff} className="w-5 h-5 text-gray-600" />
-                          <div className="absolute -top-10 scale-0 group-hover/tooltip:scale-100 transition-transform bg-black/80 backdrop-blur-md text-white text-xs px-3 py-1 rounded-md whitespace-nowrap">
-                            Local file missing. Scan your directory to re-link.
+                        <motion.button
+                          whileHover={isCinemaMode ? { scale: 1.1 } : {}}
+                          transition={isCinemaMode ? { type: "spring", stiffness: 400, damping: 10 } : { duration: 0 }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            logger.click(`'Locate & Link' on Episode S${ep.season_num}E${ep.ep_num}`);
+                            try {
+                              const { open } = await import('@tauri-apps/plugin-dialog');
+                              const selected = await open({
+                                multiple: false,
+                                title: `Locate File for S${ep.season_num}E${ep.ep_num}`,
+                                filters: [{ name: 'Video Files', extensions: ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v'] }],
+                              });
+                              if (selected && typeof selected === 'string') {
+                                await invoke("update_local_file", { episodeId: ep.id, newPath: selected });
+                                toast.success("File linked successfully!");
+                                invoke("play_episode_cmd", {
+                                  episodeId: ep.id,
+                                  filePath: selected,
+                                  lastPosition: ep.last_position || 0,
+                                }).catch(err => toast.error(`VLC Launch Failed: ${err}`));
+                              }
+                            } catch (err) {
+                              toast.error("Failed to link file.");
+                            }
+                          }}
+                          className="group/tooltip relative w-12 h-12 flex items-center justify-center rounded-full bg-black/60 hover:bg-[#FF6B00] text-gray-300 hover:text-white transition-all shadow-lg cursor-pointer"
+                          title="Click to link video file and play"
+                        >
+                          <Icon icon={CloudOff} className="w-5 h-5" />
+                          <div className="absolute -top-10 scale-0 group-hover/tooltip:scale-100 transition-transform bg-black/90 backdrop-blur-md text-white text-xs px-3 py-1 rounded-md whitespace-nowrap z-30">
+                            Click to link video file & play
                           </div>
-                        </div>
+                        </motion.button>
                       )
                     )}
                  </div>
@@ -819,7 +856,7 @@ function EpisodeRow({ ep, data, setContextMenu, processingRef, setCompletedCount
                         <CircleDashed
                           className="w-6 h-6 text-[#FF6B00] hover:text-[#FF6B00]/80 transition-colors"
                           strokeWidth={1.5}
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
                             if (ep.file_path) {
                               logger.click(`'Resume from history' on Episode S${ep.season_num}E${ep.ep_num}`);
@@ -831,7 +868,25 @@ function EpisodeRow({ ep, data, setContextMenu, processingRef, setCompletedCount
                                 toast.error(`VLC Launch Failed: ${err}`);
                               });
                             } else {
-                              toast.error("Local file missing. Scan your directory to re-link.");
+                              try {
+                                const { open } = await import('@tauri-apps/plugin-dialog');
+                                const selected = await open({
+                                  multiple: false,
+                                  title: `Locate File for S${ep.season_num}E${ep.ep_num}`,
+                                  filters: [{ name: 'Video Files', extensions: ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v'] }],
+                                });
+                                if (selected && typeof selected === 'string') {
+                                  await invoke("update_local_file", { episodeId: ep.id, newPath: selected });
+                                  toast.success("File linked successfully!");
+                                  invoke("play_episode_cmd", {
+                                    episodeId: ep.id,
+                                    filePath: selected,
+                                    lastPosition: localLastPosition || 0,
+                                  }).catch(err => toast.error(`VLC Launch Failed: ${err}`));
+                                }
+                              } catch (err) {
+                                toast.error("Failed to link file.");
+                              }
                             }
                           }}
                         />

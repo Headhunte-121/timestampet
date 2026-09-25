@@ -3,6 +3,9 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ChevronDown, Moon, Play } from "lucide-react";
 import { SafeImage } from "./ui/SafeImage";
 import { formatImagePath } from "../utils/imageFormat";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { logger } from "../utils/logger";
 
 interface BingeBlockProps {
   group: any;
@@ -12,7 +15,7 @@ interface BingeBlockProps {
 }
 
 export function BingeBlock({ group, isEven, onNavigateToMedia, formatPauseTime }: BingeBlockProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const shouldReduceMotion = useReducedMotion();
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +104,7 @@ export function BingeBlock({ group, isEven, onNavigateToMedia, formatPauseTime }
         {/* Header Section (The Toggle Button) */}
         <div
           ref={headerRef}
-          className="relative flex p-4 items-center gap-6 cursor-pointer hover:bg-white/5 transition-colors rounded-t-2xl z-20"
+          className="relative flex p-4 items-center gap-5 cursor-pointer hover:bg-white/5 transition-colors rounded-t-2xl z-20"
           onClick={handleToggle}
         >
           {isLegacy && (
@@ -110,22 +113,24 @@ export function BingeBlock({ group, isEven, onNavigateToMedia, formatPauseTime }
             </div>
           )}
 
-          <SafeImage
-            srcPath={mainEntry.poster_path ? formatImagePath(mainEntry.poster_path, "w500") : ""}
-            type="poster"
-            title={mainEntry.show_title}
-            altText={mainEntry.show_title}
-            className="w-16 h-24 object-cover rounded-md shadow-md flex-shrink-0"
-          />
+          <div className="w-16 h-24 sm:w-20 sm:h-28 flex-shrink-0 rounded-lg overflow-hidden shadow-lg bg-[#0D0F14] border border-white/10 relative">
+            <SafeImage
+              srcPath={mainEntry.poster_path ? formatImagePath(mainEntry.poster_path, "w500") : ""}
+              type="poster"
+              title={mainEntry.show_title}
+              altText={mainEntry.show_title}
+              className="w-full h-full object-cover"
+            />
+          </div>
 
-          <div className="flex-1 min-w-0 pr-4">
-            <h3 className="text-lg truncate mb-1">
-              <span className="text-[#A0AEC0]">Watched </span>
-              <span className="font-bold text-[#FF6B00]">{group.episode_count} </span>
-              <span className="text-[#A0AEC0]">
-                {group.episode_count === 1 ? "Episode of " : "Episodes of "}
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="bg-[#FF6B00]/20 text-[#FF6B00] text-xs font-bold px-2.5 py-0.5 rounded-full border border-[#FF6B00]/30">
+                Session • {group.episode_count} Episodes
               </span>
-              <span className="font-bold text-[#FF6B00]">{mainEntry.show_title}</span>
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-white truncate hover:text-[#FF6B00] transition-colors">
+              {mainEntry.show_title}
             </h3>
 
             <div className="flex items-center gap-2 text-sm text-gray-500 font-medium italic mt-1 truncate">
@@ -212,12 +217,26 @@ export function BingeBlock({ group, isEven, onNavigateToMedia, formatPauseTime }
 
                       {/* Circular Orange Play Button for instant resume */}
                       <button
-                        className="w-8 h-8 rounded-full bg-[#FF6B00]/20 flex items-center justify-center text-[#FF6B00] hover:bg-[#FF6B00] hover:text-white transition-colors mr-2 flex-shrink-0"
-                        onClick={(e) => {
+                        className="w-8 h-8 rounded-full bg-[#FF6B00]/20 flex items-center justify-center text-[#FF6B00] hover:bg-[#FF6B00] hover:text-white transition-colors mr-2 flex-shrink-0 cursor-pointer"
+                        title={entry.file_path ? "Play in VLC" : "Go to episode details"}
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          // In a real implementation this would trigger VLC play,
-                          // but for now we follow the same pattern as the rest of the row
-                          onNavigateToMedia(entry.media_id, entry.season_num);
+                          if (entry.file_path) {
+                            logger.click(`'Play' from BingeBlock S${entry.season_num}E${entry.ep_num}`);
+                            try {
+                              await invoke("play_episode_cmd", {
+                                episodeId: entry.episode_id,
+                                filePath: entry.file_path,
+                                lastPosition: entry.last_position || 0,
+                              });
+                              logger.ipcSuccess("VLC playback launched from BingeBlock");
+                            } catch (err: any) {
+                              logger.error("VLC Launch Failed from BingeBlock", err);
+                              toast.error(`VLC Launch Failed: ${err}`);
+                            }
+                          } else {
+                            onNavigateToMedia(entry.media_id, entry.season_num);
+                          }
                         }}
                       >
                          <Play size={14} className="ml-0.5 fill-current" />

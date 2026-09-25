@@ -625,6 +625,14 @@ pub fn resolve_local_still_path(image_path: &str, episode_id: i32) -> Option<Str
     None
 }
 
+pub fn get_backdrop_cache_dir() -> PathBuf {
+    let dir = get_app_data_dir().join("cache").join("backdrops");
+    if !dir.exists() {
+        fs::create_dir_all(&dir).unwrap_or_default();
+    }
+    dir
+}
+
 pub fn resolve_local_poster_path(
     image_path: &str,
     size: &str,
@@ -646,6 +654,16 @@ pub fn resolve_local_poster_path(
     if local_path.exists() {
         return Some(local_path.to_string_lossy().to_string());
     }
+
+    // Fallback across all cached sizes (e.g. scanner caches 'original', but caller asks for 'w500')
+    for fallback_size in &["original", "w500", "w342"] {
+        let fallback_filename = format!("{}_{}", fallback_size, clean_path);
+        let fallback_path = get_poster_cache_dir().join(&fallback_filename);
+        if fallback_path.exists() {
+            return Some(fallback_path.to_string_lossy().to_string());
+        }
+    }
+
     None
 }
 
@@ -678,10 +696,34 @@ pub fn resolve_local_backdrop_path(
         format!("{}_{}", actual_size, clean_path)
     };
 
-    let local_path = get_poster_cache_dir().join(&filename);
+    let target_dir = if is_pseudo_backdrop {
+        get_poster_cache_dir()
+    } else {
+        get_backdrop_cache_dir()
+    };
+
+    let local_path = target_dir.join(&filename);
     if local_path.exists() {
         return Some(local_path.to_string_lossy().to_string());
     }
+
+    // Fallback across other sizes
+    for fallback_size in &["original", "w1280", "w780", "w500"] {
+        let fallback_file = if is_pseudo_backdrop {
+            format!("{}_pseudo_{}", fallback_size, clean_path)
+        } else {
+            format!("{}_{}", fallback_size, clean_path)
+        };
+        let fallback_path = target_dir.join(&fallback_file);
+        if fallback_path.exists() {
+            return Some(fallback_path.to_string_lossy().to_string());
+        }
+        let poster_path = get_poster_cache_dir().join(&fallback_file);
+        if poster_path.exists() {
+            return Some(poster_path.to_string_lossy().to_string());
+        }
+    }
+
     None
 }
 

@@ -624,7 +624,7 @@ pub async fn play_episode_cmd(
     app_handle: AppHandle,
     episode_id: i32,
     file_path: String,
-    last_position: i32,
+    last_position: serde_json::Value,
     state: tauri::State<'_, crate::commands::AppState>,
 ) -> Result<(), AppError> {
     tracing::info!("[VLC] 🎬 Preparing to launch VLC player...");
@@ -640,11 +640,17 @@ pub async fn play_episode_cmd(
         ));
     }
 
-    let settings = crate::settings::load_settings().unwrap_or_default();
-    if settings.vlc_path.is_empty() {
-        return Err(AppError::Custom(
-            "VLC path not configured in Settings".to_string(),
-        ));
+    let mut settings = crate::settings::load_settings().unwrap_or_default();
+    if settings.vlc_path.is_empty() || dunce::canonicalize(&settings.vlc_path).is_err() {
+        if let Ok(Some(detected)) = crate::commands::auto_detect_vlc() {
+            tracing::info!("[VLC] Auto-detected VLC executable at: {}", detected);
+            settings.vlc_path = detected;
+            let _ = crate::settings::save_settings(&settings);
+        } else {
+            return Err(AppError::Custom(
+                "VLC path not configured in Settings and could not be detected automatically. Please set VLC path in Settings.".to_string(),
+            ));
+        }
     }
 
     // Sanitize path inputs to avoid injection or panics
@@ -652,12 +658,25 @@ pub async fn play_episode_cmd(
         .map_err(|_| AppError::Custom(format!("Invalid or non-existent path: {}", file_path)))?;
 
     let canonical_vlc = dunce::canonicalize(&settings.vlc_path).map_err(|_| {
-        AppError::Custom("Invalid VLC executable path configured in Settings".to_string())
+        AppError::Custom(format!("Invalid VLC executable path configured in Settings: {}", settings.vlc_path))
     })?;
 
     let file_path = canonical_path.to_string_lossy().to_string();
 
-    let start_sec = if last_position > 0 { last_position } else { 0 };
+    let raw_pos: i32 = match &last_position {
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                i as i32
+            } else if let Some(f) = n.as_f64() {
+                f.round() as i32
+            } else {
+                0
+            }
+        }
+        serde_json::Value::String(s) => s.parse::<f64>().map(|f| f.round() as i32).unwrap_or(0),
+        _ => 0,
+    };
+    let start_sec = if raw_pos > 0 { raw_pos } else { 0 };
 
     kill_active_vlc().await;
 

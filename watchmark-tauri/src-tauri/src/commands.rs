@@ -13,7 +13,7 @@ use rusqlite::params;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 fn calculate_gap(air_date_str: &str, watch_ts: i64) -> Option<serde_json::Value> {
     if air_date_str.is_empty() {
@@ -1888,6 +1888,131 @@ pub async fn archive_season(
     Ok(())
 }
 
+fn resolve_candidate_episode(
+    conn: &rusqlite::Connection,
+    media_id: i32,
+    backdrop_size: &str,
+    poster_size: &str,
+    high_performance_mode: bool,
+) -> Option<Value> {
+    let mut ep_stmt = conn.prepare(
+        "
+        SELECT e.id, e.media_id, e.season_num, e.ep_num, e.title, e.runtime, e.still_path,
+               e.overview, e.season_overview, e.watch_count, e.last_position, e.status, e.completed_date,
+               e.air_date, e.is_exact_date, e.is_air_date_manual,
+               m.title as show_title, m.backdrop_path, m.poster_path, l.file_path, m.type as media_type,
+               (SELECT COUNT(*) FROM Episodes e2 WHERE e2.media_id = m.id AND e2.season_num = e.season_num AND e2.status = 'Unwatched') as season_unwatched_count,
+               (SELECT COUNT(*) FROM Episodes e3 WHERE e3.media_id = m.id AND e3.season_num = e.season_num) as season_total_count,
+               (SELECT COUNT(*) FROM Episodes e4 WHERE e4.media_id = m.id AND e4.season_num = e.season_num AND e4.status = 'Completed') as season_completed_count,
+               (SELECT COUNT(*) FROM Episodes e5 WHERE e5.media_id = m.id AND e5.status = 'Completed') as total_completed_count
+        FROM Episodes e
+        JOIN Media m ON e.media_id = m.id
+        LEFT JOIN Local_Files l ON e.id = l.episode_id
+        WHERE e.media_id = ? AND e.status IN ('Watching', 'Unwatched')
+          AND (e.air_date IS NULL OR e.air_date = '' OR e.air_date <= date('now', 'localtime'))
+        ORDER BY
+          CASE WHEN e.status = 'Watching' AND e.last_position > 60 THEN 0 ELSE 1 END,
+          e.season_num ASC, e.ep_num ASC
+        LIMIT 1
+        "
+    ).ok()?;
+
+    let mut ep_rows = ep_stmt.query(params![media_id]).ok()?;
+    let ep_row = ep_rows.next().ok()??;
+
+    let runtime = ep_row.get::<_, Option<i32>>(5).unwrap_or(Some(0)).unwrap_or(0);
+    let last_position = ep_row.get::<_, Option<i32>>(10).unwrap_or(Some(0)).unwrap_or(0);
+    let status: String = ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default();
+    let season_num: u32 = ep_row.get::<_, u32>(2).unwrap_or(0);
+    let ep_num: u32 = ep_row.get::<_, u32>(3).unwrap_or(0);
+    let raw_air_date: String = ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default();
+    let file_path: Option<String> = ep_row.get::<_, Option<String>>(19).unwrap_or_default();
+    let media_type: String = ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default();
+    let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
+
+    let season_unwatched_count: i64 = ep_row.get(21).unwrap_or(0);
+    let season_total_count: i64 = ep_row.get(22).unwrap_or(0);
+    let season_completed_count: i64 = ep_row.get(23).unwrap_or(0);
+    let total_completed_count: i64 = ep_row.get(24).unwrap_or(0);
+
+    let has_local_file = file_path.as_ref().map(|f| !f.is_empty()).unwrap_or(false);
+    let is_in_progress = status == "Watching" && last_position > 60 && (runtime == 0 || last_position < (runtime * 60) - 60);
+    let is_season_finale = season_num > 0 && season_total_count > 1 && season_unwatched_count == 1 && season_completed_count > 0;
+
+    let is_new_release = if total_completed_count > 0 && !raw_air_date.is_empty() {
+        if let Ok(parsed) = chrono::NaiveDate::parse_from_str(&raw_air_date, "%Y-%m-%d") {
+            let today = chrono::Local::now().naive_local().date();
+            let days_ago = (today - parsed).num_days();
+            days_ago >= 0 && days_ago <= 14
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    let has_started_series = total_completed_count > 0 || season_num > 1 || ep_num > 1;
+
+    let (tag, subtitle) = if is_in_progress {
+        let mins = last_position / 60;
+        ("RESUME WATCHING".to_string(), format!("Paused at {}m • Pick up where you left off", mins))
+    } else if is_new_release {
+        ("NEW EPISODE RELEASED".to_string(), format!("Season {} Ep {} recently aired and ready", season_num, ep_num))
+    } else if is_season_finale {
+        ("SEASON FINALE".to_string(), format!("Final episode of Season {}!", season_num))
+    } else if has_started_series {
+        if has_local_file {
+            ("READY TO PLAY".to_string(), format!("Season {} Episode {} ready in your library", season_num, ep_num))
+        } else {
+            ("UP NEXT".to_string(), format!("Continue Season {} Episode {}", season_num, ep_num))
+        }
+    } else {
+        if media_type == "Movie" {
+            ("WATCH MOVIE".to_string(), "Featured from your library".to_string())
+        } else {
+            ("START SERIES".to_string(), "Begin with Season 1 Episode 1".to_string())
+        }
+    };
+
+    let ep_id = ep_row.get::<_, i32>(0).unwrap_or(0);
+    let raw_still = ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default();
+    let still_path = crate::tmdb::resolve_local_still_path(&raw_still, ep_id).unwrap_or(raw_still);
+
+    let raw_backdrop = ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default();
+    let backdrop_path = crate::tmdb::resolve_local_backdrop_path(&raw_backdrop, backdrop_size, high_performance_mode).unwrap_or(raw_backdrop);
+
+    let raw_poster = ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default();
+    let poster_path = crate::tmdb::resolve_local_poster_path(&raw_poster, poster_size, high_performance_mode).unwrap_or(raw_poster);
+
+    Some(json!({
+        "id": ep_id,
+        "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
+        "season_num": season_num,
+        "ep_num": ep_num,
+        "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
+        "runtime": runtime,
+        "still_path": still_path,
+        "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
+        "season_overview": ep_row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
+        "watch_count": ep_row.get::<_, Option<i32>>(9).unwrap_or(Some(0)).unwrap_or(0),
+        "last_position": last_position,
+        "status": status,
+        "completed_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
+        "air_date": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
+        "is_exact_date": ep_row.get::<_, Option<bool>>(14).unwrap_or_default().unwrap_or(true),
+        "is_date_known": true,
+        "progress_percentage": progress_percentage,
+        "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
+        "backdrop_path": backdrop_path,
+        "poster_path": poster_path,
+        "file_path": file_path,
+        "media_type": media_type,
+        "spotlight_tag": tag,
+        "spotlight_subtitle": subtitle,
+        "is_season_finale": is_season_finale,
+    }))
+}
+
 #[tauri::command]
 #[tracing::instrument(level = "debug", skip(app, state))]
 pub async fn get_dashboard_data(
@@ -1922,94 +2047,146 @@ pub async fn get_dashboard_data(
         handle_panic(std::panic::AssertUnwindSafe(|| {
             let conn = crate::db::get_readonly_connection()?;
 
-        // 1. Hero Episode
-        tracing::info!("[BACKEND] 🧠 Reading SQLite database to find your most recently watched show...");
-        let mut hero_stmt = conn.prepare(
+        // 1. Algorithmic Hero Spotlight Carousel Selection
+        tracing::info!("[BACKEND] 🧠 Running intelligent multi-item Hero Carousel algorithm...");
+        let now_ts = chrono::Utc::now().timestamp();
+        let mut scored_candidates: Vec<(i64, Value)> = Vec::new();
+        let mut seen_media: std::collections::HashSet<i32> = std::collections::HashSet::new();
+
+        if let Ok(mut candidate_stmt) = conn.prepare(
             "
-            SELECT media_id, last_watched FROM (
-                SELECT e.media_id, MAX(h.timestamp) as last_watched
-                FROM History h
-                JOIN Episodes e ON h.episode_id = e.id
-                WHERE EXISTS (
-                    SELECT 1 FROM Episodes e2
-                    WHERE e2.media_id = e.media_id AND e2.status IN ('Watching', 'Unwatched') AND e2.season_num > 0 AND (e2.air_date IS NULL OR e2.air_date = '' OR e2.air_date <= date('now'))
-                )
-                GROUP BY e.media_id
-            )
-            UNION ALL
-            SELECT id as media_id, 0 as last_watched
+            SELECT m.id,
+                   m.type,
+                   COALESCE(m.user_rating, 0) as user_rating,
+                   (SELECT COUNT(*) FROM Episodes e WHERE e.media_id = m.id AND e.status = 'Completed') as completed_count,
+                   (SELECT MAX(h.timestamp) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id) as last_watched_ts,
+                   (SELECT COUNT(*) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id AND h.timestamp >= strftime('%s', 'now', '-7 days')) as watches_7d,
+                   (SELECT COUNT(*) FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id AND h.timestamp >= strftime('%s', 'now', '-14 days')) as watches_14d,
+                   (SELECT COUNT(*) FROM Episodes e WHERE e.media_id = m.id AND e.status = 'Watching' AND e.last_position > 60) as in_progress_count
             FROM Media m
-            WHERE NOT EXISTS (SELECT 1 FROM History h JOIN Episodes e ON h.episode_id = e.id WHERE e.media_id = m.id)
-               OR NOT EXISTS (SELECT 1 FROM Episodes e WHERE e.media_id = m.id AND e.status = 'Completed')
-            ORDER BY last_watched DESC, media_id DESC
-            LIMIT 1
-        ",
-        )?;
+            WHERE EXISTS (
+                SELECT 1 FROM Episodes e2 
+                WHERE e2.media_id = m.id 
+                  AND e2.status IN ('Watching', 'Unwatched')
+                  AND (e2.air_date IS NULL OR e2.air_date = '' OR e2.air_date <= date('now', 'localtime'))
+            )
+            ORDER BY
+              in_progress_count DESC,
+              last_watched_ts DESC NULLS LAST,
+              m.id DESC
+            LIMIT 50
+            "
+        ) {
+            if let Ok(mut candidate_rows) = candidate_stmt.query([]) {
+                while let Ok(Some(row)) = candidate_rows.next() {
+                    let m_id: i32 = row.get(0).unwrap_or(0);
+                    let user_rating: i32 = row.get(2).unwrap_or(0);
+                    let completed_count: i64 = row.get(3).unwrap_or(0);
+                    let last_watched_ts: Option<i64> = row.get(4).unwrap_or(None);
+                    let watches_7d: i64 = row.get(5).unwrap_or(0);
+                    let watches_14d: i64 = row.get(6).unwrap_or(0);
 
-        let mut hero_ep: Option<Value> = None;
-        if let Ok(mut rows) = hero_stmt.query([]) {
-            if let Ok(Some(row)) = rows.next() {
-                let media_id: i32 = row.get(0).unwrap_or(0);
+                    if seen_media.insert(m_id) {
+                        if let Some(candidate) = resolve_candidate_episode(
+                            &conn,
+                            m_id,
+                            &backdrop_size,
+                            &poster_size,
+                            high_performance_mode,
+                        ) {
+                            let tag = candidate["spotlight_tag"].as_str().unwrap_or_default();
+                            let has_file = candidate["file_path"].as_str().map(|f| !f.is_empty()).unwrap_or(false);
 
-                let mut ep_stmt = conn.prepare(
-                    "
-                    SELECT e.id, e.media_id, e.season_num, e.ep_num, e.title, e.runtime, e.still_path,
-                           e.overview, e.season_overview, e.watch_count, e.last_position, e.status, e.completed_date,
-                           e.air_date, e.is_exact_date, e.is_air_date_manual,
-                               m.title as show_title, m.backdrop_path, m.poster_path, l.file_path, m.type as media_type
-                    FROM Episodes e
-                    JOIN Media m ON e.media_id = m.id
-                    LEFT JOIN Local_Files l ON e.id = l.episode_id
-                    WHERE e.media_id = ? AND e.status IN ('Watching', 'Unwatched')
-                    ORDER BY e.season_num ASC, e.ep_num ASC
-                    LIMIT 1
-                ",
-                )?;
+                            let mut score: i64 = 0;
 
-                let mut ep_rows = ep_stmt.query(params![media_id])?;
-                if let Ok(Some(ep_row)) = ep_rows.next() {
-                    let runtime = ep_row.get::<_, Option<i32>>(5).unwrap_or(Some(0)).unwrap_or(0);
-                    let last_position = ep_row.get::<_, Option<i32>>(10).unwrap_or(Some(0)).unwrap_or(0);
-                    let progress_percentage = crate::sanitizer::calculate_progress_percentage(last_position, runtime);
+                            // 1. Paused mid-episode: top priority resume session
+                            if tag == "RESUME WATCHING" {
+                                score += 200_000;
+                            }
 
-                    hero_ep = Some(json!({
-                        "id": ep_row.get::<_, i32>(0).unwrap_or(0),
-                        "media_id": ep_row.get::<_, i32>(1).unwrap_or(0),
-                        "season_num": ep_row.get::<_, u32>(2).unwrap_or(0),
-                        "ep_num": ep_row.get::<_, u32>(3).unwrap_or(0),
-                        "title": ep_row.get::<_, Option<String>>(4).unwrap_or_default().unwrap_or_default(),
-                        "runtime": runtime,
-                        "still_path": (|| {
-                            let ep_id = ep_row.get::<_, i32>(0).unwrap_or(0);
-                            let raw = ep_row.get::<_, Option<String>>(6).unwrap_or_default().unwrap_or_default();
-                            crate::tmdb::resolve_local_still_path(&raw, ep_id).unwrap_or(raw)
-                        })(),
-                        "overview": ep_row.get::<_, Option<String>>(7).unwrap_or_default().unwrap_or_default(),
-                        "season_overview": ep_row.get::<_, Option<String>>(8).unwrap_or_default().unwrap_or_default(),
-                        "watch_count": ep_row.get::<_, Option<i32>>(9).unwrap_or(Some(0)).unwrap_or(0),
-                        "last_position": last_position,
-                        "status": ep_row.get::<_, Option<String>>(11).unwrap_or_default().unwrap_or_default(),
-                        "completed_date": ep_row.get::<_, Option<String>>(12).unwrap_or_default().unwrap_or_default(),
-                        "air_date": ep_row.get::<_, Option<String>>(13).unwrap_or_default().unwrap_or_default(),
-                        "is_exact_date": ep_row.get::<_, Option<bool>>(14).unwrap_or_default().unwrap_or(true),
-                        "is_date_known": true,
-                        "progress_percentage": progress_percentage,
+                            // 2. Freshly aired episode of tracked show: top priority new drop
+                            if tag == "NEW EPISODE RELEASED" {
+                                score += 150_000;
+                            }
 
-                        "show_title": ep_row.get::<_, Option<String>>(16).unwrap_or_default().unwrap_or_default(),
-                        "backdrop_path": (|| {
-                            let raw = ep_row.get::<_, Option<String>>(17).unwrap_or_default().unwrap_or_default();
-                            crate::tmdb::resolve_local_backdrop_path(&raw, &backdrop_size, high_performance_mode).unwrap_or(raw)
-                        })(),
-                        "poster_path": (|| {
-                            let raw = ep_row.get::<_, Option<String>>(18).unwrap_or_default().unwrap_or_default();
-                            crate::tmdb::resolve_local_poster_path(&raw, &poster_size, high_performance_mode).unwrap_or(raw)
-                        })(),
-                        "file_path": ep_row.get::<_, Option<String>>(19).unwrap_or_default(),
-                        "media_type": ep_row.get::<_, Option<String>>(20).unwrap_or_default().unwrap_or_default(),
-                    }));
+                            // 3. Season finale climax ready to watch
+                            if tag == "SEASON FINALE" {
+                                score += 100_000;
+                            }
+
+                            // 4. Watch recency score
+                            if let Some(ts) = last_watched_ts {
+                                let diff = now_ts - ts;
+                                if diff <= 86400 {
+                                    score += 60_000;
+                                } else if diff <= 86400 * 3 {
+                                    score += 45_000;
+                                } else if diff <= 86400 * 7 {
+                                    score += 30_000;
+                                } else if diff <= 86400 * 14 {
+                                    score += 18_000;
+                                } else if diff <= 86400 * 30 {
+                                    score += 10_000;
+                                } else {
+                                    score += 3_000;
+                                }
+                            }
+
+                            // 5. Binge momentum (repeated watches recently)
+                            score += watches_7d * 4_000;
+                            score += watches_14d * 1_500;
+
+                            // 6. Ready-to-play local file bonus
+                            if has_file {
+                                score += 8_000;
+                            }
+
+                            // 7. Invested series continuity bonus
+                            if completed_count > 0 {
+                                score += 12_000;
+                            }
+
+                            // 8. User rating affinity
+                            score += (user_rating as i64) * 800;
+
+                            scored_candidates.push((score, candidate));
+                        }
+                    }
                 }
             }
         }
+
+        // Sort candidates by score descending
+        scored_candidates.sort_by(|a, b| b.0.cmp(&a.0));
+
+        let mut hero_eps: Vec<Value> = scored_candidates.into_iter().take(5).map(|(_, v)| v).collect();
+
+        // Library Fallback: If we have fewer than 5 items, fill up to 5 from any remaining library media
+        if hero_eps.len() < 5 {
+            if let Ok(mut stmt) = conn.prepare("SELECT id FROM Media ORDER BY id DESC LIMIT 20") {
+                if let Ok(mut rows) = stmt.query([]) {
+                    while let Ok(Some(row)) = rows.next() {
+                        let m_id: i32 = row.get(0).unwrap_or(0);
+                        if seen_media.insert(m_id) {
+                            if let Some(candidate) = resolve_candidate_episode(
+                                &conn,
+                                m_id,
+                                &backdrop_size,
+                                &poster_size,
+                                high_performance_mode,
+                            ) {
+                                hero_eps.push(candidate);
+                                if hero_eps.len() >= 5 {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let hero_ep: Option<Value> = hero_eps.first().cloned();
 
         // 2. Up Next (Active Shows)
         tracing::info!("[BACKEND] 🧠 Looking for active shows to put in your 'Up Next' queue...");
@@ -2253,6 +2430,7 @@ pub async fn get_dashboard_data(
 
         Ok(json!({
             "hero_ep": hero_ep,
+            "hero_eps": hero_eps,
             "cw_eps": cw_eps,
             "recent_media": recent_media,
             "stats": stats
@@ -2567,10 +2745,12 @@ pub async fn fetch_history(
                 "
                 SELECT h.id as hist_id, h.timestamp, h.session_id, h.is_legacy, h.start_time, h.end_time, h.pause_count, h.completion_ratio,
                        e.id as episode_id, e.season_num, e.ep_num, e.title as ep_title, e.still_path, e.air_date, e.runtime, e.last_position, e.is_exact_date,
-                       m.id as media_id, m.title as show_title, m.poster_path, m.backdrop_path, m.type as media_type
+                       m.id as media_id, m.title as show_title, m.poster_path, m.backdrop_path, m.type as media_type,
+                       lf.file_path
                 FROM History h
                 JOIN Episodes e ON h.episode_id = e.id
                 JOIN Media m ON e.media_id = m.id
+                LEFT JOIN Local_Files lf ON e.id = lf.episode_id
                 ORDER BY h.timestamp DESC, h.id DESC
                 LIMIT ? OFFSET ?
                 "
@@ -2672,6 +2852,7 @@ pub async fn fetch_history(
                         crate::tmdb::resolve_local_backdrop_path(&raw, "w1280", high_performance_mode).unwrap_or(raw)
                     })(),
                     "media_type": row.get::<_, Option<String>>(21)?.unwrap_or_default(),
+                    "file_path": row.get::<_, Option<String>>(22).unwrap_or_default(),
                     "is_fallback_image": is_fallback_image,
                     "potential_spoiler": potential_spoiler,
                 }));
@@ -2780,6 +2961,8 @@ pub async fn run_scan_directory(
         let s = state.settings.read().unwrap();
         s.supported_extensions.clone()
     };
+
+    let _ = app_handle.asset_protocol_scope().allow_directory(&directory, true);
 
     let task = tokio::task::spawn_blocking(move || {
         #[cfg(windows)]
@@ -2929,13 +3112,13 @@ pub async fn get_next_episode_to_play(media_id: i32) -> Result<Option<Value>, Ap
         AppError::Custom(e.to_string())
     })?;
 
-    // Find the first unwatched episode in order (lowest season_num > 0, then lowest ep_num)
+    // Find the first unwatched episode in order (regular seasons first, then specials)
     let query = "
         SELECT e.id, e.season_num, e.ep_num, lf.file_path, e.last_position, e.status
         FROM Episodes e
         LEFT JOIN Local_Files lf ON e.id = lf.episode_id
-        WHERE e.media_id = ? AND e.season_num > 0 AND e.status != 'Completed'
-        ORDER BY e.season_num ASC, e.ep_num ASC
+        WHERE e.media_id = ? AND e.status != 'Completed'
+        ORDER BY (CASE WHEN e.season_num = 0 THEN 9999 ELSE e.season_num END) ASC, e.ep_num ASC
     ";
 
     let mut stmt = conn
@@ -2953,7 +3136,13 @@ pub async fn get_next_episode_to_play(media_id: i32) -> Result<Option<Value>, Ap
         let season_num: i32 = row.get(1).unwrap_or(0);
         let ep_num: i32 = row.get(2).unwrap_or(0);
         let file_path: Option<String> = row.get(3).unwrap_or(None);
-        let last_position: f64 = row.get(4).unwrap_or(0.0);
+        let last_position: i32 = match row.get::<_, i64>(4) {
+            Ok(v) => v as i32,
+            Err(_) => match row.get::<_, f64>(4) {
+                Ok(v) => v.round() as i32,
+                Err(_) => 0,
+            },
+        };
 
         if let Some(path) = file_path {
             let is_gap = ideal_missing_ep_num.is_some();
@@ -2973,7 +3162,75 @@ pub async fn get_next_episode_to_play(media_id: i32) -> Result<Option<Value>, Ap
         }
     }
 
+    // Fallback: If all uncompleted episodes are missing files or if all episodes are Completed (rewatch scenario),
+    // check if there is ANY episode with a local file for this media.
+    let fallback_query = "
+        SELECT e.id, e.season_num, e.ep_num, lf.file_path, e.last_position, e.status
+        FROM Episodes e
+        INNER JOIN Local_Files lf ON e.id = lf.episode_id
+        WHERE e.media_id = ?
+        ORDER BY (CASE WHEN e.season_num = 0 THEN 9999 ELSE e.season_num END) ASC, e.ep_num ASC
+        LIMIT 1
+    ";
+    let mut fallback_stmt = conn
+        .prepare(fallback_query)
+        .map_err(|e| AppError::Custom(e.to_string()))?;
+    let mut fallback_rows = fallback_stmt
+        .query([media_id])
+        .map_err(|e| AppError::Custom(e.to_string()))?;
+
+    if let Some(row) = fallback_rows.next().map_err(|e| AppError::Custom(e.to_string()))? {
+        let episode_id: i32 = row.get(0).unwrap_or(0);
+        let season_num: i32 = row.get(1).unwrap_or(0);
+        let ep_num: i32 = row.get(2).unwrap_or(0);
+        let file_path: Option<String> = row.get(3).unwrap_or(None);
+        let last_position: i32 = match row.get::<_, i64>(4) {
+            Ok(v) => v as i32,
+            Err(_) => match row.get::<_, f64>(4) {
+                Ok(v) => v.round() as i32,
+                Err(_) => 0,
+            },
+        };
+        if let Some(path) = file_path {
+            return Ok(Some(json!({
+                "episode_id": episode_id,
+                "season_num": season_num,
+                "ep_num": ep_num,
+                "file_path": path,
+                "last_position": last_position,
+                "is_gap": false,
+                "missing_ep_num": None::<i32>
+            })));
+        }
+    }
+
     Ok(None)
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug", skip(app_handle, state))]
+pub async fn play_next_episode_cmd(
+    media_id: i32,
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
+    let next_ep_info = get_next_episode_to_play(media_id).await?;
+    if let Some(info) = next_ep_info {
+        let episode_id = info["episode_id"]
+            .as_i64()
+            .ok_or_else(|| AppError::Custom("Invalid episode ID".to_string()))? as i32;
+        let file_path = info["file_path"]
+            .as_str()
+            .ok_or_else(|| AppError::Custom("No local video file found for this episode".to_string()))?
+            .to_string();
+        let last_position = info["last_position"].clone();
+
+        crate::vlc::play_episode_cmd(app_handle, episode_id, file_path, last_position, state).await
+    } else {
+        Err(AppError::Custom(
+            "No playable episodes or linked local files found. Please link a video file first.".to_string(),
+        ))
+    }
 }
 
 #[tauri::command]
@@ -3928,11 +4185,11 @@ pub fn auto_detect_vlc() -> Result<Option<String>, AppError> {
     for path in paths {
         if path.exists() {
             // Check execute permissions
-            if let Ok(metadata) = std::fs::metadata(&path) {
+            if let Ok(_metadata) = std::fs::metadata(&path) {
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::PermissionsExt;
-                    let permissions = metadata.permissions();
+                    let permissions = _metadata.permissions();
                     if permissions.mode() & 0o111 != 0 {
                         if let Ok(canonical) = dunce::canonicalize(&path) {
                             return Ok(Some(canonical.to_string_lossy().into_owned()));
@@ -3997,4 +4254,27 @@ pub async fn update_media_rating(
 
     Ok(())
 }
-// I'll leave the rust code as is, as it correctly implements the Smart Hero Logic.
+
+#[tauri::command]
+#[tracing::instrument(level = "debug")]
+pub async fn get_upcoming_airings() -> Result<Vec<Value>, AppError> {
+    crate::auto_updater::get_upcoming_airings_db()
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug")]
+pub async fn get_new_season_alerts() -> Result<Vec<Value>, AppError> {
+    crate::auto_updater::get_new_season_alerts_db()
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug")]
+pub async fn dismiss_new_season_alert(media_id: i32) -> Result<(), AppError> {
+    crate::auto_updater::dismiss_new_season_alert_db(media_id)
+}
+
+#[tauri::command]
+#[tracing::instrument(level = "debug", skip(app))]
+pub async fn trigger_auto_sync(app: tauri::AppHandle) -> Result<usize, AppError> {
+    crate::auto_updater::run_background_auto_update(app, true).await
+}

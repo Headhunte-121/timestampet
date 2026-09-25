@@ -2418,21 +2418,21 @@ This document represents the complete functional blueprint and state of the Watc
 
 **Goal: Smart UI prompts on the Home Screen.**
 
-**23.1 "Finish the Season" Prompt: If 1 episode is left in a season, the Hero text changes to highlight it.** (Incomplete)
+**23.1 "Finish the Season" Prompt: If 1 episode is left in a season, the Hero text changes to highlight it.** (Complete)
 
-- [ ] Calculate precisely how many unwatched episodes remain in the active season for the featured show.
-- [ ] Change the standard subtitle text to a bold, encouraging message when only one episode is left.
-- [ ] Highlight this special text in a distinct color to grab the user's attention.
-- [ ] Revert immediately to standard text formatting if the user watches the final episode or starts a different show.
-- [ ] Make sure this prompt ignores special episodes or trailers that aren't part of the main story.
+- [x] Calculate precisely how many unwatched episodes remain in the active season for the featured show.
+- [x] Change the standard subtitle text to a bold, encouraging message when only one episode is left.
+- [x] Highlight this special text in a distinct color to grab the user's attention.
+- [x] Revert immediately to standard text formatting if the user watches the final episode or starts a different show.
+- [x] Make sure this prompt ignores special episodes or trailers that aren't part of the main story.
 
-**23.2 "New Season Premiered" Alert: If an archived show is updated on TMDB with a new season, a temporary alert card appears on the Dashboard.** (Incomplete)
+**23.2 "New Season Premiered" Alert: If an archived show is updated on TMDB with a new season, a temporary alert card appears on the Dashboard.** (Complete)
 
-- [ ] Notice quietly in the background if a television series the user finished suddenly receives brand new episodes.
-- [ ] Display a prominent, exciting notification card right at the top of the main screen.
-- [ ] Show the title of the series and how many new episodes are now available to watch.
-- [ ] Let the user dismiss this alert permanently with a single click if they aren't interested.
-- [ ] Automatically remove the card the second the user actually starts watching one of the new episodes.
+- [x] Notice quietly in the background if a television series the user finished suddenly receives brand new episodes.
+- [x] Display a prominent, exciting notification card right at the top of the main screen.
+- [x] Show the title of the series and how many new episodes are now available to watch.
+- [x] Let the user dismiss this alert permanently with a single click if they aren't interested.
+- [x] Automatically remove the card the second the user actually starts watching one of the new episodes.
 
 **23.3 Recently Finished Row: A dynamic row showing the posters of the last 5 shows you hit 100% on.** (Incomplete)
 
@@ -2486,21 +2486,21 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Add a very slight visual highlight when the mouse hovers over the boxes so they feel interactive.
 - [ ] Make sure the 'Back' button works properly to return them to the dashboard after clicking.
 
-**23.9 Hero Progress Color Shift: The progress bar turns solid Green when over 90%, distinguishing it from Orange (in-progress).** (Incomplete)
+**23.9 Hero Progress Color Shift: The progress bar turns solid Green when over 90%, distinguishing it from Orange (in-progress).** (Complete)
 
-- [ ] Watch the progress bar percentage closely while the user is watching an episode.
-- [ ] Change the color of the bar instantly from orange to bright green the second they pass the 90 percent mark.
-- [ ] Make this color shift extremely smooth so it looks like a natural transition.
-- [ ] Keep the bar green permanently for that specific episode to indicate it is considered finished.
-- [ ] Ensure this color logic matches the math used for the app's history tracking.
+- [x] Watch the progress bar percentage closely while the user is watching an episode.
+- [x] Change the color of the bar instantly from orange to bright green the second they pass the 90 percent mark.
+- [x] Make this color shift extremely smooth so it looks like a natural transition.
+- [x] Keep the bar green permanently for that specific episode to indicate it is considered finished.
+- [x] Ensure this color logic matches the math used for the app's history tracking.
 
-**23.10 Hover-Timestamp Reveal: Hovering the Hero progress bar reveals the exact string: 45:12 / 50:00.** (Incomplete)
+**23.10 Hover-Timestamp Reveal: Hovering the Hero progress bar reveals the exact string: 45:12 / 50:00.** (Complete)
 
-- [ ] Hide the exact minute and second numbers normally to keep the screen looking clean and cinematic.
-- [ ] Pop up a tiny, dark tooltip showing the precise time remaining only when the user places their mouse over the bar.
-- [ ] Format the numbers cleanly like a standard digital clock so they are incredibly easy to read at a glance.
-- [ ] Make the tooltip follow the mouse left and right along the progress bar.
-- [ ] Hide the numbers instantly again when the mouse moves away.
+- [x] Hide the exact minute and second numbers normally to keep the screen looking clean and cinematic.
+- [x] Pop up a tiny, dark tooltip showing the precise time remaining only when the user places their mouse over the bar.
+- [x] Format the numbers cleanly like a standard digital clock so they are incredibly easy to read at a glance.
+- [x] Make the tooltip follow the mouse left and right along the progress bar.
+- [x] Hide the numbers instantly again when the mouse moves away.
 
 **23.16 Average Watch Time Widget: Calculates average daily media consumption in minutes.** (Incomplete)
 
@@ -2518,13 +2518,13 @@ This document represents the complete functional blueprint and state of the Watc
 - [ ] Remember this custom order permanently so their dashboard always looks how they like it.
 - [ ] Ensure the giant Hero banner is locked at the very top and cannot be accidentally moved down.
 
-**23.18 "Upcoming Airing" Row: A row for tracked shows that have episodes airing in the next 7 days.** (Incomplete)
+**23.18 "Upcoming Airing" Row: A row for tracked shows that have episodes airing in the next 7 days.** (Complete)
 
-- [ ] Check the calendar to see if any television shows the user watches have brand new episodes coming out this week.
-- [ ] Build a special, temporary row on the dashboard exclusively for these upcoming premieres.
-- [ ] Show the movie poster and which day of the week the episode will be available.
-- [ ] Hide this row if nothing the user watches is scheduled to air in the next seven days.
-- [ ] Remove an episode from this row automatically the exact second the air date actually passes.
+- [x] Check the calendar to see if any television shows the user watches have brand new episodes coming out this week.
+- [x] Build a special, temporary row on the dashboard exclusively for these upcoming premieres.
+- [x] Show the movie poster and which day of the week the episode will be available.
+- [x] Hide this row if nothing the user watches is scheduled to air in the next seven days.
+- [x] Remove an episode from this row automatically the exact second the air date actually passes.
 
 **23.19 Collapsible Dashboard Sections: Chevron icons to minimize rows you don't care about.** (Incomplete)
 

@@ -6,6 +6,9 @@ import { SafeImage } from "./ui/SafeImage";
 import { useAppStore } from "../store/useAppStore";
 import { motion } from "framer-motion";
 import { BingeBlock } from "./BingeBlock";
+import { Play, Clock, CheckCircle2 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 
 export default function History({ onNavigateToMedia }: { onNavigateToMedia: (mediaId: number, seasonNum?: number) => void }) {
   const { fastHistory, historyState, setHistoryState } = useAppStore();
@@ -226,7 +229,7 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                     className={`ml-16 lg:ml-0 lg:w-[calc(50%-2rem)] ${isEven ? 'lg:mr-auto' : 'lg:ml-auto'}`}
                   >
                     <div
-                      className={`relative flex p-4 rounded-xl border border-white/5 items-center gap-6 overflow-hidden shadow-2xl cursor-pointer hover:bg-white/5 transition-colors ${
+                      className={`relative flex p-4 rounded-2xl border border-white/5 items-center gap-5 overflow-hidden shadow-2xl cursor-pointer hover:bg-white/5 transition-colors group ${
                         isLegacy ? "bg-[#1F222A]/60 opacity-60" : "bg-[#1F222A]/60 backdrop-blur-md"
                       }`}
                       onClick={(e) => {
@@ -241,35 +244,49 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                           Archived
                         </div>
                       )}
-                      <SafeImage
-                        srcPath={entry.poster_path ? formatImagePath(entry.poster_path, "w500") : ""}
-                        type="poster"
-                        title={entry.show_title}
-                        altText={entry.show_title}
-                        className="w-16 h-24 object-cover rounded-md shadow-md flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className={`text-lg font-bold truncate ${isLegacy ? "text-white opacity-100" : "text-white"}`}>
+
+                      {/* Poster Thumbnail Container with Rigid Sizing */}
+                      <div className="w-16 h-24 sm:w-20 sm:h-28 flex-shrink-0 rounded-lg overflow-hidden shadow-lg bg-[#0D0F14] border border-white/10 relative">
+                        <SafeImage
+                          srcPath={entry.poster_path ? formatImagePath(entry.poster_path, "w500") : ""}
+                          type="poster"
+                          title={entry.show_title}
+                          altText={entry.show_title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* Content Metadata Column */}
+                      <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                        <h3 className={`text-base sm:text-lg font-bold text-white truncate group-hover:text-[#FF6B00] transition-colors`}>
                           {entry.show_title}
                         </h3>
-                        <p className="text-muted truncate">
-                          {entry.media_type === "TV"
-                            ? `S${entry.season_num} E${entry.ep_num} - ${entry.ep_title}`
-                            : entry.ep_title}
-                        </p>
-                        <div className="mt-2 flex gap-4 text-sm font-medium flex-wrap items-center">
-                          <span className="text-[#FF6B00]">
-                            {entry.last_position > 0 && entry.completion_ratio < 0.9 && !isLegacy ? (
-                              <>
-                                Paused at {formatPauseTime(entry.last_position)} <span className="mx-2 opacity-20">|</span> {entry.formatted_time}
-                              </>
-                            ) : (
-                              entry.formatted_time
-                            )}
+
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {entry.media_type === "TV" ? (
+                            <>
+                              <span className="bg-[#FF6B00]/15 text-[#FF6B00] text-xs font-semibold px-2 py-0.5 rounded border border-[#FF6B00]/20 flex-shrink-0">
+                                S{entry.season_num} E{entry.ep_num}
+                              </span>
+                              <span className="text-sm text-gray-300 truncate font-medium">
+                                {entry.ep_title || `Episode ${entry.ep_num}`}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="bg-white/10 text-gray-300 text-xs font-semibold px-2 py-0.5 rounded">
+                              Movie
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs text-[#A0AEC0] flex-wrap mt-1.5">
+                          <span className="flex items-center gap-1 font-medium">
+                            <Clock size={12} className="opacity-70" />
+                            {entry.formatted_time}
                           </span>
                           {entry.time_capsule && (
                             <span
-                              className={`text-[11px] mt-1 whitespace-nowrap ${
+                              className={`font-medium ${
                                 entry.time_capsule.is_early
                                   ? "text-blue-400"
                                   : entry.time_capsule.total_days === 0
@@ -277,33 +294,75 @@ export default function History({ onNavigateToMedia }: { onNavigateToMedia: (med
                                   : "text-[#A0AEC0]"
                               }`}
                             >
-                              {entry.time_capsule.is_early
+                              • {entry.time_capsule.is_early
                                 ? "Early Watch"
                                 : entry.time_capsule.total_days === 0
                                 ? "Watched on premiere day"
                                 : `Watched ${
-                                    entry.time_capsule.years > 1 ? `${entry.time_capsule.years} years` :
-                                    entry.time_capsule.years === 1 ? `1 year` :
-                                    entry.time_capsule.months > 1 ? `${entry.time_capsule.months} months` :
-                                    entry.time_capsule.months === 1 ? `1 month` :
-                                    entry.time_capsule.days > 1 ? `${entry.time_capsule.days} days` :
-                                    entry.time_capsule.days === 1 ? `1 day` : "0 days"
+                                    entry.time_capsule.years > 1 ? `${entry.time_capsule.years}y` :
+                                    entry.time_capsule.years === 1 ? `1y` :
+                                    entry.time_capsule.months > 1 ? `${entry.time_capsule.months}m` :
+                                    entry.time_capsule.months === 1 ? `1m` :
+                                    `${entry.time_capsule.days}d`
                                   } after airing`}
                             </span>
                           )}
                           {entry.is_utc_fallback && (
-                            <span className="text-[#A0AEC0] text-[11px] flex items-center gap-1" title="Displayed in Universal Time">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                              UTC
+                            <span className="text-[#A0AEC0] text-[10px] flex items-center gap-0.5" title="Universal Time">
+                              • UTC
                             </span>
                           )}
                         </div>
+
+                        {!isLegacy && entry.completion_ratio >= 0.9 ? (
+                          <div className="flex items-center gap-1 text-emerald-400 text-xs font-medium mt-2">
+                            <CheckCircle2 size={13} />
+                            <span>Watched</span>
+                          </div>
+                        ) : !isLegacy && entry.last_position > 0 ? (
+                          <div className="mt-2 w-full max-w-[260px]">
+                            <div className="flex justify-between text-[11px] text-[#A0AEC0] mb-1">
+                              <span className="text-[#FF6B00] font-medium">Paused at {formatPauseTime(entry.last_position)}</span>
+                              <span>{Math.round(entry.completion_ratio * 100)}%</span>
+                            </div>
+                            <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="bg-[#FF6B00] h-full rounded-full transition-all"
+                                style={{ width: `${Math.min(100, Math.max(5, Math.round(entry.completion_ratio * 100)))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
-                      {!isLegacy && entry.completion_ratio < 0.9 ? (
-                        <div className="text-right text-sm text-muted mt-6 mr-2 hidden sm:block whitespace-nowrap">
-                          Paused ({Math.round(entry.completion_ratio * 100)}%)
-                        </div>
-                      ) : null}
+
+                      {/* Instant Play / Resume Button */}
+                      <div className="flex-shrink-0 ml-auto flex items-center pl-2">
+                        <button
+                          className="w-10 h-10 rounded-full bg-[#FF6B00]/20 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white flex items-center justify-center transition-all shadow-md hover:scale-110 flex-shrink-0 cursor-pointer"
+                          title={entry.file_path ? (entry.last_position > 0 ? `Resume at ${formatPauseTime(entry.last_position)}` : "Play in VLC") : "Go to episode details"}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (entry.file_path) {
+                              logger.click(`Play episode from History: S${entry.season_num}E${entry.ep_num}`);
+                              try {
+                                await invoke("play_episode_cmd", {
+                                  episodeId: entry.episode_id,
+                                  filePath: entry.file_path,
+                                  lastPosition: entry.last_position || 0,
+                                });
+                                logger.ipcSuccess("VLC playback launched from History");
+                              } catch (err: any) {
+                                logger.error("VLC Launch Failed from History", err);
+                                toast.error(`VLC Launch Failed: ${err}`);
+                              }
+                            } else {
+                              onNavigateToMedia(entry.media_id, entry.season_num);
+                            }
+                          }}
+                        >
+                          <Play size={16} className="ml-0.5 fill-current" />
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                   </>
