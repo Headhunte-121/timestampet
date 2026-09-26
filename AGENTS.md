@@ -23,8 +23,9 @@ Whenever you finish implementing a specific task (referred to dynamically as `[T
 ### 4. Verification Rules (High-Velocity Mode)
 * **DO NOT** write automated test files, unit tests, or test functions. 
 * **DO NOT** update or write to `TestResult.md`.
-* To verify your work, simply run `cargo check` (for Rust) or the equivalent linter (for React) exactly **ONCE** at the end of your implementation.
-* Your only verification goal is to ensure the project successfully compiles without syntax, lifetime, or type errors. 
+* **Codebase Changes Only:** Only run `cargo check` (for Rust) or `npm run build` (for React) when you modify the application codebase (`watchmark-tauri/`).
+* **Docs & Configs Exemption:** Never run `cargo check` or `npm run build` when making documentation, markdown, or Git/repository workflow edits.
+* Your only verification goal is to ensure the project successfully compiles without syntax, lifetime, or type errors when code is altered.
 
 ### 5. Requirement Reconciliation & Integrity Audit
 Before submitting a Pull Request or marking a task as complete, you must perform a mandatory "Integrity Audit" to ensure zero feature loss and total compliance:
