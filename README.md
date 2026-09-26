@@ -2,121 +2,74 @@
 
 <div align="center">
 
-[![Tauri v2](https://img.shields.io/badge/Tauri-v2.10-24C8D5?logo=tauri&logoColor=white)](https://tauri.app/)
+[![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8D5?logo=tauri&logoColor=white)](https://tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-2021_Edition-CE412B?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-19.1-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL_Mode-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![VLC](https://img.shields.io/badge/VLC-Telemetry_Sync-FF6B00?logo=vlc-media-player&logoColor=white)](https://www.videolan.org/)
-[![AI Orchestration](https://img.shields.io/badge/AI_Engineering-Agentic_Orchestration-8A2BE2?logo=openai&logoColor=white)](docs/architecture/AI_ORCHESTRATION.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**A high-performance desktop media diary and VLC telemetry bridge — engineered through an advanced Human-in-the-Loop AI Orchestration Framework.**
+**A fast, lightweight, local-first desktop media diary and VLC companion for Windows.**
 
-*Bridging online TMDb metadata with local files and real-time VLC playback tracking, serving as a dual-purpose software product and empirical demonstration of autonomous systems engineering.*
+*Tracks your viewing progress in VLC in real time, fetches episode metadata and posters from TMDb, organizes your local library, and saves your watch diary into an SQLite database — with zero 24/7 background servers, 15.1 MB idle RAM, and 0.0% background CPU.*
 
-[AI Orchestration Framework](#-ai-orchestration-framework--systems-breakdown) • [Core Features](#-application-features) • [Architecture](#-architecture--tech-stack) • [Case Studies](#-empirical-case-studies-ai-orchestration-in-action) • [Installation](#️-requirements--installation) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [License](#-license)
+[What is WatchMark?](#-what-is-watchmark) • [Core Features](#-application-features) • [Architecture](#-architecture--tech-stack) • [How It Was Built](#-how-watchmark-was-built-ai-assisted-engineering--testing) • [Installation](#️-requirements--installation) • [Documentation](docs/README.md) • [Releases](https://github.com/Headhunte-121/timestampet/releases)
 
 </div>
 
 ---
 
-## 🎯 Project Overview & Dual Purpose
+## 🎯 What is WatchMark?
 
-**WatchMark** was conceived and engineered with a dual focus:
+WatchMark is a client-side personal media tracking app for people who watch local video files (anime, TV shows, movies, university lectures) in **VLC Media Player** and want automatic progress tracking without the battery and memory overhead of running a heavy 24/7 media server like Plex or Jellyfin.
 
-1. **The Software Product:** A cinema-grade, client-side personal media tracking diary and local file player bridge. It solves the bloat of traditional media servers (Plex, Jellyfin) by operating entirely locally with **zero background daemons, ~30MB idle RAM, 0% idle CPU**, and direct, non-intrusive playhead telemetry via your local **VLC Media Player**.
-2. **The Systems Engineering Experiment:** A transparent, reproducible demonstration of **Human-in-the-Loop AI Orchestration**. Rather than writing code ad-hoc or treating Generative AI as a simple auto-complete tool, the project explores how a **Student Systems Architect** can formally decompose a 64-feature product into strict architectural domains, directing autonomous AI agents through **compiler-in-the-loop verification gates** (`cargo check` and `tsc`) and explicit Standard Operating Procedures ([`AGENTS.md`](AGENTS.md)).
+> *"I kept losing my place across anime backlogs and lecture folders without wanting a heavy background media server eating battery and RAM, so I built a zero-daemon local tracker."*
 
----
-
-## 🤖 AI Orchestration Framework & Systems Breakdown
-
-The primary failure mode in modern AI-assisted software engineering is **context collapse**: feeding an autonomous agent monolithic, underspecified tasks resulting in hallucinated abstractions, architectural drift, and regressions.
-
-WatchMark solved this through a rigorous 3-tier **Agentic Systems Engineering Harness**:
-
-```mermaid
-graph TD
-    subgraph Human ["1. Human Lead Architect (Systems Breakdown)"]
-        Spec[Hierarchical Decomposition: 6 Core Domains & Formal Specs]
-        Rules[Standard Operating Procedure: AGENTS.md & State Invariants]
-    end
-
-    subgraph Agent ["2. Autonomous AI Agent (Implementation Engine)"]
-        AST[Analyze AST & Dependency Boundaries]
-        Code[Generate Atomic Code Changes: Rust + React]
-    end
-
-    subgraph Compiler ["3. Deterministic Verification Gate (Static Analysis)"]
-        RustGate{Rust Affine Typecheck: cargo check}
-        TSGate{TypeScript Strict Check: tsc --noEmit}
-        SelfCorrect[Autonomous Self-Correction Loop]
-    end
-
-    subgraph Delivery ["4. Production Delivery (Zero Repo Bloat)"]
-        Audit[Integrity & Regression Audit]
-        Commit[Conventional Commit & Auto-Close Issue: Closes #X]
-    end
-
-    Spec --> Agent
-    Rules --> Agent
-    Agent --> Code
-    Code --> RustGate
-    Code --> TSGate
-    RustGate -- Compiler Error --> SelfCorrect
-    TSGate -- Type Error --> SelfCorrect
-    SelfCorrect --> Agent
-    RustGate -- 0 Errors --> Audit
-    TSGate -- 0 Errors --> Audit
-    Audit --> Commit
-```
-
-### The 3 Core Pillars of the Methodology
-
-#### 1. Hierarchical Systems Breakdown (Domain Isolation)
-To maintain razor-sharp agent focus, the 64-feature product roadmap was broken down into 6 decoupled architectural domains:
-* **OS Shell & Boundaries:** Native windowing, system tray, crash guards, and geometry clamping.
-* **Async Concurrency:** Tauri v2 IPC bridge, Tokio async runtime, and non-blocking I/O.
-* **ACID Data Persistence:** Relational SQLite storage, Write-Ahead Logging (`WAL`), and transactional schema migrations.
-* **Subprocess Telemetry:** VLC process supervision, dynamic socket probing (`8080..8090`), and playhead tracking.
-* **Filesystem Ingestion:** Multi-threaded directory traversal (`walkdir`), regex tokenization, and triage staging.
-* **Cinema UI & GPU Optimization:** Viewport virtualization (`VirtualPoster`), Framer Motion layout springs, and compositor tuning.
-
-#### 2. Compiler-as-a-Verifier (Eliminating AI Hallucinations)
-Instead of relying on slow, brittle automated unit tests that agents can easily cheat or mock, WatchMark enforced **compiler-level static analysis as a deterministic verification gate**:
-* **Rust Affine Type System:** Guarantees memory safety, thread safety, and data-race freedom at compile time. If an agent hallucinates a lifetime or borrowing violation, `cargo check` rejects it instantly.
-* **TypeScript Strict Mode:** Ensures IPC payload schemas between Rust backend commands and React Zustand stores never drift out of synchronization.
-
-#### 3. Jules Agent Standard Operating Procedure ([`AGENTS.md`](AGENTS.md))
-Every agent invocation operated under a non-negotiable contract:
-* **Native GitHub Linkage:** Work implemented exclusively against granular GitHub Issues and Milestones.
-* **Clean Conventional Commits:** Auto-close issues natively (`feat(vlc): dynamic port probing. Closes #14`).
-* **Zero Repo Bloat:** Never commit binaries (`.exe`), bulky markdown tracking files, or prompt logs into Git tracking.
+### Why It's Different
+* **Zero 24/7 Background Servers:** Runs only when you open it. Consumes **15.1 MB idle RAM** and **0.0% background CPU** (and strictly under 50 MB during heavy 1,000+ title library browsing thanks to DOM virtualization).
+* **Automatic VLC Telemetry:** Connects directly to VLC via dynamic loopback HTTP (probing ports `8080..8090`). No browser extensions, no manual logging.
+* **Exact Playhead Resumption:** Remembers your exact second (`--start-time` resumption) and automatically marks episodes as completed when watched past 90% or within 120 seconds of the credits.
+* **Recursive Filesystem Scanner & Triage:** Recursively scans local folders using multi-pattern regex (`S01E01`, `1x01`, `[SubsPlease]`), handles Windows long paths (`\\?\`), and resolves `.lnk` shortcuts into an interactive triage inbox.
+* **TMDb Metadata & Local Caching:** Automatically pulls official episode names, synopses, and posters from TMDb, caching them locally on disk for full offline viewing.
+* **Custom Video Streaming Protocol (`watchmark://`):** Native asynchronous URI protocol supporting HTTP Range headers (`bytes=start-end`) with 1MB chunked buffers for smooth in-app video playback without memory spikes.
+* **Data Durability:** Fully local SQLite database in Write-Ahead Logging (`WAL`) mode with transactional cold-swap restores and automated 3-backup rolling SHA-256 snapshots.
 
 ---
 
-## 🔬 Empirical Case Studies: AI Orchestration in Action
+## 🛠️ How WatchMark Was Built: AI-Assisted Engineering & Testing
 
-The effectiveness of this orchestration methodology is proven by complex, low-level technical challenges diagnosed and resolved during development:
+WatchMark is a **20,740-line desktop codebase** (13,171 lines of Rust across 34 files, 7,569 lines of TypeScript/React across 35 files) built across **522 git commits**. Rather than treating AI as an autocomplete toy or generating monolithic unverified code, development was structured around a human-directed engineering workflow:
+
+1. **Modular Architecture First:** Decomposed the application into decoupled architectural domains (OS shell, async VLC telemetry, SQLite persistence, filesystem ingestion, TMDb synchronization, and virtualized UI) with clear boundaries before writing code.
+2. **Context Window Discipline:** Guided coding agents issue-by-issue against concrete milestones, keeping context clean and avoiding code bloat across weeks of development.
+3. **Compiler Verification Gates:** Enforced Rust's affine type system (`cargo check`) and TypeScript strict mode (`tsc --noEmit`) to immediately catch lifetime errors, type mismatches, and IPC schema drift before manual code review.
+4. **Hands-On QA on Real Hardware:** Tested live builds on physical machines to catch hardware-specific bugs that unit tests cannot catch:
+   * **Diagnosed a 70.3% GPU compositor leak** in WebView2 caused by infinite CSS scale transforms under blurred backdrop filters, optimizing it down to **0.0% idle GPU**.
+   * **Caught VLC completion edge-cases** where the playhead reset to 0.0 on natural completion, implementing a >90% completion latch.
+
+---
+
+## 🔬 Practical Case Studies
+
+The effectiveness of this development and QA workflow is demonstrated by real engineering challenges resolved during development:
 
 ### Case Study 1: The 70.3% GPU Compositor Bottleneck in WebView2
 * **The Problem:** In Cinema Mode, the idle desktop app consumed **70.3% GPU utilization** in Windows Task Manager, dropping to 0% when animations were turned off.
-* **Orchestration Diagnosis:** The human architect isolated the issue to frontend render loops. Directing the agent to inspect the DOM compositor tree revealed an infinite 30-second CSS scale transform (`[1, 1.15, 1]`) in `SafeImage.tsx` running on the 4K backdrop image.
+* **Diagnosis:** Inspecting the DOM compositor tree revealed an infinite 30-second CSS scale transform (`[1, 1.15, 1]`) in `SafeImage.tsx` running on the 4K backdrop image.
 * **Low-Level Root Cause:** Because this high-resolution image was continuously scaling behind elements styled with CSS `backdrop-filter: blur(...)` and gradient overlays, Chromium's GPU compositor was forced to re-rasterize Gaussian blur convolution passes on every single monitor refresh frame (144Hz).
-* **Engineering Solution:** The agent replaced the infinite affine scale loop with a hardware-accelerated static fade-in. Once mounted, the scale locks at `1.0`. Static high-contrast styling replaced infinite `animate-pulse` tags.
+* **Engineering Solution:** Replaced the infinite scale loop with a hardware-accelerated static fade-in. Once mounted, the scale locks at `1.0`. Static high-contrast styling replaced infinite `animate-pulse` tags.
 * **Outcome:** **Idle GPU utilization dropped from 70.3% to 0.0% – 1.0%.**
 
 ### Case Study 2: Zero-CPU Subprocess Telemetry Loop
 * **The Problem:** Monitoring an external video player typically involves busy-waiting or thread sleep loops that waste CPU cycles and battery.
-* **Orchestration Design:** Architected an asynchronous child process supervisor in `src-tauri/src/vlc.rs` using `tokio::process::Command` and `tokio::select!`.
-* **Technical Implementation:** The agent implemented dynamic loopback port probing (`8080..8090`) to prevent socket collisions, generated cryptographic one-time HTTP passwords, and polled VLC's status over non-blocking HTTP streams.
-* **Outcome:** **0.0% background CPU consumption** during active media playback, saving exact-second positions and detecting ≥90% completions.
+* **Technical Implementation:** Architected an asynchronous child process supervisor in `src-tauri/src/vlc.rs` using `tokio::process::Command` and `tokio::select!`. Implemented dynamic loopback port probing (`8080..8090`) to prevent socket collisions, generated cryptographic one-time HTTP passwords, and polled VLC's status over non-blocking HTTP streams.
+* **Outcome:** **0.0% background CPU consumption** and **15.1 MB idle RAM** during active media playback, saving exact-second positions and detecting ≥90% completions.
 
 ### Case Study 3: 8-Dimensional Hero Recommendation Scoring Engine
 * **The Problem:** Initial versions displayed a single static show in the hero banner, missing opportunities to recommend in-progress series, newly aired episodes, or season finales.
-* **Orchestration Design:** Specified an 8-dimensional candidate scoring algorithm implemented in Rust:
+* **Technical Implementation:** Specified an 8-dimensional candidate scoring algorithm implemented in Rust:
   $$\text{Score} = \text{Resume}(+200\text{k}) + \text{FreshAir}(+150\text{k}) + \text{Finale}(+100\text{k}) + \text{Recency} + \text{BingeVelocity} + \text{LocalFile}$$
 * **Outcome:** A fluid hero spotlight carousel with 8-second auto-rotation, smooth crossfades, and automatic fallback backfill across the user's library.
 
@@ -124,11 +77,11 @@ The effectiveness of this orchestration methodology is proven by complex, low-le
 
 ## ✨ Application Features
 
-### 🎬 Cinema-Grade Desktop Interface
+### 🖥️ Fast, Clean Desktop Interface
 * **Deep Dark Aesthetic:** Designed around an ultra-dark palette (`#0D0F14`), translucent glassmorphism (`bg-[#1F222A]/60` with `backdrop-blur-md`), and signature VLC Orange accents (`#FF6B00`).
 * **Edge-to-Edge Hero Banner:** 450px backdrop banner featuring multi-stop diagonal gradient fades, bold typography, and a 1-click **Resume Watching** action.
 * **"Continue Watching" Carousel:** Snap-scrolling row of wide episode cards with bottom-edge progress bars indicating your exact resume point.
-* **DOM Virtualization (`VirtualPoster`):** High-performance `IntersectionObserver` windowing engine unmounting off-screen DOM nodes, allowing 1,000+ shows to render at smooth 60 FPS under 50MB RAM.
+* **DOM Virtualization (`VirtualPoster`):** High-performance `IntersectionObserver` windowing engine unmounting off-screen DOM nodes, allowing 1,000+ shows to render at smooth 60 FPS under 50MB RAM (15.1 MB idle).
 * **Hardware-Accelerated Fluidity:** View switching and accordion transitions powered by `framer-motion` with built-in `prefers-reduced-motion` battery-saving support.
 
 ### 📡 Smart VLC Playhead Telemetry (Zero Background CPU)
@@ -313,5 +266,5 @@ This project is open-source software licensed under the **MIT License** — see 
 ---
 
 <div align="center">
-  <sub>WatchMark Media Tracker • An Open-Source AI Orchestration & Systems Engineering Project</sub>
+  <sub>WatchMark Media Tracker • Fast, Local-First Media Tracking for Desktop</sub>
 </div>
