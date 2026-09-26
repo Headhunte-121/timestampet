@@ -44,10 +44,10 @@ WatchMark is a **20,740-line desktop codebase** (13,171 lines of Rust across 34 
 
 1. **Modular Architecture First:** Decomposed the application into decoupled architectural domains (OS shell, async VLC telemetry, SQLite persistence, filesystem ingestion, TMDb synchronization, and virtualized UI) with clear boundaries before writing code.
 2. **Context Window Discipline:** Guided coding agents issue-by-issue against concrete milestones, keeping context clean and avoiding code bloat across weeks of development.
-3. **Compiler Verification Gates:** Enforced Rust's affine type system (`cargo check`) and TypeScript strict mode (`tsc --noEmit`) to immediately catch lifetime errors, type mismatches, and IPC schema drift before manual code review.
-4. **Hands-On QA on Real Hardware:** Tested live builds on physical machines to catch hardware-specific bugs that unit tests cannot catch:
+3. **Scope Auditing & Code Completion Verification:** Reviewed generated diffs to ensure features the AI marked "done" were actually implemented rather than stubbed out with `// TODO` comments or memory-heavy shortcuts (e.g., catching full-file reads in memory instead of true 1MB chunked Range streaming).
+4. **Hands-On QA on Real Hardware:** Tested live desktop builds on physical hardware with Windows Task Manager and DevTools to catch real-world resource leaks that automated tests miss:
    * **Diagnosed a 70.3% GPU compositor leak** in WebView2 caused by infinite CSS scale transforms under blurred backdrop filters, optimizing it down to **0.0% idle GPU**.
-   * **Caught VLC completion edge-cases** where the playhead reset to 0.0 on natural completion, implementing a >90% completion latch.
+   * **Caught VLC completion edge-cases** during full playback runs where the playhead reset to 0.0 upon reaching the credits, implementing a &ge;90% completion latch to preserve watch status.
 
 ---
 
