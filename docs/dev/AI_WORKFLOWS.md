@@ -30,14 +30,15 @@ All autonomous coding agents interacting with this repository are governed by th
 
 Every feature, refactor, or bug fix must complete the following 5-phase routine before being finalized:
 
-### 1. Master To-Do Reconciliation
-* Locate the specific task identifier in the master blueprint.
-* Mark only the completed sub-tasks as done.
-* Prevent unauthorized modification of unrelated task states.
+### 1. Professional Version Control & Issue Linkage
+* Implement against granular GitHub Issues linked to active milestones.
+* Use clean conventional commits (`feat: ...`, `fix: ...`) referencing issues (`Closes #X`).
+* Never include internal scratchpad notes or debug dumps in commit messages.
 
-### 2. Progress Logging & Semantic Changelogs
-* Document all changes in the project changelog.
-* Record specific architectural updates, modified files, and non-obvious design choices.
+### 2. Native GitHub Standards (Zero Repo Bloat)
+* No tracked binaries: all builds are distributed as GitHub Releases.
+* Issue tracking, milestones, and project boards belong natively in GitHub.
+* `CHANGELOG.md` is strictly reserved for user-facing application features.
 
 ### 3. Strict Directory Boundaries
 * **Pure Rust Backend**: All Rust code, database schemas, and Cargo dependencies strictly reside within `watchmark-tauri/src-tauri/`.

@@ -69,12 +69,12 @@ In this engineering framework, the **Human Engineer acts as Lead System Architec
 sequenceDiagram
     autonumber
     actor Architect as Human System Architect
-    participant Spec as Specification & State Engine (todo_list.md)
+    participant Spec as Issue & Milestone Engine (GitHub)
     participant Agent as Autonomous AI Agent (Antigravity/Jules)
     participant Compiler as Deterministic Gate (cargo check / tsc)
     participant Audit as Integrity & Regression Auditor
 
-    Architect->>Spec: Formulate formal task specification & constraints
+    Architect->>Spec: Formulate formal task specification & requirements
     Spec->>Agent: Dispatch isolated atomic task packet
     Agent->>Agent: Analyze AST, locate boundary files, generate implementation
     Agent->>Compiler: Execute compilation verification gate
@@ -86,7 +86,7 @@ sequenceDiagram
         Compiler-->>Agent: 0 errors, 0 warnings
     end
     Agent->>Audit: Execute mandatory Integrity Audit (reconcile requirements)
-    Audit->>Spec: Update master blueprint state & append semantic log
+    Audit->>Spec: Link commit and auto-close GitHub Issue (Closes #X)
     Spec-->>Architect: Present verified deliverable with technical justification
 ```
 
@@ -94,10 +94,10 @@ sequenceDiagram
 
 All agent operations are bound to a strict, non-negotiable contract:
 
-1. **State Reconciliation**: Agents must match the current task identifier against `todo_list.md` and toggle only the authorized sub-tasks.
-2. **Semantic Progress Logging**: Every implementation appends an exhaustive architectural summary to `updates.md`, capturing design trade-offs and modified paths.
-3. **Architectural Isolation**: Strict physical boundary between the Rust backend (`watchmark-tauri/src-tauri`) and React frontend (`watchmark-tauri/src`). Agents are barred from cross-pollinating backend logic into UI or introducing Python dependencies.
-4. **Deterministic Verification Gates**: Replaced fragile, slow automated unit tests with single-shot **compiler-level static analysis**. Code is strictly verified via `cargo check` and `npm run build`.
+1. **GitHub Issue & Milestone Alignment**: Agents implement against granular GitHub Issues linked to active release milestones.
+2. **Clean Conventional Commits**: Every implementation is committed using standard conventional commits (`feat: ...`, `fix: ...`) auto-linking and closing issues (`Closes #X`), generating release notes automatically.
+3. **Architectural Isolation**: Strict physical boundary between the Rust backend (`watchmark-tauri/src-tauri`) and React frontend (`watchmark-tauri/src`). Agents are barred from cross-pollinating backend logic into UI or introducing external scripting wrappers.
+4. **Deterministic Verification Gates**: Replaced fragile, slow automated unit tests with single-shot **compiler-level static analysis**. Codebase changes are strictly verified via `cargo check` and `npm run build`.
 5. **Mandatory Integrity & Regression Audit**: Before reporting task completion, the agent cross-references the implementation line-by-line against prompt requirements and audits historical features to guarantee zero regression.
 
 ---
@@ -189,13 +189,11 @@ Performance Profile (Windows 11 x64, Release Build):
 
 ---
 
-## 6. How to Reference This Project on a Resume
+## 6. Core Systems Engineering Highlights & Portfolio Review
 
-### Experience / Project Section Entry
+### Engineering Competencies Demonstrated
 
-> **WatchMark — High-Performance Desktop Media Tracker & VLC Telemetry Bridge**  
-> *Lead Systems Architect & AI Orchestrator* | `Rust, Tauri v2, React 19, TypeScript, SQLite WAL, Tokio`
-> * Architected and delivered a cross-platform desktop application (~30MB RAM, 0% idle CPU) bridging TMDB metadata with local files and real-time VLC playhead telemetry via an asynchronous Tokio supervisor loop.
-> * Pioneered an Agentic AI Orchestration framework directing autonomous coding agents across 90+ feature sprints; enforced formal IEEE 29148 micro-specifications and single-shot compiler verification gates (`cargo check`, `tsc`).
-> * Diagnosed and eliminated a 70.3% GPU compositor bottleneck in WebView2 by refactoring infinite affine matrix transforms under CSS Gaussian blur filters into static hardware-accelerated shaders.
-> * Designed an ACID-compliant local SQLite storage engine with WAL concurrency, evolutionary migrations, and SHA-256 verified atomic backups, supporting 1,000+ item collections at 60 FPS viewport virtualization.
+* **Cross-Platform Desktop Systems Architecture**: Architected and delivered a cross-platform desktop application (~30MB RAM, 0% idle CPU) bridging TMDB metadata with local files and real-time VLC playhead telemetry via an asynchronous Tokio supervisor loop.
+* **Agentic AI Orchestration & Systems Breakdown**: Pioneered an Agentic AI Orchestration framework directing autonomous coding agents across structured milestones; enforced formal IEEE 29148 micro-specifications and single-shot compiler verification gates (`cargo check`, `tsc`).
+* **Low-Level GPU Compositor Optimization**: Diagnosed and eliminated a 70.3% GPU compositor bottleneck in WebView2 by refactoring infinite affine matrix transforms under CSS Gaussian blur filters into static hardware-accelerated shaders.
+* **ACID Data Persistence & Concurrency**: Designed an ACID-compliant local SQLite storage engine with WAL concurrency, evolutionary migrations, and SHA-256 verified atomic backups, supporting 1,000+ item collections at 60 FPS viewport virtualization.

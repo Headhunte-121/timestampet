@@ -21,6 +21,12 @@
 
 ---
 
+> [!NOTE]
+> **🎓 Student Engineering Capstone & Portfolio Project**  
+> WatchMark was designed and developed as an advanced software engineering project exploring multi-process desktop systems architecture, asynchronous IPC event loops in Rust, client-side database concurrency with SQLite WAL, and high-performance React 19 UI windowing. It serves as both a daily-driver desktop tool and an empirical demonstration of systems decomposition, compiler-in-the-loop verification, and privacy-first local media tracking.
+
+---
+
 ## 💡 What is WatchMark?
 
 Media servers like Plex, Emby, and Jellyfin are powerful, but they require heavy background server daemons, continuous CPU transcoding overhead, user accounts, and telemetry.

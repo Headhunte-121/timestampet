@@ -29,7 +29,7 @@ docs/
   * Hierarchical system breakdown framework (6 core domains, 16 micro-features).
   * Human-in-the-Loop agentic workflow with strict SOP (`AGENTS.md`) and compiler-as-a-verifier gates.
   * Real-world empirical case studies (resolving 70% GPU compositor spike, zero-CPU VLC telemetry, recommendation scoring).
-  * Ready-to-use resume and portfolio technical bullet points.
+  * Systems architecture highlights and engineering portfolio review.
 
 * [**System Design & Topology (`architecture/SYSTEM_DESIGN.md`)**](./architecture/SYSTEM_DESIGN.md)
   * High-level multi-process architecture (React 19 + Tauri v2 + Pure Rust).
@@ -75,7 +75,7 @@ docs/
 
 * [**Local Development Guide (`dev/LOCAL_DEVELOPMENT.md`)**](./dev/LOCAL_DEVELOPMENT.md)
   * Setting up Node.js, Rust 2021, and VLC build dependencies.
-  * Running live development with HMR (`npm run tauri dev` or `run.bat`).
+  * Running live development with HMR (`npm run tauri dev`).
   * Inspecting diagnostic logs (`watchmark.log`) and querying SQLite via CLI.
   * Compiling standalone native executables (`npm run tauri build`).
 
