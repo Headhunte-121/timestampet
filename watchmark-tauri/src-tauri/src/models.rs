@@ -357,6 +357,8 @@ pub struct Settings {
     pub last_scanned_path: String,
     #[serde(default = "default_video_extensions")]
     pub supported_extensions: Vec<String>,
+    #[serde(default = "default_backup_retention_count")]
+    pub backup_retention_count: usize,
 }
 
 fn default_video_extensions() -> Vec<String> {
@@ -427,6 +429,9 @@ fn default_last_backup_error() -> String {
 fn default_high_performance_mode() -> bool {
     false
 }
+fn default_backup_retention_count() -> usize {
+    5
+}
 
 impl Default for Settings {
     fn default() -> Self {
@@ -454,6 +459,7 @@ impl Default for Settings {
             is_maximized: default_false(),
             last_scanned_path: default_empty_string(),
             supported_extensions: default_video_extensions(),
+            backup_retention_count: default_backup_retention_count(),
         }
     }
 }

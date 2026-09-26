@@ -694,6 +694,30 @@ pub fn validate_and_stage_restore(
         return Err(AppError::Custom("Backup file does not exist".to_string()));
     }
 
+    // Cryptographic SHA-256 Check: verify sidecar checksum if present
+    let verified_hash = if let Some(sidecar_path) = crate::backup::find_sidecar_path(backup_path) {
+        let sidecar_content = std::fs::read_to_string(&sidecar_path)
+            .map_err(|e| AppError::Custom(format!("Failed to read SHA-256 sidecar file: {}", e)))?;
+        let expected_hash = sidecar_content
+            .split_whitespace()
+            .next()
+            .ok_or_else(|| AppError::Custom("SHA-256 sidecar file is empty".to_string()))?
+            .to_lowercase();
+
+        let actual_hash = crate::backup::compute_sha256(backup_path)?;
+        if expected_hash != actual_hash {
+            return Err(AppError::Custom(format!(
+                "SHA-256 checksum verification failed for restore candidate: expected {}, got {}",
+                expected_hash, actual_hash
+            )));
+        }
+        tracing::info!(action = "restore_validation", hash = %actual_hash, "SHA-256 sidecar verification passed");
+        Some(actual_hash)
+    } else {
+        tracing::warn!(action = "restore_validation", path = ?backup_path, "No SHA-256 sidecar found; proceeding with PRAGMA integrity_check only");
+        None
+    };
+
     // Pragma Check: verify it's a valid SQLite database
     match rusqlite::Connection::open_with_flags(
         backup_path,
@@ -741,6 +765,20 @@ pub fn validate_and_stage_restore(
             e
         ))
     })?;
+
+    // Fsync staged pending database file
+    if let Ok(file) = std::fs::File::open(&pending_db_path) {
+        let _ = file.sync_all();
+    }
+
+    // Stage companion SHA-256 sidecar for the pending database
+    let hash_to_stage = match verified_hash {
+        Some(h) => h,
+        None => crate::backup::compute_sha256(&pending_db_path).unwrap_or_default(),
+    };
+    if !hash_to_stage.is_empty() {
+        let _ = crate::backup::write_sha256_sidecar(&pending_db_path, &hash_to_stage);
+    }
 
     // Create trigger file
     std::fs::write(&trigger_file_path, b"pending_restore")
@@ -790,11 +828,12 @@ pub async fn export_database(
 
     let db_queue = state.db_queue.clone();
     let (tx, rx) = tokio::sync::oneshot::channel();
+    let export_path = target_path_buf.clone();
 
     db_queue.push_high_priority(move |conn| {
         let sql = format!(
             "VACUUM INTO '{}'",
-            target_path_buf.to_string_lossy().replace("'", "''")
+            export_path.to_string_lossy().replace("'", "''")
         );
         let result = conn
             .execute(&sql, [])
@@ -803,7 +842,13 @@ pub async fn export_database(
     });
 
     match rx.await {
-        Ok(Ok(_)) => Ok(()),
+        Ok(Ok(_)) => {
+            // Write SHA-256 companion sidecar file upon successful export
+            if let Ok(hash) = crate::backup::compute_sha256(&target_path_buf) {
+                let _ = crate::backup::write_sha256_sidecar(&target_path_buf, &hash);
+            }
+            Ok(())
+        }
         Ok(Err(e)) => Err(e),
         Err(_) => Err(AppError::Custom("Database worker dropped task".to_string())),
     }

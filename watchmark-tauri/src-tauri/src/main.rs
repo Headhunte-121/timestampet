@@ -57,14 +57,39 @@ pub fn execute_cold_swap(app_dir: &std::path::Path) {
     if trigger_file_path.exists() {
         let db_dir = app_dir.join("db");
         let active_db_path = db_dir.join("watchmark.db");
+        let active_wal_path = db_dir.join("watchmark.db-wal");
+        let active_shm_path = db_dir.join("watchmark.db-shm");
+
         let pending_db_path = db_dir.join("watchmark.db.pending");
+        let pending_sha256_path = db_dir.join("watchmark.db.pending.sha256");
+
         let old_db_path = db_dir.join("watchmark.db.old");
+        let old_wal_path = db_dir.join("watchmark.db.old-wal");
+        let old_shm_path = db_dir.join("watchmark.db.old-shm");
 
         // Only proceed if the pending database was successfully staged
         if pending_db_path.exists() {
+            // Verify pending DB integrity if SHA-256 sidecar is present
+            if pending_sha256_path.exists() {
+                if let Err(e) = crate::backup::verify_sha256_sidecar(&pending_db_path) {
+                    tracing::error!("Corrupted pending database detected during cold swap: {}", e);
+                    let _ = std::fs::remove_file(&pending_db_path);
+                    let _ = std::fs::remove_file(&pending_sha256_path);
+                    let _ = std::fs::remove_file(&trigger_file_path);
+                    return;
+                }
+            }
+
             // Move active to .old (overwrite if exists)
             if active_db_path.exists() {
                 let _ = std::fs::rename(&active_db_path, &old_db_path);
+            }
+            // Rotate stale WAL/SHM files to prevent replay into the newly restored DB
+            if active_wal_path.exists() {
+                let _ = std::fs::rename(&active_wal_path, &old_wal_path);
+            }
+            if active_shm_path.exists() {
+                let _ = std::fs::rename(&active_shm_path, &old_shm_path);
             }
 
             // Move pending to active
@@ -72,6 +97,12 @@ pub fn execute_cold_swap(app_dir: &std::path::Path) {
                 // Critical failure during rename. Attempt to revert.
                 if old_db_path.exists() {
                     let _ = std::fs::rename(&old_db_path, &active_db_path);
+                }
+                if old_wal_path.exists() {
+                    let _ = std::fs::rename(&old_wal_path, &active_wal_path);
+                }
+                if old_shm_path.exists() {
+                    let _ = std::fs::rename(&old_shm_path, &active_shm_path);
                 }
 
                 let error_msg = format!("Fatal Error: Database Restore Failed during cold-swap. Changes reverted.\n\nError details: {}", e);
@@ -82,12 +113,18 @@ pub fn execute_cold_swap(app_dir: &std::path::Path) {
                     .show_alert()
                     .unwrap();
             } else {
-                // Success! Clean up the trigger file.
+                // Success! Clean up the trigger file and pending sidecar.
                 let _ = std::fs::remove_file(&trigger_file_path);
+                if pending_sha256_path.exists() {
+                    let _ = std::fs::remove_file(&pending_sha256_path);
+                }
             }
         } else {
             // Trigger file exists but pending DB is missing. Corrupt state. Clean up flag.
             let _ = std::fs::remove_file(&trigger_file_path);
+            if pending_sha256_path.exists() {
+                let _ = std::fs::remove_file(&pending_sha256_path);
+            }
         }
     }
 }

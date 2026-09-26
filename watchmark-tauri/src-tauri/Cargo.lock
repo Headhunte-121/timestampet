@@ -6060,6 +6060,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "strsim",
  "task-local-extensions",
  "tauri",

@@ -32,10 +32,10 @@ mod tests_feature_25_1 {
         let count_before = fs::read_dir(&temp_dir).unwrap().count();
         assert_eq!(count_before, 10);
 
-        // Run pruning logic
+        // Run pruning logic (default retention is 5)
         prune_backups(&temp_dir).unwrap();
 
-        // Verify there are exactly 3 files left
+        // Verify there are exactly 5 files left
         let mut count_after = 0;
         for entry in fs::read_dir(&temp_dir).unwrap() {
             let entry = entry.unwrap();
@@ -43,7 +43,7 @@ mod tests_feature_25_1 {
                 count_after += 1;
             }
         }
-        assert_eq!(count_after, 3);
+        assert_eq!(count_after, 5);
 
         // Clean up
         let _ = fs::remove_dir_all(&temp_dir);

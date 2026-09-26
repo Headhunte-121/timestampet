@@ -52,7 +52,8 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
     auto_scan_on_boot: false,
     global_log_level: "info",
     module_logs: {},
-    last_scanned_path: ""
+    last_scanned_path: "",
+    backup_retention_count: 5
   });
 
   const [availableModules, setAvailableModules] = useState<Record<string, string>>({});
@@ -962,6 +963,21 @@ export default function SettingsView({ setIsDirty, setSaveCallback }: SettingsVi
                                         Backup failed. Retrying soon.
                                     </span>
                                 )}
+                            </div>
+                            <div className="mt-4 flex items-center gap-3">
+                                <label htmlFor="backup-retention" className="text-xs font-semibold text-gray-300">
+                                    Retention limit (snapshots):
+                                </label>
+                                <input
+                                    id="backup-retention"
+                                    type="number"
+                                    min={1}
+                                    max={50}
+                                    value={settings.backup_retention_count ?? 5}
+                                    onChange={e => updateSetting('backup_retention_count', Math.max(1, parseInt(e.target.value) || 5))}
+                                    className="w-20 bg-black/40 text-white px-3 py-1.5 rounded-lg border border-white/10 focus:border-[#FF6B00] outline-none text-sm"
+                                />
+                                <span className="text-xs text-gray-500">Number of automatic rolling backups to retain (default: 5)</span>
                             </div>
                         </div>
                     </div>
