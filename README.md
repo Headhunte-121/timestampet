@@ -15,7 +15,7 @@
 
 *Seamlessly bridge online TMDB metadata with your local media storage — with zero server bloat and automatic VLC playhead synchronization.*
 
-[Features](#-core-features) • [Methodology & AI Orchestration](#-engineering-methodology-system-breakdown--agentic-ai-orchestration) • [Resume Highlights](#-resume--portfolio-summary-ready-to-showcase) • [Architecture](#-architecture--tech-stack) • [AI Whitepaper](docs/architecture/AI_ORCHESTRATION.md) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [Requirements & Installation](#️-requirements--installation)
+[Features](#-core-features) • [Methodology & AI Orchestration](#-engineering-methodology-system-breakdown--agentic-ai-orchestration) • [Resume Highlights](#-resume--portfolio-summary-ready-to-showcase) • [Architecture](#-architecture--tech-stack) • [AI Whitepaper](docs/architecture/AI_ORCHESTRATION.md) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [Requirements & Installation](#️-requirements--installation) • [Legal & Compliance](#️-legal--dmca-compliance-statement)
 
 </div>
 
@@ -427,6 +427,16 @@ This folder contains:
 
 ### Q: Is an internet connection required?
 **A:** **No.** An internet connection is only needed when searching TMDB for new shows or downloading metadata. Once added, your library, history, playhead tracking, and local playback function completely offline.
+
+---
+
+## ⚖️ Legal & DMCA Compliance Statement
+
+**WatchMark is strictly a personal, client-side media cataloging diary and offline library manager.**
+* **No Content Hosting, Streaming, or Distribution:** WatchMark does not host, provide, stream, download, scrape, or distribute any copyrighted video, audio, or media files.
+* **User-Owned Media Files Only:** The application operates exclusively as a local metadata viewer and organizer for legally acquired, user-owned media files residing on the user's personal storage devices.
+* **Official API Compliance:** All show, movie, and episode metadata and artwork are retrieved strictly via the official [The Movie Database (TMDb) API](https://www.themoviedb.org/documentation/api) in full compliance with TMDb's API Terms of Service. This product uses the TMDb API but is not endorsed or certified by TMDb.
+* **Zero Third-Party Scraping or Piracy Mechanisms:** WatchMark does not contain any web-scraping utilities, torrent protocols, peer-to-peer distribution networks, bypass modules, or circumvention tools.
 
 ---
 

@@ -35,7 +35,6 @@ npm install
 # 4. Launch the Tauri development environment (with hot reload)
 npm run tauri dev
 ```
-*(On Windows, you can also launch the environment by double-clicking `run.bat` in the root directory).*
 
 ---
 
@@ -87,10 +86,11 @@ npx tsc --noEmit
 npm run build
 ```
 
-### PR Submission:
-1. Fork the repository and create a feature branch (`git checkout -b feat/your-feature-name`).
-2. Commit your changes with clear, descriptive commit messages.
-3. Push to your fork and open a Pull Request against `main`.
-4. Fill out the PR template describing your changes, motivation, and verification steps.
+### PR Submission & Branching Policy:
+1. Fork the repository and create a feature branch off `develop` (`git checkout -b feat/your-feature-name develop`).
+2. Commit your changes with clear, conventional commit messages (`feat:`, `fix:`, `docs:`, `build:`).
+3. Push to your fork and open a Pull Request targeting the **`develop`** branch (active integration).
+4. Stable releases are tested and promoted from `develop` into **`main`** (production/stable) after passing all compiler verification gates and integrity audits.
+5. Fill out the PR template describing your changes, motivation, and verification steps.
 
 Thank you for helping build WatchMark!

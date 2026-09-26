@@ -1,6 +1,9 @@
 # Local Development Archives & Utility Scripts (Kept on machine, ignored from public repository)
 local_archive/
 .local_archive/
+archive/
+todo_list.md
+updates.md
 *.local
 *.bat
 *.cmd

@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.2.0] - 2026-08-28
+## [1.2.0] - 2026-09-26
 
 ### Added
+* **Intelligent Hero Spotlight Recommendation Engine**: 8-dimensional weighted candidate scoring algorithm prioritizing paused in-progress shows, newly aired episodes, and season finales with dynamic library fallback backfill and slide counters.
+* **Continuous Integration Pipeline**: Automated GitHub Actions CI workflow (`.github/workflows/ci.yml`) performing multi-stage verification on both the Rust backend (`cargo check`) and React frontend (`npm run build`).
+* **AI Orchestration & Systems Breakdown Whitepaper**: Comprehensive systems architecture whitepaper (`docs/architecture/AI_ORCHESTRATION.md`) documenting hierarchical decomposition, compiler-in-the-loop verification, and agentic workflows.
+* **Cross-Platform Requirements & Installation Suite**: Standardized, script-free CLI installation and build guide supporting Windows, Linux, and macOS without relying on local `.bat` wrappers.
 * **BingeBlock Accordion Timeline**: Dedicated interactive accordion components (`BingeBlock.tsx`) grouping consecutive watch events with fluid Framer Motion auto-height animations.
 * **Midnight Crossover Detection**: Dynamic epoch timestamp calculations identifying binge sessions that span past midnight, automatically rendering a `<Moon />` indicator.
 * **Distinct Show Session Isolation**: Auto-chains consecutive episodes watched within 6 hours (< 21,600s), but immediately terminates and mints a new session ID if the user switches to a different show.
@@ -19,14 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **Accessibility & Power Optimizations**: Integrated `useReducedMotion` hooks so heavy layout transitions instantaneously drop to 0s when OS battery-saver or reduced-motion flags are active.
 
 ### Changed
+* **Repository Architecture & Git Branching**: Established formal two-tier branching strategy: `main` (protected stable production) and `develop` (active integration), deprecating legacy auto-generated branches.
+* **Requirements & Setup Documentation**: Completely replaced legacy `.bat` execution references with cross-platform npm and cargo commands.
 * **History Data Transfer Object**: Standardized DTO payload key to `ui_type` (`"SINGLE"` vs `"BINGE"`), eliminating potential SQL and JavaScript reserved keyword collisions.
 * **Season Tab Layout**: Evolved season tabs from flex-wrapped buttons into a single-line horizontal pill-style momentum scrolling row.
 * **Rating Pill Badges**: Standardized rating badge positioning and styling with frosted dark backing (`bg-[#0D0F14]/60 backdrop-blur-md`) and tabular numeral alignment.
 
 ### Fixed
+* **WebView2 70.3% GPU Compositor Spike**: Resolved critical idle GPU load in WebView2 by eliminating continuous infinite scale transforms beneath CSS `backdrop-filter: blur(...)` layers in `SafeImage.tsx`. Replaced with static hardware fade-ins, dropping idle GPU to **0.0% – 1.0%**.
+* **Hero Spotlight CSS Repaints**: Replaced infinite `animate-pulse` on spotlight tags with high-contrast static neon styling, eliminating compositor redraw cycles over blurred backdrop banners.
 * **Cascading Delete Safety**: Shifted media deletions completely to atomic SQLite `ON DELETE CASCADE` triggers, preventing orphaned episode records.
 * **VLC Argument Parsing**: Automatically strips Windows verbatim prefixing (`\\?\`) before passing file paths to VLC to prevent URI encoding crashes.
 * **Synopsis Overflow Safety**: Truncates show and episode overviews to 10,000 characters before database insertion to prevent IPC payload lockups on edge cases.
+
 
 ---
 

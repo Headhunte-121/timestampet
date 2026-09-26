@@ -4,14 +4,10 @@ As the Jules Agent, you must strictly follow this post-task workflow at the comp
 
 Whenever you finish implementing a specific task (referred to dynamically as `[TASK_ID]`), you must execute the following documentation and verification routine:
 
-### 1. Update the Master To-Do List
-* Locate the current `[TASK_ID]` in the master To-Do list.
-* Mark all completed sub-tasks as done (change `[ ]` to `[x]`).
-* ONLY update the mentioned `[TASK_ID]`. Do not modify the status of other tasks.
-
-### 2. Update the Progress Log (`update.md`)
-* Open `updates.md`.
-* Add a new section for the current `[TASK_ID]` at the bottom of the document and summarize the updates, changes, and implementations made during this commit it sould be very detailed explaining exatly what you did.
+### 1. Professional Version Control & Clean Commit Messages
+* Write clear, conventional commit messages (`feat: ...`, `fix: ...`, `chore: ...`).
+* Never include internal scratchpad notes, debug logs, or references to deprecated experimental features in public commit messages.
+* Keep the git history clean, professional, and presentable for enterprise portfolios and resumes.
 
 ### 3. Working Directory & Architecture Rules
 * **Rust Backend:** All Rust code, `Cargo.toml`, and database schemas reside inside `watchmark-tauri/src-tauri`. You must navigate to this directory before running any `cargo` commands.
@@ -28,7 +24,7 @@ Before submitting a Pull Request or marking a task as complete, you must perform
 *   **Cross-Reference Requirements:** Re-read the original user prompt line-by-line. Cross-reference every explicit instruction and "edge case" against your implemented code. Ensure the logic handles the edge cases, even without formal test files.
 *   **Audit for Regression:** Review all changes to ensure that new logic does not inadvertently remove or break features established in previous commits. If you refactor a function, you must carry over all existing functionality.
 *   **Enforce Project Standards:** Ensure all new and modified logic adheres to the established architectural patterns (e.g., `useAsyncInvoke`, `requestId` for commands).
-*   **Self-Correction:** If the audit reveals any missing requirements or inconsistent patterns, you must resolve them immediately before finalizing the documentation in `update.md`.
+*   **Self-Correction:** If the audit reveals any missing requirements or inconsistent patterns, you must resolve them immediately before finalizing your commit.
 *   cleanup additional files before PR
 
 
