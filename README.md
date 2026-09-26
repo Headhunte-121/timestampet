@@ -9,13 +9,13 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL_Mode-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![VLC](https://img.shields.io/badge/VLC-Telemetry_Sync-FF6B00?logo=vlc-media-player&logoColor=white)](https://www.videolan.org/)
-[![AI-Assisted Architecture](https://img.shields.io/badge/Architecture-AI--Assisted_Pairing-8A2BE2?logo=google&logoColor=white)](https://deepmind.google/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **A high-performance, cinema-grade personal media tracking diary and local file bridge.**
 
 *Seamlessly bridge online TMDB metadata with your local media storage — with zero server bloat and automatic VLC playhead synchronization.*
 
-[Features](#-core-features) • [Methodology & AI Orchestration](#-engineering-methodology-system-breakdown--agentic-ai-orchestration) • [Resume Highlights](#-resume--portfolio-summary-ready-to-showcase) • [Architecture](#-architecture--tech-stack) • [AI Whitepaper](docs/architecture/AI_ORCHESTRATION.md) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [Requirements & Installation](#️-requirements--installation) • [Legal & Compliance](#️-legal--dmca-compliance-statement)
+[Features](#-core-features) • [Architecture](#-architecture--tech-stack) • [Requirements & Installation](#️-requirements--installation) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [Legal & Compliance](#️-legal--dmca-compliance-statement)
 
 </div>
 
@@ -30,78 +30,6 @@ Media servers like Plex, Emby, and Jellyfin are powerful, but they require heavy
 * **The "Media Diary" Paradigm:** Tracks what you own, what you've watched, where you left off, and how you binge — stored locally on your machine in an ACID-compliant SQLite database.
 * **Direct VLC Player Telemetry:** Instead of building an internal video player with proprietary codec limitations, WatchMark delegates playback to your local **VLC Media Player**, silently tracking playhead progress, pause events, and completion ratios via VLC's local HTTP API in real-time.
 * **Universal TMDB Bridge:** Connects to The Movie Database (TMDB) to fetch rich 4K backdrops, 2:3 posters, season episode lists, cast/crew details, and movie franchise collections, caching everything locally for full offline resilience.
-
----
-
-## 🎯 Engineering Methodology: System Breakdown & Agentic AI Orchestration
-
-WatchMark was engineered from the ground up as a premier showcase of **Advanced System Breakdown & Human-in-the-Loop Agentic AI Orchestration**. Rather than treating AI as an autocomplete tool, the project operated on a formal **Agentic Systems Engineering Framework** pairing human architectural leadership with autonomous coding agents (Google DeepMind / Antigravity / Jules):
-
-```mermaid
-graph TD
-    subgraph Human ["1. Human Architectural Leadership"]
-        Vision[Product Vision & Paradigms]
-        Decomp[Hierarchical System Breakdown: 6 Domains, 16 Micro-Specs]
-        Constraints[Hard Invariants: <=30MB RAM, 0% Idle CPU/GPU, Offline-First]
-    end
-
-    subgraph Orchestration ["2. Agentic AI Orchestration Harness (AGENTS.md)"]
-        SpecPrompt[Spec-Driven Task Formulation]
-        Agent[Autonomous AI Agent Execution Engine]
-        AST[Multi-File AST & Context Navigation]
-    end
-
-    subgraph Verification ["3. Compiler-in-the-Loop Verification Gates"]
-        RustCheck["cargo check (Rust Borrow Checker & Lifetimes)"]
-        TsBuild["npx tsc (TypeScript Strict Interface Validation)"]
-        Audit["Mandatory Integrity & Zero-Regression Audit"]
-    end
-
-    Vision --> Decomp
-    Decomp --> Constraints
-    Constraints --> SpecPrompt
-    SpecPrompt --> Agent
-    Agent --> AST
-    AST --> RustCheck
-    AST --> TsBuild
-    RustCheck -- Compile Error --> Agent
-    TsBuild -- Type Error --> Agent
-    RustCheck -- Passes --> Audit
-    TsBuild -- Passes --> Audit
-    Audit --> ProductionCode[Verified Production Desktop Executable]
-```
-
-### 1. Hierarchical System Breakdown (The 6 Architectural Pillars)
-Complex product requirements were systematically decomposed into 6 decoupled architectural domains, each governed by formal [IEEE 29148 / RFC 2119 specifications](docs/specifications/README.md):
-* **Domain 1: OS Shell & Safety Guardrails** — Native desktop lifecycle, AppData canary permission probing, OS Keyring secrets, and off-screen window geometry clamping.
-* **Domain 2: Asynchronous Concurrency & IPC** — Tauri v2 IPC bridge, Tokio async runtime, non-blocking UI, `RequestId` cancellation tokens, and Read/Write Mutexes.
-* **Domain 3: Local-First ACID Data Layer** — Relational SQLite engine in Write-Ahead Logging (`WAL`) mode, transactional evolutionary migrations, and SHA-256 verified atomic backups.
-* **Domain 4: Subprocess Telemetry Engine** — Non-intrusive VLC loopback supervisor, dynamic port probing (`8080–8090`), cryptographic session tokens, and sub-second playhead sync with zero CPU polling.
-* **Domain 5: Filesystem Ingestion Pipeline** — Deep recursive directory traversal (`depth 15`), Windows long-path prefixing (`\\?\`), EBNF scene release tokenizer, and a persistent triage inbox.
-* **Domain 6: Cinema UI & Hardware GPU Pipeline** — Framer Motion 60 FPS physics, `VirtualPoster` windowing, and GPU compositor optimization eliminating WebView2 rasterization bottlenecks.
-
-### 2. The Agentic Orchestration Protocol (`AGENTS.md`)
-Autonomous AI agents were governed by a non-negotiable operational contract:
-* **State Synchronization**: Mandatory tracking and state reconciliation against [`todo_list.md`](todo_list.md) preventing scope creep.
-* **Strict Physical Boundaries**: Rigid directory isolation between pure Rust backend (`watchmark-tauri/src-tauri/`) and React frontend (`watchmark-tauri/src/`).
-* **Compiler-as-a-Verifier**: Eliminated brittle test suites in favor of deterministic **compiler-level static analysis** (`cargo check` & `tsc`). If code failed compilation, the compiler's borrow-checker diagnostics fed directly into the agent's self-correction cycle.
-* **Mandatory Integrity Auditing**: Required cross-referencing prompt requirements line-by-line before commit finalization, guaranteeing zero feature regressions across 90+ iterative feature sprints.
-
-### 3. Empirical Case Studies (Low-Level Systems Debugging)
-* **Eliminating a 70.3% WebView2 GPU Compositor Bottleneck**: Diagnosed an idle GPU spike where WebView2 pegged the 3D rasterizer at 70.3%. Isolated the root cause to infinite Framer Motion scale transforms executing beneath elements with CSS `backdrop-filter: blur(...)`, forcing Chromium to re-run Gaussian blur pixel shaders at 144Hz. Replaced with static hardware fade-ins, dropping idle GPU to **0.0%**. *(Full details in [AI Orchestration Whitepaper](docs/architecture/AI_ORCHESTRATION.md))*.
-* **Zero-CPU Subprocess Telemetry Loop**: Engineered an asynchronous loopback supervisor in Rust communicating with VLC via local HTTP streams, providing sub-second playhead synchronization and $\ge 90\%$ completion tracking while drawing **0.0% background CPU**.
-
----
-
-## 📄 Resume & Portfolio Summary (Ready to Showcase)
-
-> **WatchMark — High-Performance Desktop Media Tracker & VLC Telemetry Bridge**  
-> *Lead Systems Architect & AI Orchestrator* | **Tech Stack:** `Rust, Tauri v2, React 19, TypeScript, SQLite WAL, Tokio, Framer Motion`
-> * **System Architecture & Breakdown:** Architected a zero-daemon desktop application (~31MB RAM, 0% idle CPU) decomposing complex media ingestion, VLC player telemetry, and offline-first storage into 6 decoupled architectural domains and 16 formal IEEE 29148 micro-specifications.
-> * **Agentic AI Orchestration:** Directed autonomous AI coding agents (Google DeepMind / Antigravity / Jules) across 90+ feature sprints via a custom SOP ([`AGENTS.md`](./AGENTS.md)), enforcing spec-driven prompt decomposition, compiler-in-the-loop verification gates (`cargo check`, `tsc`), and zero-regression audits.
-> * **GPU & Performance Optimization:** Profiled and eliminated a 70.3% GPU compositor bottleneck in WebView2 by isolating Chromium Gaussian blur re-rasterization during affine matrix transforms, reducing idle GPU utilization to **0.0% – 1.0%**.
-> * **Telemetry & Concurrency Engine:** Engineered an asynchronous Tokio subprocess supervisor dynamically negotiating loopback ports (`8080–8090`) with one-time cryptographic tokens to track sub-second VLC playhead metrics with zero background polling overhead.
-> * **ACID Data Layer:** Implemented a relational SQLite engine in WAL mode with evolutionary transactional migrations, SHA-256 verified atomic backups, and 60 FPS DOM viewport virtualization (`VirtualPoster`) for 1,000+ items.
 
 ---
 
@@ -202,22 +130,30 @@ graph TD
 | **Telemetry** | Reqwest, Reqwest-Retry, Tracing | Resilient HTTP polling, structured diagnostic file logging |
 | **Security** | Keyring 3.6, Windows-sys | Native OS Credential Storage, Long-Path handling |
 
+### Key Architectural Principles
+* **Client-Only Desktop Boundary**: Runs entirely locally with zero background server daemons and 0% idle CPU utilization.
+* **Asynchronous Concurrency**: Powered by Tokio async event loops and Tauri v2 IPC, ensuring UI responsiveness never blocks on heavy disk I/O or network calls.
+* **ACID Data Integrity**: Relational SQLite storage running in Write-Ahead Logging (`WAL`) mode with transactional schema migrations and SHA-256 verified atomic backups.
+* **Non-Intrusive Subprocess Telemetry**: Dynamic loopback port probing (`8080–8090`) to monitor local VLC playback state via HTTP without injecting code or modifying VLC binaries.
+* **High-Throughput Ingestion**: Multi-threaded directory traversal using Rust's `walkdir` with Windows long-path prefixing (`\\?\`), intelligent filename tokenization (`S01E02`, `1080p`), and chunked IPC streaming.
+* **Compositor-Optimized GPU Pipeline**: Hardware-accelerated Framer Motion transitions with DOM viewport virtualization (`VirtualPoster`), eliminating GPU compositor redraws beneath backdrop-blur layers.
+
 ---
 
-## 📚 Technical Documentation & Specifications
+## 📚 Architecture & Technical Documentation
 
-WatchMark features an enterprise-grade technical documentation suite authored in compliance with [ISO/IEC/IEEE 29148:2018](https://standards.ieee.org/ieee/29148/7292/) and [RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119) standards:
+WatchMark features comprehensive technical specifications and architecture documentation:
 
 * 🏛️ [**System Design & Architecture (`docs/architecture/`)**](./docs/architecture/SYSTEM_DESIGN.md): Multi-process topologies, 0% CPU async loops, and [relational SQLite schema](./docs/architecture/DATABASE_SCHEMA.md).
 * 📑 [**Technical Specifications Suite (`docs/specifications/`)**](./docs/specifications/README.md):
   * [**01: Core Shell, Lifecycle & OS Boundaries**](./docs/specifications/01_CORE_SHELL_AND_STORAGE.md) — App bootstrapping, canary probe, OS Keyring, and geometry clamping.
   * [**02: Database Engine, WAL Concurrency & Integrity**](./docs/specifications/02_DATABASE_AND_CONCURRENCY.md) — WAL concurrency, transactional migrations, and SHA-256 backup verification.
   * [**03: TMDB Metadata Engine & Synchronization**](./docs/specifications/03_TMDB_METADATA_ENGINE.md) — Upstream wire protocol, token-bucket limiter ($40\text{ req}/10\text{s}$), and 3-tier image caching.
-  * [**04: High-Speed Media Scanner & Triage Inbox**](./docs/specifications/04_MEDIA_SCANNER_AND_INBOX.md) — Recursive traversal (depth 15), Windows long paths, hardware cycle prevention, EBNF token grammar, and triage inbox.
+  * [**04: High-Speed Media Scanner & Triage Inbox**](./docs/specifications/04_MEDIA_SCANNER_AND_INBOX.md) — Recursive traversal (depth 15), Windows long paths, hardware cycle prevention, intelligent token grammar, and triage inbox.
   * [**05: VLC Telemetry & Playback Orchestration**](./docs/specifications/05_VLC_TELEMETRY_AND_PLAYBACK.md) — Process supervisor, dynamic socket probe ($8080\dots8090$), completion thresholds ($\ge 90\%$), and 6-hour binge clustering.
   * [**06: Cinema UI Design System & Virtualization**](./docs/specifications/06_CINEMA_UI_AND_COMPONENTS.md) — Semantic dark tokens, `VirtualPoster` windowing ($<50\text{MB}$ at $1,000+$ items), spoiler blur, and battery-saving mode.
 * 🧪 [**Quality Assurance Matrix (`docs/testing/`)**](./docs/testing/TEST_MATRIX.md): Exhaustive test matrix for permissions, power loss, paths $>260$ chars, and recovery behaviors.
-* 💻 [**Developer Guides (`docs/dev/`)**](./docs/dev/LOCAL_DEVELOPMENT.md): [Local development](./docs/dev/LOCAL_DEVELOPMENT.md) and [AI-assisted engineering methodology disclosure](./docs/dev/AI_WORKFLOWS.md).
+* 💻 [**Developer Guides (`docs/dev/`)**](./docs/dev/LOCAL_DEVELOPMENT.md): [Local development](./docs/dev/LOCAL_DEVELOPMENT.md) and [architecture whitepaper](./docs/architecture/AI_ORCHESTRATION.md).
 
 ---
 
@@ -234,9 +170,9 @@ timestampet/
 ├── docs/                           # Architecture, Specifications & QA Hub
 │   ├── README.md                   # Central documentation navigation hub
 │   ├── architecture/               # System design, topologies, and database schemas
-│   ├── specifications/             # Production-grade IEEE 29148 / RFC 2119 specs
+│   ├── specifications/             # Technical specifications and component contracts
 │   ├── testing/                    # QA matrices, boundary tests, and failure modes
-│   └── dev/                        # Developer guides and AI workflow disclosures
+│   └── dev/                        # Developer and contribution guides
 └── watchmark-tauri/                # Primary Tauri 2.0 Project Root
     ├── package.json                # Node.js dependencies & scripts
     ├── tailwind.config.js          # Cinema-grade color palette & safe-lists
@@ -405,7 +341,7 @@ The compiled release packages are output to:
 3. If you have custom Lua interface scripts in VLC, ensure your VLC preferences under `Tools > Preferences > Show All > Interface > Main interfaces` are set to default.
 
 ### Q: Why are some files placed in the Inbox instead of matched automatically?
-**A:** The scanner parses standard scene and release conventions:
+**A:** The scanner parses standard media filename conventions:
 * Standard Season/Episode: `Show.Name.S01E05.mkv`, `Show_Name_1x05.mp4`
 * Absolute/Anime format: `[Group] Show Name - 05 [1080p].mkv`
 * Daily format: `Show.Name.2024.03.15.mkv`
