@@ -9,69 +9,154 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL_Mode-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![VLC](https://img.shields.io/badge/VLC-Telemetry_Sync-FF6B00?logo=vlc-media-player&logoColor=white)](https://www.videolan.org/)
+[![AI Orchestration](https://img.shields.io/badge/AI_Engineering-Agentic_Orchestration-8A2BE2?logo=openai&logoColor=white)](docs/architecture/AI_ORCHESTRATION.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**A fast, cinema-grade personal media tracking diary and local file player bridge.**
+**A high-performance desktop media diary and VLC telemetry bridge — engineered through an advanced Human-in-the-Loop AI Orchestration Framework.**
 
-*Seamlessly bridge online TMDb metadata with your local media storage — with zero server bloat and automatic VLC playhead synchronization.*
+*Bridging online TMDb metadata with local files and real-time VLC playback tracking, serving as a dual-purpose software product and empirical demonstration of autonomous systems engineering.*
 
-[Motivation](#-motivation--why-i-built-this) • [Features](#-core-features) • [Architecture](#-architecture--tech-stack) • [Technical Challenges](#-technical-challenges--lessons-learned) • [Installation](#️-requirements--installation) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [License](#-license)
+[AI Orchestration Framework](#-ai-orchestration-framework--systems-breakdown) • [Core Features](#-application-features) • [Architecture](#-architecture--tech-stack) • [Case Studies](#-empirical-case-studies-ai-orchestration-in-action) • [Installation](#️-requirements--installation) • [Documentation](docs/README.md) • [Roadmap](ROADMAP.md) • [License](#-license)
 
 </div>
 
 ---
 
-## 💡 Motivation & Why I Built This
+## 🎯 Project Overview & Dual Purpose
 
-Like many movie and television fans, I love having a visually rich, poster-filled interface like Apple TV or Plex to browse my collection. But traditional home media servers come with serious trade-offs:
-* They require **heavy background server daemons** running 24/7.
-* They waste **high idle CPU and RAM** on forced transcoding and background telemetry.
-* They require user accounts, complex network port forwarding, and constant maintenance.
+**WatchMark** was conceived and engineered with a dual focus:
 
-At the same time, I already had the world's most versatile, lightweight media player installed on my laptop: **VLC Media Player**. It plays virtually every video codec, consumes negligible battery, and requires zero cloud configuration.
-
-What was missing was the **bridge**—an application that gives you a beautiful streaming-style frontend, downloads official artwork and episode guides from The Movie Database (TMDb), and silently syncs your viewing progress with VLC in the background.
-
-> **🎓 About This Project**  
-> **WatchMark** was created as an independent **software engineering student capstone and portfolio project**. My goal was to explore low-level systems programming in **Rust**, modern native desktop windowing with **Tauri 2.0**, client-side ACID concurrency with **SQLite WAL**, and hardware compositor performance tuning in **React 19**.
+1. **The Software Product:** A cinema-grade, client-side personal media tracking diary and local file player bridge. It solves the bloat of traditional media servers (Plex, Jellyfin) by operating entirely locally with **zero background daemons, ~30MB idle RAM, 0% idle CPU**, and direct, non-intrusive playhead telemetry via your local **VLC Media Player**.
+2. **The Systems Engineering Experiment:** A transparent, reproducible demonstration of **Human-in-the-Loop AI Orchestration**. Rather than writing code ad-hoc or treating Generative AI as a simple auto-complete tool, the project explores how a **Student Systems Architect** can formally decompose a 64-feature product into strict architectural domains, directing autonomous AI agents through **compiler-in-the-loop verification gates** (`cargo check` and `tsc`) and explicit Standard Operating Procedures ([`AGENTS.md`](AGENTS.md)).
 
 ---
 
-## ✨ Core Features
+## 🤖 AI Orchestration Framework & Systems Breakdown
+
+The primary failure mode in modern AI-assisted software engineering is **context collapse**: feeding an autonomous agent monolithic, underspecified tasks resulting in hallucinated abstractions, architectural drift, and regressions.
+
+WatchMark solved this through a rigorous 3-tier **Agentic Systems Engineering Harness**:
+
+```mermaid
+graph TD
+    subgraph Human ["1. Human Lead Architect (Systems Breakdown)"]
+        Spec[Hierarchical Decomposition: 6 Core Domains & Formal Specs]
+        Rules[Standard Operating Procedure: AGENTS.md & State Invariants]
+    end
+
+    subgraph Agent ["2. Autonomous AI Agent (Implementation Engine)"]
+        AST[Analyze AST & Dependency Boundaries]
+        Code[Generate Atomic Code Changes: Rust + React]
+    end
+
+    subgraph Compiler ["3. Deterministic Verification Gate (Static Analysis)"]
+        RustGate{Rust Affine Typecheck: cargo check}
+        TSGate{TypeScript Strict Check: tsc --noEmit}
+        SelfCorrect[Autonomous Self-Correction Loop]
+    end
+
+    subgraph Delivery ["4. Production Delivery (Zero Repo Bloat)"]
+        Audit[Integrity & Regression Audit]
+        Commit[Conventional Commit & Auto-Close Issue: Closes #X]
+    end
+
+    Spec --> Agent
+    Rules --> Agent
+    Agent --> Code
+    Code --> RustGate
+    Code --> TSGate
+    RustGate -- Compiler Error --> SelfCorrect
+    TSGate -- Type Error --> SelfCorrect
+    SelfCorrect --> Agent
+    RustGate -- 0 Errors --> Audit
+    TSGate -- 0 Errors --> Audit
+    Audit --> Commit
+```
+
+### The 3 Core Pillars of the Methodology
+
+#### 1. Hierarchical Systems Breakdown (Domain Isolation)
+To maintain razor-sharp agent focus, the 64-feature product roadmap was broken down into 6 decoupled architectural domains:
+* **OS Shell & Boundaries:** Native windowing, system tray, crash guards, and geometry clamping.
+* **Async Concurrency:** Tauri v2 IPC bridge, Tokio async runtime, and non-blocking I/O.
+* **ACID Data Persistence:** Relational SQLite storage, Write-Ahead Logging (`WAL`), and transactional schema migrations.
+* **Subprocess Telemetry:** VLC process supervision, dynamic socket probing (`8080..8090`), and playhead tracking.
+* **Filesystem Ingestion:** Multi-threaded directory traversal (`walkdir`), regex tokenization, and triage staging.
+* **Cinema UI & GPU Optimization:** Viewport virtualization (`VirtualPoster`), Framer Motion layout springs, and compositor tuning.
+
+#### 2. Compiler-as-a-Verifier (Eliminating AI Hallucinations)
+Instead of relying on slow, brittle automated unit tests that agents can easily cheat or mock, WatchMark enforced **compiler-level static analysis as a deterministic verification gate**:
+* **Rust Affine Type System:** Guarantees memory safety, thread safety, and data-race freedom at compile time. If an agent hallucinates a lifetime or borrowing violation, `cargo check` rejects it instantly.
+* **TypeScript Strict Mode:** Ensures IPC payload schemas between Rust backend commands and React Zustand stores never drift out of synchronization.
+
+#### 3. Jules Agent Standard Operating Procedure ([`AGENTS.md`](AGENTS.md))
+Every agent invocation operated under a non-negotiable contract:
+* **Native GitHub Linkage:** Work implemented exclusively against granular GitHub Issues and Milestones.
+* **Clean Conventional Commits:** Auto-close issues natively (`feat(vlc): dynamic port probing. Closes #14`).
+* **Zero Repo Bloat:** Never commit binaries (`.exe`), bulky markdown tracking files, or prompt logs into Git tracking.
+
+---
+
+## 🔬 Empirical Case Studies: AI Orchestration in Action
+
+The effectiveness of this orchestration methodology is proven by complex, low-level technical challenges diagnosed and resolved during development:
+
+### Case Study 1: The 70.3% GPU Compositor Bottleneck in WebView2
+* **The Problem:** In Cinema Mode, the idle desktop app consumed **70.3% GPU utilization** in Windows Task Manager, dropping to 0% when animations were turned off.
+* **Orchestration Diagnosis:** The human architect isolated the issue to frontend render loops. Directing the agent to inspect the DOM compositor tree revealed an infinite 30-second CSS scale transform (`[1, 1.15, 1]`) in `SafeImage.tsx` running on the 4K backdrop image.
+* **Low-Level Root Cause:** Because this high-resolution image was continuously scaling behind elements styled with CSS `backdrop-filter: blur(...)` and gradient overlays, Chromium's GPU compositor was forced to re-rasterize Gaussian blur convolution passes on every single monitor refresh frame (144Hz).
+* **Engineering Solution:** The agent replaced the infinite affine scale loop with a hardware-accelerated static fade-in. Once mounted, the scale locks at `1.0`. Static high-contrast styling replaced infinite `animate-pulse` tags.
+* **Outcome:** **Idle GPU utilization dropped from 70.3% to 0.0% – 1.0%.**
+
+### Case Study 2: Zero-CPU Subprocess Telemetry Loop
+* **The Problem:** Monitoring an external video player typically involves busy-waiting or thread sleep loops that waste CPU cycles and battery.
+* **Orchestration Design:** Architected an asynchronous child process supervisor in `src-tauri/src/vlc.rs` using `tokio::process::Command` and `tokio::select!`.
+* **Technical Implementation:** The agent implemented dynamic loopback port probing (`8080..8090`) to prevent socket collisions, generated cryptographic one-time HTTP passwords, and polled VLC's status over non-blocking HTTP streams.
+* **Outcome:** **0.0% background CPU consumption** during active media playback, saving exact-second positions and detecting ≥90% completions.
+
+### Case Study 3: 8-Dimensional Hero Recommendation Scoring Engine
+* **The Problem:** Initial versions displayed a single static show in the hero banner, missing opportunities to recommend in-progress series, newly aired episodes, or season finales.
+* **Orchestration Design:** Specified an 8-dimensional candidate scoring algorithm implemented in Rust:
+  $$\text{Score} = \text{Resume}(+200\text{k}) + \text{FreshAir}(+150\text{k}) + \text{Finale}(+100\text{k}) + \text{Recency} + \text{BingeVelocity} + \text{LocalFile}$$
+* **Outcome:** A fluid hero spotlight carousel with 8-second auto-rotation, smooth crossfades, and automatic fallback backfill across the user's library.
+
+---
+
+## ✨ Application Features
 
 ### 🎬 Cinema-Grade Desktop Interface
-* **Immersive Visual Aesthetics:** Deep dark palette (`#0D0F14`), translucent glassmorphism (`bg-[#1F222A]/60` with `backdrop-blur-md`), and signature VLC Orange accents (`#FF6B00`).
-* **Edge-to-Edge Hero Banner:** 450px cinematic hero section with multi-stop diagonal gradient fades and an instant 1-click **Resume Watching** button.
-* **"Continue Watching" Shelf:** Horizontal snap-scrolling row of wide episode cards with bottom-edge progress bars indicating your exact resume point.
-* **DOM Virtualization (`VirtualPoster`):** High-performance `IntersectionObserver` windowing engine that unmounts off-screen poster elements, enabling smooth 60 FPS scrolling across 1,000+ media titles with low memory footprint.
-* **Fluid Layout Transitions:** Hardware-accelerated view transitions and accordion springs powered by `framer-motion`, with built-in `prefers-reduced-motion` battery-saving support.
+* **Deep Dark Aesthetic:** Designed around an ultra-dark palette (`#0D0F14`), translucent glassmorphism (`bg-[#1F222A]/60` with `backdrop-blur-md`), and signature VLC Orange accents (`#FF6B00`).
+* **Edge-to-Edge Hero Banner:** 450px backdrop banner featuring multi-stop diagonal gradient fades, bold typography, and a 1-click **Resume Watching** action.
+* **"Continue Watching" Carousel:** Snap-scrolling row of wide episode cards with bottom-edge progress bars indicating your exact resume point.
+* **DOM Virtualization (`VirtualPoster`):** High-performance `IntersectionObserver` windowing engine unmounting off-screen DOM nodes, allowing 1,000+ shows to render at smooth 60 FPS under 50MB RAM.
+* **Hardware-Accelerated Fluidity:** View switching and accordion transitions powered by `framer-motion` with built-in `prefers-reduced-motion` battery-saving support.
 
 ### 📡 Smart VLC Playhead Telemetry (Zero Background CPU)
-* **100% Asynchronous Tracking:** Powered by `tokio::process::Command` and `tokio::select!` event loops that consume zero background CPU while watching.
-* **Dynamic Loopback Port Probing:** Automatically detects free local ports between `8080` and `8090` to avoid socket collisions, generating a cryptographic one-time HTTP session password.
-* **Exact-Second Playhead Resumption:** Remembers your exact playback position in seconds (`last_position`). Launching an episode resumes playback seamlessly using VLC's `--start-time` flag.
+* **100% Asynchronous Tracking:** Powered by `tokio::process::Command` and `tokio::select!` event loops consuming zero background CPU while watching.
+* **Dynamic Loopback Port Probing:** Automatically detects free local ports between `8080` and `8090` to avoid conflicts, generating a cryptographic one-time session password.
+* **Exact-Second Playhead Resumption:** Remembers your exact position in seconds (`last_position`). Launching an episode resumes playback seamlessly via VLC's `--start-time` flag.
 * **Intelligent Completion Thresholds:** Automatically marks episodes as completed and increments rewatch counts when you watch **≥ 90%** of the runtime or exit within **120 seconds** of the end credits.
 * **Auto-Session Chaining & Isolation:**
-  * Consecutive episodes watched within **6 hours** (< 21,600s) are linked into a single cohesive Binge Session UUID.
+  * Episodes watched consecutively within **6 hours** (< 21,600s) are linked into a single cohesive Binge Session UUID.
   * Switching to a different television series immediately terminates the chain and mints a fresh session ID.
 
 ### 📖 History Diary & Binge Timeline
-* **Interactive BingeBlock Accordions:** Groups multi-episode binges into master-detail accordions displaying series titles, episode counts, total watch time, and fluid auto-height animations.
-* **Midnight Crossover Detection:** Calculates UNIX epoch timestamps; if a viewing session crosses past midnight, a distinct `<Moon />` indicator is displayed alongside the duration badge.
-* **Detailed Episode Breakdown:** Inspect individual watch timestamps, duration per episode, and pause frequency.
+* **Interactive BingeBlock Accordions:** Groups multi-episode binges into master-detail accordions with show titles, episode counts, total duration, and smooth auto-height physics.
+* **Midnight Crossover Detection:** Calculates UNIX epoch timestamps; if a binge spans past midnight, a distinct `<Moon />` indicator is displayed alongside duration metadata.
+* **Detailed Episode Breakdown:** Inspect individual watch timestamps, durations, and pause frequency counters.
 
 ### 📁 High-Performance Media Scanner & Triage Inbox
-* **Blazing-Fast Directory Traversal:** Recursively scans thousands of nested files in milliseconds using Rust's multi-threaded `walkdir` and multi-pattern regex matching (`S01E01`, `1x01`, `Ep 01`, etc.).
-* **Windows Long Path & Shortcut Support:** Full compatibility with deep paths via Windows `\\?\` prefixing and automatic `.lnk` shortcut resolution via `parselnk`.
+* **Blazing-Fast Directory Traversal:** Recursively scans thousands of nested folders in milliseconds using Rust's `walkdir` and multi-pattern regex (`S01E01`, `1x01`, `Ep 01`, etc.).
+* **Windows Long Path & Shortcut Support:** Seamlessly handles deep paths via Windows `\\?\` prefixing and resolves `.lnk` shortcuts using `parselnk`.
 * **Chunked IPC Streaming:** Batches file scans in groups of 50 (`scan-match-batch`) to eliminate memory spikes and prevent UI lockups during massive library scans.
-* **Persistent Triage Inbox:** Unmatched media files are grouped by extracted title into a dedicated staging UI for 1-click matching or manual linking.
+* **Persistent Triage Inbox:** Unmatched files are parsed and grouped by extracted title into a dedicated triage inbox for 1-click matching or manual linking.
 
-### 🛡️ Local-First SQLite Engine & Data Safety
+### 🛡️ Local-First SQLite Engine & Data Integrity
 * **ACID Relational Storage:** Managed with `rusqlite` in Write-Ahead Logging mode (`PRAGMA journal_mode = WAL;`, `PRAGMA synchronous = NORMAL;`, `PRAGMA foreign_keys = ON;`).
 * **Evolutionary Migration System:** Safe `ALTER TABLE` transactional migrations update database structures without data loss.
 * **Atomic Backup & Restore:** In-app one-click database backups with SHA-256 checksum verification, automated 3-backup rolling retention, and safe restore routines.
-* **Database Maintenance:** Built-in SQLite `VACUUM` and `PRAGMA optimize` tools to keep database queries instantaneous.
-* **OS Keyring Integration:** Stores TMDB API keys securely in the Windows Credential Manager, macOS Keychain, or Linux Secret Service, with fallback support for `TMDB_API_KEY` environment variables.
+* **Database Maintenance:** Built-in SQLite `VACUUM` and `PRAGMA optimize` maintenance tools to keep database queries instantaneous.
+* **OS Keyring Integration:** Stores TMDB API keys securely in the Windows Credential Manager, macOS Keychain, or Linux Secret Service.
 
 ---
 
@@ -121,9 +206,9 @@ graph TD
     Protocols -->|Range Video Streaming| Disk
 ```
 
-### Technology Matrix & Rationale
+### Technology Matrix & Architectural Rationale
 
-| Layer | Technology | Why This Choice? |
+| Layer | Technology | Architectural Rationale |
 | :--- | :--- | :--- |
 | **Desktop Shell** | **Tauri v2.10** | Replaced Electron to eliminate ~200MB of Chromium idle bloat; gives native OS windowing, custom protocols, and small executable sizes. |
 | **Backend Core** | **Rust 2021 + Tokio** | Guarantees thread-safety and memory safety; Tokio provides asynchronous event loops for VLC HTTP polling without blocking the UI. |
@@ -132,31 +217,6 @@ graph TD
 | **Database** | **SQLite (rusqlite) + WAL** | Local-first ACID persistence; Write-Ahead Logging allows concurrent read operations while writes execute safely. |
 | **State Management**| **Zustand 5** | Lightweight, boilerplate-free state management for reactive UI updates and task notifications. |
 | **Security** | **OS Keyring (`keyring-rs`)** | Secure storage of API keys inside native OS credential vaults (Windows Credential Manager / macOS Keychain). |
-
----
-
-## 🧠 Technical Challenges & Lessons Learned
-
-As a student project, WatchMark was designed to tackle real engineering constraints:
-
-### 1. Diagnosing a 70.3% GPU Compositor Bottleneck in WebView2
-* **The Problem:** In initial builds, running the app on Windows with Cinema Mode enabled caused the WebView2 GPU Process to consume **70.3% GPU utilization** while sitting idle on the Dashboard.
-* **The Root Cause:** Profiling revealed an infinite 30-second CSS Ken Burns scale animation (`[1, 1.15, 1]`) running on the 4K backdrop image in `SafeImage.tsx`. Because this image was scaling continuously behind elements with CSS `backdrop-filter: blur(...)` and gradient overlays, Chromium's compositor was forced to re-rasterize Gaussian blur convolution passes on every single frame refresh (144Hz).
-* **The Fix:** Replaced the infinite scale loop with a hardware-accelerated static fade-in. Once loaded, the scale locks at `1.0`. Static high-contrast neon accents replaced infinite `animate-pulse` tags.
-* **The Result:** **Idle GPU utilization dropped from 70.3% to 0.0% – 1.0%.**
-
-### 2. Zero-CPU Subprocess Supervision
-* **The Problem:** Polling VLC's HTTP interface using standard blocking loops or naive `std::thread::sleep` wastes CPU cycles and drains laptop battery.
-* **The Solution:** Implemented an asynchronous child process supervisor in `vlc.rs` using `tokio::process::Command` and `tokio::select!`. WatchMark dynamically probes local ports (`8080..8090`) to avoid conflicts, generates a one-time cryptographic password, and polls VLC over non-blocking HTTP streams.
-* **The Result:** **0.0% background CPU consumption** during media playback.
-
-### 3. DOM Virtualization for 1,000+ Poster Collections
-* **The Problem:** Rendering hundreds of high-resolution media posters with titles and hover states caused initial DOM mount lag and excessive RAM consumption.
-* **The Solution:** Engineered `VirtualPoster.tsx` using the `IntersectionObserver` API. Poster elements outside the active viewport unmount their heavy DOM nodes and render lightweight placeholders until scrolled into view.
-* **The Result:** Memory usage remains $<50\text{MB}$ across 1,000+ titles with constant 60 FPS scrolling.
-
-### 4. Human-in-the-Loop AI Orchestration & Compiler Verification
-* **The Methodology:** Developed the project using an autonomous AI pairing framework governed by an explicit Standard Operating Procedure ([`AGENTS.md`](AGENTS.md)). Rather than relying on fragile manual testing, every task was gated by **compiler-level static analysis** (`cargo check` and `tsc`). Rust's affine type system and TypeScript's strict mode served as deterministic verifiers against regressions.
 
 ---
 
@@ -213,19 +273,9 @@ The compiled release packages are output to:
 
 ---
 
-## 🚀 Quick Walkthrough
-
-1. **Initial Setup:** Open **Settings (⚙️)** $\rightarrow$ enter your **TMDb API Key** $\rightarrow$ verify your **VLC Path** (auto-detected).
-2. **Add Shows & Movies:** Click **Search (🔍)** $\rightarrow$ search any title (e.g. *Severance* or *Dune*) $\rightarrow$ click **+ Add to Tracker**. Metadata, seasons, and posters are saved to your local database.
-3. **Scan Local Media:** Go to the **Inbox** tab $\rightarrow$ click **Scan Directory** (or `Ctrl+Shift+S`) $\rightarrow$ select your media folder. WatchMark parses season/episode numbers and links matching video files.
-4. **Resolve Unmatched Files:** Any oddly-named files appear in the **Inbox** grouped by parsed title. Click **Assign to Existing Show** to link them with 1 click.
-5. **Watch & Track:** Click **▶ Play** on any episode. WatchMark launches VLC at your exact resume position. When you exit, your progress, completion ratio, and binge history update automatically!
-
----
-
 ## 🗺️ Project Status & Roadmap
 
-WatchMark uses native **GitHub Milestones and Issues** to track upcoming features:
+WatchMark uses native **GitHub Milestones and Issues** to track upcoming work:
 
 | Version | Focus Area | Status |
 | :--- | :--- | :--- |
@@ -238,15 +288,6 @@ WatchMark uses native **GitHub Milestones and Issues** to track upcoming feature
 | **v2.0.0** | Ambient Chromatic Cinema UI & Universal Command Palette (`Ctrl+K`) | 🔮 Future |
 
 For detailed breakdowns, see [**ROADMAP.md**](ROADMAP.md) and the [**GitHub Milestones**](https://github.com/Headhunte-121/timestampet/milestones).
-
----
-
-## 🤝 Contributing & Feedback
-
-Contributions, feedback, and suggestions from fellow students and developers are warmly welcomed!
-* Found a bug? Open a [Bug Report](.github/ISSUE_TEMPLATE/bug_report.md).
-* Have an idea? Submit a [Feature Request](.github/ISSUE_TEMPLATE/feature_request.md).
-* Want to contribute code? Check out [**CONTRIBUTING.md**](CONTRIBUTING.md) for PR guidelines and architectural standards.
 
 ---
 
@@ -272,5 +313,5 @@ This project is open-source software licensed under the **MIT License** — see 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ as an open-source student engineering project using Tauri 2.0, Rust, React, and VLC.</sub>
+  <sub>WatchMark Media Tracker • An Open-Source AI Orchestration & Systems Engineering Project</sub>
 </div>
